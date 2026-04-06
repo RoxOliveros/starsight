@@ -1,122 +1,264 @@
 import 'package:flutter/material.dart';
+import 'package:starsight/signup_signin.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const App());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
+class App extends StatelessWidget {
+  const App();
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: SplashScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
+  // Logo
+  late final AnimationController _logoController;
+  late final Animation<double> _logoScale;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  // Star pop + wiggle
+  late final AnimationController _starPopController;
+  late final Animation<double> _starScale;
+
+  late final AnimationController _wiggleController;
+  late final Animation<double> _wiggle;
+
+  // Star fly to bunny
+  late final AnimationController _flyController;
+  late final Animation<Offset> _flyOffset;
+  late final Animation<double> _starFade;
+
+  // Bunny
+  late final AnimationController _bunnyController;
+  late final Animation<double> _bunnyFade;
+
+  // Track star visibility
+  bool _showStar = false;
+  bool _showBunny = false;
+
+  // GlobalKey to find the star's position on screen
+  final GlobalKey _starKey = GlobalKey();
+  Offset _flyTarget = Offset.zero; // where the star flies to (bunny center)
+
+  @override
+  void initState() {
+    super.initState();
+
+    _logoController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _logoScale = CurvedAnimation(
+      parent: _logoController,
+      curve: Curves.elasticOut,
+    );
+
+    _starPopController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _starScale = CurvedAnimation(
+      parent: _starPopController,
+      curve: Curves.elasticOut,
+    );
+
+    _wiggleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 80),
+    );
+    _wiggle = Tween<double>(begin: -0.15, end: 0.15).animate(
+      CurvedAnimation(parent: _wiggleController, curve: Curves.easeInOut),
+    );
+
+    _flyController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _flyOffset = Tween<Offset>(
+      begin: Offset.zero,
+      end: Offset.zero, // updated dynamically before flying
+    ).animate(CurvedAnimation(parent: _flyController, curve: Curves.easeInOut));
+    _starFade = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _flyController,
+        curve: const Interval(0.7, 1.0),
+      ),
+    );
+
+    _bunnyController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _bunnyFade = CurvedAnimation(
+      parent: _bunnyController,
+      curve: Curves.easeIn,
+    );
+
+    _startSequence();
+  }
+
+  Future<void> _startSequence() async {
+    // 1. Logo pops in
+    await Future.delayed(const Duration(milliseconds: 300));
+    await _logoController.forward();
+
+    // 2. Star pops in on the "i"
+    await Future.delayed(const Duration(milliseconds: 200));
+    setState(() => _showStar = true);
+    await _starPopController.forward();
+
+    // 3. Star wiggles (repeat back and forth a few times)
+    for (int i = 0; i < 4; i++) {
+      await _wiggleController.forward();
+      await _wiggleController.reverse();
+    }
+
+    // 4. Calculate fly target (center of where bunny will appear)
+    final RenderBox? starBox =
+    _starKey.currentContext?.findRenderObject() as RenderBox?;
+    final screenSize = MediaQuery.of(context).size;
+    // Bunny will be centered at ~65% down the screen
+    final bunnyCenter = Offset(screenSize.width / 2, screenSize.height * 0.65);
+
+    if (starBox != null) {
+      final starPos = starBox.localToGlobal(
+        Offset(starBox.size.width / 2, starBox.size.height / 2),
+      );
+      _flyTarget = bunnyCenter - starPos;
+    }
+
+    // Rebuild with updated fly target
+    setState(() {});
+
+    // 5. Star flies to bunny
+    await _flyController.forward();
+
+    // 6. Bunny fades in
+    setState(() => _showBunny = true);
+    await _bunnyController.forward();
+
+    // 7. Navigate
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 500),
+          pageBuilder: (_, __, ___) => const SignUpSignInScreen(),
+          transitionsBuilder: (_, anim, __, child) =>
+              FadeTransition(opacity: anim, child: child),
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _logoController.dispose();
+    _starPopController.dispose();
+    _wiggleController.dispose();
+    _flyController.dispose();
+    _bunnyController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      backgroundColor: const Color(0xFFFAF7EB),
+      body: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo + star layered together
+                SizedBox(
+                  width: 260,
+                  height: 160,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // Logo (without star)
+                      ScaleTransition(
+                        scale: _logoScale,
+                        child: Image.asset(
+                          'assets/images/splashScreen/starsight.png',
+                          width: 600,
+                        ),
+                      ),
+
+                      // Star sitting on the "i" — adjust top/left to match your logo
+                      if (_showStar)
+                        Positioned(
+                          top: 10,   // ← adjust to sit on the "i"
+                          left: 118, // ← adjust to sit on the "i"
+                          child: AnimatedBuilder(
+                            animation: Listenable.merge([
+                              _wiggleController,
+                              _flyController,
+                            ]),
+                            builder: (context, child) {
+                              return FadeTransition(
+                                opacity: _starFade,
+                                child: Transform.translate(
+                                  offset: _flyController.isAnimating ||
+                                      _flyController.isCompleted
+                                      ? _flyOffset.value
+                                      : Offset.zero,
+                                  child: Transform.rotate(
+                                    angle: _flyController.isAnimating ||
+                                        _flyController.isCompleted
+                                        ? 0
+                                        : _wiggle.value,
+                                    child: ScaleTransition(
+                                      scale: _starScale,
+                                      child: Image.asset(
+                                        'assets/images/splashScreen/star.png',
+                                        key: _starKey,
+                                        width: 44, // ← match your star size
+                                        height: 39,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                // Bunny fades in where star flew to
+                FadeTransition(
+                  opacity: _bunnyFade,
+                  child: _showBunny
+                      ? Image.asset(
+                    'assets/images/splashScreen/bunnyStar.png',
+                    width: 200,
+                  )
+                      : const SizedBox(width: 200, height: 200),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
