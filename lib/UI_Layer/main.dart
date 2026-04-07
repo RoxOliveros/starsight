@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:starsight/signup_signin.dart';
+import 'package:starsight/UI_Layer/signup_signin.dart';
 
 void main() {
   runApp(const App());
@@ -7,6 +7,7 @@ void main() {
 
 class App extends StatelessWidget {
   const App();
+
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
@@ -38,8 +39,12 @@ class _SplashScreenState extends State<SplashScreen>
 
   // Star fly to bunny
   late final AnimationController _flyController;
-  late final Animation<Offset> _flyOffset;
+  late Animation<Offset> _flyOffset;
   late final Animation<double> _starFade;
+
+  //loading bar
+  late final AnimationController _loadingController;
+  late final Animation<double> _loadingAnimation;
 
   // Bunny
   late final AnimationController _bunnyController;
@@ -51,7 +56,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   // GlobalKey to find the star's position on screen
   final GlobalKey _starKey = GlobalKey();
-  Offset _flyTarget = Offset.zero; // where the star flies to (bunny center)
+  final GlobalKey _bunnyKey = GlobalKey();
 
   @override
   void initState() {
@@ -92,10 +97,7 @@ class _SplashScreenState extends State<SplashScreen>
       end: Offset.zero, // updated dynamically before flying
     ).animate(CurvedAnimation(parent: _flyController, curve: Curves.easeInOut));
     _starFade = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _flyController,
-        curve: const Interval(0.7, 1.0),
-      ),
+      CurvedAnimation(parent: _flyController, curve: const Interval(0.7, 1.0)),
     );
 
     _bunnyController = AnimationController(
@@ -105,6 +107,14 @@ class _SplashScreenState extends State<SplashScreen>
     _bunnyFade = CurvedAnimation(
       parent: _bunnyController,
       curve: Curves.easeIn,
+    );
+
+    _loadingController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+    _loadingAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _loadingController, curve: Curves.easeInOut),
     );
 
     _startSequence();
@@ -128,17 +138,29 @@ class _SplashScreenState extends State<SplashScreen>
 
     // 4. Calculate fly target (center of where bunny will appear)
     final RenderBox? starBox =
-    _starKey.currentContext?.findRenderObject() as RenderBox?;
+        _starKey.currentContext?.findRenderObject() as RenderBox?;
     final screenSize = MediaQuery.of(context).size;
-    // Bunny will be centered at ~65% down the screen
-    final bunnyCenter = Offset(screenSize.width / 2, screenSize.height * 0.65);
+    // Target the left edge of the loading bar (where bunny starts)
+    final barLeft = screenSize.width * 0.10; // matches 80% width bar centered
+    final barTarget = Offset(barLeft + 40, screenSize.height * 0.68);
 
     if (starBox != null) {
       final starPos = starBox.localToGlobal(
         Offset(starBox.size.width / 2, starBox.size.height / 2),
       );
-      _flyTarget = bunnyCenter - starPos;
+      (_flyOffset as dynamic); // just to reference it
+      final newFlyOffset = barTarget - starPos;
+
+      // Re-initialize fly offset with correct target
+      _flyController.reset();
+      final tween = Tween<Offset>(begin: Offset.zero, end: newFlyOffset);
+      _flyOffset = tween.animate(
+        CurvedAnimation(parent: _flyController, curve: Curves.easeInOut),
+      );
     }
+
+    setState(() {});
+    await _flyController.forward();
 
     // Rebuild with updated fly target
     setState(() {});
@@ -146,12 +168,13 @@ class _SplashScreenState extends State<SplashScreen>
     // 5. Star flies to bunny
     await _flyController.forward();
 
-    // 6. Bunny fades in
+    // 6. Bunny fades in + loading bar starts
     setState(() => _showBunny = true);
     await _bunnyController.forward();
+    await _loadingController.forward(); // loading bar fills up
 
-    // 7. Navigate
-    await Future.delayed(const Duration(milliseconds: 800));
+    // 7. Navigate (after loading completes)
+    await Future.delayed(const Duration(milliseconds: 200));
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -171,23 +194,28 @@ class _SplashScreenState extends State<SplashScreen>
     _wiggleController.dispose();
     _flyController.dispose();
     _bunnyController.dispose();
+    _loadingController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7EB),
       body: Stack(
         children: [
           Center(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                SizedBox(height: MediaQuery.of(context).size.height * 0.18),
                 // Logo + star layered together
                 SizedBox(
-                  width: 260,
-                  height: 160,
+                  width: screenWidth * 0.85,
+                  height: screenHeight * 0.22,
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
@@ -196,15 +224,16 @@ class _SplashScreenState extends State<SplashScreen>
                         scale: _logoScale,
                         child: Image.asset(
                           'assets/images/splashScreen/starsight.png',
-                          width: 600,
+                          width: 380,
+                          fit: BoxFit.fitWidth,
                         ),
                       ),
 
                       // Star sitting on the "i" — adjust top/left to match your logo
                       if (_showStar)
                         Positioned(
-                          top: 10,   // ← adjust to sit on the "i"
-                          left: 118, // ← adjust to sit on the "i"
+                          top: screenHeight * 0.055,
+                          left: screenWidth * 0.48,
                           child: AnimatedBuilder(
                             animation: Listenable.merge([
                               _wiggleController,
@@ -214,13 +243,15 @@ class _SplashScreenState extends State<SplashScreen>
                               return FadeTransition(
                                 opacity: _starFade,
                                 child: Transform.translate(
-                                  offset: _flyController.isAnimating ||
-                                      _flyController.isCompleted
+                                  offset:
+                                      _flyController.isAnimating ||
+                                          _flyController.isCompleted
                                       ? _flyOffset.value
                                       : Offset.zero,
                                   child: Transform.rotate(
-                                    angle: _flyController.isAnimating ||
-                                        _flyController.isCompleted
+                                    angle:
+                                        _flyController.isAnimating ||
+                                            _flyController.isCompleted
                                         ? 0
                                         : _wiggle.value,
                                     child: ScaleTransition(
@@ -248,10 +279,68 @@ class _SplashScreenState extends State<SplashScreen>
                 FadeTransition(
                   opacity: _bunnyFade,
                   child: _showBunny
-                      ? Image.asset(
-                    'assets/images/splashScreen/bunnyStar.png',
-                    width: 200,
-                  )
+                      ? Column(
+                          children: [
+                            // Loading bar
+                            SizedBox(
+                              width: screenWidth * 0.80,
+                              height: screenHeight * 0.18,
+                              child: AnimatedBuilder(
+                                animation: _loadingAnimation,
+                                builder: (context, child) {
+                                  return Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      // Background track
+                                      Align(
+                                        alignment: Alignment.bottomCenter,
+                                        child: Container(
+                                          height: 30,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFE8DFC8),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      // Fill
+                                      Align(
+                                        alignment: Alignment.bottomLeft,
+                                        child: FractionallySizedBox(
+                                          widthFactor: _loadingAnimation.value,
+                                          child: Container(
+                                            height: 30,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFFA726),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      // Bunny
+                                      Positioned(
+                                        left:
+                                            (_loadingAnimation.value *
+                                                screenWidth *
+                                                0.70) -
+                                            65,
+                                        bottom: -30,
+                                        child: Image.asset(
+                                          'assets/images/splashScreen/bunnyStar.png',
+                                          key: _bunnyKey,
+                                          width: 160,
+                                          height: 160,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        )
                       : const SizedBox(width: 200, height: 200),
                 ),
               ],
