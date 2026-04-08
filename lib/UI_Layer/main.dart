@@ -57,6 +57,7 @@ class _SplashScreenState extends State<SplashScreen>
   // GlobalKey to find the star's position on screen
   final GlobalKey _starKey = GlobalKey();
   final GlobalKey _bunnyKey = GlobalKey();
+  final GlobalKey _loadingBarKey = GlobalKey();
 
   @override
   void initState() {
@@ -140,9 +141,19 @@ class _SplashScreenState extends State<SplashScreen>
     final RenderBox? starBox =
         _starKey.currentContext?.findRenderObject() as RenderBox?;
     final screenSize = MediaQuery.of(context).size;
-    // Target the left edge of the loading bar (where bunny starts)
-    final barLeft = screenSize.width * 0.10; // matches 80% width bar centered
-    final barTarget = Offset(barLeft + 40, screenSize.height * 0.68);
+
+    // Show the bunny/bar early (invisible) so the key is mounted
+    setState(() => _showBunny = true);
+    await Future.delayed(const Duration(milliseconds: 50)); // let it render
+
+    final RenderBox? barBox =
+        _loadingBarKey.currentContext?.findRenderObject() as RenderBox?;
+    final barTarget = barBox != null
+        ? barBox.localToGlobal(Offset(0, barBox.size.height / 2))
+        : Offset(screenSize.width * 0.12, screenSize.height * 0.62); // fallback
+
+    // Then hide it again until the star arrives:
+    setState(() => _showBunny = false);
 
     if (starBox != null) {
       final starPos = starBox.localToGlobal(
@@ -159,10 +170,6 @@ class _SplashScreenState extends State<SplashScreen>
       );
     }
 
-    setState(() {});
-    await _flyController.forward();
-
-    // Rebuild with updated fly target
     setState(() {});
 
     // 5. Star flies to bunny
@@ -199,9 +206,11 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7EB),
       body: Stack(
@@ -211,65 +220,86 @@ class _SplashScreenState extends State<SplashScreen>
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                SizedBox(height: MediaQuery.of(context).size.height * 0.18),
+                SizedBox(height: screenHeight * 0.18),
+
                 // Logo + star layered together
                 SizedBox(
-                  width: screenWidth * 0.85,
-                  height: screenHeight * 0.22,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Logo (without star)
-                      ScaleTransition(
-                        scale: _logoScale,
-                        child: Image.asset(
-                          'assets/images/splashScreen/starsight.png',
-                          width: 380,
-                          fit: BoxFit.fitWidth,
-                        ),
-                      ),
+                  width: screenWidth * 0.75,
+                  child: AspectRatio(
+                    aspectRatio: 1.96,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final logoW = constraints.maxWidth;
+                        final logoH = logoW / 1.96; // matches aspectRatio: 3
 
-                      // Star sitting on the "i" — adjust top/left to match your logo
-                      if (_showStar)
-                        Positioned(
-                          top: screenHeight * 0.055,
-                          left: screenWidth * 0.48,
-                          child: AnimatedBuilder(
-                            animation: Listenable.merge([
-                              _wiggleController,
-                              _flyController,
-                            ]),
-                            builder: (context, child) {
-                              return FadeTransition(
-                                opacity: _starFade,
-                                child: Transform.translate(
-                                  offset:
-                                      _flyController.isAnimating ||
-                                          _flyController.isCompleted
-                                      ? _flyOffset.value
-                                      : Offset.zero,
-                                  child: Transform.rotate(
-                                    angle:
-                                        _flyController.isAnimating ||
-                                            _flyController.isCompleted
-                                        ? 0
-                                        : _wiggle.value,
-                                    child: ScaleTransition(
-                                      scale: _starScale,
-                                      child: Image.asset(
-                                        'assets/images/splashScreen/star.png',
-                                        key: _starKey,
-                                        width: 44, // ← match your star size
-                                        height: 39,
-                                      ),
-                                    ),
-                                  ),
+                        // Tune these two values to pin the star on your "i" dot
+                        final starX =
+                            logoW * 0.63; // 0.0 = left edge, 1.0 = right edge
+                        final starY =
+                            logoH * 0.52; // 0.0 = top edge, 1.0 = bottom edge
+
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            // Logo
+                            Align(
+                              alignment: Alignment.center,
+                              child: ScaleTransition(
+                                scale: _logoScale,
+                                child: Image.asset(
+                                  'assets/images/splashScreen/starsight.png',
+                                  width: screenWidth * 0.75,
+                                  fit: BoxFit.fitWidth,
                                 ),
-                              );
-                            },
-                          ),
-                        ),
-                    ],
+                              ),
+                            ),
+
+                            // Star pinned relative to logo size
+                            if (_showStar)
+                              Positioned(
+                                left: starX - 22,
+                                // 22 = half of star width (44/2)
+                                top: starY - 19,
+                                // 19 = half of star height (39/2)
+                                child: AnimatedBuilder(
+                                  animation: Listenable.merge([
+                                    _wiggleController,
+                                    _flyController,
+                                  ]),
+                                  builder: (context, child) {
+                                    return FadeTransition(
+                                      opacity: _starFade,
+                                      child: Transform.translate(
+                                        offset:
+                                            _flyController.isAnimating ||
+                                                _flyController.isCompleted
+                                            ? _flyOffset.value
+                                            : Offset.zero,
+                                        child: Transform.rotate(
+                                          angle:
+                                              _flyController.isAnimating ||
+                                                  _flyController.isCompleted
+                                              ? 0
+                                              : _wiggle.value,
+                                          child: ScaleTransition(
+                                            scale: _starScale,
+                                            child: Image.asset(
+                                              'assets/images/splashScreen/star.png',
+                                              key: _starKey,
+                                              width: 44,
+                                              height: 39,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
 
@@ -281,63 +311,71 @@ class _SplashScreenState extends State<SplashScreen>
                   child: _showBunny
                       ? Column(
                           children: [
-                            // Loading bar
                             SizedBox(
                               width: screenWidth * 0.80,
-                              height: screenHeight * 0.18,
-                              child: AnimatedBuilder(
-                                animation: _loadingAnimation,
-                                builder: (context, child) {
-                                  return Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      // Background track
-                                      Align(
-                                        alignment: Alignment.bottomCenter,
-                                        child: Container(
-                                          height: 30,
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFE8DFC8),
-                                            borderRadius: BorderRadius.circular(
-                                              10,
+                              height: screenHeight * 0.18 < 160 ? 160 : screenHeight * 0.18,
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final barWidth = constraints.maxWidth;
+                                  const double bunnyAspectRatio = 108 / 149;
+                                  final double bunnyHeight = screenHeight * 0.20;
+                                  final double bunnyWidth = bunnyHeight * bunnyAspectRatio;
+
+                                  return AnimatedBuilder(
+                                    animation: _loadingAnimation,
+                                    builder: (context, child) {
+                                      return Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          // Background track
+                                          Align(
+                                            alignment: Alignment.bottomCenter,
+                                            child: Container(
+                                              key: _loadingBarKey,
+                                              height: 30,
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFE8DFC8),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ),
-                                      // Fill
-                                      Align(
-                                        alignment: Alignment.bottomLeft,
-                                        child: FractionallySizedBox(
-                                          widthFactor: _loadingAnimation.value,
-                                          child: Container(
-                                            height: 30,
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFFFA726),
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
+                                          // Fill
+                                          Align(
+                                            alignment: Alignment.bottomLeft,
+                                            child: FractionallySizedBox(
+                                              widthFactor:
+                                                  _loadingAnimation.value,
+                                              child: Container(
+                                                height: 30,
+                                                decoration: BoxDecoration(
+                                                  color: const Color(
+                                                    0xFFFFA726,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ),
-                                      // Bunny
-                                      Positioned(
-                                        left:
-                                            (_loadingAnimation.value *
-                                                screenWidth *
-                                                0.70) -
-                                            65,
-                                        bottom: -30,
-                                        child: Image.asset(
-                                          'assets/images/splashScreen/bunnyStar.png',
-                                          key: _bunnyKey,
-                                          width: 160,
-                                          height: 160,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
+                                          // Bunny
+                                          Positioned(
+                                            //left: _loadingAnimation.value * (barWidth - bunnyWidth) - (bunnyWidth * 0.35),
+                                            left: -bunnyWidth * 0.35 + _loadingAnimation.value * (barWidth - bunnyWidth + bunnyWidth * 0.35),
+                                            bottom: -bunnyHeight * 0.20,
+                                            child: Image.asset(
+                                              'assets/images/splashScreen/bunnystar.png',
+                                              key: _bunnyKey,
+                                              height: screenHeight * 0.20,
+                                              fit: BoxFit.contain,
+                                            ),
+                                          ),
+                                        ],
+                                      ); // Stack
+                                    }, // AnimatedBuilder builder
+                                  ); // AnimatedBuilder
+                                }, // LayoutBuilder builder
+                              ), // LayoutBuilder
                             ),
                           ],
                         )
