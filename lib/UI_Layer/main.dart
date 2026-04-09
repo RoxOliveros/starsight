@@ -225,81 +225,78 @@ class _SplashScreenState extends State<SplashScreen>
                 // Logo + star layered together
                 SizedBox(
                   width: screenWidth * 0.75,
-                  child: AspectRatio(
-                    aspectRatio: 1.96,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final logoW = constraints.maxWidth;
-                        final logoH = logoW / 1.96; // matches aspectRatio: 3
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final logoW = constraints.maxWidth;
+                      final logoH = logoW / (1500 / 805);
 
-                        // Tune these two values to pin the star on your "i" dot
-                        final starX =
-                            logoW * 0.63; // 0.0 = left edge, 1.0 = right edge
-                        final starY =
-                            logoH * 0.52; // 0.0 = top edge, 1.0 = bottom edge
+                      // Tune these two values to pin the star on your "i" dot
+                      final starX =
+                          logoW * 0.63; // 0.0 = left edge, 1.0 = right edge
+                      final starY =
+                          logoH * 0.45; // 0.0 = top edge, 1.0 = bottom edge
 
-                        return Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            // Logo
-                            Align(
-                              alignment: Alignment.center,
-                              child: ScaleTransition(
-                                scale: _logoScale,
-                                child: Image.asset(
-                                  'assets/images/splashScreen/starsight.png',
-                                  width: screenWidth * 0.75,
-                                  fit: BoxFit.fitWidth,
-                                ),
-                              ),
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Logo
+                          Align(
+                            alignment: Alignment.center,
+                            child: ScaleTransition(
+                              scale: _logoScale,
+                              child: Image.asset(
+                                'assets/gifs/splashScreen/starsight.gif',
+                                width: screenWidth * 0.75,
+                                fit: BoxFit.contain,
+                              )
                             ),
+                          ),
 
-                            // Star pinned relative to logo size
-                            if (_showStar)
-                              Positioned(
-                                left: starX - 22,
-                                // 22 = half of star width (44/2)
-                                top: starY - 19,
-                                // 19 = half of star height (39/2)
-                                child: AnimatedBuilder(
-                                  animation: Listenable.merge([
-                                    _wiggleController,
-                                    _flyController,
-                                  ]),
-                                  builder: (context, child) {
-                                    return FadeTransition(
-                                      opacity: _starFade,
-                                      child: Transform.translate(
-                                        offset:
+                          // Star pinned relative to logo size
+                          if (_showStar)
+                            Positioned(
+                              left: starX - 22,
+                              // 22 = half of star width (44/2)
+                              top: starY - 19,
+                              // 19 = half of star height (39/2)
+                              child: AnimatedBuilder(
+                                animation: Listenable.merge([
+                                  _wiggleController,
+                                  _flyController,
+                                ]),
+                                builder: (context, child) {
+                                  return FadeTransition(
+                                    opacity: _starFade,
+                                    child: Transform.translate(
+                                      offset:
+                                          _flyController.isAnimating ||
+                                              _flyController.isCompleted
+                                          ? _flyOffset.value
+                                          : Offset.zero,
+                                      child: Transform.rotate(
+                                        angle:
                                             _flyController.isAnimating ||
                                                 _flyController.isCompleted
-                                            ? _flyOffset.value
-                                            : Offset.zero,
-                                        child: Transform.rotate(
-                                          angle:
-                                              _flyController.isAnimating ||
-                                                  _flyController.isCompleted
-                                              ? 0
-                                              : _wiggle.value,
-                                          child: ScaleTransition(
-                                            scale: _starScale,
-                                            child: Image.asset(
-                                              'assets/images/splashScreen/star.png',
-                                              key: _starKey,
-                                              width: 44,
-                                              height: 39,
-                                            ),
+                                            ? 0
+                                            : _wiggle.value,
+                                        child: ScaleTransition(
+                                          scale: _starScale,
+                                          child: Image.asset(
+                                            'assets/images/splashScreen/star.png',
+                                            key: _starKey,
+                                            width: 44,
+                                            height: 39,
                                           ),
                                         ),
                                       ),
-                                    );
-                                  },
-                                ),
+                                    ),
+                                  );
+                                },
                               ),
-                          ],
-                        );
-                      },
-                    ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ),
 
@@ -313,13 +310,17 @@ class _SplashScreenState extends State<SplashScreen>
                           children: [
                             SizedBox(
                               width: screenWidth * 0.80,
-                              height: screenHeight * 0.18 < 160 ? 160 : screenHeight * 0.18,
+                              height: screenHeight * 0.18 < 160
+                                  ? 160
+                                  : screenHeight * 0.18,
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
                                   final barWidth = constraints.maxWidth;
                                   const double bunnyAspectRatio = 108 / 149;
-                                  final double bunnyHeight = screenHeight * 0.20;
-                                  final double bunnyWidth = bunnyHeight * bunnyAspectRatio;
+                                  final double bunnyHeight =
+                                      screenHeight * 0.20;
+                                  final double bunnyWidth =
+                                      bunnyHeight * bunnyAspectRatio;
 
                                   return AnimatedBuilder(
                                     animation: _loadingAnimation,
@@ -361,7 +362,12 @@ class _SplashScreenState extends State<SplashScreen>
                                           // Bunny
                                           Positioned(
                                             //left: _loadingAnimation.value * (barWidth - bunnyWidth) - (bunnyWidth * 0.35),
-                                            left: -bunnyWidth * 0.35 + _loadingAnimation.value * (barWidth - bunnyWidth + bunnyWidth * 0.35),
+                                            left:
+                                                -bunnyWidth * 0.35 +
+                                                _loadingAnimation.value *
+                                                    (barWidth -
+                                                        bunnyWidth +
+                                                        bunnyWidth * 0.35),
                                             bottom: -bunnyHeight * 0.20,
                                             child: Image.asset(
                                               'assets/images/splashScreen/bunnystar.png',

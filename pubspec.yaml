@@ -46,7 +46,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/splashScreen/starsight.png"
+  image_path: "assets/gifs/splashScreen/starsight.gif"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -69,6 +69,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/gifs/SignUp_SignIn/
+    - assets/gifs/splashScreen/
     - assets/images/splashScreen/
 
   # An image asset can refer to one or more resolution-specific "variants", see
