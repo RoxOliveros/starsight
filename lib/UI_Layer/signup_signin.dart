@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'Parent_Age_Verification.dart';
+
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
   static const Color deepNavyBlue = Color(0xFF5F7199);
@@ -95,7 +97,7 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                 child: Align(
                   alignment: Alignment.topCenter,
                   child: Image.asset(
-                    'assets/gifs/SignUp_SignIn/cloud.gif',
+                    'assets/gifs/white_cloud.gif',
                     fit: BoxFit.fitWidth,
                   ),
                 ),
@@ -125,7 +127,14 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                       label: 'SIGN UP',
                       backgroundColor: ColorTheme.deepNavyBlue,
                       textColor: ColorTheme.cream,
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => ParentAgeVerification(),
+                            ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
 
@@ -133,7 +142,9 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                       label: 'SIGN IN',
                       textColor: ColorTheme.deepNavyBlue,
                       borderColor: ColorTheme.deepNavyBlue,
-                      onTap: () {},
+                      onTap: () {
+                        // TODO: navigate to signin
+                      },
                     ),
                     const SizedBox(height: 18),
 
@@ -167,7 +178,7 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: Image.asset(
-                    'assets/gifs/SignUp_SignIn/peeking_penguin.gif',
+                    'assets/gifs/peeking_penguin.gif',
                     fit: BoxFit.fitWidth,
                   ),
                 ),
@@ -205,7 +216,7 @@ class _PrimaryButton extends StatelessWidget {
           backgroundColor: backgroundColor,
           foregroundColor: textColor,
           elevation: 3,
-          shadowColor: backgroundColor.withOpacity(0.45),
+          shadowColor: backgroundColor.withValues(alpha: 0.45),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppDimensions.buttonRadius),
           ),

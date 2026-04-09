@@ -1,5 +1,5 @@
+import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:flutter/material.dart';
-import 'package:starsight/UI_Layer/signup_signin.dart';
 
 void main() {
   runApp(const App());
@@ -245,7 +245,7 @@ class _SplashScreenState extends State<SplashScreen>
                             child: ScaleTransition(
                               scale: _logoScale,
                               child: Image.asset(
-                                'assets/gifs/splashScreen/starsight.gif',
+                                'assets/gifs/starsight.gif',
                                 width: screenWidth * 0.75,
                                 fit: BoxFit.contain,
                               )
@@ -282,7 +282,7 @@ class _SplashScreenState extends State<SplashScreen>
                                         child: ScaleTransition(
                                           scale: _starScale,
                                           child: Image.asset(
-                                            'assets/images/splashScreen/star.png',
+                                            'assets/images/star.png',
                                             key: _starKey,
                                             width: 44,
                                             height: 39,
@@ -370,7 +370,7 @@ class _SplashScreenState extends State<SplashScreen>
                                                         bunnyWidth * 0.35),
                                             bottom: -bunnyHeight * 0.20,
                                             child: Image.asset(
-                                              'assets/images/splashScreen/bunnystar.png',
+                                              'assets/images/bunnystar.png',
                                               key: _bunnyKey,
                                               height: screenHeight * 0.20,
                                               fit: BoxFit.contain,
