@@ -59,10 +59,11 @@ class _SignUpCodeState extends State<SignUpCode> {
             children: [
               // Penguin asset
               SizedBox(
-                height: screenHeight * 0.50,
+                height: screenHeight * 0.30,
+                width: double.infinity,
                 child: Image.asset(
                   'assets/gifs/penguin_writing_onboard.gif',
-                  fit: BoxFit.contain,
+                  fit: BoxFit.fitHeight,
                 ),
               ),
 
@@ -169,6 +170,7 @@ class _SignUpCodeState extends State<SignUpCode> {
                 style: TextStyle(
                   fontFamily: AppTextStyles.fredoka,
                   fontSize: 13,
+                  fontWeight: FontWeight.w600,
                   color: ColorTheme.deepNavyBlue,
                 ),
               ),
