@@ -1,7 +1,9 @@
+import 'package:StarSight/ui_layer/child_nickname.dart';
 import 'package:flutter/material.dart';
+import '../business_layer/parent_age_verification_business_layer.dart';
+import 'appbar_signup.dart';
 
 abstract class ColorTheme {
-  static const Color lightgray = Color(0xFFFAF7EB);
   static const Color goldenYellow = Color(0xFFFBD481);
   static const Color darkBlue = Color(0xFF5F7199);
   static const Color warmBrown = Color(0xFF5E463E);
@@ -10,7 +12,6 @@ abstract class ColorTheme {
 
 abstract class Fonts {
   static const String fredoka = 'Fredoka';
-  static const String poppins = 'Poppins-Regular';
 }
 
 class ParentAgeVerification extends StatefulWidget {
@@ -22,14 +23,11 @@ class ParentAgeVerification extends StatefulWidget {
 
 class _ParentAgeVerificationState extends State<ParentAgeVerification> {
   final List<String> _digits = [];
-  static const int _maxDigits = 2;
+  static const int _maxDigits = 4;
 
   void _onDigitTap(String digit) {
     if (_digits.length < _maxDigits) {
       setState(() => _digits.add(digit));
-      if (_digits.length == _maxDigits) {
-        _onComplete();
-      }
     }
   }
 
@@ -40,15 +38,31 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
   }
 
   void _onComplete() {
-    final year = int.tryParse(_digits.join());
+    final year = ParentAgeController.parseYear(_digits);
     if (year == null) return;
-    final age = DateTime.now().year - year;
-    if (age >= 18) {
-      // TODO: navigate to parent screen
-      // TODO: save age function
-    } else {
-      // TODO: show error
+
+    if (ParentAgeController.isAdult(year)) {
+      //TODO: save parent age @Ron (though I'm not sure if need pa natin nitong info nila?)
       setState(() => _digits.clear());
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 800),
+          pageBuilder: (context, animation, secondaryAnimation) => ChildNickname(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final tween = Tween(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Curves.easeInOut));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+        ),
+      );
+    } else {
+      // TODO: show error @Ron
     }
   }
 
@@ -167,59 +181,27 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
             right: -100,
             child: Image.asset(
               'assets/gifs/night_cloud_fluffy.gif',
-              width: screenWidth * 0.60,
+              width: screenWidth * 0.65,
               opacity: const AlwaysStoppedAnimation(0.85),
             ),
           ),
           // Bottom-left cloud
           Positioned(
-            bottom: screenHeight * 0,
-            left: -100,
+            bottom: screenHeight * -0.09,
+            left: -130,
             child: Image.asset(
               'assets/gifs/night_cloud.gif',
-              width: screenWidth * 0.60,
+              width: screenWidth * 0.80,
               opacity: const AlwaysStoppedAnimation(0.85),
             ),
           ),
 
-          // TO this:
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ── Top bar: back button + progress bar ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: LinearProgressIndicator(
-                            value: 0.25, // actual progress
-                            minHeight: 10,
-                            backgroundColor: Colors.white.withValues(alpha: 0.25),
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              ColorTheme.goldenYellow,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                AppTopBar(progress: 0.25),
 
                 // ── Rest of your screen ──
                 Expanded(
@@ -267,7 +249,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
 
                         // Input display
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 120),
+                          padding: const EdgeInsets.symmetric(horizontal: 100),
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(
@@ -275,7 +257,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
                               vertical: 12,
                             ),
                             decoration: BoxDecoration(
-                              color: ColorTheme.lightgray.withValues(alpha: 0.39),
+                              color: ColorTheme.cream.withValues(alpha: 0.39),
                               border: Border.all(color: ColorTheme.warmBrown),
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -324,7 +306,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
 
                         // Bottom sign in link
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 24),
+                          padding: const EdgeInsets.only(bottom: 30),
                           child: GestureDetector(
                             onTap: () {
                               // TODO: navigate to sign in

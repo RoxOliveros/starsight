@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'Parent_Age_Verification.dart';
+import 'parent_age_verification.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
