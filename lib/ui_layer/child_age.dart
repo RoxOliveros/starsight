@@ -87,7 +87,7 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
         pageBuilder: (context, animation, secondaryAnimation) =>
-            ChildGoal(nickname: "???"), //TODO: fetch child nickname @Ron
+            ChildGoal(nickname: widget.nickname),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final tween = Tween(
             begin: const Offset(0, 1),

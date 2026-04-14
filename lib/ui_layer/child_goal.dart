@@ -1,3 +1,4 @@
+import 'package:StarSight/ui_layer/signup_account.dart';
 import 'package:flutter/material.dart';
 import 'appbar_signup.dart';
 
@@ -34,7 +35,23 @@ class _ChildGoalState extends State<ChildGoal> {
 
   void _onNext() {
     //TODO: save child goals @Ron
-    //TODO: navigate to sign up
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 800),
+        pageBuilder: (context, animation, secondaryAnimation) => SignUpAccount(nickname: widget.nickname),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final tween = Tween(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeInOut));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   @override

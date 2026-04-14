@@ -33,8 +33,7 @@ class _ChildNickname extends State<ChildNickname> {
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
-        pageBuilder: (context, animation, secondaryAnimation) => ChildAge(nickname: "???",),
-        //TODO: fetch child nickname @Ron
+        pageBuilder: (context, animation, secondaryAnimation) => ChildAge(nickname: nickname,),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final tween = Tween(
             begin: const Offset(0, 1),

@@ -62,7 +62,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
         ),
       );
     } else {
-      // TODO: show error @Ron
+      // TODO: show error
     }
   }
 
