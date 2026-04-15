@@ -1,4 +1,5 @@
 import 'package:StarSight/ui_layer/child_nickname.dart';
+import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import '../business_layer/parent_age_verification_business_layer.dart';
 import 'appbar_signup.dart';
@@ -309,7 +310,12 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
                           padding: const EdgeInsets.only(bottom: 30),
                           child: GestureDetector(
                             onTap: () {
-                              // TODO: navigate to sign in
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SignInAccount(),
+                                ),
+                              );
                             },
                             child: RichText(
                               text: const TextSpan(

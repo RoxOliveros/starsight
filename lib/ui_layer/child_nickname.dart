@@ -1,3 +1,4 @@
+import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 
 import 'appbar_signup.dart';
@@ -268,7 +269,12 @@ class _ChildNickname extends State<ChildNickname> {
                           padding: const EdgeInsets.only(bottom: 30),
                           child: GestureDetector(
                             onTap: () {
-                              // TODO: navigate to sign in
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SignInAccount(),
+                                ),
+                              );
                             },
                             child: RichText(
                               text: const TextSpan(

@@ -1,4 +1,5 @@
 import 'package:StarSight/ui_layer/child_goal.dart';
+import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'appbar_signup.dart';
 
@@ -306,7 +307,12 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
                       const SizedBox(height: 12),
                       GestureDetector(
                         onTap: () {
-                          //TODO: navigate to sign in
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SignInAccount(),
+                            ),
+                          );
                         },
                         child: RichText(
                           text: const TextSpan(

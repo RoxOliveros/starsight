@@ -1,4 +1,4 @@
-import 'package:StarSight/ui_layer/signup_code.dart';
+import 'package:StarSight/ui_layer/signin_code.dart';
 import 'package:flutter/material.dart';
 
 abstract class ColorTheme {
@@ -26,16 +26,15 @@ abstract class AppTextStyles {
   );
 }
 
-class SignUpAccount extends StatefulWidget {
-  final String nickname;
+class SignInAccount extends StatefulWidget {
 
-  const SignUpAccount({super.key, required this.nickname});
+  const SignInAccount({super.key});
 
   @override
-  State<SignUpAccount> createState() => _SignUpAccountState();
+  State<SignInAccount> createState() => _SignInAccountState();
 }
 
-class _SignUpAccountState extends State<SignUpAccount>
+class _SignInAccountState extends State<SignInAccount>
     with SingleTickerProviderStateMixin {
   final TextEditingController _emailController = TextEditingController();
   late final AnimationController _fadeController;
@@ -58,19 +57,19 @@ class _SignUpAccountState extends State<SignUpAccount>
     super.dispose();
   }
 
-  void _onSignUp() {
-    // TODO: handle sign up with email @Ron
+  void _onSignIn() {
+    // TODO: handle sign in with email @Ron
     if (_emailController.text.trim().isEmpty) return;
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SignUpCode(email: _emailController.text.trim()),
+        builder: (context) => SignInCode(email: _emailController.text.trim()),
       ),
     );
   }
 
-  void _onGoogleSignUp() {
-    // TODO: handle Google sign up @Ron
+  void _onGoogleSignIn() {
+    // TODO: handle Google sign in @Ron
   }
 
   @override
@@ -111,14 +110,12 @@ class _SignUpAccountState extends State<SignUpAccount>
                             color: ColorTheme.deepNavyBlue,
                           ),
                           children: [
-                            const TextSpan(text: 'Create a '),
+                            const TextSpan(text: 'Welcome back Parents!\nLog in to your '),
                             const TextSpan(
-                              text: 'StarSight ',
+                              text: 'StarSight',
                               style: TextStyle(color: ColorTheme.goldenYellow),
                             ),
-                            const TextSpan(text: 'account to begin '),
-                            TextSpan(text: '${widget.nickname}\'s'),
-                            const TextSpan(text: ' adventure!'),
+                            const TextSpan(text: '\naccount.'),
                           ],
                         ),
                       ),
@@ -165,12 +162,12 @@ class _SignUpAccountState extends State<SignUpAccount>
 
                       const SizedBox(height: 80),
 
-                      // Sign Up button
+                      // Log in button
                       SizedBox(
                         width: 190,
                         height: 52,
                         child: ElevatedButton(
-                          onPressed: _onSignUp,
+                          onPressed: _onSignIn,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: ColorTheme.deepNavyBlue,
                             foregroundColor: ColorTheme.cream,
@@ -183,7 +180,7 @@ class _SignUpAccountState extends State<SignUpAccount>
                             ),
                           ),
                           child: const Text(
-                            'SIGN UP',
+                            'LOG IN',
                             style: TextStyle(
                               fontFamily: AppTextStyles.fredoka,
                               fontSize: 18,
@@ -208,11 +205,11 @@ class _SignUpAccountState extends State<SignUpAccount>
 
                       const SizedBox(height: 16),
 
-                      // Google Sign Up button
+                      // Google Sign In button
                       GestureDetector(
-                        onTap: _onGoogleSignUp,
+                        onTap: _onGoogleSignIn,
                         child: Image.asset(
-                          'assets/images/google_signup.png',
+                          'assets/images/google_signin.png',
                           height: 52,
                         ),
                       ),
@@ -225,7 +222,7 @@ class _SignUpAccountState extends State<SignUpAccount>
                         text: const TextSpan(
                           style: AppTextStyles.body,
                           children: [
-                            TextSpan(text: 'By signing up, you agree to our '),
+                            TextSpan(text: 'By signing in, you agree to our '),
                             TextSpan(
                               text: 'Terms and Conditions',
                               style: AppTextStyles.bodylink,
