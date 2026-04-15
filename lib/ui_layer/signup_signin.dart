@@ -1,3 +1,4 @@
+import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'parent_age_verification.dart';
 
@@ -142,7 +143,12 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                       textColor: ColorTheme.deepNavyBlue,
                       borderColor: ColorTheme.deepNavyBlue,
                       onTap: () {
-                        // TODO: navigate to signin
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SignInAccount(),
+                          ),
+                        );
                       },
                     ),
                     const SizedBox(height: 18),
