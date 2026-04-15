@@ -1,5 +1,6 @@
 import 'package:StarSight/ui_layer/signup_code.dart';
 import 'package:flutter/material.dart';
+import '../business_layer/auth_service.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -69,8 +70,8 @@ class _SignUpAccountState extends State<SignUpAccount>
     );
   }
 
-  void _onGoogleSignUp() {
-    // TODO: handle Google sign up @Ron
+  void _onGoogleSignUp() async {
+    await AuthService().signInWithGoogle();
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'package:StarSight/ui_layer/signin_code.dart';
 import 'package:flutter/material.dart';
+import '../business_layer/auth_service.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -27,7 +28,6 @@ abstract class AppTextStyles {
 }
 
 class SignInAccount extends StatefulWidget {
-
   const SignInAccount({super.key});
 
   @override
@@ -68,8 +68,8 @@ class _SignInAccountState extends State<SignInAccount>
     );
   }
 
-  void _onGoogleSignIn() {
-    // TODO: handle Google sign in @Ron
+  void _onGoogleSignIn() async {
+    await AuthService().signInWithGoogle();
   }
 
   @override
@@ -110,7 +110,9 @@ class _SignInAccountState extends State<SignInAccount>
                             color: ColorTheme.deepNavyBlue,
                           ),
                           children: [
-                            const TextSpan(text: 'Welcome back Parents!\nLog in to your '),
+                            const TextSpan(
+                              text: 'Welcome back Parents!\nLog in to your ',
+                            ),
                             const TextSpan(
                               text: 'StarSight',
                               style: TextStyle(color: ColorTheme.goldenYellow),

@@ -12,7 +12,20 @@
           "package_name": "com.example.starsight"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1031039579822-mbi0evb9gchcmk16709tq7imf3uuosim.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.starsight",
+            "certificate_hash": "b43d96b4e3679c5c6c4c495276993deefbea3621"
+          }
+        },
+        {
+          "client_id": "1031039579822-lsff8onjcgjs1ibl7l8625rd6go2q4ff.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyA7Y1oJDlB2U82A3TM7OX410D3PHcd0Xxk"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1031039579822-lsff8onjcgjs1ibl7l8625rd6go2q4ff.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
