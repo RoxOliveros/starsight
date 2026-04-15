@@ -1,7 +1,10 @@
 import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const App());
 }
 
@@ -248,7 +251,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 'assets/gifs/starsight.gif',
                                 width: screenWidth * 0.75,
                                 fit: BoxFit.contain,
-                              )
+                              ),
                             ),
                           ),
 

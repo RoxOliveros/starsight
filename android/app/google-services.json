@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1031039579822",
+    "project_id": "starsight-app-10658",
+    "storage_bucket": "starsight-app-10658.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1031039579822:android:6533237e15893f6e485f3f",
+        "android_client_info": {
+          "package_name": "com.example.starsight"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7Y1oJDlB2U82A3TM7OX410D3PHcd0Xxk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
