@@ -91,9 +91,9 @@ flutter:
       fonts:
         - asset: assets/fonts/Fredoka.ttf
 
-    - family: Poppins-Regular
+    - family: Nunito
       fonts:
-        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Nunito.ttf
 
   #
   # For details regarding fonts from package dependencies,

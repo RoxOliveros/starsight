@@ -373,7 +373,7 @@ class _SplashScreenState extends State<SplashScreen>
                                                         bunnyWidth * 0.35),
                                             bottom: -bunnyHeight * 0.20,
                                             child: Image.asset(
-                                              'assets/images/bunnystar.png',
+                                              'assets/images/bunny_riding_star.png',
                                               key: _bunnyKey,
                                               height: screenHeight * 0.20,
                                               fit: BoxFit.contain,

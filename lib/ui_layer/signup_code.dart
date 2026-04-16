@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'app_dialog.dart';
+import 'consent_screen.dart';
+
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
   static const Color deepNavyBlue = Color(0xFF5F7199);
@@ -13,6 +16,7 @@ abstract class AppTextStyles {
 
 class SignUpCode extends StatefulWidget {
   final String email;
+
   const SignUpCode({super.key, required this.email});
 
   @override
@@ -20,10 +24,11 @@ class SignUpCode extends StatefulWidget {
 }
 
 class _SignUpCodeState extends State<SignUpCode> {
-  final List<TextEditingController> _controllers =
-  List.generate(4, (_) => TextEditingController());
+  final List<TextEditingController> _controllers = List.generate(
+    4,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
-
 
   @override
   void dispose() {
@@ -42,6 +47,19 @@ class _SignUpCodeState extends State<SignUpCode> {
 
   void _onResend() {
     // TODO: handle resend code @Ron
+  }
+
+  void _onNext() {
+    final code = _controllers.map((c) => c.text).join();
+    if (code.length < 4) {
+      AppDialog.showError(context, message: "Code should be 4 Digits");
+      return;
+    }
+    // TODO: verify code @Ron only navigate to consent screen when verified
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ConsentScreen()),
+    );
   }
 
   @override
@@ -86,7 +104,8 @@ class _SignUpCodeState extends State<SignUpCode> {
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const TextSpan(
-                        text: ' ! Enter it\nhere to continue.\u201d'),
+                      text: ' ! Enter it\nhere to continue.\u201d',
+                    ),
                   ],
                 ),
               ),
@@ -157,6 +176,33 @@ class _SignUpCodeState extends State<SignUpCode> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+
+              const Spacer(),
+
+              Padding(
+                padding: const EdgeInsets.all(6),
+                child: ElevatedButton(
+                  onPressed: _onNext,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ColorTheme.deepNavyBlue,
+                    foregroundColor: ColorTheme.cream,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 44,
+                      vertical: 14,
+                    ),
+                  ),
+                  child: const Text(
+                    'Next',
+                    style: TextStyle(
+                      fontFamily: AppTextStyles.fredoka,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),

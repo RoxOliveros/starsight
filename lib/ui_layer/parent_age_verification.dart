@@ -2,6 +2,7 @@ import 'package:StarSight/ui_layer/child_nickname.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import '../business_layer/parent_age_verification_business_layer.dart';
+import 'app_dialog.dart';
 import 'appbar_signup.dart';
 
 abstract class ColorTheme {
@@ -63,7 +64,8 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
         ),
       );
     } else {
-      // TODO: show error @Tin
+      AppDialog.showError(context, message: "Should be Legal Age");
+      return;
     }
   }
 

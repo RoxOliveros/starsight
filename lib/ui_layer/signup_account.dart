@@ -1,6 +1,8 @@
 import 'package:StarSight/ui_layer/signup_code.dart';
 import 'package:flutter/material.dart';
 import '../business_layer/auth_service.dart';
+import 'app_dialog.dart';
+import 'consent_screen.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -61,17 +63,31 @@ class _SignUpAccountState extends State<SignUpAccount>
 
   void _onSignUp() {
     // TODO: handle sign up with email @Ron
-    if (_emailController.text.trim().isEmpty) return;
+    String email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      AppDialog.showError(context, message: "Email should not be empty");
+      return;
+    }
+
+    if (!email.contains('@') || !email.contains('.')) {
+      AppDialog.showError(context, message: "Please enter a valid email");
+      return;
+    }
+
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SignUpCode(email: _emailController.text.trim()),
-      ),
+      MaterialPageRoute(builder: (context) => SignUpCode(email: email)),
     );
   }
 
   void _onGoogleSignUp() async {
     await AuthService().signInWithGoogle();
+    //TODO: save account details after sign up @Ron
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ConsentScreen()),
+    );
   }
 
   @override

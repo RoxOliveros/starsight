@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'consent_screen.dart';
+
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
   static const Color deepNavyBlue = Color(0xFF5F7199);
@@ -42,6 +44,16 @@ class _SignInCodeState extends State<SignInCode> {
 
   void _onResend() {
     // TODO: handle resend code @Ron
+  }
+
+  void _onNext() {
+    final code = _controllers.map((c) => c.text).join();
+    if (code.length < 4) return;
+    // TODO: verify code @Ron only navigate when verified
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ConsentScreen()),
+    );
   }
 
   @override
@@ -156,6 +168,33 @@ class _SignInCodeState extends State<SignInCode> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+
+              const Spacer(),
+
+              Padding(
+                padding: const EdgeInsets.all(6),
+                child: ElevatedButton(
+                  onPressed: _onNext,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ColorTheme.deepNavyBlue,
+                    foregroundColor: ColorTheme.cream,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 44,
+                      vertical: 14,
+                    ),
+                  ),
+                  child: const Text(
+                    'Next',
+                    style: TextStyle(
+                      fontFamily: AppTextStyles.fredoka,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),

@@ -144,7 +144,7 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
           // Stars
           ...List.generate(_ageLabels.length, (i) {
             final isSelected = _selectedIndex == i;
-            final double starFraction = 0.55;
+            final double starFraction = 0.50;
             final size = screenWidth * starFraction;
 
             final rawLeft = (_positions[i][0] * screenWidth) - (size / 2);
@@ -193,7 +193,7 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
                                   0,
                                 ]),
                           child: Image.asset(
-                            'assets/images/night_star.png',
+                            'assets/images/star.png',
                             width: size,
                             height: size,
                           ),

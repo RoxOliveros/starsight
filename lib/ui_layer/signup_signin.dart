@@ -11,7 +11,6 @@ abstract class ColorTheme {
 
 abstract class AppTextStyles {
   static const String fredoka = 'Fredoka';
-  static const String poppins = 'Poppins-Regular';
 
   static const TextStyle heading = TextStyle(
     fontFamily: fredoka,

@@ -13,7 +13,6 @@ abstract class ColorTheme {
 
 abstract class Fonts {
   static const String fredoka = 'Fredoka';
-  static const String poppins = 'Poppins-Regular';
 }
 
 class ChildNickname extends StatefulWidget {
@@ -29,7 +28,6 @@ class _ChildNickname extends State<ChildNickname> {
   void _onNext() {
     final nickname = _nicknameController.text.trim();
     if (nickname.isEmpty || nickname.contains(' ')) return;
-    // TODO: save child nickname
     Navigator.push(
       context,
       PageRouteBuilder(
