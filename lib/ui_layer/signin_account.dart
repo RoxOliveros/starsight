@@ -1,4 +1,3 @@
-import 'package:StarSight/ui_layer/signin_code.dart';
 import 'package:flutter/material.dart';
 import '../business_layer/auth_service.dart';
 import 'app_dialog.dart';
@@ -61,7 +60,7 @@ class _SignInAccountState extends State<SignInAccount>
 
   void _onSignIn() {
     // TODO: handle sign in with email @Ron
-    String email = _emailController.text.trim();
+    String email = _emailController.text.trim(); // here yung email
 
     if (email.isEmpty) {
       AppDialog.showError(context, message: "Email should not be empty");
@@ -73,11 +72,12 @@ class _SignInAccountState extends State<SignInAccount>
       return;
     }
 
+    //TODO: firebase authentication (magic link) @Ron
+    //TODO: prompt for "check your email for etc etc" if magic link is sent successfully @Tin
+    //TODO: prompt for authentication success and authentication error only navigate to consentscreen when authentication success @Ron
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SignInCode(email: _emailController.text.trim()),
-      ),
+      MaterialPageRoute(builder: (_) => const ConsentScreen()),
     );
   }
 

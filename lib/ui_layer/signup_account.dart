@@ -1,4 +1,3 @@
-import 'package:StarSight/ui_layer/signup_code.dart';
 import 'package:flutter/material.dart';
 import '../business_layer/auth_service.dart';
 import 'app_dialog.dart';
@@ -75,9 +74,12 @@ class _SignUpAccountState extends State<SignUpAccount>
       return;
     }
 
+    //TODO: firebase authentication (magic link) @Ron
+    //TODO: prompt for "check your email for etc etc" if magic link is sent successfully @Tin
+    //TODO: prompt for authentication success and authentication error only navigate to consentscreen when authentication success @Ron
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => SignUpCode(email: email)),
+      MaterialPageRoute(builder: (_) => const ConsentScreen()),
     );
   }
 
