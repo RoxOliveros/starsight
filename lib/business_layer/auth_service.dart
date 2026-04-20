@@ -60,6 +60,10 @@ class AuthService {
       return true;
     } catch (e) {
       print("Error sending magic link: $e");
+      if (e is FirebaseAuthException) {
+        print("Firebase error code: ${e.code}");
+        print("Firebase error message: ${e.message}");
+      }
       return false;
     }
   }

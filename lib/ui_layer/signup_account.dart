@@ -87,37 +87,12 @@ class _SignUpAccountState extends State<SignUpAccount>
       goals: widget.goals,
     );
 
-    // 2. Clear Tin's TODO: Prompt the user
     if (isSent) {
       if (!mounted) return;
-
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text(
-            "Check your email!",
-            style: TextStyle(
-              fontFamily: AppTextStyles.fredoka,
-              color: ColorTheme.deepNavyBlue,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Text(
-            "We sent a magic login link to $email. Tap the link to continue your adventure!",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                "OK",
-                style: TextStyle(
-                  color: ColorTheme.orange,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
+      AppDialog.showSuccess(
+        context,
+        message:
+        "Check your email!\nWe sent a magic login link to $email. Tap the link to continue your adventure!",
       );
     } else {
       if (!mounted) return;
@@ -127,13 +102,11 @@ class _SignUpAccountState extends State<SignUpAccount>
             "Oops! We couldn't send the link. Please check your console for errors.",
       );
     }
-
     // They will only navigate AFTER they click the link in their email!
   }
 
   void _onGoogleSignUp() async {
     await AuthService().signInWithGoogle();
-    //TODO: @Ron save account details after sign up
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ConsentScreen()),

@@ -82,7 +82,6 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
   }
 
   void _onNext() {
-    //TODO: save age @Ron
     final selectedAge = _ageLabels[_selectedIndex!].replaceAll('\n', ' ');
     Navigator.push(
       context,

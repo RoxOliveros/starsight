@@ -59,7 +59,7 @@ class _SignInAccountState extends State<SignInAccount>
 
   void _onSignIn() {
     // TODO: handle sign in with email @Ron
-    String email = _emailController.text.trim(); // here yung email
+    String email = _emailController.text.trim();
 
     if (email.isEmpty) {
       AppDialog.showError(context, message: "Email should not be empty");
@@ -71,7 +71,6 @@ class _SignInAccountState extends State<SignInAccount>
       return;
     }
 
-    //TODO: firebase authentication (magic link) @Ron
     //TODO: prompt for "check your email for etc etc" if magic link is sent successfully @Tin
     //TODO: prompt for authentication success and authentication error only navigate to dashboard when authentication success @Ron
     // Navigator.push(

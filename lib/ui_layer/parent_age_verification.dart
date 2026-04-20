@@ -45,7 +45,6 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
     if (year == null) return;
 
     if (ParentAgeController.isAdult(year)) {
-      //TODO: save parent age @Ron (though I'm not sure if need pa natin nitong info nila?)
       setState(() => _digits.clear());
       Navigator.push(
         context,

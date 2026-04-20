@@ -36,7 +36,6 @@ class _ChildGoalState extends State<ChildGoal> {
   final Set<int> _selectedIndices = {};
 
   void _onNext() {
-    //TODO: save child goals @Ron
     List<String> selectedGoals = _selectedIndices
         .map((i) => _goals[i])
         .toList();
