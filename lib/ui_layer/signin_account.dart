@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../business_layer/auth_service.dart';
 import 'app_dialog.dart';
-import 'consent_screen.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -74,20 +73,21 @@ class _SignInAccountState extends State<SignInAccount>
 
     //TODO: firebase authentication (magic link) @Ron
     //TODO: prompt for "check your email for etc etc" if magic link is sent successfully @Tin
-    //TODO: prompt for authentication success and authentication error only navigate to consentscreen when authentication success @Ron
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ConsentScreen()),
-    );
+    //TODO: prompt for authentication success and authentication error only navigate to dashboard when authentication success @Ron
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(builder: (_) => const [dashboard]()),
+    // );
   }
 
   void _onGoogleSignIn() async {
     await AuthService().signInWithGoogle();
     //TODO: include validation: user can only sign in when they already have an account @Ron only navigate when verified
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ConsentScreen()),
-    );
+    //TODO: @Tin navigate to dashboard
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(builder: (_) => const [dashboard]()),
+    // );
   }
 
   @override

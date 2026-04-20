@@ -34,10 +34,10 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
   ];
 
   final List<List<double>> _positions = [
-    [0.25, 0.20], // top-left
-    [0.75, 0.31], // top-right
-    [0.22, 0.46], // bottom-left
-    [0.72, 0.58], // bottom-right
+    [0.25, 0.25], // top-left
+    [0.75, 0.35], // top-right
+    [0.22, 0.50], // bottom-left
+    [0.72, 0.60], // bottom-right
   ];
 
   final List<double> _angles = [-0.15, 0.1, 0.05, -0.08];
@@ -144,7 +144,7 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
           // Stars
           ...List.generate(_ageLabels.length, (i) {
             final isSelected = _selectedIndex == i;
-            final double starFraction = 0.50;
+            final double starFraction = 0.43;
             final size = screenWidth * starFraction;
 
             final rawLeft = (_positions[i][0] * screenWidth) - (size / 2);
@@ -204,7 +204,7 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontFamily: Fonts.fredoka,
-                            fontSize: size * 0.07,
+                            fontSize: size * 0.085,
                             fontWeight: FontWeight.w600,
                             color: isSelected
                                 ? ColorTheme.warmBrown

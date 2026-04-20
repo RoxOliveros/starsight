@@ -375,16 +375,16 @@ class _SplashScreenState extends State<SplashScreen>
                                             child: Image.asset(
                                               'assets/images/bunny_riding_star.png',
                                               key: _bunnyKey,
-                                              height: screenHeight * 0.20,
+                                              height: screenHeight * 0.15,
                                               fit: BoxFit.contain,
                                             ),
                                           ),
                                         ],
-                                      ); // Stack
-                                    }, // AnimatedBuilder builder
-                                  ); // AnimatedBuilder
-                                }, // LayoutBuilder builder
-                              ), // LayoutBuilder
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
                             ),
                           ],
                         )

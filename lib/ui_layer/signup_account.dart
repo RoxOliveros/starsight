@@ -74,9 +74,9 @@ class _SignUpAccountState extends State<SignUpAccount>
       return;
     }
 
-    //TODO: firebase authentication (magic link) @Ron
-    //TODO: prompt for "check your email for etc etc" if magic link is sent successfully @Tin
-    //TODO: prompt for authentication success and authentication error only navigate to consentscreen when authentication success @Ron
+    //TODO: @Ron firebase authentication (magic link)
+    //TODO: @Tin prompt for "check your email for etc etc" if magic link is sent successfully
+    //TODO: @Tin prompt for authentication success and authentication error only navigate to consentscreen when authentication success
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ConsentScreen()),
@@ -85,7 +85,7 @@ class _SignUpAccountState extends State<SignUpAccount>
 
   void _onGoogleSignUp() async {
     await AuthService().signInWithGoogle();
-    //TODO: save account details after sign up @Ron
+    //TODO: @Ron save account details after sign up
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ConsentScreen()),

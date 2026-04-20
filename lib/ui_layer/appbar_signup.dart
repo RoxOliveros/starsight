@@ -16,7 +16,7 @@ class AppTopBar extends StatelessWidget {
             child: const Icon(
               Icons.arrow_back_ios_new_rounded,
               color: Colors.white,
-              size: 16,
+              size: 25,
             ),
           ),
           const SizedBox(width: 12),

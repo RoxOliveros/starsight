@@ -1,3 +1,4 @@
+import 'package:StarSight/ui_layer/parents_pin_setup.dart';
 import 'package:flutter/material.dart';
 
 abstract class ColorTheme {
@@ -57,7 +58,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
       if (ctx != null) {
         Scrollable.ensureVisible(
           ctx,
-          duration: const Duration(milliseconds: 500),
+          duration: const Duration(milliseconds: 1000),
           curve: Curves.easeInOut,
           alignment: 0.0,
         );
@@ -76,18 +77,6 @@ class _ConsentScreenState extends State<ConsentScreen> {
   void _onAllowAndContinue() {
     if (!_isChecked) return;
     showAllowedDialog(context);
-  }
-
-  void showSkipDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const _SkipDialog(),
-    );
-  }
-
-  void _onSkip() {
-    showSkipDialog(context);
   }
 
   @override
@@ -143,7 +132,6 @@ class _ConsentScreenState extends State<ConsentScreen> {
                     onCheckChanged: (val) =>
                         setState(() => _isChecked = val ?? false),
                     onAllow: _onAllowAndContinue,
-                    onSkip: _onSkip,
                   ),
                 ],
 
@@ -157,7 +145,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
                       style: TextStyle(
                         fontFamily: AppTextStyles.fredoka,
                         fontSize: 13,
-                        color: ColorTheme.deepNavyBlue.withOpacity(0.5),
+                        color: ColorTheme.deepNavyBlue.withValues(alpha: 0.5),
                       ),
                     ),
                   ),
@@ -175,8 +163,28 @@ class _ConsentScreenState extends State<ConsentScreen> {
 // ══════════════════════════════════════════════════════════════════════════════
 // SECTION 1 — "A quick note for parents"
 // ══════════════════════════════════════════════════════════════════════════════
-class _Section1 extends StatelessWidget {
+class _Section1 extends StatefulWidget {
   const _Section1();
+
+  @override
+  State<_Section1> createState() => _Section1State();
+}
+
+class _Section1State extends State<_Section1> {
+  int _visibleSensors = 0; // 0 = none visible yet
+
+  @override
+  void initState() {
+    super.initState();
+    _revealSensorsSequentially();
+  }
+
+  void _revealSensorsSequentially() async {
+    for (int i = 1; i <= 4; i++) {
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (mounted) setState(() => _visibleSensors = i);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -300,17 +308,24 @@ class _Section1 extends StatelessWidget {
         // 4 icons row
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: const [
-            _SensorItem(asset: 'assets/images/eye.png', label: 'Eye Focus'),
-            _SensorItem(
+          children: [
+            _AnimatedSensorItem(
+              visible: _visibleSensors >= 1,
+              asset: 'assets/images/eye.png',
+              label: 'Eye Focus',
+            ),
+            _AnimatedSensorItem(
+              visible: _visibleSensors >= 2,
               asset: 'assets/images/hand.png',
               label: 'Hand\nMovement',
             ),
-            _SensorItem(
+            _AnimatedSensorItem(
+              visible: _visibleSensors >= 3,
               asset: 'assets/images/audio.png',
               label: 'Audio &\nSpeech',
             ),
-            _SensorItem(
+            _AnimatedSensorItem(
+              visible: _visibleSensors >= 4,
               asset: 'assets/images/face.png',
               label: 'Facial\nExpressions',
             ),
@@ -324,8 +339,28 @@ class _Section1 extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 // SECTION 2 — "This helps us understand"
 // ══════════════════════════════════════════════════════════════════════════════
-class _Section2 extends StatelessWidget {
+class _Section2 extends StatefulWidget {
   const _Section2({super.key});
+
+  @override
+  State<_Section2> createState() => _Section2State();
+}
+
+class _Section2State extends State<_Section2> {
+  int _visibleChips = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _revealChipsSequentially();
+  }
+
+  void _revealChipsSequentially() async {
+    for (int i = 1; i <= 3; i++) {
+      await Future.delayed(const Duration(milliseconds: 1300));
+      if (mounted) setState(() => _visibleChips = i);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -359,17 +394,20 @@ class _Section2 extends StatelessWidget {
             Expanded(
               child: Column(
                 children: [
-                  _BehaviorChip(
+                  _AnimatedChip(
+                    visible: _visibleChips >= 1,
                     text: 'How Well They Stay Focused On Activities',
                     color: ColorTheme.lightblue,
                   ),
                   const SizedBox(height: 12),
-                  _BehaviorChip(
+                  _AnimatedChip(
+                    visible: _visibleChips >= 2,
                     text: 'How They Approach And Complete Tasks',
                     color: ColorTheme.orange,
                   ),
                   const SizedBox(height: 12),
-                  _BehaviorChip(
+                  _AnimatedChip(
+                    visible: _visibleChips >= 3,
                     text: 'How They Feel And React While Playing',
                     color: ColorTheme.yellow,
                   ),
@@ -392,8 +430,28 @@ class _Section2 extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 // SECTION 3 — "Your child's safety comes first"
 // ══════════════════════════════════════════════════════════════════════════════
-class _Section3 extends StatelessWidget {
+class _Section3 extends StatefulWidget {
   const _Section3({super.key});
+
+  @override
+  State<_Section3> createState() => _Section3State();
+}
+
+class _Section3State extends State<_Section3> {
+  int _visibleBullets = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _revealBulletsSequentially();
+  }
+
+  void _revealBulletsSequentially() async {
+    for (int i = 1; i <= 4; i++) {
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (mounted) setState(() => _visibleBullets = i);
+    }
+  }
 
   static const _bullets = [
     "Your Child's Data Is Safely Stored And Protected. We Do Not Share Personal Information With Third Parties.",
@@ -434,32 +492,42 @@ class _Section3 extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
-            children: _bullets.map((text) {
-              final isLast = text == _bullets.last;
+            children: List.generate(_bullets.length, (index) {
+              final isLast = index == _bullets.length - 1;
+              final visible = _visibleBullets > index;
               return Column(
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      _StarIcon(size: 42),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          text,
-                          style: const TextStyle(
-                            fontFamily: AppTextStyles.nunito,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: ColorTheme.brown,
+                  AnimatedOpacity(
+                    opacity: visible ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 1300),
+                    child: AnimatedSlide(
+                      offset: visible ? Offset.zero : const Offset(-0.2, 0),
+                      duration: const Duration(milliseconds: 1300),
+                      curve: Curves.easeOut,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _StarIcon(size: 42),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _bullets[index],
+                              style: const TextStyle(
+                                fontFamily: AppTextStyles.nunito,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: ColorTheme.brown,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                   if (!isLast) const SizedBox(height: 16),
                 ],
               );
-            }).toList(),
+            }),
           ),
         ),
       ],
@@ -474,14 +542,12 @@ class _Section4 extends StatelessWidget {
   final bool isChecked;
   final ValueChanged<bool?> onCheckChanged;
   final VoidCallback onAllow;
-  final VoidCallback onSkip;
 
   const _Section4({
     super.key,
     required this.isChecked,
     required this.onCheckChanged,
     required this.onAllow,
-    required this.onSkip,
   });
 
   @override
@@ -531,7 +597,7 @@ class _Section4 extends StatelessWidget {
             onPressed: isChecked ? onAllow : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: ColorTheme.yellow,
-              disabledBackgroundColor: ColorTheme.yellow.withOpacity(0.4),
+              disabledBackgroundColor: ColorTheme.yellow.withValues(alpha: 0.4),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(32),
               ),
@@ -545,22 +611,6 @@ class _Section4 extends StatelessWidget {
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Skip for now
-        GestureDetector(
-          onTap: onSkip,
-          child: const Text(
-            'Skip For Now',
-            style: TextStyle(
-              fontFamily: AppTextStyles.nunito,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-              color: ColorTheme.brown,
             ),
           ),
         ),
@@ -614,6 +664,32 @@ class _SensorItem extends StatelessWidget {
   }
 }
 
+class _AnimatedSensorItem extends StatelessWidget {
+  final bool visible;
+  final String asset;
+  final String label;
+
+  const _AnimatedSensorItem({
+    required this.visible,
+    required this.asset,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: visible ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 1000),
+      child: AnimatedSlide(
+        offset: visible ? Offset.zero : const Offset(0, 0.3),
+        duration: const Duration(milliseconds: 1000),
+        curve: Curves.easeOut,
+        child: _SensorItem(asset: asset, label: label),
+      ),
+    );
+  }
+}
+
 class _BehaviorChip extends StatelessWidget {
   final String text;
   final Color color;
@@ -626,7 +702,7 @@ class _BehaviorChip extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.35),
+        color: color.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(32),
       ),
       child: Text(
@@ -637,6 +713,32 @@ class _BehaviorChip extends StatelessWidget {
           fontWeight: FontWeight.w900,
           color: ColorTheme.brown,
         ),
+      ),
+    );
+  }
+}
+
+class _AnimatedChip extends StatelessWidget {
+  final bool visible;
+  final String text;
+  final Color color;
+
+  const _AnimatedChip({
+    required this.visible,
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: visible ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 500),
+      child: AnimatedSlide(
+        offset: visible ? Offset.zero : const Offset(-0.2, 0), // slides in from left
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOut,
+        child: _BehaviorChip(text: text, color: color),
       ),
     );
   }
@@ -702,8 +804,12 @@ class _AllowedDialog extends StatelessWidget {
               width: 200,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.of(context).pop();
-                  // TODO: navigate to dashboard @Tin
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ParentPinVerification(),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ColorTheme.yellow,
@@ -713,104 +819,12 @@ class _AllowedDialog extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: const Text(
-                  'Go to Dashboard',
+                  'Create your PIN',
                   style: TextStyle(
                     fontFamily: AppTextStyles.fredoka,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SkipDialog extends StatelessWidget {
-  const _SkipDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: ColorTheme.cream,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ── Close button ──────────────────────────────────────
-            Align(
-              alignment: Alignment.topLeft,
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const Icon(Icons.close, color: ColorTheme.deepNavyBlue, size: 22),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // ── Cloud illustration ────────────────────────────────
-            Image.asset(
-              'assets/images/night_cloud_fluffy.png',
-              height: 130,
-              fit: BoxFit.contain,
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── Message ───────────────────────────────────────────
-            RichText(
-              textAlign: TextAlign.center,
-              text: const TextSpan(
-                style: TextStyle(
-                  fontFamily: AppTextStyles.fredoka,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: ColorTheme.brown,
-                ),
-                children: [
-                  TextSpan(text: "No worries! You can enable this\nanytime in "),
-                  TextSpan(
-                    text: 'Settings',
-                    style: TextStyle(color: ColorTheme.deepNavyBlue),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // ── Button ────────────────────────────────────────────
-            Center(
-              child: SizedBox(
-                width: 200,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    // TODO: navigate to dashboard @Tin
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorTheme.deepNavyBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(32),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: const Text(
-                    'Go to Dashboard',
-                    style: TextStyle(
-                      fontFamily: AppTextStyles.fredoka,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
                   ),
                 ),
               ),
