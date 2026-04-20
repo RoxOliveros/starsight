@@ -16,7 +16,8 @@ abstract class Fonts {
 
 class ChildGoal extends StatefulWidget {
   final String nickname;
-  const ChildGoal({super.key, required this.nickname});
+  final String age;
+  const ChildGoal({super.key, required this.nickname, required this.age});
 
   @override
   State<ChildGoal> createState() => _ChildGoalState();
@@ -36,11 +37,19 @@ class _ChildGoalState extends State<ChildGoal> {
 
   void _onNext() {
     //TODO: save child goals @Ron
+    List<String> selectedGoals = _selectedIndices
+        .map((i) => _goals[i])
+        .toList();
+
     Navigator.push(
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
-        pageBuilder: (context, animation, secondaryAnimation) => SignUpAccount(nickname: widget.nickname),
+        pageBuilder: (context, animation, secondaryAnimation) => SignUpAccount(
+          nickname: widget.nickname,
+          age: widget.age,
+          goals: selectedGoals,
+        ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final tween = Tween(
             begin: const Offset(0, 1),
@@ -83,7 +92,10 @@ class _ChildGoalState extends State<ChildGoal> {
 
                 // Header row
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 8,
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -139,7 +151,9 @@ class _ChildGoalState extends State<ChildGoal> {
                           height: 56,
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? ColorTheme.goldenYellow.withValues(alpha: 0.35)
+                                ? ColorTheme.goldenYellow.withValues(
+                                    alpha: 0.35,
+                                  )
                                 : Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(32),
                             border: Border.all(
@@ -156,7 +170,9 @@ class _ChildGoalState extends State<ChildGoal> {
                                 Icons.star_rounded,
                                 color: isSelected
                                     ? ColorTheme.goldenYellow
-                                    : ColorTheme.goldenYellow.withValues(alpha: 0.6),
+                                    : ColorTheme.goldenYellow.withValues(
+                                        alpha: 0.6,
+                                      ),
                                 size: 28,
                               ),
                               const SizedBox(width: 16),
@@ -168,7 +184,9 @@ class _ChildGoalState extends State<ChildGoal> {
                                   fontWeight: FontWeight.w600,
                                   color: isSelected
                                       ? ColorTheme.cream
-                                      : ColorTheme.cream.withValues(alpha: 0.75),
+                                      : ColorTheme.cream.withValues(
+                                          alpha: 0.75,
+                                        ),
                                   letterSpacing: 1.2,
                                 ),
                               ),
@@ -182,7 +200,12 @@ class _ChildGoalState extends State<ChildGoal> {
 
                 // Bottom buttons
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 30, left: 24, right: 24, top: 16),
+                  padding: const EdgeInsets.only(
+                    bottom: 30,
+                    left: 24,
+                    right: 24,
+                    top: 16,
+                  ),
                   child: Column(
                     children: [
                       Center(
@@ -190,16 +213,21 @@ class _ChildGoalState extends State<ChildGoal> {
                           width: 200,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: _selectedIndices.isNotEmpty ? _onNext : null,
+                            onPressed: _selectedIndices.isNotEmpty
+                                ? _onNext
+                                : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: ColorTheme.goldenYellow,
-                              disabledBackgroundColor: ColorTheme.goldenYellow.withValues(alpha: 0.4),
+                              disabledBackgroundColor: ColorTheme.goldenYellow
+                                  .withValues(alpha: 0.4),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(32),
                               ),
                               elevation: 6,
                               shadowColor: const Color(0xFF3A4F6E),
-                              padding: const EdgeInsets.symmetric(horizontal: 48),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 48,
+                              ),
                             ),
                             child: const Text(
                               'NEXT',
@@ -226,7 +254,10 @@ class _ChildGoalState extends State<ChildGoal> {
                         },
                         child: RichText(
                           text: const TextSpan(
-                            style: TextStyle(color: ColorTheme.cream, fontSize: 15),
+                            style: TextStyle(
+                              color: ColorTheme.cream,
+                              fontSize: 15,
+                            ),
                             children: [
                               TextSpan(
                                 text: 'Have an account? ',

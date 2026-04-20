@@ -30,8 +30,15 @@ abstract class AppTextStyles {
 
 class SignUpAccount extends StatefulWidget {
   final String nickname;
+  final String age;
+  final List<String> goals;
 
-  const SignUpAccount({super.key, required this.nickname});
+  const SignUpAccount({
+    super.key,
+    required this.nickname,
+    required this.age,
+    required this.goals,
+  });
 
   @override
   State<SignUpAccount> createState() => _SignUpAccountState();
@@ -73,13 +80,17 @@ class _SignUpAccountState extends State<SignUpAccount>
       return;
     }
 
-    // 1. Call your AuthService to send the email
-    bool isSent = await AuthService().sendMagicLink(email: email);
+    bool isSent = await AuthService().sendMagicLink(
+      email: email,
+      nickname: widget.nickname,
+      age: widget.age,
+      goals: widget.goals,
+    );
 
     // 2. Clear Tin's TODO: Prompt the user
     if (isSent) {
       if (!mounted) return;
-      // We show a simple success dialog telling them to check their email
+
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -117,7 +128,6 @@ class _SignUpAccountState extends State<SignUpAccount>
       );
     }
 
-    // NOTE: We REMOVED the Navigator.push to ConsentScreen here.
     // They will only navigate AFTER they click the link in their email!
   }
 

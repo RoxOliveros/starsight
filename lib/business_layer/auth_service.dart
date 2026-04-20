@@ -2,6 +2,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_links/app_links.dart';
+import 'package:StarSight/business_layer/database_service.dart';
 
 class AuthService {
   // 1. GOOGLE SIGN-IN
@@ -29,11 +30,18 @@ class AuthService {
   }
 
   // 2. SEND MAGIC LINK
-  Future<bool> sendMagicLink({required String email}) async {
+  Future<bool> sendMagicLink({
+    required String email,
+    required String nickname,
+    required String age,
+    required List<String> goals,
+  }) async {
     try {
-      // NEW: Save the email locally before we send the link!
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('magic_email', email);
+      await prefs.setString('child_nickname', nickname);
+      await prefs.setString('child_age', age);
+      await prefs.setStringList('child_goals', goals);
 
       var actionCodeSettings = ActionCodeSettings(
         url: 'https://starsight-app-10658.firebaseapp.com/',
@@ -56,7 +64,7 @@ class AuthService {
     }
   }
 
-  // 3. NEW: CATCH THE LINK AND LOG IN
+  // 3. CATCH THE LINK AND LOG IN
   Future<bool> handleIncomingLink() async {
     final appLinks = AppLinks();
 
@@ -68,20 +76,36 @@ class AuthService {
 
         // Check if it's a valid Firebase Magic Link
         if (FirebaseAuth.instance.isSignInWithEmailLink(link)) {
-          // Retrieve the saved email
           final prefs = await SharedPreferences.getInstance();
           String? email = prefs.getString('magic_email');
+          String? nickname = prefs.getString('child_nickname');
+          String? age = prefs.getString('child_age');
+          List<String>? goals = prefs.getStringList('child_goals');
 
-          if (email != null) {
-            // FINISH THE LOGIN!
+          if (email != null &&
+              nickname != null &&
+              age != null &&
+              goals != null) {
+            // 2. FINISH THE LOGIN
             final userCredential = await FirebaseAuth.instance
                 .signInWithEmailLink(email: email, emailLink: link);
 
             print(
               "MAGIC LINK SUCCESS! Logged in as: ${userCredential.user?.email}",
             );
-            // Clear the saved email
-            await prefs.remove('magic_email');
+
+            // 3. SAVE TO DATABASE!
+            if (userCredential.user != null) {
+              await DatabaseService().createParentAndChild(
+                uid: userCredential.user!.uid,
+                email: email,
+                childNickname: nickname,
+                childAge: age,
+                childGoals: goals,
+              );
+            }
+
+            await prefs.clear();
             return true;
           }
         }

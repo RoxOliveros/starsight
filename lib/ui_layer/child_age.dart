@@ -83,12 +83,13 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
 
   void _onNext() {
     //TODO: save age @Ron
+    final selectedAge = _ageLabels[_selectedIndex!].replaceAll('\n', ' ');
     Navigator.push(
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
         pageBuilder: (context, animation, secondaryAnimation) =>
-            ChildGoal(nickname: widget.nickname),
+            ChildGoal(nickname: widget.nickname, age: selectedAge),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final tween = Tween(
             begin: const Offset(0, 1),
