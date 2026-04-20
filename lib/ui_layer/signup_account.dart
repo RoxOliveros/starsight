@@ -60,8 +60,7 @@ class _SignUpAccountState extends State<SignUpAccount>
     super.dispose();
   }
 
-  void _onSignUp() {
-    // TODO: handle sign up with email @Ron
+  void _onSignUp() async {
     String email = _emailController.text.trim();
 
     if (email.isEmpty) {
@@ -74,13 +73,52 @@ class _SignUpAccountState extends State<SignUpAccount>
       return;
     }
 
-    //TODO: firebase authentication (magic link) @Ron
-    //TODO: prompt for "check your email for etc etc" if magic link is sent successfully @Tin
-    //TODO: prompt for authentication success and authentication error only navigate to consentscreen when authentication success @Ron
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ConsentScreen()),
-    );
+    // 1. Call your AuthService to send the email
+    bool isSent = await AuthService().sendMagicLink(email: email);
+
+    // 2. Clear Tin's TODO: Prompt the user
+    if (isSent) {
+      if (!mounted) return;
+      // We show a simple success dialog telling them to check their email
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text(
+            "Check your email!",
+            style: TextStyle(
+              fontFamily: AppTextStyles.fredoka,
+              color: ColorTheme.deepNavyBlue,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            "We sent a magic login link to $email. Tap the link to continue your adventure!",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "OK",
+                style: TextStyle(
+                  color: ColorTheme.orange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      if (!mounted) return;
+      AppDialog.showError(
+        context,
+        message:
+            "Oops! We couldn't send the link. Please check your console for errors.",
+      );
+    }
+
+    // NOTE: We REMOVED the Navigator.push to ConsentScreen here.
+    // They will only navigate AFTER they click the link in their email!
   }
 
   void _onGoogleSignUp() async {

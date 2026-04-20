@@ -1,6 +1,8 @@
 import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:StarSight/Business_Layer/auth_service.dart';
+import 'package:StarSight/UI_Layer/consent_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -185,15 +187,31 @@ class _SplashScreenState extends State<SplashScreen>
 
     // 7. Navigate (after loading completes)
     await Future.delayed(const Duration(milliseconds: 200));
+
+    bool loggedIn = await AuthService().handleIncomingLink();
+
     if (mounted) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 500),
-          pageBuilder: (_, __, ___) => const SignUpSignInScreen(),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
-        ),
-      );
+      if (loggedIn) {
+        // SUCCESS: The link worked! Go straight to the Consent Screen.
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 500),
+            pageBuilder: (_, __, ___) => const ConsentScreen(),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+          ),
+        );
+      } else {
+        // NORMAL FLOW: No link found, go to the Sign In/Sign Up screen.
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 500),
+            pageBuilder: (_, __, ___) => const SignUpSignInScreen(),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+          ),
+        );
+      }
     }
   }
 
