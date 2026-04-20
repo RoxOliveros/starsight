@@ -1,6 +1,7 @@
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 
+import 'app_dialog.dart';
 import 'appbar_signup.dart';
 import 'child_age.dart';
 
@@ -27,7 +28,16 @@ class _ChildNickname extends State<ChildNickname> {
 
   void _onNext() {
     final nickname = _nicknameController.text.trim();
-    if (nickname.isEmpty || nickname.contains(' ')) return;
+    if (nickname.isEmpty) {
+      AppDialog.showError(context, message: "Nickname should not be empty");
+      return;
+    }
+
+    if (nickname.contains(' ')) {
+      AppDialog.showError(context, message: "Nickname should not contain any spaces");
+      return;
+    }
+
     Navigator.push(
       context,
       PageRouteBuilder(

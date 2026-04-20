@@ -1,13 +1,9 @@
-import 'package:StarSight/ui_layer/child_nickname.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
-import '../business_layer/parent_age_verification_business_layer.dart';
 import 'app_dialog.dart';
-import 'appbar_signup.dart';
 
 abstract class ColorTheme {
   static const Color goldenYellow = Color(0xFFFBD481);
-  static const Color darkBlue = Color(0xFF5F7199);
   static const Color warmBrown = Color(0xFF5E463E);
   static const Color cream = Color(0xFFFAF7EB);
   static const Color deepNavyBlue = Color(0xFF5F7199);
@@ -17,73 +13,71 @@ abstract class Fonts {
   static const String fredoka = 'Fredoka';
 }
 
-class ParentAgeVerification extends StatefulWidget {
-  const ParentAgeVerification({super.key});
+class ParentPinVerification extends StatefulWidget {
+  const ParentPinVerification({super.key});
 
   @override
-  State<ParentAgeVerification> createState() => _ParentAgeVerificationState();
+  State<ParentPinVerification> createState() => _ParentPinVerificationState();
 }
 
-class _ParentAgeVerificationState extends State<ParentAgeVerification> {
-  final List<String> _digits = [];
+class _ParentPinVerificationState extends State<ParentPinVerification> {
+  final List<String> _pin = [];
+  final List<String> _confirmPin = [];
   static const int _maxDigits = 4;
+  bool _isConfirmStep = false;
 
   void _onDigitTap(String digit) {
-    if (_digits.length < _maxDigits) {
-      setState(() => _digits.add(digit));
+    final current = _isConfirmStep ? _confirmPin : _pin;
+    if (current.length < _maxDigits) {
+      setState(() => current.add(digit));
     }
   }
 
   void _onDelete() {
-    if (_digits.isNotEmpty) {
-      setState(() => _digits.removeLast());
+    final current = _isConfirmStep ? _confirmPin : _pin;
+    if (current.isNotEmpty) {
+      setState(() => current.removeLast());
     }
   }
 
   void _onComplete() {
-    final year = ParentAgeController.parseYear(_digits);
-    if (year == null) return;
-
-    if (ParentAgeController.isAdult(year)) {
-      //TODO: save parent age @Ron (though I'm not sure if need pa natin nitong info nila?)
-      setState(() => _digits.clear());
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 800),
-          pageBuilder: (context, animation, secondaryAnimation) => ChildNickname(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final tween = Tween(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).chain(CurveTween(curve: Curves.easeInOut));
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-        ),
-      );
+    if (!_isConfirmStep) {
+      setState(() => _isConfirmStep = true);
     } else {
-      AppDialog.showError(context, message: "Should be Legal Age");
-      return;
+      if (_pin.join() == _confirmPin.join()) {
+        // TODO: save PIN @Ron
+        // TODO: navigate to dashboard @Tin
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (context) => const [Dashboard](),
+        //   ),
+        // );
+      } else {
+        AppDialog.showError(context, message: "PINs do not match. Try again.");
+        setState(() {
+          _confirmPin.clear();
+          _isConfirmStep = false;
+          _pin.clear();
+        });
+      }
     }
   }
 
   Widget _buildDigitSlot(int index) {
-    final filled = index < _digits.length;
+    final current = _isConfirmStep ? _confirmPin : _pin;
+    final filled = index < current.length;
     return Container(
       width: 36,
       height: 40,
       alignment: Alignment.center,
       child: filled
-          ? Text(
-              _digits[index],
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                fontFamily: Fonts.fredoka,
+          ? Container(
+              width: 12,
+              height: 12,
+              decoration: const BoxDecoration(
                 color: ColorTheme.warmBrown,
+                shape: BoxShape.circle,
               ),
             )
           : Container(
@@ -137,7 +131,8 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
   }
 
   Widget _buildNextButton() {
-    final bool isReady = _digits.length == _maxDigits;
+    final current = _isConfirmStep ? _confirmPin : _pin;
+    final bool isReady = current.length == _maxDigits;
     return GestureDetector(
       onTap: isReady ? _onComplete : null,
       child: Container(
@@ -176,7 +171,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: ColorTheme.darkBlue,
+      backgroundColor: ColorTheme.deepNavyBlue,
       body: Stack(
         children: [
           // Top-right cloud
@@ -204,14 +199,24 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Top bar: back button + progress bar ──
-                AppTopBar(progress: 0.25),
+                // ── Back button  ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white,
+                      size: 25,
+                    ),
+                  ),
+                ),
 
                 // ── Rest of your screen ──
                 Expanded(
                   child: Center(
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         SizedBox(height: screenHeight * 0.1),
 
@@ -234,10 +239,12 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
                                   ),
                                 ),
                               ),
-                              const Expanded(
+                              Expanded(
                                 child: Text(
-                                  'Parents, please enter your birth year to confirm your age',
-                                  style: TextStyle(
+                                  _isConfirmStep
+                                      ? 'Re-enter your PIN to confirm'
+                                      : 'Parents, please create a 4-digit PIN',
+                                  style: const TextStyle(
                                     color: Color(0xFFFAF7EB),
                                     fontSize: 18,
                                     fontFamily: Fonts.fredoka,
@@ -263,8 +270,10 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
                             decoration: BoxDecoration(
                               color: ColorTheme.cream.withValues(alpha: 0.39),
                               border: Border.all(
-                                color: ColorTheme.deepNavyBlue.withValues(alpha: 0.70),
-                                width: 3
+                                color: ColorTheme.deepNavyBlue.withValues(
+                                  alpha: 0.70,
+                                ),
+                                width: 3,
                               ),
                               borderRadius: BorderRadius.circular(23),
                             ),
@@ -307,46 +316,6 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
                               ],
                             ),
                           ],
-                        ),
-
-                        const Spacer(),
-
-                        // Bottom sign in link
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 30),
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const SignInAccount(),
-                                ),
-                              );
-                            },
-                            child: RichText(
-                              text: const TextSpan(
-                                style: TextStyle(
-                                  color: Color(0xFFFAF7EB),
-                                  fontSize: 15,
-                                ),
-                                children: [
-                                  TextSpan(
-                                    text: 'Have an account? ',
-                                    style: TextStyle(fontFamily: Fonts.fredoka),
-                                  ),
-                                  TextSpan(
-                                    text: 'Sign in here!',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontFamily: Fonts.fredoka,
-                                      decoration: TextDecoration.underline,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
                         ),
                       ],
                     ),

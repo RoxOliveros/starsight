@@ -123,7 +123,7 @@ class _SignUpAccountState extends State<SignUpAccount>
 
   void _onGoogleSignUp() async {
     await AuthService().signInWithGoogle();
-    //TODO: save account details after sign up @Ron
+    //TODO: @Ron save account details after sign up
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ConsentScreen()),
