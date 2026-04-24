@@ -4,7 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:StarSight/Business_Layer/auth_service.dart';
 import 'package:StarSight/UI_Layer/consent_screen.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
-import '../games_ui_layer/alphabet_forest/word_match.dart';
+//import '../games_ui_layer/alphabet_forest/word_match.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,10 +17,7 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: WordMatchScreen(),
-    );
+    return MaterialApp(debugShowCheckedModeBanner: false, home: SplashScreen());
   }
 }
 
