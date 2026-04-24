@@ -132,7 +132,7 @@ class _SignInAccountState extends State<SignInAccount>
       if (!mounted) return;
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        MaterialPageRoute(builder: (_) => const DashboardScreen(nickname: "")), //TODO: @Ron get nickname
       );
     } else {
       if (!mounted) return;
@@ -158,7 +158,7 @@ class _SignInAccountState extends State<SignInAccount>
                 child: Align(
                   alignment: Alignment.topCenter,
                   child: Image.asset(
-                    'assets/gifs/white_cloud.gif',
+                    'assets/gifs/white_clouds.gif',
                     fit: BoxFit.fitWidth,
                   ),
                 ),
