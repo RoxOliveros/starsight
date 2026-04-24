@@ -1,4 +1,3 @@
-import 'package:StarSight/ui_layer/parents_pin_setup.dart';
 import 'package:flutter/material.dart';
 
 abstract class ColorTheme {
@@ -804,12 +803,13 @@ class _AllowedDialog extends StatelessWidget {
               width: 200,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ParentPinVerification(),
-                    ),
-                  );
+                  // TODO: @Tin navigate to dashboard
+                  // Navigator.push(
+                  //   context,
+                  //   MaterialPageRoute(
+                  //     builder: (context) => const [Dashboard](),
+                  //   ),
+                  // );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ColorTheme.yellow,
@@ -819,7 +819,7 @@ class _AllowedDialog extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: const Text(
-                  'Create your PIN',
+                  'Go to Dashboard',
                   style: TextStyle(
                     fontFamily: AppTextStyles.fredoka,
                     fontSize: 17,
