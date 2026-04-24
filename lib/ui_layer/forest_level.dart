@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../games_ui_layer/alphabet_match.dart';
+import '../games_ui_layer/alphabet forest/alphabet_match.dart';
+import '../games_ui_layer/alphabet forest/alphabet_trace.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -178,14 +179,22 @@ class _LevelTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: level == 1
-          ? () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AlphabetMatchScreen()),
-              );
-            }
-          : null,
+      onTap: () {
+        switch (level) {
+          case 1:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AlphabetMatchScreen()),
+            );
+            break;
+          case 2:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AlphabetTraceScreen()),
+            );
+            break;
+        }
+      },
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,

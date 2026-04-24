@@ -79,8 +79,6 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   @override
   void dispose() {
     SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);

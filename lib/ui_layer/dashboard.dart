@@ -422,7 +422,6 @@ class _IslandTile extends StatelessWidget {
 
   void _navigate(BuildContext context) {
     switch (activity.title) {
-      //TODO: @Tin navigations to land levels
       case 'Alphabet Forest':
         Navigator.push(
           context,

@@ -4,7 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:StarSight/Business_Layer/auth_service.dart';
 import 'package:StarSight/UI_Layer/consent_screen.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
-import 'package:StarSight/games_ui_layer/alphabet_match.dart';
+import 'package:StarSight/games_ui_layer/alphabet%20forest/alphabet_match.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
