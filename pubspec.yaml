@@ -76,6 +76,7 @@ flutter:
   assets:
     - assets/gifs/
     - assets/images/
+    - assets/fonts/game_letters/
     #- assets/drafts/
 
   # An image asset can refer to one or more resolution-specific "variants", see
