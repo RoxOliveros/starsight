@@ -209,7 +209,7 @@ class _TopBar extends StatelessWidget {
             text: const TextSpan(
               style: TextStyle(
                 fontFamily: AppTextStyles.fredoka,
-                fontSize: 28,
+                fontSize: 30,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1,
               ),

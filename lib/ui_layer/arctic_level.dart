@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../games_ui_layer/arctic numberland/number_count.dart';
+import '../games_ui_layer/arctic numberland/number_match.dart';
+import '../games_ui_layer/arctic numberland/number_recognize.dart';
+
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
   static const Color deepNavyBlue = Color(0xFF5F7199);
@@ -179,14 +183,34 @@ class _LevelTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: level == 1
-          ? () {
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(builder: (context) => const ()),
-        // );
-      }
-          : null,
+      onTap: () {
+        switch (level) {
+          case 1:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NumberRecognitionScreen(),
+              ),
+            );
+            break;
+          case 2:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CountingObjectsScreen(),
+              ),
+            );
+            break;
+          case 3:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NumberMatchingScreen(),
+              ),
+            );
+            break;
+        }
+      },
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
