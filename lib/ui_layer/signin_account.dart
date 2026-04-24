@@ -133,7 +133,7 @@ class _SignInAccountState extends State<SignInAccount>
 
   void _onGoogleSignIn() async {
     await AuthService().signInWithGoogle();
-    //TODO: include validation: user can only sign in when they already have an account @Ron only navigate when verified
+
     //TODO: @Tin navigate to dashboard
     // Navigator.push(
     //   context,
