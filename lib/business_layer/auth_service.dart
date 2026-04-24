@@ -5,7 +5,7 @@ import 'package:app_links/app_links.dart';
 import 'package:StarSight/business_layer/database_service.dart';
 
 class AuthService {
-  // 1. GOOGLE SIGN-IN
+  // GOOGLE SIGN-IN
   Future<bool> signInWithGoogle() async {
     try {
       await GoogleSignIn.instance.initialize();
@@ -29,7 +29,7 @@ class AuthService {
     }
   }
 
-  // 2. SEND MAGIC LINK
+  // SEND MAGIC LINK
   Future<bool> sendMagicLink({
     required String email,
     required String nickname,
@@ -68,7 +68,35 @@ class AuthService {
     }
   }
 
-  // 3. CATCH THE LINK AND LOG IN
+  // SEND MAGIC LINK (FOR SIGN IN)
+  Future<bool> sendLoginMagicLink({required String email}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('magic_email', email);
+      await prefs.setBool('is_login_only', true);
+
+      var actionCodeSettings = ActionCodeSettings(
+        url: 'https://starsight-app-10658.firebaseapp.com/',
+        handleCodeInApp: true,
+        androidPackageName: 'com.example.starsight',
+        androidInstallApp: true,
+        androidMinimumVersion: '12',
+      );
+
+      await FirebaseAuth.instance.sendSignInLinkToEmail(
+        email: email,
+        actionCodeSettings: actionCodeSettings,
+      );
+
+      print("Login magic link sent successfully to $email");
+      return true;
+    } catch (e) {
+      print("Error sending login magic link: $e");
+      return false;
+    }
+  }
+
+  // CATCH THE LINK AND LOG IN
   Future<bool> handleIncomingLink() async {
     final appLinks = AppLinks();
 
@@ -78,19 +106,12 @@ class AuthService {
       if (initialUri != null) {
         String link = initialUri.toString();
 
-        // Check if it's a valid Firebase Magic Link
         if (FirebaseAuth.instance.isSignInWithEmailLink(link)) {
           final prefs = await SharedPreferences.getInstance();
           String? email = prefs.getString('magic_email');
-          String? nickname = prefs.getString('child_nickname');
-          String? age = prefs.getString('child_age');
-          List<String>? goals = prefs.getStringList('child_goals');
+          bool isLoginOnly = prefs.getBool('is_login_only') ?? false;
 
-          if (email != null &&
-              nickname != null &&
-              age != null &&
-              goals != null) {
-            // 2. FINISH THE LOGIN
+          if (email != null) {
             final userCredential = await FirebaseAuth.instance
                 .signInWithEmailLink(email: email, emailLink: link);
 
@@ -98,15 +119,24 @@ class AuthService {
               "MAGIC LINK SUCCESS! Logged in as: ${userCredential.user?.email}",
             );
 
-            // 3. SAVE TO DATABASE!
-            if (userCredential.user != null) {
-              await DatabaseService().createParentAndChild(
-                uid: userCredential.user!.uid,
-                email: email,
-                childNickname: nickname,
-                childAge: age,
-                childGoals: goals,
-              );
+            // ONLY save to database if it was a Sign Up
+            if (!isLoginOnly) {
+              String? nickname = prefs.getString('child_nickname');
+              String? age = prefs.getString('child_age');
+              List<String>? goals = prefs.getStringList('child_goals');
+
+              if (userCredential.user != null &&
+                  nickname != null &&
+                  age != null &&
+                  goals != null) {
+                await DatabaseService().createParentAndChild(
+                  uid: userCredential.user!.uid,
+                  email: email,
+                  childNickname: nickname,
+                  childAge: age,
+                  childGoals: goals,
+                );
+              }
             }
 
             await prefs.clear();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../business_layer/auth_service.dart';
+import '../business_layer/database_service.dart';
 import 'app_dialog.dart';
 
 abstract class ColorTheme {
@@ -57,8 +58,7 @@ class _SignInAccountState extends State<SignInAccount>
     super.dispose();
   }
 
-  void _onSignIn() {
-    // TODO: handle sign in with email @Ron
+  void _onSignIn() async {
     String email = _emailController.text.trim();
 
     if (email.isEmpty) {
@@ -69,6 +69,58 @@ class _SignInAccountState extends State<SignInAccount>
     if (!email.contains('@') || !email.contains('.')) {
       AppDialog.showError(context, message: "Please enter a valid email");
       return;
+    }
+
+    //Checks if the account actually exists
+    bool emailExists = await DatabaseService().doesEmailExist(email);
+
+    if (!emailExists) {
+      if (!mounted) return;
+      AppDialog.showError(
+        context,
+        message: "Account not found! Please go back and Sign Up first.",
+      );
+      return;
+    }
+    //Call AuthService to send the LOGIN link
+    bool isSent = await AuthService().sendLoginMagicLink(email: email);
+
+    if (isSent) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text(
+            "Check your email!",
+            style: TextStyle(
+              fontFamily: AppTextStyles.fredoka,
+              color: ColorTheme.deepNavyBlue,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            "We sent a magic login link to $email. Tap the link to jump back into StarSight!",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "OK",
+                style: TextStyle(
+                  color: ColorTheme.orange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      if (!mounted) return;
+      AppDialog.showError(
+        context,
+        message: "Oops! We couldn't send the link. Please try again.",
+      );
     }
 
     //TODO: prompt for "check your email for etc etc" if magic link is sent successfully @Tin

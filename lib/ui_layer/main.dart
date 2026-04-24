@@ -192,7 +192,6 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (mounted) {
       if (loggedIn) {
-        // SUCCESS: The link worked! Go straight to the Consent Screen.
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 500),
