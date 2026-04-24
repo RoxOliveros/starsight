@@ -58,10 +58,7 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen> {
 
   @override
   void dispose() {
-    // Unlock the orientation when they leave the game
     SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 abstract class ColorTheme {
   static const Color goldenYellow = Color(0xFFFBD481);
@@ -38,6 +39,25 @@ class ParentPinState extends State<ParentPin> {
   void _onSubmit() {
     final pin = _digits.join();
     debugPrint("Parent PIN: $pin");
+    //TODO: @Ron verify pin/birthyear
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
   }
 
   Widget _buildSlot(int index) {

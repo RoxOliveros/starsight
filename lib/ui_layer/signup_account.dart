@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
 import 'app_dialog.dart';
@@ -54,6 +55,10 @@ class _SignUpAccountState extends State<SignUpAccount>
   @override
   void initState() {
     super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),

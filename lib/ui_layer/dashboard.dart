@@ -1,6 +1,10 @@
+import 'package:StarSight/ui_layer/puzzle_level_screen.dart';
+import 'package:StarSight/ui_layer/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
+import 'arctic_level.dart';
+import 'forest_level.dart';
+import 'lagoon_level.dart';
 import 'menu_dialog.dart';
 
 abstract class ColorTheme {
@@ -40,7 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   // Activity/island cards
   final List<_ActivityCard> _activities = const [
     _ActivityCard(
-      title: 'Forest',
+      title: 'Alphabet Forest',
       subtitle: '...',
       isActive: true,
       imagePath: 'assets/gifs/forest.gif',
@@ -419,35 +423,35 @@ class _IslandTile extends StatelessWidget {
   void _navigate(BuildContext context) {
     switch (activity.title) {
       //TODO: @Tin navigations to land levels
-      case 'Forest':
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(builder: (_) => const ForestScreen()),
-        // );
+      case 'Alphabet Forest':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
+        );
         break;
       case 'Town':
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(builder: (_) => const TownScreen()),
-        // );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TownLevelScreen()),
+        );
         break;
       case 'Artic':
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(builder: (_) => const ArcticScreen()),
-        // );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
+        );
         break;
       case 'Lagoon':
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(builder: (_) => const LagoonScreen()),
-        // );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LagoonLevelScreen()),
+        );
         break;
       case 'Puzzle':
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(builder: (_) => const PuzzleScreen()),
-        // );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PuzzleLevelScreen()),
+        );
         break;
     }
   }

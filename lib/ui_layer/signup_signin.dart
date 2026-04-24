@@ -1,5 +1,6 @@
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'parent_age_verification.dart';
 
 abstract class ColorTheme {
@@ -68,6 +69,10 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
   @override
   void initState() {
     super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
