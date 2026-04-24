@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'menu_dialog.dart';
+
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
   static const Color deepNavyBlue = Color(0xFF5F7199);
@@ -251,70 +253,79 @@ class _AvatarBadge extends StatelessWidget {
 
   const _AvatarBadge({required this.name});
 
+  void _showProfileDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => ProfileDayDialog(name: name),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const double circleSize = 55;
     const double pillHeight = 22;
-    const double pillOverlap = 11; // how much pill overlaps the circle
+    const double pillOverlap = 11;
 
-    return SizedBox(
-      width: circleSize,
-      height: circleSize + pillHeight - pillOverlap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.topCenter,
-        children: [
-          // Circle profile
-          Container(
-            width: circleSize,
-            height: circleSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: ColorTheme.yelloworange, width: 3),
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/drafts/avatar.png',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    Container(color: const Color(0xFFD4C4F0)),
+    return GestureDetector(
+      onTap: () => _showProfileDialog(context),
+      child: SizedBox(
+        width: circleSize,
+        height: circleSize + pillHeight - pillOverlap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
+          children: [
+            // Circle profile
+            Container(
+              width: circleSize,
+              height: circleSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: ColorTheme.yelloworange, width: 3),
+              ),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/drafts/avatar.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      Container(color: const Color(0xFFD4C4F0)),
+                ),
               ),
             ),
-          ),
 
-          // Pill — always pinned to bottom of circle
-          Positioned(
-            top: circleSize - pillOverlap,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                height: pillHeight,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: ColorTheme.yelloworange,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  name,
-                  style: const TextStyle(
-                    fontFamily: AppTextStyles.fredoka,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    letterSpacing: 1,
+            // Name pill
+            Positioned(
+              top: circleSize - pillOverlap,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  height: pillHeight,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: ColorTheme.yelloworange,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      fontFamily: AppTextStyles.fredoka,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
-
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN ISLAND CARD
 // ══════════════════════════════════════════════════════════════════════════════
