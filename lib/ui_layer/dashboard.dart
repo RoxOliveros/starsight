@@ -21,7 +21,9 @@ abstract class AppTextStyles {
 // DASHBOARD SCREEN
 // ══════════════════════════════════════════════════════════════════════════════
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final String nickname;
+
+  const DashboardScreen({super.key, required this.nickname});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -36,28 +38,34 @@ class _DashboardScreenState extends State<DashboardScreen>
   // Activity/island cards
   final List<_ActivityCard> _activities = const [
     _ActivityCard(
-      title: 'Forest Camp',
-      subtitle: 'Explore the woods',
+      title: 'Forest',
+      subtitle: '...',
       isActive: true,
-      imagePath: 'assets/images/camp_day.png',
+      imagePath: 'assets/gifs/forest.gif',
     ),
     _ActivityCard(
-      title: 'Night Camp',
-      subtitle: 'Stargazing time',
+      title: 'Town',
+      subtitle: '...',
       isActive: false,
-      imagePath: 'assets/images/camp_night.png',
+      imagePath: 'assets/gifs/Town.gif',
     ),
     _ActivityCard(
-      title: 'Menu - Night',
-      subtitle: 'Dinner adventure',
+      title: 'Artic',
+      subtitle: '...',
       isActive: false,
-      imagePath: 'assets/images/menu_night.png',
+      imagePath: 'assets/gifs/arctic.gif',
     ),
     _ActivityCard(
-      title: 'Menu - Day',
-      subtitle: 'Breakfast fun',
+      title: 'Lagoon',
+      subtitle: '...',
       isActive: false,
-      imagePath: 'assets/images/menu_day.png',
+      imagePath: 'assets/gifs/lagoon.gif',
+    ),
+    _ActivityCard(
+      title: 'Puzzle',
+      subtitle: '...',
+      isActive: false,
+      imagePath: 'assets/gifs/puzzle.gif',
     ),
   ];
 
@@ -79,6 +87,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     _floatController.dispose();
     super.dispose();
   }
@@ -88,27 +100,82 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Scaffold(
       backgroundColor: ColorTheme.cream,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            // ── Top bar ───────────────────────────────────────────────────
-            _TopBar(),
-
-            const SizedBox(height: 12),
-
-            // ── Main card with island carousel ────────────────────────────
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _MainIslandCard(
-                  activities: _activities,
-                  floatAnimation: _floatAnimation,
-                  selectedTab: _selectedTab,
-                  onTabChanged: (i) => setState(() => _selectedTab = i),
+            // ── Full-screen cloud background ──────────────────────────
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Stack(
+                  children: [
+                    // Left cloud
+                    Positioned(
+                      left: -60,
+                      top: -50,
+                      bottom: 0,
+                      child: Center(
+                        child: Image.asset(
+                          'assets/gifs/white_clouds_mirrored.gif',
+                          width: 350,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) =>
+                              const SizedBox(width: 200),
+                        ),
+                      ),
+                    ),
+                    // Center cloud
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: -120,
+                      bottom: 0,
+                      child: Center(
+                        child: Image.asset(
+                          'assets/gifs/white_cloud.gif',
+                          width: 80,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) =>
+                              const SizedBox(width: 80),
+                        ),
+                      ),
+                    ),
+                    // Right cloud
+                    Positioned(
+                      right: -70,
+                      top: -200,
+                      bottom: 0,
+                      child: Center(
+                        child: Image.asset(
+                          'assets/gifs/white_clouds_mirrored.gif',
+                          width: 350,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) =>
+                              const SizedBox(width: 200),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
 
-            const SizedBox(height: 16),
+            // ── All UI on top ─────────────────────────────────────────
+            Column(
+              children: [
+                _TopBar(nickname: widget.nickname),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _MainIslandCard(
+                      activities: _activities,
+                      floatAnimation: _floatAnimation,
+                      selectedTab: _selectedTab,
+                      onTabChanged: (i) => setState(() => _selectedTab = i),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -120,38 +187,18 @@ class _DashboardScreenState extends State<DashboardScreen>
 // TOP BAR
 // ══════════════════════════════════════════════════════════════════════════════
 class _TopBar extends StatelessWidget {
+  final String nickname;
+
+  const _TopBar({required this.nickname});
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Row(
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          // Avatar
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: ColorTheme.yelloworange.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: ColorTheme.yelloworange, width: 2),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
-                'assets/images/avatar.png',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Icon(
-                  Icons.person,
-                  color: ColorTheme.deepNavyBlue,
-                  size: 28,
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // Logo
+          // ── Truly centered logo ───────────────────────────────────────
           RichText(
             text: const TextSpan(
               style: TextStyle(
@@ -162,24 +209,20 @@ class _TopBar extends StatelessWidget {
               ),
               children: [
                 TextSpan(
-                  text: 'STAR',
-                  style: TextStyle(color: ColorTheme.orange),
-                ),
-                TextSpan(
-                  text: 'S',
-                  style: TextStyle(color: ColorTheme.deepNavyBlue),
-                ),
-                TextSpan(
-                  text: 'I',
+                  text: 'ST',
                   style: TextStyle(color: ColorTheme.lightblue),
                 ),
                 TextSpan(
-                  text: 'G',
+                  text: 'AR',
+                  style: TextStyle(color: ColorTheme.orange),
+                ),
+                TextSpan(
+                  text: 'SI',
                   style: TextStyle(color: ColorTheme.yellow),
                 ),
                 TextSpan(
-                  text: 'H',
-                  style: TextStyle(color: ColorTheme.deepNavyBlue),
+                  text: 'GH',
+                  style: TextStyle(color: ColorTheme.lightblue),
                 ),
                 TextSpan(
                   text: 'T',
@@ -189,29 +232,82 @@ class _TopBar extends StatelessWidget {
             ),
           ),
 
-          const Spacer(),
+          // ── Avatar pinned to the left ─────────────────────────────────
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _AvatarBadge(name: nickname),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-          // Cloud + Star decorations
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Image.asset(
-                'assets/images/cloud.png',
-                width: 60,
-                height: 36,
-                errorBuilder: (_, __, ___) => const SizedBox(width: 60, height: 36),
+// ══════════════════════════════════════════════════════════════════════════════
+// AVATAR
+// ══════════════════════════════════════════════════════════════════════════════
+class _AvatarBadge extends StatelessWidget {
+  final String name;
+
+  const _AvatarBadge({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    const double circleSize = 55;
+    const double pillHeight = 22;
+    const double pillOverlap = 11; // how much pill overlaps the circle
+
+    return SizedBox(
+      width: circleSize,
+      height: circleSize + pillHeight - pillOverlap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
+        children: [
+          // Circle profile
+          Container(
+            width: circleSize,
+            height: circleSize,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: ColorTheme.yelloworange, width: 3),
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/drafts/avatar.png',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    Container(color: const Color(0xFFD4C4F0)),
               ),
-              Positioned(
-                top: -10,
-                right: -8,
-                child: Image.asset(
-                  'assets/images/night_star.png',
-                  width: 22,
-                  height: 22,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+
+          // Pill — always pinned to bottom of circle
+          Positioned(
+            top: circleSize - pillOverlap,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                height: pillHeight,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: ColorTheme.yelloworange,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  name,
+                  style: const TextStyle(
+                    fontFamily: AppTextStyles.fredoka,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: 1,
+                  ),
                 ),
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -237,42 +333,24 @@ class _MainIslandCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E7),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: ColorTheme.yelloworange.withValues(alpha: 0.4), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: ColorTheme.yelloworange.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 16),
-
-          // ── Island carousel ────────────────────────────────────────────
-          Expanded(
-            child: _IslandCarousel(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final islandHeight = constraints.maxHeight * 0.72; // 72% for islands
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _IslandCarousel(
               activities: activities,
               floatAnimation: floatAnimation,
+              height: islandHeight,
             ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // ── Bottom tab bar ─────────────────────────────────────────────
-          _BottomTabBar(
-            selectedIndex: selectedTab,
-            onChanged: onTabChanged,
-          ),
-
-          const SizedBox(height: 20),
-        ],
-      ),
+            const Spacer(),
+            _BottomTabBar(
+              onChanged: onTabChanged,
+            ),          ],
+        );
+      },
     );
   }
 }
@@ -283,265 +361,127 @@ class _MainIslandCard extends StatelessWidget {
 class _IslandCarousel extends StatelessWidget {
   final List<_ActivityCard> activities;
   final Animation<double> floatAnimation;
+  final double height;
 
   const _IslandCarousel({
     required this.activities,
     required this.floatAnimation,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(width: 12),
-
-            // ── Featured (large) island ──────────────────────────────────
-            _FeaturedIsland(
-              activity: activities.first,
-              floatAnimation: floatAnimation,
-              width: width * 0.42,
-              height: constraints.maxHeight,
-            ),
-
-            const SizedBox(width: 10),
-
-            // ── Side islands ─────────────────────────────────────────────
-            Expanded(
-              child: SizedBox(
-                height: constraints.maxHeight,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: activities
-                            .skip(1)
-                            .map(
-                              (a) => Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: _SmallIsland(
-                                activity: a,
-                                floatAnimation: floatAnimation,
-                              ),
-                            ),
-                          ),
-                        )
-                            .toList(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(width: 12),
-          ],
-        );
-      },
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// FEATURED ISLAND (large left card)
-// ══════════════════════════════════════════════════════════════════════════════
-class _FeaturedIsland extends StatelessWidget {
-  final _ActivityCard activity;
-  final Animation<double> floatAnimation;
-  final double width;
-  final double height;
-
-  const _FeaturedIsland({
-    required this.activity,
-    required this.floatAnimation,
-    required this.width,
     required this.height,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: width,
+    return SizedBox(
       height: height,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F8FF),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: ColorTheme.lightblue.withValues(alpha: 0.6),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: ColorTheme.lightblue.withValues(alpha: 0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            // Sky gradient background
-            Positioned.fill(
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFFD6EFFF),
-                      Color(0xFFF0F8FF),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Cloud top-left
-            Positioned(
-              top: 10,
-              left: 8,
-              child: Image.asset(
-                'assets/images/cloud.png',
-                width: 55,
-                height: 30,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            ),
-
-            // Star top-right
-            Positioned(
-              top: 8,
-              right: 12,
-              child: Image.asset(
-                'assets/images/night_star.png',
-                width: 20,
-                height: 20,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            ),
-
-            // Floating island image
-            Center(
-              child: AnimatedBuilder(
-                animation: floatAnimation,
-                builder: (_, child) => Transform.translate(
-                  offset: Offset(0, floatAnimation.value),
-                  child: child,
-                ),
-                child: Image.asset(
-                  activity.imagePath,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => _IslandPlaceholder(large: true),
-                ),
-              ),
-            ),
-          ],
-        ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        itemCount: activities.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        itemBuilder: (context, index) {
+          return _IslandTile(
+            activity: activities[index],
+            floatAnimation: floatAnimation,
+            size: height,
+          );
+        },
       ),
     );
   }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SMALL ISLAND CARD
+// ISLAND ISLAND
 // ══════════════════════════════════════════════════════════════════════════════
-class _SmallIsland extends StatelessWidget {
+class _IslandTile extends StatelessWidget {
   final _ActivityCard activity;
   final Animation<double> floatAnimation;
+  final double size;
 
-  const _SmallIsland({
+  const _IslandTile({
     required this.activity,
     required this.floatAnimation,
+    required this.size,
   });
+
+  void _navigate(BuildContext context) {
+    switch (activity.title) {
+      //TODO: @Tin navigations to land levels
+      case 'Forest':
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(builder: (_) => const ForestScreen()),
+        // );
+        break;
+      case 'Town':
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(builder: (_) => const TownScreen()),
+        // );
+        break;
+      case 'Artic':
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(builder: (_) => const ArcticScreen()),
+        // );
+        break;
+      case 'Lagoon':
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(builder: (_) => const LagoonScreen()),
+        // );
+        break;
+      case 'Puzzle':
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(builder: (_) => const PuzzleScreen()),
+        // );
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F0FF),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: ColorTheme.deepNavyBlue.withValues(alpha: 0.25),
-          width: 1.5,
+    return GestureDetector(
+      onTap: () => _navigate(context),
+      child: AnimatedBuilder(
+        animation: floatAnimation,
+        builder: (_, child) => Transform.translate(
+          offset: Offset(0, floatAnimation.value),
+          child: child,
         ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          children: [
-            // Soft sky gradient
-            Positioned.fill(
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFFE8F4FF),
-                      Color(0xFFF8F5FF),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Island image
-            Center(
-              child: AnimatedBuilder(
-                animation: floatAnimation,
-                builder: (_, child) => Transform.translate(
-                  offset: Offset(0, floatAnimation.value * 0.6),
-                  child: child,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(6),
-                  child: Image.asset(
-                    activity.imagePath,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => _IslandPlaceholder(large: false),
-                  ),
-                ),
-              ),
-            ),
-          ],
+        child: Image.asset(
+          activity.imagePath,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => _IslandPlaceholder(large: true),
         ),
       ),
     );
   }
 }
-
 // ══════════════════════════════════════════════════════════════════════════════
 // BOTTOM TAB BAR
 // ══════════════════════════════════════════════════════════════════════════════
 class _BottomTabBar extends StatelessWidget {
-  final int selectedIndex;
   final ValueChanged<int> onChanged;
 
-  const _BottomTabBar({
-    required this.selectedIndex,
-    required this.onChanged,
-  });
+  const _BottomTabBar({required this.onChanged});
 
-  static const _icons = [
-    Icons.play_arrow_rounded,
-    Icons.movie_filter_outlined,
-    Icons.list_alt_rounded,
-    Icons.archive_outlined,
+  static const _iconPaths = [
+    'assets/images/bttn_active_play.png',
+    'assets/images/bttn_inactive_storymode.png',
+    'assets/images/bttn_inactive_note.png',
+    'assets/images/bttn_inactive_star_collection.png',
   ];
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      margin: const EdgeInsets.symmetric(horizontal: 40),
+      margin: const EdgeInsets.symmetric(horizontal: 200),
       decoration: BoxDecoration(
         color: ColorTheme.yelloworange.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(40),
@@ -552,24 +492,20 @@ class _BottomTabBar extends StatelessWidget {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(_icons.length, (i) {
-          final isSelected = i == selectedIndex;
+        children: List.generate(_iconPaths.length, (i) {
           return GestureDetector(
             onTap: () => onChanged(i),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOut,
+            child: Padding(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? ColorTheme.yelloworange
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Icon(
-                _icons[i],
-                size: 22,
-                color: isSelected ? Colors.white : ColorTheme.brown,
+              child: Image.asset(
+                _iconPaths[i],
+                width: 33,
+                height: 33,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.image_not_supported_outlined,
+                  size: 24,
+                  color: ColorTheme.brown,
+                ),
               ),
             ),
           );
@@ -578,7 +514,6 @@ class _BottomTabBar extends StatelessWidget {
     );
   }
 }
-
 // ══════════════════════════════════════════════════════════════════════════════
 // DATA MODEL
 // ══════════════════════════════════════════════════════════════════════════════

@@ -807,7 +807,7 @@ class _AllowedDialog extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const DashboardScreen(),
+                      builder: (context) => const DashboardScreen(nickname: ""), //TODO: @Ron get nickname from db
                     ),
                   );
                 },

@@ -209,7 +209,7 @@ class _SplashScreenState extends State<SplashScreen>
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (_, __, ___) => const DashboardScreen(),
+            pageBuilder: (_, __, ___) => const DashboardScreen(nickname: ""), //TODO: @Ron get nickname from db
             transitionsBuilder: (_, anim, __, child) =>
                 FadeTransition(opacity: anim, child: child),
           ),

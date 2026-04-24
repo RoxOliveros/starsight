@@ -96,7 +96,7 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                 child: Align(
                   alignment: Alignment.topCenter,
                   child: Image.asset(
-                    'assets/gifs/white_cloud.gif',
+                    'assets/gifs/white_clouds.gif',
                     fit: BoxFit.fitWidth,
                   ),
                 ),
