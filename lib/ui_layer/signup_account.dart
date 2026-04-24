@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../business_layer/auth_service.dart';
+import '../business_layer/database_service.dart';
 import 'app_dialog.dart';
 import 'consent_screen.dart';
 
@@ -80,6 +81,20 @@ class _SignUpAccountState extends State<SignUpAccount>
       return;
     }
 
+    //email checker
+    bool emailExists = await DatabaseService().doesEmailExist(email);
+
+    if (emailExists) {
+      if (!mounted) return;
+      AppDialog.showError(
+        context,
+        message:
+            "This email is already registered! Please go back and select 'Sign In'.",
+      );
+      return;
+    }
+
+    //Calss the AuthService to send the magic link.
     bool isSent = await AuthService().sendMagicLink(
       email: email,
       nickname: widget.nickname,
@@ -89,10 +104,34 @@ class _SignUpAccountState extends State<SignUpAccount>
 
     if (isSent) {
       if (!mounted) return;
-      AppDialog.showSuccess(
-        context,
-        message:
-        "Check your email!\nWe sent a magic login link to $email. Tap the link to continue your adventure!",
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text(
+            "Check your email!",
+            style: TextStyle(
+              fontFamily: AppTextStyles.fredoka,
+              color: ColorTheme.deepNavyBlue,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            "We sent a magic login link to $email. Tap the link to continue your adventure!",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "OK",
+                style: TextStyle(
+                  color: ColorTheme.orange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     } else {
       if (!mounted) return;
@@ -102,6 +141,7 @@ class _SignUpAccountState extends State<SignUpAccount>
             "Oops! We couldn't send the link. Please check your console for errors.",
       );
     }
+
     // They will only navigate AFTER they click the link in their email!
   }
 

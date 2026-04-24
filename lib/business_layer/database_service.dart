@@ -28,4 +28,20 @@ class DatabaseService {
           'createdAt': FieldValue.serverTimestamp(),
         });
   }
+
+  // Check if an email is already registered
+  Future<bool> doesEmailExist(String email) async {
+    try {
+      final querySnapshot = await _db
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      print("Error checking email: $e");
+      return false;
+    }
+  }
 }
