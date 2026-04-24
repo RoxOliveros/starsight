@@ -123,21 +123,24 @@ class _SignInAccountState extends State<SignInAccount>
         message: "Oops! We couldn't send the link. Please try again.",
       );
     }
-
-    //TODO: prompt for authentication success and authentication error only navigate to dashboard when authentication success @Ron
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
-    );
   }
 
   void _onGoogleSignIn() async {
-    await AuthService().signInWithGoogle();
+    bool success = await AuthService().signInWithGoogle();
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
-    );
+    if (success) {
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      );
+    } else {
+      if (!mounted) return;
+      AppDialog.showError(
+        context,
+        message: "Google Sign-In was canceled or failed.",
+      );
+    }
   }
 
   @override

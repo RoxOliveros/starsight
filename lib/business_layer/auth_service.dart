@@ -97,12 +97,13 @@ class AuthService {
   }
 
   // CATCH THE LINK AND LOG IN
-  Future<bool> handleIncomingLink() async {
+  Future<String> handleIncomingLink() async {
     final appLinks = AppLinks();
 
     try {
       final initialUri = await appLinks.getInitialLink();
 
+      // Checks if the app was opened with a magic link
       if (initialUri != null) {
         String link = initialUri.toString();
 
@@ -115,11 +116,7 @@ class AuthService {
             final userCredential = await FirebaseAuth.instance
                 .signInWithEmailLink(email: email, emailLink: link);
 
-            print(
-              "MAGIC LINK SUCCESS! Logged in as: ${userCredential.user?.email}",
-            );
-
-            // ONLY save to database if it was a Sign Up
+            // If it was a Sign UP, save the child data to Firestore
             if (!isLoginOnly) {
               String? nickname = prefs.getString('child_nickname');
               String? age = prefs.getString('child_age');
@@ -139,15 +136,24 @@ class AuthService {
               }
             }
 
+            // Clear the backpack
             await prefs.clear();
-            return true;
+
+            // RETURN THE ROUTE!
+            return isLoginOnly ? "login" : "signup";
           }
         }
       }
-      return false;
+
+      // Automatic login if user is already authenticated @everyone Wag muna galawin nasa testing pa lang
+      //  if (FirebaseAuth.instance.currentUser != null) {
+      //   return "login"; // User automatically go to dashboard if they are already logged in
+      //}
+
+      return "none";
     } catch (e) {
       print("Error catching magic link: $e");
-      return false;
+      return "none";
     }
   }
 }
