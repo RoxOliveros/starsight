@@ -1,3 +1,4 @@
+import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:flutter/material.dart';
 import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
@@ -123,22 +124,20 @@ class _SignInAccountState extends State<SignInAccount>
       );
     }
 
-    //TODO: prompt for "check your email for etc etc" if magic link is sent successfully @Tin
     //TODO: prompt for authentication success and authentication error only navigate to dashboard when authentication success @Ron
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(builder: (_) => const [dashboard]()),
-    // );
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+    );
   }
 
   void _onGoogleSignIn() async {
     await AuthService().signInWithGoogle();
 
-    //TODO: @Tin navigate to dashboard
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(builder: (_) => const [dashboard]()),
-    // );
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+    );
   }
 
   @override

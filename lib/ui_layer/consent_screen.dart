@@ -1,3 +1,4 @@
+import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:flutter/material.dart';
 
 abstract class ColorTheme {
@@ -803,13 +804,12 @@ class _AllowedDialog extends StatelessWidget {
               width: 200,
               child: ElevatedButton(
                 onPressed: () {
-                  // TODO: @Tin navigate to dashboard
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(
-                  //     builder: (context) => const [Dashboard](),
-                  //   ),
-                  // );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DashboardScreen(),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ColorTheme.yellow,
