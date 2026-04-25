@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 
+import '../games_ui_layer/alphabet_forest/word_match.dart';
+
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
   static const Color deepNavyBlue = Color(0xFF5F7199);
@@ -195,6 +197,12 @@ class _LevelTile extends StatelessWidget {
               MaterialPageRoute(
                 builder: (context) => const AlphabetTraceScreen(),
               ),
+            );
+            break;
+          case 3:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => WordMatchScreen()),
             );
             break;
         }

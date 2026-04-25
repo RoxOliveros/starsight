@@ -46,8 +46,6 @@ class _WordMatchScreenState extends State<WordMatchScreen> {
 
     // Unlock orientation
     SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
