@@ -1,6 +1,7 @@
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart';
 import 'parent_age_verification.dart';
 
 abstract class ColorTheme {
@@ -186,8 +187,8 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
               Flexible(
                 child: Align(
                   alignment: Alignment.bottomCenter,
-                  child: Image.asset(
-                    'assets/gifs/peeking_penguin.gif',
+                  child: Lottie.asset(
+                    'assets/animations/peeking_penguin.json',
                     fit: BoxFit.fitWidth,
                   ),
                 ),
