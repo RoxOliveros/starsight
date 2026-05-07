@@ -57,14 +57,15 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
       letterName: "Small a",
       imagePath: 'assets/fonts/game_letters/Trace_small_a.png',
       checkpoints: [
+        const Offset(0.55, 0.55), // Right straight line top
         const Offset(0.5, 0.55), // Top curve
         const Offset(0.45, 0.7), // Left curve
         const Offset(0.5, 0.9), // Bottom curve
-        const Offset(0.55, 0.55), // Right straight line top
-        const Offset(0.55, 0.90), // Right straight line bottom
+        const Offset(0.55, 0.75), // Right straight line middle
+        const Offset(0.55, 0.93), // Right straight line bottom
       ],
     ),
-    // You can easily add B, C, D here later!
+    // @Ron You need to add B, C, D here later!
   ];
 
   @override
@@ -374,32 +375,54 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   }
 }
 
-// --- THE INVISIBLE ARTIST ---
-// --- THE INVISIBLE (NOW VISIBLE!) ARTIST ---
+//Visible checkpoints
 class TracePainter extends CustomPainter {
   final List<Offset?> points;
-  final List<Offset> checkpoints; // <-- Added this
+  final List<Offset> checkpoints;
 
-  TracePainter({
-    required this.points,
-    required this.checkpoints,
-  }); // <-- Updated constructor
+  TracePainter({required this.points, required this.checkpoints});
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. --- DEBUG MODE: DRAW THE CHECKPOINTS FIRST ---
-    final debugPaint = Paint()
-      ..color = Colors.green
-          .withValues(alpha: 0.3) // Semi-transparent green
+    // 1. --- DRAW THE NUMBERED CHECKPOINTS FIRST ---
+    final circlePaint = Paint()
+      // Made it a bit more solid so the white text is easy to read
+      ..color = ColorTheme.green.withOpacity(0.8)
       ..style = PaintingStyle.fill;
 
-    for (Offset cp in checkpoints) {
-      // Convert the percentage (e.g., 0.5) to exact screen pixels
+    // We use a standard for-loop here instead of a for-in loop
+    // so we can access the index (i) to print the numbers!
+    for (int i = 0; i < checkpoints.length; i++) {
+      // Convert percentage to screen pixels
+      Offset cp = checkpoints[i];
       Offset pixelTarget = Offset(cp.dx * size.width, cp.dy * size.height);
 
-      // Draw a circle with a radius of 50.
-      // This perfectly matches your "distance < 50.0" math!
-      canvas.drawCircle(pixelTarget, 15.0, debugPaint);
+      // Draw the circle (increased radius slightly to 20.0 to fit the number)
+      canvas.drawCircle(pixelTarget, 20.0, circlePaint);
+
+      // --- NEW: DRAW THE NUMBER INSIDE THE CIRCLE ---
+      TextPainter textPainter = TextPainter(
+        text: TextSpan(
+          text: '${i + 1}', // This prints 1, 2, 3, etc.
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            fontFamily: AppTextStyles.fredoka,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+
+      textPainter.layout();
+
+      // This math perfectly centers the text inside the circle
+      Offset textOffset = Offset(
+        pixelTarget.dx - (textPainter.width / 2),
+        pixelTarget.dy - (textPainter.height / 2),
+      );
+
+      textPainter.paint(canvas, textOffset);
     }
 
     // 2. --- DRAW THE INK ON TOP ---

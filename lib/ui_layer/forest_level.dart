@@ -1,9 +1,8 @@
+import 'package:StarSight/games_ui_layer/alphabet_forest/lvl_1.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 
-import '../games_ui_layer/alphabet_forest/word_match.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -186,9 +185,7 @@ class _LevelTile extends StatelessWidget {
           case 1:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const AlphabetMatchScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const lvl_1()),
             );
             break;
           case 2:
@@ -202,7 +199,7 @@ class _LevelTile extends StatelessWidget {
           case 3:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => WordMatchScreen()),
+              MaterialPageRoute(builder: (context) => const lvl_1()),
             );
             break;
         }
