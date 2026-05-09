@@ -2,6 +2,7 @@ import 'package:StarSight/ui_layer/puzzle_level_screen.dart';
 import 'package:StarSight/ui_layer/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart';
 import 'arctic_level.dart';
 import 'forest_level.dart';
 import 'lagoon_level.dart';
@@ -47,31 +48,31 @@ class _DashboardScreenState extends State<DashboardScreen>
       title: 'Alphabet Forest',
       subtitle: '...',
       isActive: true,
-      imagePath: 'assets/gifs/forest.gif',
+      imagePath: 'assets/animations/forest.json',
     ),
     _ActivityCard(
       title: 'Town',
       subtitle: '...',
       isActive: false,
-      imagePath: 'assets/gifs/Town.gif',
+      imagePath: 'assets/animations/town.json',
     ),
     _ActivityCard(
       title: 'Artic',
       subtitle: '...',
       isActive: false,
-      imagePath: 'assets/gifs/arctic.gif',
+      imagePath: 'assets/animations/arctic.json',
     ),
     _ActivityCard(
       title: 'Lagoon',
       subtitle: '...',
       isActive: false,
-      imagePath: 'assets/gifs/lagoon.gif',
+      imagePath: 'assets/animations/lagoon.json',
     ),
     _ActivityCard(
       title: 'Puzzle',
       subtitle: '...',
       isActive: false,
-      imagePath: 'assets/gifs/puzzle.gif',
+      imagePath: 'assets/animations/puzzle.json',
     ),
   ];
 
@@ -119,8 +120,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                       top: -50,
                       bottom: 0,
                       child: Center(
-                        child: Image.asset(
-                          'assets/gifs/white_clouds_mirrored.gif',
+                        child: Lottie.asset(
+                          'assets/animations/white_clouds_mirrored.json',
                           width: 350,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) =>
@@ -135,8 +136,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                       top: -120,
                       bottom: 0,
                       child: Center(
-                        child: Image.asset(
-                          'assets/gifs/white_cloud.gif',
+                        child: Lottie.asset(
+                          'assets/animations/white_cloud.json',
                           width: 80,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) =>
@@ -150,8 +151,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                       top: -200,
                       bottom: 0,
                       child: Center(
-                        child: Image.asset(
-                          'assets/gifs/white_clouds_mirrored.gif',
+                        child: Lottie.asset(
+                          'assets/animations/white_clouds_mirrored.json',
                           width: 350,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) =>
@@ -330,6 +331,7 @@ class _AvatarBadge extends StatelessWidget {
     );
   }
 }
+
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN ISLAND CARD
 // ══════════════════════════════════════════════════════════════════════════════
@@ -350,20 +352,40 @@ class _MainIslandCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final islandHeight = constraints.maxHeight * 0.72; // 72% for islands
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
+        final islandHeight = constraints.maxHeight * 0.92;
+        return Stack(
           children: [
-            _IslandCarousel(
-              activities: activities,
-              floatAnimation: floatAnimation,
-              height: islandHeight,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Transform.translate(
+                  offset: const Offset(0, -20),
+                  child: _IslandCarousel(
+                    activities: activities,
+                    floatAnimation: floatAnimation,
+                    height: islandHeight,
+                  ),
+                ),
+                const Spacer(),
+              ],
             ),
-            const Spacer(),
-            _BottomTabBar(
-              onChanged: onTabChanged,
-            ),          ],
+
+            // story mode button bottom-right
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: GestureDetector(
+                onTap: () {}, //TODO: @Tin Navigate to storymode
+                child: Lottie.asset(
+                  'assets/animations/movie_clapperboard.json',
+                  width: 56,
+                  height: 56,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -465,7 +487,7 @@ class _IslandTile extends StatelessWidget {
           offset: Offset(0, floatAnimation.value),
           child: child,
         ),
-        child: Image.asset(
+        child: Lottie.asset(
           activity.imagePath,
           width: size,
           height: size,
@@ -476,58 +498,7 @@ class _IslandTile extends StatelessWidget {
     );
   }
 }
-// ══════════════════════════════════════════════════════════════════════════════
-// BOTTOM TAB BAR
-// ══════════════════════════════════════════════════════════════════════════════
-class _BottomTabBar extends StatelessWidget {
-  final ValueChanged<int> onChanged;
 
-  const _BottomTabBar({required this.onChanged});
-
-  static const _iconPaths = [
-    'assets/images/bttn_active_play.png',
-    'assets/images/bttn_inactive_storymode.png',
-    'assets/images/bttn_inactive_note.png',
-    'assets/images/bttn_inactive_star_collection.png',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      margin: const EdgeInsets.symmetric(horizontal: 200),
-      decoration: BoxDecoration(
-        color: ColorTheme.yelloworange.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(40),
-        border: Border.all(
-          color: ColorTheme.yelloworange.withValues(alpha: 0.5),
-          width: 1.5,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(_iconPaths.length, (i) {
-          return GestureDetector(
-            onTap: () => onChanged(i),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Image.asset(
-                _iconPaths[i],
-                width: 33,
-                height: 33,
-                errorBuilder: (_, __, ___) => Icon(
-                  Icons.image_not_supported_outlined,
-                  size: 24,
-                  color: ColorTheme.brown,
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
 // ══════════════════════════════════════════════════════════════════════════════
 // DATA MODEL
 // ══════════════════════════════════════════════════════════════════════════════

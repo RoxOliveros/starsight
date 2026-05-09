@@ -1,7 +1,8 @@
 import 'package:StarSight/ui_layer/signin_account.dart';
+import 'package:StarSight/ui_layer/lottie_cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lottie/lottie.dart';
+import 'package:lottie/lottie.dart' hide LottieCache;
 import 'parent_age_verification.dart';
 
 abstract class ColorTheme {
@@ -101,10 +102,13 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                 flex: 0,
                 child: Align(
                   alignment: Alignment.topCenter,
-                  child: Image.asset(
-                    'assets/gifs/white_clouds.gif',
+                  child: LottieCache.instance.get('assets/animations/white_clouds.json') != null
+                      ? Lottie(
+                    composition: LottieCache.instance.get('assets/animations/white_clouds.json')!,
                     fit: BoxFit.fitWidth,
-                  ),
+                    frameRate: FrameRate(30),
+                  )
+                      : const SizedBox.shrink(),
                 ),
               ),
 
@@ -187,10 +191,13 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
               Flexible(
                 child: Align(
                   alignment: Alignment.bottomCenter,
-                  child: Lottie.asset(
-                    'assets/animations/peeking_penguin.json',
+                  child: LottieCache.instance.get('assets/animations/peeking_penguin.json') != null
+                      ? Lottie(
+                    composition: LottieCache.instance.get('assets/animations/peeking_penguin.json')!,
                     fit: BoxFit.fitWidth,
-                  ),
+                    frameRate: FrameRate(30),
+                  )
+                      : const SizedBox.shrink(),
                 ),
               ),
             ],

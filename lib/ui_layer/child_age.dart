@@ -1,6 +1,7 @@
 import 'package:StarSight/ui_layer/child_goal.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'appbar_signup.dart';
 
 abstract class ColorTheme {
@@ -27,10 +28,10 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
   int? _selectedIndex;
 
   final List<String> _ageLabels = [
-    '3-4\nyears old',
-    '5-6\nyears old',
-    '7\nyears old',
-    '8\nyears old',
+    '0-1\nyears old',
+    '1-2\nyears old',
+    '2-3\nyears old',
+    '4 years\nold above',
   ];
 
   final List<List<double>> _positions = [
@@ -116,28 +117,43 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
           Positioned(
             top: screenHeight * 0.35,
             left: -120,
-            child: Image.asset(
-              'assets/gifs/night_cloud.gif',
+            child: Lottie.asset(
+              'assets/animations/night_cloud.json',
               width: screenWidth * 0.55,
-              opacity: const AlwaysStoppedAnimation(0.85),
+              fit: BoxFit.contain,
+              delegates: LottieDelegates(
+                values: [
+                  ValueDelegate.opacity(const ['**'], value: 85),
+                ],
+              ),
             ),
           ),
           Positioned(
             top: screenHeight * 0.50,
             right: -100,
-            child: Image.asset(
-              'assets/gifs/night_cloud_fluffy.gif',
+            child: Lottie.asset(
+              'assets/animations/night_cloud_fluffy.json',
               width: screenWidth * 0.60,
-              opacity: const AlwaysStoppedAnimation(0.85),
+              fit: BoxFit.contain,
+              delegates: LottieDelegates(
+                values: [
+                  ValueDelegate.opacity(const ['**'], value: 85),
+                ],
+              ),
             ),
           ),
           Positioned(
             bottom: screenHeight * 0.10,
             left: -70,
-            child: Image.asset(
-              'assets/gifs/night_cloud.gif',
+            child: Lottie.asset(
+              'assets/animations/night_cloud.json',
               width: screenWidth * 0.65,
-              opacity: const AlwaysStoppedAnimation(0.85),
+              fit: BoxFit.contain,
+              delegates: LottieDelegates(
+                values: [
+                  ValueDelegate.opacity(const ['**'], value: 85),
+                ],
+              ),
             ),
           ),
 
@@ -239,8 +255,8 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
                         height: 120,
                         child: OverflowBox(
                           maxWidth: 140,
-                          child: Image.asset(
-                            'assets/gifs/dancing_dog.gif',
+                          child: Lottie.asset(
+                            'assets/animations/dancing_dog.json',
                             fit: BoxFit.contain,
                             alignment: Alignment.centerRight,
                           ),

@@ -1,6 +1,7 @@
 import 'package:StarSight/ui_layer/child_nickname.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import '../business_layer/parent_age_verification_business_layer.dart';
 import 'app_dialog.dart';
 import 'appbar_signup.dart';
@@ -182,21 +183,35 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
           Positioned(
             top: screenHeight * 0.04,
             right: -100,
-            child: Image.asset(
-              'assets/gifs/night_cloud_fluffy.gif',
+            child: Lottie.asset(
+              'assets/animations/night_cloud_fluffy.json',
               width: screenWidth * 0.65,
-              opacity: const AlwaysStoppedAnimation(0.85),
-            ),
+              delegates: LottieDelegates(
+                values: [
+                  ValueDelegate.opacity(
+                    const ['**'],
+                    value: 85,
+                  ),
+                ],
+              ),
+            )
           ),
           // Bottom-left cloud
           Positioned(
             bottom: screenHeight * -0.09,
             left: -130,
-            child: Image.asset(
-              'assets/gifs/night_cloud.gif',
-              width: screenWidth * 0.80,
-              opacity: const AlwaysStoppedAnimation(0.85),
-            ),
+            child: Lottie.asset(
+              'assets/animations/night_cloud.json',
+              width: screenWidth * 0.65,
+              delegates: LottieDelegates(
+                values: [
+                  ValueDelegate.opacity(
+                    const ['**'],
+                    value: 85,
+                  ),
+                ],
+              ),
+            )
           ),
 
           SafeArea(
@@ -226,8 +241,8 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
                                 height: 150,
                                 child: OverflowBox(
                                   maxWidth: 160,
-                                  child: Image.asset(
-                                    'assets/gifs/dancing_dog.gif',
+                                  child: Lottie.asset(
+                                    'assets/animations/dancing_dog.json',
                                     fit: BoxFit.contain,
                                     alignment: Alignment.centerRight,
                                   ),

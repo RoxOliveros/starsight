@@ -54,7 +54,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
           // 🌳 Background image
           Positioned.fill(
             child: Image.asset(
-              'assets/drafts/forest_bg.png',
+              'assets/images/backgrounds/bg_forest.png',
               fit: BoxFit.cover,
             ),
           ),

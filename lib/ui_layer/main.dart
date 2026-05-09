@@ -4,10 +4,32 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:StarSight/Business_Layer/auth_service.dart';
 import 'package:StarSight/UI_Layer/consent_screen.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
+import 'lottie_cache.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  await LottieCache.instance.preload([
+    'assets/animations/arctic.json',
+    'assets/animations/dancing_dog.json',
+    'assets/animations/forest.json',
+    'assets/animations/lagoon.json',
+    'assets/animations/movie_clapperboard.json',
+    'assets/animations/night_cloud.json',
+    'assets/animations/night_cloud_fluffy.json',
+    'assets/animations/peeking_penguin.json',
+    'assets/animations/penguin_writing_onboard.json',
+    'assets/animations/puzzle.json',
+    'assets/animations/speaker.json',
+    'assets/animations/starsight.json',
+    'assets/animations/town.json',
+    'assets/animations/white_cloud.json',
+    'assets/animations/white_cloud_mirrored.json',
+    'assets/animations/white_clouds.json',
+    'assets/animations/white_clouds_mirrored.json',
+  ]);
+
   runApp(const App());
 }
 

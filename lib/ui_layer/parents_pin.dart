@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart';
 
 abstract class ColorTheme {
   static const Color goldenYellow = Color(0xFFFBD481);
@@ -177,8 +178,8 @@ class ParentPinState extends State<ParentPin> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       // 🐧 Penguin
-                      Image.asset(
-                        'assets/gifs/penguin_writing_onboard.gif',
+                      Lottie.asset(
+                        'assets/animations/penguin_writing_onboard.json',
                         width: 140,
                       ),
 
