@@ -152,11 +152,21 @@ class _SignUpAccountState extends State<SignUpAccount>
   }
 
   void _onGoogleSignUp() async {
-    await AuthService().signInWithGoogle();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ConsentScreen()),
-    );
+    bool success = await AuthService().signInWithGoogle();
+
+    if (success) {
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ConsentScreen()),
+      );
+    } else {
+      if (!mounted) return;
+      AppDialog.showError(
+        context,
+        message: "Google Sign-Up was canceled or failed.",
+      );
+    }
   }
 
   @override
