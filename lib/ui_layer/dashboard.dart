@@ -1,4 +1,4 @@
-import 'package:StarSight/ui_layer/puzzle_level_screen.dart';
+import 'package:StarSight/ui_layer/jar_level_screen.dart';
 import 'package:StarSight/ui_layer/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -471,7 +471,7 @@ class _IslandTile extends StatelessWidget {
       case 'Puzzle':
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const PuzzleLevelScreen()),
+          MaterialPageRoute(builder: (_) => const JarLevelScreen()),
         );
         break;
     }

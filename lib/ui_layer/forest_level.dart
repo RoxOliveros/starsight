@@ -6,12 +6,12 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:lottie/lottie.dart';
 
 abstract class ColorTheme {
-  static const Color peach = Color(0xFFFBEBC6);
   static const Color darkbrown = Color(0xFF4E360D);
   static const Color darkgreen = Color(0xFF3C5729);
+  static const Color olivegreen = Color(0xFF5D6F2F);
   static const Color forestgreen = Color(0xFF9DA92A);
   static const Color flaxengold = Color(0xFFCAB781);
-  static const Color olivegreen = Color(0xFF5D6F2F);
+  static const Color peach = Color(0xFFFBEBC6);
 }
 
 abstract class AppTextStyles {
