@@ -6,15 +6,7 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:lottie/lottie.dart';
 
 abstract class ColorTheme {
-  static const Color cream = Color(0xFFFAF7EB);
   static const Color peach = Color(0xFFFBEBC6);
-  static const Color deepNavyBlue = Color(0xFF5F7199);
-  static const Color blue = Color(0xFF4C89C3);
-  static const Color lightblue = Color(0xFF6FD3E3);
-  static const Color orange = Color(0xFFEC8A20);
-  static const Color yellow = Color(0xFFF9D552);
-  static const Color yelloworange = Color(0xFFFACC58);
-  static const Color brown = Color(0xFF6F6764);
   static const Color darkbrown = Color(0xFF4E360D);
   static const Color darkgreen = Color(0xFF3C5729);
   static const Color forestgreen = Color(0xFF9DA92A);
@@ -24,7 +16,6 @@ abstract class ColorTheme {
 
 abstract class AppTextStyles {
   static const String fredoka = 'Fredoka';
-  static const String nunito = 'Nunito';
 }
 
 class ForestLevelScreen extends StatefulWidget {
@@ -159,7 +150,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withValues(alpha: 0.3),
                                 offset: const Offset(0, 6),
                                 blurRadius: 8,
                               ),
@@ -243,18 +234,6 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _arrowButton(IconData icon) {
-    return Container(
-      width: 50,
-      height: 50,
-      decoration: BoxDecoration(
-        color: const Color(0xFF8BAA8E),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(icon, color: Colors.white),
     );
   }
 }
