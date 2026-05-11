@@ -64,8 +64,6 @@ class _lvl_1State extends State<lvl_1> with SingleTickerProviderStateMixin {
     _idleController.dispose();
     _audioPlayer.dispose();
     SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
