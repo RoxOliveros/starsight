@@ -5,6 +5,7 @@ import 'package:StarSight/Business_Layer/auth_service.dart';
 import 'package:StarSight/UI_Layer/consent_screen.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'lottie_cache.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -212,6 +213,9 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 200));
 
     String loginStatus = await AuthService().handleIncomingLink();
+    //SharedPrederence function
+    final prefs = await SharedPreferences.getInstance();
+    bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
 
     if (mounted) {
       if (loginStatus == "signup") {
@@ -224,14 +228,12 @@ class _SplashScreenState extends State<SplashScreen>
                 FadeTransition(opacity: anim, child: child),
           ),
         );
-      } else if (loginStatus == "login") {
-        // SUCCESSFUL SIGN IN (or already logged in) -> Go to Dashboard
+      } else if (loginStatus == "login" || isLoggedIn) {
+        // SUCCESSFUL LOGIN -> Go to Dashboard
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (_, __, ___) => const DashboardScreen(
-              nickname: "",
-            ), //TODO: @Ron get nickname from db
+            pageBuilder: (_, __, ___) => const DashboardScreen(nickname: ""),
             transitionsBuilder: (_, anim, __, child) =>
                 FadeTransition(opacity: anim, child: child),
           ),

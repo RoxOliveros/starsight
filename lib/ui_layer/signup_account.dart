@@ -5,6 +5,7 @@ import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
 import 'app_dialog.dart';
 import 'consent_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -155,6 +156,9 @@ class _SignUpAccountState extends State<SignUpAccount>
     bool success = await AuthService().signInWithGoogle();
 
     if (success) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
+
       if (!mounted) return;
       Navigator.push(
         context,
