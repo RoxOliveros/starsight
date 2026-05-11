@@ -5,6 +5,7 @@ import 'package:lottie/lottie.dart';
 import '../business_layer/parent_age_verification_business_layer.dart';
 import 'app_dialog.dart';
 import 'appbar_signup.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 abstract class ColorTheme {
   static const Color goldenYellow = Color(0xFFFBD481);
@@ -41,6 +42,40 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
     }
   }
 
+  void _onSubmit() async {
+    int? birthYear = ParentAgeController.parseYear(_digits);
+
+    if (birthYear == null || _digits.length < 4) {
+      AppDialog.showError(
+        context,
+        message: "Please enter all 4 digits of your birth year.",
+      );
+      return;
+    }
+
+    if (ParentAgeController.isAdult(birthYear)) {
+      // 1. THEY PASSED! Save the year to the backpack!
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('saved_parent_year', birthYear.toString());
+
+      if (!mounted) return;
+      // 2. Clear the keypad for next time
+      setState(() => _digits.clear());
+
+      // 3. Now let the kid take over!
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ChildNickname()),
+      );
+    } else {
+      setState(() => _digits.clear());
+      AppDialog.showError(
+        context,
+        message: "Access Denied. You must be a parent to continue.",
+      );
+    }
+  }
+
   void _onComplete() {
     final year = ParentAgeController.parseYear(_digits);
     if (year == null) return;
@@ -51,7 +86,8 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
         context,
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 800),
-          pageBuilder: (context, animation, secondaryAnimation) => ChildNickname(),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              ChildNickname(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final tween = Tween(
               begin: const Offset(0, 1),
@@ -139,7 +175,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
   Widget _buildNextButton() {
     final bool isReady = _digits.length == _maxDigits;
     return GestureDetector(
-      onTap: isReady ? _onComplete : null,
+      onTap: _onSubmit,
       child: Container(
         width: 72,
         height: 56,
@@ -188,13 +224,10 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
               width: screenWidth * 0.65,
               delegates: LottieDelegates(
                 values: [
-                  ValueDelegate.opacity(
-                    const ['**'],
-                    value: 85,
-                  ),
+                  ValueDelegate.opacity(const ['**'], value: 85),
                 ],
               ),
-            )
+            ),
           ),
           // Bottom-left cloud
           Positioned(
@@ -205,13 +238,10 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
               width: screenWidth * 0.65,
               delegates: LottieDelegates(
                 values: [
-                  ValueDelegate.opacity(
-                    const ['**'],
-                    value: 85,
-                  ),
+                  ValueDelegate.opacity(const ['**'], value: 85),
                 ],
               ),
-            )
+            ),
           ),
 
           SafeArea(
@@ -277,8 +307,10 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
                             decoration: BoxDecoration(
                               color: ColorTheme.cream.withValues(alpha: 0.39),
                               border: Border.all(
-                                color: ColorTheme.deepNavyBlue.withValues(alpha: 0.70),
-                                width: 3
+                                color: ColorTheme.deepNavyBlue.withValues(
+                                  alpha: 0.70,
+                                ),
+                                width: 3,
                               ),
                               borderRadius: BorderRadius.circular(23),
                             ),

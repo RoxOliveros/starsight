@@ -139,12 +139,16 @@ class _SignInAccountState extends State<SignInAccount>
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isLoggedIn', true);
 
+      String fetchedNickname = await DatabaseService().getNickname();
+
       if (!mounted) return;
-      Navigator.push(
+
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => const DashboardScreen(nickname: ""),
-        ), //TODO: @Ron get nickname
+          builder: (_) => DashboardScreen(nickname: fetchedNickname),
+        ),
+        (route) => false,
       );
     } else {
       if (!mounted) return;

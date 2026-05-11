@@ -88,7 +88,7 @@ class _SignUpAccountState extends State<SignUpAccount>
       return;
     }
 
-    //email checker
+    // email checker
     bool emailExists = await DatabaseService().doesEmailExist(email);
 
     if (emailExists) {
@@ -101,13 +101,19 @@ class _SignUpAccountState extends State<SignUpAccount>
       return;
     }
 
-    //Calss the AuthService to send the magic link.
+    // --- NEW BACKPACK CODE STARTS HERE ---
+    final prefs = await SharedPreferences.getInstance();
+    String parentYear = prefs.getString('saved_parent_year') ?? "1990";
+
+    // Calls the AuthService to send the magic link.
     bool isSent = await AuthService().sendMagicLink(
       email: email,
       nickname: widget.nickname,
       age: widget.age,
       goals: widget.goals,
+      parentBirthYear: parentYear, // <--- Drop it in!
     );
+    // --- NEW BACKPACK CODE ENDS HERE ---
 
     if (isSent) {
       if (!mounted) return;
@@ -148,8 +154,6 @@ class _SignUpAccountState extends State<SignUpAccount>
             "Oops! We couldn't send the link. Please check your console for errors.",
       );
     }
-
-    // They will only navigate AFTER they click the link in their email!
   }
 
   void _onGoogleSignUp() async {

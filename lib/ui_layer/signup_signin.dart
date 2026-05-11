@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart' hide LottieCache;
 import 'parent_age_verification.dart';
+import 'child_nickname.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -102,12 +103,18 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                 flex: 0,
                 child: Align(
                   alignment: Alignment.topCenter,
-                  child: LottieCache.instance.get('assets/animations/white_clouds.json') != null
+                  child:
+                      LottieCache.instance.get(
+                            'assets/animations/white_clouds.json',
+                          ) !=
+                          null
                       ? Lottie(
-                    composition: LottieCache.instance.get('assets/animations/white_clouds.json')!,
-                    fit: BoxFit.fitWidth,
-                    frameRate: FrameRate(30),
-                  )
+                          composition: LottieCache.instance.get(
+                            'assets/animations/white_clouds.json',
+                          )!,
+                          fit: BoxFit.fitWidth,
+                          frameRate: FrameRate(30),
+                        )
                       : const SizedBox.shrink(),
                 ),
               ),
@@ -138,10 +145,10 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                       textColor: ColorTheme.cream,
                       onTap: () {
                         Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => ParentAgeVerification(),
-                            ),
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ParentAgeVerification(),
+                          ),
                         );
                       },
                     ),
@@ -191,12 +198,18 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
               Flexible(
                 child: Align(
                   alignment: Alignment.bottomCenter,
-                  child: LottieCache.instance.get('assets/animations/peeking_penguin.json') != null
+                  child:
+                      LottieCache.instance.get(
+                            'assets/animations/peeking_penguin.json',
+                          ) !=
+                          null
                       ? Lottie(
-                    composition: LottieCache.instance.get('assets/animations/peeking_penguin.json')!,
-                    fit: BoxFit.fitWidth,
-                    frameRate: FrameRate(30),
-                  )
+                          composition: LottieCache.instance.get(
+                            'assets/animations/peeking_penguin.json',
+                          )!,
+                          fit: BoxFit.fitWidth,
+                          frameRate: FrameRate(30),
+                        )
                       : const SizedBox.shrink(),
                 ),
               ),

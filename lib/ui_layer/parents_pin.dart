@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
+import 'app_dialog.dart';
+import '../business_layer/database_service.dart';
 
 abstract class ColorTheme {
   static const Color goldenYellow = Color(0xFFFBD481);
@@ -37,10 +39,36 @@ class ParentPinState extends State<ParentPin> {
     }
   }
 
-  void _onSubmit() {
-    final pin = _digits.join();
-    debugPrint("Parent PIN: $pin");
-    //TODO: @Ron verify pin/birthyear
+  void _onSubmit() async {
+    if (_digits.length < _maxDigits) {
+      AppDialog.showError(
+        context,
+        message: "Please enter all 4 digits of your birth year.",
+      );
+      return;
+    }
+
+    final enteredPin = _digits.join();
+
+    // 1. Show a loading indicator if you want, because we have to ask the internet!
+
+    // 2. Go get the real PIN from the database
+    String? realPin = await DatabaseService().getParentBirthYear();
+
+    if (!mounted) return;
+
+    // 3. Make the exact match!
+    if (realPin != null && enteredPin == realPin) {
+      // SUCCESS! It matches exactly what they typed during Sign-Up.
+      Navigator.pop(context, true);
+    } else {
+      // FAILURE! Wrong PIN.
+      setState(() => _digits.clear());
+      AppDialog.showError(
+        context,
+        message: "Incorrect Birth Year. Access Denied.",
+      );
+    }
   }
 
   @override
@@ -69,23 +97,23 @@ class ParentPinState extends State<ParentPin> {
       alignment: Alignment.center,
       child: filled
           ? Text(
-        _digits[index],
-        style: const TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          fontFamily: Fonts.fredoka,
-          color: ColorTheme.warmBrown,
-        ),
-      )
+              _digits[index],
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                fontFamily: Fonts.fredoka,
+                color: ColorTheme.warmBrown,
+              ),
+            )
           : Container(
-        width: 28,
-        height: 32,
-        decoration: const BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: ColorTheme.orange, width: 2),
-          ),
-        ),
-      ),
+              width: 28,
+              height: 32,
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: ColorTheme.orange, width: 2),
+                ),
+              ),
+            ),
     );
   }
 
@@ -105,14 +133,14 @@ class ParentPinState extends State<ParentPin> {
         child: isDelete
             ? const Icon(Icons.backspace, color: ColorTheme.warmBrown)
             : Text(
-          label,
-          style: const TextStyle(
-            fontSize: 22,
-            fontFamily: Fonts.fredoka,
-            fontWeight: FontWeight.bold,
-            color: ColorTheme.warmBrown,
-          ),
-        ),
+                label,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontFamily: Fonts.fredoka,
+                  fontWeight: FontWeight.bold,
+                  color: ColorTheme.warmBrown,
+                ),
+              ),
       ),
     );
   }
@@ -222,10 +250,11 @@ class ParentPinState extends State<ParentPin> {
                           borderRadius: BorderRadius.circular(18),
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min, // ✅ keeps input centered tight
+                          mainAxisSize:
+                              MainAxisSize.min, // ✅ keeps input centered tight
                           children: List.generate(
                             _maxDigits,
-                                (i) => _buildSlot(i),
+                            (i) => _buildSlot(i),
                           ),
                         ),
                       ),
@@ -235,12 +264,7 @@ class ParentPinState extends State<ParentPin> {
               ),
             ),
             // ───────── RIGHT SIDE ─────────
-            Expanded(
-              flex: 3,
-              child: Center(
-                child: _buildNumpad(),
-              ),
-            ),
+            Expanded(flex: 3, child: Center(child: _buildNumpad())),
           ],
         ),
       ),

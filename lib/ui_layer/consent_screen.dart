@@ -1,5 +1,6 @@
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:flutter/material.dart';
+import '../business_layer/database_service.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -735,7 +736,9 @@ class _AnimatedChip extends StatelessWidget {
       opacity: visible ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 500),
       child: AnimatedSlide(
-        offset: visible ? Offset.zero : const Offset(-0.2, 0), // slides in from left
+        offset: visible
+            ? Offset.zero
+            : const Offset(-0.2, 0), // slides in from left
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeOut,
         child: _BehaviorChip(text: text, color: color),
@@ -762,7 +765,11 @@ class _AllowedDialog extends StatelessWidget {
               alignment: Alignment.topLeft,
               child: GestureDetector(
                 onTap: () => Navigator.of(context).pop(),
-                child: const Icon(Icons.close, color: ColorTheme.deepNavyBlue, size: 22),
+                child: const Icon(
+                  Icons.close,
+                  color: ColorTheme.deepNavyBlue,
+                  size: 22,
+                ),
               ),
             ),
 
@@ -803,12 +810,21 @@ class _AllowedDialog extends StatelessWidget {
             SizedBox(
               width: 200,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  String fetchedNickname = await DatabaseService()
+                      .getNickname();
+
+                  if (!context.mounted) return;
+
+                  Navigator.of(context).pop();
+
+                  Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const DashboardScreen(nickname: ""), //TODO: @Ron get nickname from db
+                      builder: (context) =>
+                          DashboardScreen(nickname: fetchedNickname),
                     ),
+                    (route) => false,
                   );
                 },
                 style: ElevatedButton.styleFrom(

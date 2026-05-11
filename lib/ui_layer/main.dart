@@ -6,6 +6,7 @@ import 'package:StarSight/UI_Layer/consent_screen.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'lottie_cache.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:StarSight/Business_Layer/database_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -213,9 +214,17 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 200));
 
     String loginStatus = await AuthService().handleIncomingLink();
-    //SharedPrederence function
+
+    // SharedPreference function
     final prefs = await SharedPreferences.getInstance();
     bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+
+    // --- NEW: Grab the name from the database while the app loads! ---
+    String realName = "";
+    if (loginStatus == "login" || isLoggedIn) {
+      realName = await DatabaseService().getNickname();
+    }
+    // -----------------------------------------------------------------
 
     if (mounted) {
       if (loginStatus == "signup") {
@@ -229,11 +238,12 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         );
       } else if (loginStatus == "login" || isLoggedIn) {
-        // SUCCESSFUL LOGIN -> Go to Dashboard
+        // SUCCESSFUL LOGIN -> Go to Dashboard WITH THE REAL NAME
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (_, __, ___) => const DashboardScreen(nickname: ""),
+            pageBuilder: (_, __, ___) =>
+                DashboardScreen(nickname: realName), // <--- Passed it here!
             transitionsBuilder: (_, anim, __, child) =>
                 FadeTransition(opacity: anim, child: child),
           ),
@@ -263,7 +273,6 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;

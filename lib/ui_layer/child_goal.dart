@@ -1,8 +1,9 @@
 import 'package:StarSight/ui_layer/signin_account.dart';
-import 'package:StarSight/ui_layer/signup_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'appbar_signup.dart';
+import 'parent_age_verification.dart';
+import 'signup_account.dart';
 
 abstract class ColorTheme {
   static const Color goldenYellow = Color(0xFFFBD481);
@@ -82,13 +83,10 @@ class _ChildGoalState extends State<ChildGoal> {
               width: screenWidth * 0.55,
               delegates: LottieDelegates(
                 values: [
-                  ValueDelegate.opacity(
-                    const ['**'],
-                    value: 85,
-                  ),
+                  ValueDelegate.opacity(const ['**'], value: 85),
                 ],
               ),
-            )
+            ),
           ),
 
           SafeArea(
