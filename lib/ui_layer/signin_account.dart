@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
-import '../business_layer/orientation_service.dart';
 import 'app_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -49,8 +48,10 @@ class _SignInAccountState extends State<SignInAccount>
   @override
   void initState() {
     super.initState();
-    OrientationService.setPortrait();
-
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -147,7 +148,7 @@ class _SignInAccountState extends State<SignInAccount>
         MaterialPageRoute(
           builder: (_) => DashboardScreen(nickname: fetchedNickname),
         ),
-        (route) => false,
+            (route) => false,
       );
     } else {
       if (!mounted) return;

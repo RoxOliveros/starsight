@@ -3,7 +3,6 @@ import 'package:StarSight/ui_layer/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
-import '../business_layer/orientation_service.dart';
 import 'arctic_level.dart';
 import 'forest_level.dart';
 import 'lagoon_level.dart';
@@ -80,8 +79,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    OrientationService.setLandscape();
-
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     _floatController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
@@ -93,6 +94,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
+    // SystemChrome.setPreferredOrientations([
+    //   DeviceOrientation.portraitUp,
+    //   DeviceOrientation.portraitDown,
+    // ]);
     _floatController.dispose();
     super.dispose();
   }
@@ -120,7 +125,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           width: 350,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) =>
-                              const SizedBox(width: 200),
+                          const SizedBox(width: 200),
                         ),
                       ),
                     ),
@@ -136,7 +141,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           width: 80,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) =>
-                              const SizedBox(width: 80),
+                          const SizedBox(width: 80),
                         ),
                       ),
                     ),
@@ -151,7 +156,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           width: 350,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) =>
-                              const SizedBox(width: 200),
+                          const SizedBox(width: 200),
                         ),
                       ),
                     ),
@@ -205,7 +210,7 @@ class _TopBar extends StatelessWidget {
             text: const TextSpan(
               style: TextStyle(
                 fontFamily: AppTextStyles.fredoka,
-                fontSize: 35,
+                fontSize: 30,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1,
               ),
@@ -371,7 +376,7 @@ class _MainIslandCard extends StatelessWidget {
               right: 12,
               bottom: 12,
               child: GestureDetector(
-                onTap: () {}, //TODO: Navigate to storymode
+                onTap: () {}, //TODO: @Tin Navigate to storymode
                 child: Lottie.asset(
                   'assets/animations/movie_clapperboard.json',
                   width: 56,
