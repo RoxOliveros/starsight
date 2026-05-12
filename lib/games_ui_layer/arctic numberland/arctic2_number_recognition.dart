@@ -1,42 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
+import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 
-abstract class ColorTheme {
-  static const Color cream = Color(0xFFFAF7EB);
-  static const Color deepNavyBlue = Color(0xFF5F7199);
-  static const Color orange = Color(0xFFEC8A20);
-  static const Color yelloworange = Color(0xFFFACC58);
-  static const Color green = Color(0xFF82C84B);
-  static const Color red = Color(0xFFE05C5C);
-  static const Color brown = Color(0xFF5E463E);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
-
-class CountingObjectsScreen extends StatefulWidget {
-  const CountingObjectsScreen({super.key});
+class NumberRecognitionScreen extends StatefulWidget {
+  const NumberRecognitionScreen({super.key});
 
   @override
-  State<CountingObjectsScreen> createState() => _CountingObjectsScreenState();
+  State<NumberRecognitionScreen> createState() =>
+      _NumberRecognitionScreenState();
 }
 
-class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
-  late int _correctCount;
+class _NumberRecognitionScreenState extends State<NumberRecognitionScreen> {
+  late int _correctNumber;
   late List<int> _choices;
-  late String _currentObject;
   int? _tappedIndex;
-  int _score = 0;
   int _round = 1;
   static const int _totalRounds = 5;
-
-  // Add your own image asset paths here
-  final List<Map<String, String>> _objects = [
-    {'name': 'Apples', 'asset': 'assets/drafts/apple.png'},
-    {'name': 'Balls', 'asset': 'assets/drafts/ball.png'},
-    {'name': 'Stars', 'asset': 'assets/images/counting/star.png'},
-  ];
 
   @override
   void initState() {
@@ -58,26 +38,17 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
   }
 
   void _generateRound() {
-    final allNumbers = [1, 2, 3, 4, 5]..shuffle();
-    _correctCount = allNumbers.first;
-
-    final wrong = allNumbers.skip(1).take(3).toList();
-    _choices = [...wrong, _correctCount]..shuffle();
-
-    final obj = (_objects..shuffle()).first;
-    _currentObject = obj['asset']!;
-
+    final all = [1, 2, 3, 4, 5]..shuffle();
+    _correctNumber = all.first;
+    final wrong = all.skip(1).take(3).toList();
+    _choices = [...wrong, _correctNumber]..shuffle();
     setState(() => _tappedIndex = null);
   }
 
   void _onChoiceTap(int index) async {
     if (_tappedIndex != null) return;
     setState(() => _tappedIndex = index);
-
-    if (_choices[index] == _correctCount) _score++;
-
     await Future.delayed(const Duration(milliseconds: 900));
-
     if (_round >= _totalRounds) {
       _showEndDialog();
     } else {
@@ -94,21 +65,22 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: ArcticColorTheme.cotton,
         title: Text(
-          _score >= 4 ? '🌟 Amazing!' : '🎉 Good Try!',
+          '🌟 Amazing!',
           style: const TextStyle(
-            fontFamily: AppTextStyles.fredoka,
+            fontFamily: ArcticAppTextStyles.fredoka,
             fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: ColorTheme.brown,
+            color: ArcticColorTheme.cadetblue,
           ),
         ),
         content: Text(
-          'You got $_score out of $_totalRounds!',
+          'You did well!',
           style: const TextStyle(
-            fontFamily: AppTextStyles.fredoka,
+            fontFamily: ArcticAppTextStyles.fredoka,
             fontSize: 22,
-            color: ColorTheme.brown,
+            color: ArcticColorTheme.slateblue,
           ),
         ),
         actions: [
@@ -116,7 +88,6 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
             onPressed: () {
               Navigator.pop(context);
               setState(() {
-                _score = 0;
                 _round = 1;
                 _generateRound();
               });
@@ -124,9 +95,9 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
             child: const Text(
               'Play Again',
               style: TextStyle(
-                fontFamily: AppTextStyles.fredoka,
+                fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: 20,
-                color: ColorTheme.orange,
+                color: ArcticColorTheme.pictonblue,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -136,17 +107,25 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
     );
   }
 
+  // Unselected → pictonblue | correct → lightblue | wrong tap → cadetblue
   Color _choiceColor(int index) {
-    if (_tappedIndex == null) return ColorTheme.yelloworange;
-    if (_choices[index] == _correctCount) return ColorTheme.green;
-    if (_tappedIndex == index) return ColorTheme.red;
-    return ColorTheme.yelloworange;
+    if (_tappedIndex == null) return ArcticColorTheme.pictonblue;
+    if (_choices[index] == _correctNumber) return ArcticColorTheme.lightblue;
+    if (_tappedIndex == index) return ArcticColorTheme.cadetblue;
+    return ArcticColorTheme.pictonblue;
+  }
+
+  Color _choiceBorderColor(int index) {
+    if (_tappedIndex == null) return ArcticColorTheme.slateblue;
+    if (_choices[index] == _correctNumber) return ArcticColorTheme.pictonblue;
+    if (_tappedIndex == index) return ArcticColorTheme.slateblue;
+    return ArcticColorTheme.slateblue;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ColorTheme.cream,
+      backgroundColor: ArcticColorTheme.lightgrayishcyan,
       body: SafeArea(
         child: Column(
           children: [
@@ -160,39 +139,35 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: ColorTheme.brown,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                    child: ArcticBackButton(),
                   ),
                   const Text(
-                    'Counting Objects',
+                    'Number Recognition',
                     style: TextStyle(
-                      fontFamily: AppTextStyles.fredoka,
+                      fontFamily: ArcticAppTextStyles.fredoka,
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
-                      color: ColorTheme.brown,
+                      color: ArcticColorTheme.cadetblue,
                     ),
                   ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: ColorTheme.yelloworange,
+                        color: ArcticColorTheme.pictonblue,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         '$_round / $_totalRounds',
                         style: const TextStyle(
-                          fontFamily: AppTextStyles.fredoka,
+                          fontFamily: ArcticAppTextStyles.fredoka,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: ArcticColorTheme.cotton,
                         ),
                       ),
                     ),
@@ -201,18 +176,19 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
               ),
             ),
 
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
 
+            // --- PROMPT ---
             const Text(
-              'How many are there?',
+              'Tap the number you see!',
               style: TextStyle(
-                fontFamily: AppTextStyles.fredoka,
-                fontSize: 22,
-                color: ColorTheme.deepNavyBlue,
+                fontFamily: ArcticAppTextStyles.fredoka,
+                fontSize: 20,
+                color: ArcticColorTheme.slateblue,
               ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
             // --- MAIN CONTENT ---
             Expanded(
@@ -220,43 +196,59 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // OBJECTS DISPLAY BOX
+                  // BIG NUMBER CARD
                   Container(
-                    width: 340,
-                    height: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 16),
+                    width: 180,
+                    height: 180,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: ArcticColorTheme.cotton,
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                          color: ColorTheme.yelloworange, width: 4),
+                        color: ArcticColorTheme.pictonblue,
+                        width: 4,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: ColorTheme.yelloworange.withOpacity(0.3),
+                          color: ArcticColorTheme.pictonblue.withValues(alpha: 0.3),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: _buildObjectGrid(),
+                      padding: const EdgeInsets.all(12),
+                      child: Image.asset(
+                        'assets/fonts/game_numbers/$_correctNumber.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Center(
+                          child: Text(
+                            '$_correctNumber',
+                            style: const TextStyle(
+                              fontFamily: ArcticAppTextStyles.fredoka,
+                              fontSize: 100,
+                              fontWeight: FontWeight.bold,
+                              color: ArcticColorTheme.cadetblue,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
 
-                  // CHOICES
+                  // CHOICES GRID
                   SizedBox(
-                    width: 300,
+                    width: 280,
                     child: GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 14,
-                        mainAxisSpacing: 14,
-                        childAspectRatio: 1.4,
-                      ),
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 14,
+                            mainAxisSpacing: 14,
+                            childAspectRatio: 1.3,
+                          ),
                       itemCount: _choices.length,
                       itemBuilder: (context, index) {
                         return GestureDetector(
@@ -267,32 +259,33 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
                               color: _choiceColor(index),
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: _choiceColor(index) ==
-                                    ColorTheme.yelloworange
-                                    ? ColorTheme.orange
-                                    : _choiceColor(index),
+                                color: _choiceBorderColor(index),
                                 width: 3,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color:
-                                  _choiceColor(index).withOpacity(0.4),
+                                  color: _choiceColor(
+                                    index,
+                                  ).withValues(alpha: 0.35),
                                   blurRadius: 8,
                                   offset: const Offset(0, 3),
                                 ),
                               ],
                             ),
-                            child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
                               child: Image.asset(
-                                'assets/fonts/game_numbers/{_choices[index]}.png',
+                                'assets/fonts/game_numbers/${_choices[index]}.png',
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => Text(
-                                  '${_choices[index]}',
-                                  style: const TextStyle(
-                                    fontFamily: AppTextStyles.fredoka,
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Text(
+                                    '${_choices[index]}',
+                                    style: const TextStyle(
+                                      fontFamily: ArcticAppTextStyles.fredoka,
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.bold,
+                                      color: ArcticColorTheme.cotton,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -305,33 +298,10 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildObjectGrid() {
-    // Arrange objects in a wrap layout
-    return Wrap(
-      alignment: WrapAlignment.center,
-      runAlignment: WrapAlignment.center,
-      spacing: 12,
-      runSpacing: 12,
-      children: List.generate(_correctCount, (i) {
-        return Image.asset(
-          _currentObject,
-          width: 60,
-          height: 60,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Text(
-            '🍎',
-            style: TextStyle(fontSize: 48),
-          ),
-        );
-      }),
     );
   }
 }

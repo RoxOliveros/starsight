@@ -4,7 +4,7 @@ import 'package:StarSight/ui_layer/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
-import 'arctic_level.dart';
+import 'arctic_numberland/arctic_level.dart';
 import 'forest_level.dart';
 import 'lagoon_level.dart';
 import 'menu_dialog.dart';

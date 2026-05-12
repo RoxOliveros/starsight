@@ -1,24 +1,12 @@
+import 'package:StarSight/ui_layer/arctic_numberland/arctic_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
-import '../business_layer/orientation_service.dart';
-import '../games_ui_layer/arctic numberland/number_count.dart';
-import '../games_ui_layer/arctic numberland/number_match.dart';
-import '../games_ui_layer/arctic numberland/number_recognize.dart';
-
-abstract class ColorTheme {
-  static const Color cadetblue = Color(0xFF658BB0);
-  static const Color slateblue = Color(0xFF6288B0);
-  static const Color pictonblue = Color(0xFF8ACCED);
-  static const Color lightblue = Color(0xFF91D0F1);
-  static const Color cotton = Color(0xFFFBFBF9);
-  static const Color lightgrayishcyan = Color(0xFFF4F8F8);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
+import '../../business_layer/orientation_service.dart';
+import '../../games_ui_layer/arctic numberland/arctic3_number_counting.dart';
+import '../../games_ui_layer/arctic numberland/arctic4_number_matching.dart';
+import '../../games_ui_layer/arctic numberland/arctic2_number_recognition.dart';
+import 'arctic_theme.dart';
 
 class ArcticLevelScreen extends StatefulWidget {
   const ArcticLevelScreen({super.key});
@@ -54,33 +42,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
           ),
 
           //back button
-          Positioned(
-            top: 16,
-            left: 16,
-            child: GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: ColorTheme.cotton,
-                  borderRadius: BorderRadius.circular(25),
-                  border: Border.all(color: ColorTheme.slateblue, width: 5),
-                ),
-                child: const Text(
-                  'back',
-                  style: TextStyle(
-                    fontFamily: AppTextStyles.fredoka,
-                    fontSize: 18,
-                    color: ColorTheme.slateblue,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: ArcticBackButton()),
 
           // 🌿 Content
           Center(
@@ -98,7 +60,10 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4EFE6),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: ColorTheme.slateblue, width: 8),
+                      border: Border.all(
+                        color: ArcticColorTheme.slateblue,
+                        width: 8,
+                      ),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -106,10 +71,10 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
-                            _LevelTile(level: 1, stars: 3),
-                            _LevelTile(level: 2, stars: 2),
+                            _LevelTile(level: 1),
+                            _LevelTile(level: 2),
                             _LevelTile(level: 3),
-                            _LockedTile(),
+                            _LevelTile(level: 4),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -138,10 +103,10 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: ColorTheme.lightblue,
+                            color: ArcticColorTheme.lightblue,
                             borderRadius: BorderRadius.circular(25),
                             border: Border.all(
-                              color: ColorTheme.slateblue,
+                              color: ArcticColorTheme.slateblue,
                               width: 5,
                             ),
                             boxShadow: [
@@ -152,12 +117,12 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                               ),
                             ],
                           ),
-                          child: const Text(
+                          child: Text(
                             ' SELECT LEVEL ',
                             style: TextStyle(
-                              fontFamily: AppTextStyles.fredoka,
+                              fontFamily: ArcticAppTextStyles.fredoka,
                               fontSize: 25,
-                              color: ColorTheme.lightgrayishcyan,
+                              color: ArcticColorTheme.lightgrayishcyan,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1,
                             ),
@@ -236,9 +201,8 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
 
 class _LevelTile extends StatelessWidget {
   final int level;
-  final int stars;
 
-  const _LevelTile({required this.level, this.stars = 0});
+  const _LevelTile({required this.level});
 
   @override
   Widget build(BuildContext context) {
@@ -246,6 +210,8 @@ class _LevelTile extends StatelessWidget {
       onTap: () {
         switch (level) {
           case 1:
+            break;
+          case 2:
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -253,7 +219,7 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
-          case 2:
+          case 3:
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -261,7 +227,7 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
-          case 3:
+          case 4:
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -279,34 +245,19 @@ class _LevelTile extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: ColorTheme.pictonblue,
+              color: ArcticColorTheme.pictonblue,
               borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: ColorTheme.slateblue, width: 5),
+              border: Border.all(color: ArcticColorTheme.slateblue, width: 5),
             ),
             alignment: Alignment.center,
             child: Text(
               '$level',
               style: const TextStyle(
-                fontFamily: AppTextStyles.fredoka,
+                fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: 40,
-                color: ColorTheme.cadetblue,
+                color: ArcticColorTheme.cadetblue,
                 fontWeight: FontWeight.bold,
               ),
-            ),
-          ),
-          Positioned(
-            bottom: -5,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(3, (i) {
-                return Image.asset(
-                  'assets/images/star.png',
-                  width: 14,
-                  height: 14,
-                  color: i < stars ? null : Colors.grey.shade400,
-                  colorBlendMode: BlendMode.srcIn,
-                );
-              }),
             ),
           ),
         ],

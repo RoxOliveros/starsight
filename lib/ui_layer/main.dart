@@ -12,6 +12,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
+  runApp(const App());
+
   await LottieCache.instance.preload([
     'assets/animations/arctic.json',
     'assets/animations/dancing_dog.json',
@@ -32,7 +34,6 @@ void main() async {
     'assets/animations/white_clouds_mirrored.json',
   ]);
 
-  runApp(const App());
 }
 
 class App extends StatelessWidget {

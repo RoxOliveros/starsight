@@ -1,20 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-abstract class ColorTheme {
-  static const Color cream = Color(0xFFFAF7EB);
-  static const Color deepNavyBlue = Color(0xFF5F7199);
-  static const Color orange = Color(0xFFEC8A20);
-  static const Color yellow = Color(0xFFF9D552);
-  static const Color yelloworange = Color(0xFFFACC58);
-  static const Color green = Color(0xFF82C84B);
-  static const Color red = Color(0xFFE05C5C);
-  static const Color brown = Color(0xFF5E463E);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
+import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
+import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 
 class NumberMatchingScreen extends StatefulWidget {
   const NumberMatchingScreen({super.key});
@@ -105,7 +92,7 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
         }
       }
     } else {
-      // ❌ Wrong match — flash both cards red
+      // ❌ Wrong match — flash both cards
       setState(() {
         _wrongThisRound = true;
         _wrongFlashNumber = droppedValue;
@@ -125,21 +112,22 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: ArcticColorTheme.cotton,
         title: Text(
           _score >= 4 ? '🌟 Amazing!' : '🎉 Good Try!',
           style: const TextStyle(
-            fontFamily: AppTextStyles.fredoka,
+            fontFamily: ArcticAppTextStyles.fredoka,
             fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: ColorTheme.brown,
+            color: ArcticColorTheme.cadetblue,
           ),
         ),
         content: Text(
           'You got $_score out of $_totalRounds!',
           style: const TextStyle(
-            fontFamily: AppTextStyles.fredoka,
+            fontFamily: ArcticAppTextStyles.fredoka,
             fontSize: 22,
-            color: ColorTheme.brown,
+            color: ArcticColorTheme.slateblue,
           ),
         ),
         actions: [
@@ -156,9 +144,9 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
             child: const Text(
               'Play Again',
               style: TextStyle(
-                fontFamily: AppTextStyles.fredoka,
+                fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: 20,
-                color: ColorTheme.orange,
+                color: ArcticColorTheme.pictonblue,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -170,22 +158,30 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
 
   // ── Color helpers ─────────────────────────────────────────────────────────
 
+  // Number card (draggable): default → pictonblue | matched → lightblue | wrong → cadetblue
   Color _numberCardColor(int value) {
-    if (_matchedNumbers.contains(value)) return ColorTheme.green;
-    if (_wrongFlashNumber == value) return ColorTheme.red;
-    return ColorTheme.yelloworange;
+    if (_matchedNumbers.contains(value)) return ArcticColorTheme.lightblue;
+    if (_wrongFlashNumber == value) return ArcticColorTheme.cadetblue;
+    return ArcticColorTheme.pictonblue;
   }
 
+  Color _numberCardBorderColor(int value) {
+    if (_matchedNumbers.contains(value)) return ArcticColorTheme.pictonblue;
+    if (_wrongFlashNumber == value) return ArcticColorTheme.slateblue;
+    return ArcticColorTheme.slateblue;
+  }
+
+  // Dot card (target): default fill → cotton | matched → lightblue | wrong → cadetblue
   Color _dotCardFillColor(int value) {
-    if (_matchedNumbers.contains(value)) return ColorTheme.green;
-    if (_wrongFlashDots == value) return ColorTheme.red;
-    return Colors.white;
+    if (_matchedNumbers.contains(value)) return ArcticColorTheme.lightblue;
+    if (_wrongFlashDots == value) return ArcticColorTheme.cadetblue;
+    return ArcticColorTheme.cotton;
   }
 
   Color _dotCardBorderColor(int value) {
-    if (_matchedNumbers.contains(value)) return ColorTheme.green;
-    if (_wrongFlashDots == value) return ColorTheme.red;
-    return ColorTheme.yelloworange;
+    if (_matchedNumbers.contains(value)) return ArcticColorTheme.pictonblue;
+    if (_wrongFlashDots == value) return ArcticColorTheme.slateblue;
+    return ArcticColorTheme.pictonblue;
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -193,7 +189,7 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ColorTheme.cream,
+      backgroundColor: ArcticColorTheme.lightgrayishcyan,
       body: SafeArea(
         child: Column(
           children: [
@@ -207,21 +203,15 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: ColorTheme.brown,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                    child: ArcticBackButton(),
                   ),
                   const Text(
                     'Number Matching',
                     style: TextStyle(
-                      fontFamily: AppTextStyles.fredoka,
+                      fontFamily: ArcticAppTextStyles.fredoka,
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
-                      color: ColorTheme.brown,
+                      color: ArcticColorTheme.cadetblue,
                     ),
                   ),
                   Align(
@@ -232,16 +222,16 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: ColorTheme.yelloworange,
+                        color: ArcticColorTheme.pictonblue,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         '$_round / $_totalRounds',
                         style: const TextStyle(
-                          fontFamily: AppTextStyles.fredoka,
+                          fontFamily: ArcticAppTextStyles.fredoka,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: ArcticColorTheme.cotton,
                         ),
                       ),
                     ),
@@ -256,9 +246,9 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
             const Text(
               'Drag the number to its matching dots!',
               style: TextStyle(
-                fontFamily: AppTextStyles.fredoka,
+                fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: 20,
-                color: ColorTheme.deepNavyBlue,
+                color: ArcticColorTheme.slateblue,
               ),
             ),
 
@@ -270,9 +260,9 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
               children: List.generate(_totalRounds, (i) {
                 Color color;
                 if (_scoreHistory[i] == true) {
-                  color = ColorTheme.green;
+                  color = ArcticColorTheme.lightblue;
                 } else if (_scoreHistory[i] == false) {
-                  color = ColorTheme.red;
+                  color = ArcticColorTheme.cadetblue;
                 } else {
                   color = Colors.grey.shade300;
                 }
@@ -309,7 +299,7 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
                   // Center arrow hint
                   const Icon(
                     Icons.arrow_forward_rounded,
-                    color: ColorTheme.deepNavyBlue,
+                    color: ArcticColorTheme.slateblue,
                     size: 32,
                   ),
 
@@ -336,14 +326,24 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
   Widget _buildDraggableNumberCard(int value) {
     final isMatched = _matchedNumbers.contains(value);
     final bgColor = _numberCardColor(value);
+    final borderColor = _numberCardBorderColor(value);
 
-    final numberText = Text(
-      '$value',
-      style: const TextStyle(
-        fontFamily: AppTextStyles.fredoka,
-        fontSize: 36,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
+    final cardChild = Padding(
+      padding: const EdgeInsets.all(10),
+      child: Image.asset(
+        'assets/fonts/game_numbers/$value.png',
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Center(
+          child: Text(
+            '$value',
+            style: const TextStyle(
+              fontFamily: ArcticAppTextStyles.fredoka,
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+              color: ArcticColorTheme.cotton,
+            ),
+          ),
+        ),
       ),
     );
 
@@ -354,22 +354,17 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: bgColor == ColorTheme.yelloworange
-              ? ColorTheme.orange
-              : bgColor,
-          width: 3,
-        ),
+        border: Border.all(color: borderColor, width: 3),
         boxShadow: [
           BoxShadow(
-            color: bgColor.withOpacity(0.4),
+            color: bgColor.withValues(alpha: 0.35),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
         ],
       ),
       child: isMatched
-          ? Center(child: numberText)
+          ? cardChild
           : Draggable<int>(
         data: value,
         feedback: Material(
@@ -378,33 +373,53 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
             width: 100,
             height: 90,
             decoration: BoxDecoration(
-              color: ColorTheme.orange,
+              color: ArcticColorTheme.pictonblue,
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.25),
+                  color: Colors.black.withValues(alpha: 0.25),
                   blurRadius: 14,
                   offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: Center(child: numberText),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Image.asset(
+                'assets/fonts/game_numbers/$value.png',
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Center(
+                  child: Text(
+                    '$value',
+                    style: const TextStyle(
+                      fontFamily: ArcticAppTextStyles.fredoka,
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: ArcticColorTheme.cotton,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
         childWhenDragging: Opacity(
           opacity: 0.35,
           child: Container(
-            width: 100,
-            height: 90,
+            width: 85,
+            height: 72,
             decoration: BoxDecoration(
-              color: ColorTheme.yelloworange,
+              color: ArcticColorTheme.pictonblue,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: ColorTheme.orange, width: 3),
+              border: Border.all(
+                color: ArcticColorTheme.slateblue,
+                width: 3,
+              ),
             ),
-            child: Center(child: numberText),
+            child: cardChild,
           ),
         ),
-        child: Center(child: numberText),
+        child: cardChild,
       ),
     );
   }
@@ -421,12 +436,13 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
       builder: (context, candidateData, rejectedData) {
         final isHovering = candidateData.isNotEmpty;
         final bgColor = isMatched
-            ? ColorTheme.green
+            ? ArcticColorTheme.lightblue
             : isHovering
-            ? ColorTheme.yellow.withOpacity(0.5)
+            ? ArcticColorTheme.pictonblue.withValues(alpha: 0.2)
             : _dotCardFillColor(value);
-        final borderColor =
-        isHovering ? ColorTheme.orange : _dotCardBorderColor(value);
+        final borderColor = isHovering
+            ? ArcticColorTheme.pictonblue
+            : _dotCardBorderColor(value);
 
         return AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -441,7 +457,7 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
             ),
             boxShadow: [
               BoxShadow(
-                color: borderColor.withOpacity(0.3),
+                color: borderColor.withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
@@ -457,10 +473,12 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
               children: List.generate(
                 value,
                     (_) => Container(
-                      width: 14,
-                      height: 14,
+                  width: 14,
+                  height: 14,
                   decoration: BoxDecoration(
-                    color: isMatched ? Colors.white : ColorTheme.deepNavyBlue,
+                    color: isMatched
+                        ? ArcticColorTheme.cotton
+                        : ArcticColorTheme.slateblue,
                     shape: BoxShape.circle,
                   ),
                 ),

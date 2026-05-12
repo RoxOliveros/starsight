@@ -82,6 +82,7 @@ flutter:
     - assets/images/
     - assets/images/backgrounds/
     - assets/images/arrows/
+    - assets/images/objects/
     - assets/fonts/game_letters/
     - assets/audio/
     - assets/drafts/
