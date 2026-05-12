@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
+import '../business_layer/orientation_service.dart';
+
 abstract class ColorTheme {
   static const Color darkbrown = Color(0xFF4E360D);
   static const Color darkolive = Color(0xFF5F5630);
@@ -27,18 +29,12 @@ class _TownLevelScreenState extends State<TownLevelScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 

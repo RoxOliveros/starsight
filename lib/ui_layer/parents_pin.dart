@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/orientation_service.dart';
 import 'app_dialog.dart';
 import '../business_layer/database_service.dart';
 
@@ -73,20 +74,14 @@ class ParentPinState extends State<ParentPin> {
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
   }
 
   Widget _buildSlot(int index) {
@@ -246,7 +241,7 @@ class ParentPinState extends State<ParentPin> {
                           vertical: 14,
                         ),
                         decoration: BoxDecoration(
-                          color: ColorTheme.cream.withOpacity(0.25),
+                          color: ColorTheme.cream.withValues(alpha: 0.25),
                           borderRadius: BorderRadius.circular(18),
                         ),
                         child: Row(

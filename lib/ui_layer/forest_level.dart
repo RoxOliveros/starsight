@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:lottie/lottie.dart';
 
+import '../business_layer/orientation_service.dart';
+
 abstract class ColorTheme {
   static const Color darkbrown = Color(0xFF4E360D);
   static const Color darkgreen = Color(0xFF3C5729);
@@ -29,18 +31,12 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 

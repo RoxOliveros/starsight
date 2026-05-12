@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/jar_level_screen.dart';
 import 'package:StarSight/ui_layer/town_level.dart';
 import 'package:flutter/material.dart';
@@ -79,10 +80,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     _floatController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
@@ -94,10 +92,6 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
-    // SystemChrome.setPreferredOrientations([
-    //   DeviceOrientation.portraitUp,
-    //   DeviceOrientation.portraitDown,
-    // ]);
     _floatController.dispose();
     super.dispose();
   }

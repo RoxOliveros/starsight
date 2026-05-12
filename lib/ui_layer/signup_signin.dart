@@ -3,8 +3,8 @@ import 'package:StarSight/ui_layer/lottie_cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart' hide LottieCache;
+import '../business_layer/orientation_service.dart';
 import 'parent_age_verification.dart';
-import 'child_nickname.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -72,10 +72,7 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
+    OrientationService.setPortrait();
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),

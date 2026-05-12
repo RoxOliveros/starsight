@@ -2,6 +2,7 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/orientation_service.dart';
 import '../games_ui_layer/arctic numberland/number_count.dart';
 import '../games_ui_layer/arctic numberland/number_match.dart';
 import '../games_ui_layer/arctic numberland/number_recognize.dart';
@@ -30,18 +31,12 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 
