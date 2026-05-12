@@ -3,6 +3,7 @@ import 'package:StarSight/ui_layer/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/orientation_service.dart';
 import 'arctic_level.dart';
 import 'forest_level.dart';
 import 'lagoon_level.dart';
@@ -79,10 +80,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
+
     _floatController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
@@ -94,10 +93,6 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
     _floatController.dispose();
     super.dispose();
   }
@@ -210,7 +205,7 @@ class _TopBar extends StatelessWidget {
             text: const TextSpan(
               style: TextStyle(
                 fontFamily: AppTextStyles.fredoka,
-                fontSize: 30,
+                fontSize: 35,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1,
               ),
@@ -376,7 +371,7 @@ class _MainIslandCard extends StatelessWidget {
               right: 12,
               bottom: 12,
               child: GestureDetector(
-                onTap: () {}, //TODO: @Tin Navigate to storymode
+                onTap: () {}, //TODO: Navigate to storymode
                 child: Lottie.asset(
                   'assets/animations/movie_clapperboard.json',
                   width: 56,

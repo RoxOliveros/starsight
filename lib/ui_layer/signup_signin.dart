@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart' hide LottieCache;
 import 'parent_age_verification.dart';
-import 'child_nickname.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);

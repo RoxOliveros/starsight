@@ -1,3 +1,4 @@
+import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:StarSight/ui_layer/parents_pin.dart';
 import 'package:flutter/material.dart';
 
@@ -40,18 +41,6 @@ class ProfileDayDialog extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ❌ Close button (top right)
-                Align(
-                  alignment: Alignment.topRight,
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 26,
-                    ),
-                  ),
-                ),
 
                 const SizedBox(height: 8),
 
@@ -154,7 +143,7 @@ class ProfileDayDialog extends StatelessWidget {
                   icon: Icons.group,
                   label: "Parent's Area",
                   onTap: () {
-                    Navigator.pop(context); // optional: close dialog first
+                    Navigator.pop(context);
 
                     Navigator.push(
                       context,
@@ -163,7 +152,25 @@ class ProfileDayDialog extends StatelessWidget {
                       ),
                     );
                   },
-                ),              ],
+                ),
+
+                const SizedBox(height: 14),
+
+                _ProfileOption(
+                  icon: Icons.logout,
+                  label: "Log out",
+                  onTap: () {
+                    //TODO: @Ron paayos nalang ng backend etc here for log out like literal na ninavigate ko lang to sa sign in sign up
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SignUpSignInScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ),
@@ -187,7 +194,8 @@ class _ProfileOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell( // ✅ better than Row alone
+    return InkWell(
+      // ✅ better than Row alone
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
