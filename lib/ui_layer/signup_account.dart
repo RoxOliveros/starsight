@@ -3,10 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
-import '../business_layer/orientation_service.dart';
 import 'app_dialog.dart';
 import 'consent_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -37,12 +36,14 @@ class SignUpAccount extends StatefulWidget {
   final String nickname;
   final String age;
   final List<String> goals;
+  final String parentBirthYear;
 
   const SignUpAccount({
     super.key,
     required this.nickname,
     required this.age,
     required this.goals,
+    required this.parentBirthYear,
   });
 
   @override
@@ -58,7 +59,10 @@ class _SignUpAccountState extends State<SignUpAccount>
   @override
   void initState() {
     super.initState();
-    OrientationService.setPortrait();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -99,17 +103,13 @@ class _SignUpAccountState extends State<SignUpAccount>
       return;
     }
 
-    // --- NEW BACKPACK CODE STARTS HERE ---
-    final prefs = await SharedPreferences.getInstance();
-    String parentYear = prefs.getString('saved_parent_year') ?? "1990";
-
     // Calls the AuthService to send the magic link.
     bool isSent = await AuthService().sendMagicLink(
       email: email,
       nickname: widget.nickname,
       age: widget.age,
       goals: widget.goals,
-      parentBirthYear: parentYear, // <--- Drop it in!
+      parentBirthYear: widget.parentBirthYear,
     );
     // --- NEW BACKPACK CODE ENDS HERE ---
 
@@ -158,8 +158,17 @@ class _SignUpAccountState extends State<SignUpAccount>
     bool success = await AuthService().signInWithGoogle();
 
     if (success) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await DatabaseService().createParentAndChild(
+          uid: user.uid,
+          email: user.email ?? '',
+          childNickname: widget.nickname,
+          childAge: widget.age,
+          childGoals: widget.goals,
+          parentBirthYear: widget.parentBirthYear,
+        );
+      }
 
       if (!mounted) return;
       Navigator.push(

@@ -42,7 +42,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
     }
   }
 
-  void _onSubmit() async {
+  void _onSubmit() {
     int? birthYear = ParentAgeController.parseYear(_digits);
 
     if (birthYear == null || _digits.length < 4) {
@@ -54,18 +54,16 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
     }
 
     if (ParentAgeController.isAdult(birthYear)) {
-      // 1. THEY PASSED! Save the year to the backpack!
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('saved_parent_year', birthYear.toString());
-
-      if (!mounted) return;
-      // 2. Clear the keypad for next time
       setState(() => _digits.clear());
 
-      // 3. Now let the kid take over!
+      // Pass the baton directly!
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const ChildNickname()),
+        MaterialPageRoute(
+          builder: (context) => ChildNickname(
+            parentBirthYear: birthYear.toString(), // <-- Handing it off
+          ),
+        ),
       );
     } else {
       setState(() => _digits.clear());
@@ -73,36 +71,6 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
         context,
         message: "Access Denied. You must be a parent to continue.",
       );
-    }
-  }
-
-  void _onComplete() {
-    final year = ParentAgeController.parseYear(_digits);
-    if (year == null) return;
-
-    if (ParentAgeController.isAdult(year)) {
-      setState(() => _digits.clear());
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 800),
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              ChildNickname(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final tween = Tween(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).chain(CurveTween(curve: Curves.easeInOut));
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-        ),
-      );
-    } else {
-      AppDialog.showError(context, message: "Should be Legal Age");
-      return;
     }
   }
 

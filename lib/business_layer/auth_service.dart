@@ -1,8 +1,8 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_links/app_links.dart';
 import 'package:StarSight/business_layer/database_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
   // GOOGLE SIGN-IN
@@ -29,27 +29,33 @@ class AuthService {
     }
   }
 
-  // SEND MAGIC LINK
   Future<bool> sendMagicLink({
     required String email,
     required String nickname,
     required String age,
     required List<String> goals,
-    required String parentBirthYear, // <--- FIXED HERE
+    required String parentBirthYear,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('magic_email', email);
-      await prefs.setString('child_nickname', nickname);
-      await prefs.setString('child_age', age);
-      await prefs.setStringList('child_goals', goals);
-      await prefs.setString(
-        'parent_birth_year',
-        parentBirthYear,
-      ); // <--- FIXED HERE
+      await FirebaseFirestore.instance
+          .collection('temp_signups')
+          .doc(email)
+          .set({
+            'nickname': nickname,
+            'age': age,
+            'goals': goals,
+            'parentBirthYear': parentBirthYear,
+          });
+
+      // 2. ONLY PUT EMAIL AND TYPE IN THE LINK!
+      // (This keeps the link short so email apps don't chop it off)
+      Uri dynamicUri = Uri.https('starsight-app-10658.firebaseapp.com', '/', {
+        'email': email,
+        'type': 'signup', // <-- Just the email and type, nothing else!
+      });
 
       var actionCodeSettings = ActionCodeSettings(
-        url: 'https://starsight-app-10658.firebaseapp.com/',
+        url: dynamicUri.toString(),
         handleCodeInApp: true,
         androidPackageName: 'com.example.starsight',
         androidInstallApp: true,
@@ -65,23 +71,20 @@ class AuthService {
       return true;
     } catch (e) {
       print("Error sending magic link: $e");
-      if (e is FirebaseAuthException) {
-        print("Firebase error code: ${e.code}");
-        print("Firebase error message: ${e.message}");
-      }
       return false;
     }
   }
 
-  // SEND MAGIC LINK (FOR SIGN IN)
   Future<bool> sendLoginMagicLink({required String email}) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('magic_email', email);
-      await prefs.setBool('is_login_only', true);
+      // THE FIX: Use Uri.https for the login link too!
+      Uri dynamicUri = Uri.https('starsight-app-10658.firebaseapp.com', '/', {
+        'email': email,
+        'type': 'login',
+      });
 
       var actionCodeSettings = ActionCodeSettings(
-        url: 'https://starsight-app-10658.firebaseapp.com/',
+        url: dynamicUri.toString(), // <--- Safe URL!
         handleCodeInApp: true,
         androidPackageName: 'com.example.starsight',
         androidInstallApp: true,
@@ -101,7 +104,7 @@ class AuthService {
     }
   }
 
-  // CATCH THE LINK AND LOG IN
+  // CATCH THE LINK AND UNPACK IT
   Future<String> handleIncomingLink() async {
     final appLinks = AppLinks();
 
@@ -112,38 +115,49 @@ class AuthService {
         String link = initialUri.toString();
 
         if (FirebaseAuth.instance.isSignInWithEmailLink(link)) {
-          final prefs = await SharedPreferences.getInstance();
-          String? email = prefs.getString('magic_email');
-          bool isLoginOnly = prefs.getBool('is_login_only') ?? false;
+          String? email = initialUri.queryParameters['email'];
+          String? type = initialUri.queryParameters['type'];
 
           if (email != null) {
             final userCredential = await FirebaseAuth.instance
                 .signInWithEmailLink(email: email, emailLink: link);
 
-            if (!isLoginOnly) {
-              String? nickname = prefs.getString('child_nickname');
-              String? age = prefs.getString('child_age');
-              List<String>? goals = prefs.getStringList('child_goals');
-              String? parentBirthYear = prefs.getString('parent_birth_year');
+            // 3. If it was a Sign Up, grab data from the waiting room!
+            if (type == 'signup') {
+              DocumentSnapshot tempDoc = await FirebaseFirestore.instance
+                  .collection('temp_signups')
+                  .doc(email)
+                  .get();
 
-              if (userCredential.user != null &&
-                  nickname != null &&
-                  age != null &&
-                  goals != null &&
-                  parentBirthYear != null) {
+              if (tempDoc.exists) {
+                Map<String, dynamic> data =
+                    tempDoc.data() as Map<String, dynamic>;
+
+                // Safely extract goals
+                List<String> goals = [];
+                if (data['goals'] != null) {
+                  goals = List<String>.from(data['goals']);
+                }
+
+                // Push everything to the official database profile!
                 await DatabaseService().createParentAndChild(
                   uid: userCredential.user!.uid,
                   email: email,
-                  childNickname: nickname,
-                  childAge: age,
+                  childNickname: data['nickname'],
+                  childAge: data['age'],
                   childGoals: goals,
-                  parentBirthYear: parentBirthYear,
+                  parentBirthYear: data['parentBirthYear'],
                 );
+
+                // Clean up the waiting room
+                await FirebaseFirestore.instance
+                    .collection('temp_signups')
+                    .doc(email)
+                    .delete();
               }
             }
 
-            await prefs.clear();
-            return isLoginOnly ? "login" : "signup";
+            return type == 'login' ? "login" : "signup";
           }
         }
       }

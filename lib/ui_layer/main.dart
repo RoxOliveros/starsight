@@ -5,7 +5,6 @@ import 'package:StarSight/Business_Layer/auth_service.dart';
 import 'package:StarSight/UI_Layer/consent_screen.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'lottie_cache.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:StarSight/Business_Layer/database_service.dart';
 
 void main() async {
@@ -33,7 +32,6 @@ void main() async {
     'assets/animations/white_clouds.json',
     'assets/animations/white_clouds_mirrored.json',
   ]);
-
 }
 
 class App extends StatelessWidget {
@@ -216,17 +214,6 @@ class _SplashScreenState extends State<SplashScreen>
 
     String loginStatus = await AuthService().handleIncomingLink();
 
-    // SharedPreference function
-    final prefs = await SharedPreferences.getInstance();
-    bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-
-    // --- NEW: Grab the name from the database while the app loads! ---
-    String realName = "";
-    if (loginStatus == "login" || isLoggedIn) {
-      realName = await DatabaseService().getNickname();
-    }
-    // -----------------------------------------------------------------
-
     if (mounted) {
       if (loginStatus == "signup") {
         // SUCCESSFUL SIGN UP -> Go to Consent Screen
@@ -238,13 +225,14 @@ class _SplashScreenState extends State<SplashScreen>
                 FadeTransition(opacity: anim, child: child),
           ),
         );
-      } else if (loginStatus == "login" || isLoggedIn) {
-        // SUCCESSFUL LOGIN -> Go to Dashboard WITH THE REAL NAME
+      } else if (loginStatus == "login") {
+        // SUCCESSFUL SIGN IN (or already logged in) -> Go to Dashboard
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (_, __, ___) =>
-                DashboardScreen(nickname: realName), // <--- Passed it here!
+            pageBuilder: (_, __, ___) => const DashboardScreen(
+              nickname: "",
+            ), //TODO: @Ron get nickname from db
             transitionsBuilder: (_, anim, __, child) =>
                 FadeTransition(opacity: anim, child: child),
           ),

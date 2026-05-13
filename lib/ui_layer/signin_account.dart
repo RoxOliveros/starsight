@@ -6,7 +6,8 @@ import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
 import '../business_layer/orientation_service.dart';
 import 'app_dialog.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -134,20 +135,35 @@ class _SignInAccountState extends State<SignInAccount>
     bool success = await AuthService().signInWithGoogle();
 
     if (success) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        bool emailExists = await DatabaseService().doesEmailExist(
+          user.email ?? '',
+        );
 
-      String fetchedNickname = await DatabaseService().getNickname();
+        if (!emailExists) {
+          await FirebaseAuth.instance.signOut();
+          await GoogleSignIn.instance.signOut();
 
-      if (!mounted) return;
+          if (!mounted) return;
+          AppDialog.showError(
+            context,
+            message: "Account not found! Please go back and Sign Up first.",
+          );
+          return;
+        }
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DashboardScreen(nickname: fetchedNickname),
-        ),
-            (route) => false,
-      );
+        String fetchedNickname = await DatabaseService().getNickname();
+
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DashboardScreen(nickname: fetchedNickname),
+          ),
+          (route) => false,
+        );
+      }
     } else {
       if (!mounted) return;
       AppDialog.showError(

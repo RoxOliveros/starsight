@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "1031039579822-oarv3juiqfsj2bofn5blqhrit7lp4t3d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.starsight",
+            "certificate_hash": "79606f9d02dc482e7ba9908378f9924473847c70"
+          }
+        },
+        {
           "client_id": "1031039579822-lsff8onjcgjs1ibl7l8625rd6go2q4ff.apps.googleusercontent.com",
           "client_type": 3
         }

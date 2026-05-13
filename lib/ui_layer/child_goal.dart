@@ -19,7 +19,14 @@ abstract class Fonts {
 class ChildGoal extends StatefulWidget {
   final String nickname;
   final String age;
-  const ChildGoal({super.key, required this.nickname, required this.age});
+  final String parentBirthYear;
+
+  const ChildGoal({
+    super.key,
+    required this.nickname,
+    required this.age,
+    required this.parentBirthYear,
+  });
 
   @override
   State<ChildGoal> createState() => _ChildGoalState();
@@ -50,6 +57,7 @@ class _ChildGoalState extends State<ChildGoal> {
           nickname: widget.nickname,
           age: widget.age,
           goals: selectedGoals,
+          parentBirthYear: widget.parentBirthYear,
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final tween = Tween(

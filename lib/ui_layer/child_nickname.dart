@@ -18,7 +18,9 @@ abstract class Fonts {
 }
 
 class ChildNickname extends StatefulWidget {
-  const ChildNickname({super.key});
+  final String parentBirthYear;
+
+  const ChildNickname({super.key, required this.parentBirthYear});
 
   @override
   State<ChildNickname> createState() => _ChildNickname();
@@ -35,7 +37,10 @@ class _ChildNickname extends State<ChildNickname> {
     }
 
     if (nickname.contains(' ')) {
-      AppDialog.showError(context, message: "Nickname should not contain any spaces");
+      AppDialog.showError(
+        context,
+        message: "Nickname should not contain any spaces",
+      );
       return;
     }
 
@@ -43,7 +48,10 @@ class _ChildNickname extends State<ChildNickname> {
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
-        pageBuilder: (context, animation, secondaryAnimation) => ChildAge(nickname: nickname,),
+        pageBuilder: (context, animation, secondaryAnimation) => ChildAge(
+          nickname: nickname,
+          parentBirthYear: widget.parentBirthYear,
+        ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final tween = Tween(
             begin: const Offset(0, 1),
@@ -82,30 +90,24 @@ class _ChildNickname extends State<ChildNickname> {
               width: screenWidth * 0.65,
               delegates: LottieDelegates(
                 values: [
-                  ValueDelegate.opacity(
-                    const ['**'],
-                    value: 85,
-                  ),
+                  ValueDelegate.opacity(const ['**'], value: 85),
                 ],
               ),
-            )
+            ),
           ),
           // Top-left cloud
           Positioned(
             bottom: screenHeight * 0.90,
             left: -130,
-            child:Lottie.asset(
+            child: Lottie.asset(
               'assets/animations/night_cloud.json',
               width: screenWidth * 0.80,
               delegates: LottieDelegates(
                 values: [
-                  ValueDelegate.opacity(
-                    const ['**'],
-                    value: 85,
-                  ),
+                  ValueDelegate.opacity(const ['**'], value: 85),
                 ],
               ),
-            )
+            ),
           ),
 
           // Stars

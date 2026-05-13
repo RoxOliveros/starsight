@@ -17,8 +17,13 @@ abstract class Fonts {
 
 class ChildAge extends StatefulWidget {
   final String nickname;
+  final String parentBirthYear;
 
-  const ChildAge({super.key, required this.nickname});
+  const ChildAge({
+    super.key,
+    required this.nickname,
+    required this.parentBirthYear,
+  });
 
   @override
   State<ChildAge> createState() => _ChildAgeState();
@@ -88,8 +93,11 @@ class _ChildAgeState extends State<ChildAge> with TickerProviderStateMixin {
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            ChildGoal(nickname: widget.nickname, age: selectedAge),
+        pageBuilder: (context, animation, secondaryAnimation) => ChildGoal(
+          nickname: widget.nickname,
+          age: selectedAge,
+          parentBirthYear: widget.parentBirthYear,
+        ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final tween = Tween(
             begin: const Offset(0, 1),
