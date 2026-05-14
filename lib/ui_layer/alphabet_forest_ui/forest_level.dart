@@ -1,14 +1,11 @@
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_drag.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/lvl_1.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:lottie/lottie.dart';
-
-import '../business_layer/orientation_service.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
 
 abstract class ColorTheme {
   static const Color darkbrown = Color(0xFF4E360D);

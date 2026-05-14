@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart' hide LottieCache;
 import '../business_layer/lottie_cache.dart';
 import 'arctic_numberland/arctic_level.dart';
-import 'forest_level.dart';
+import 'alphabet_forest_ui/forest_level.dart';
 import 'lagoon_level.dart';
 import 'menu_dialog.dart';
 
@@ -119,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           width: 350,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) =>
-                          const SizedBox(width: 200),
+                              const SizedBox(width: 200),
                         ),
                       ),
                     ),
@@ -135,7 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           width: 80,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) =>
-                          const SizedBox(width: 80),
+                              const SizedBox(width: 80),
                         ),
                       ),
                     ),
@@ -150,7 +150,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           width: 350,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) =>
-                          const SizedBox(width: 200),
+                              const SizedBox(width: 200),
                         ),
                       ),
                     ),
@@ -485,11 +485,11 @@ class _IslandTile extends StatelessWidget {
         ),
         child: composition != null
             ? Lottie(
-          composition: composition,
-          width: size,
-          height: size,
-          fit: BoxFit.contain,
-        )
+                composition: composition,
+                width: size,
+                height: size,
+                fit: BoxFit.contain,
+              )
             : _IslandPlaceholder(large: true),
       ),
     );
