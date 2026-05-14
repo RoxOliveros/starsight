@@ -1,34 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:math'; // Needed for calculating distance
+import 'dart:math';
 
-// --- REUSING YOUR EXACT THEMES ---
 abstract class ColorTheme {
   static const Color cream = Color(0xFFE8F4F8);
   static const Color deepNavyBlue = Color(0xFF5E463E);
   static const Color orange = Color(0xFFEC8A20);
-  static const Color green = Color(0xFF82C84B); // Added for the Success button
+  static const Color green = Color(0xFF82C84B);
+  static const Color lightBlue = Color(0xFF75D5FF); // Added for the fill color
 }
 
 abstract class AppTextStyles {
   static const String fredoka = 'Fredoka';
 }
 
-// --- NEW: LEVEL DATA MODEL ---
+// --- NEW LEVEL MODEL FOR GUIDED TRACING ---
 class TraceLevel {
   final String letterName;
   final String imagePath;
-  final List<Offset>
-  checkpoints; // Invisible targets (0.0 to 1.0 percentage of the screen)
+  final List<List<Offset>>
+  strokes; // A letter can have multiple strokes (e.g., 'A' has 3)
 
   TraceLevel({
     required this.letterName,
     required this.imagePath,
-    required this.checkpoints,
+    required this.strokes,
   });
 }
 
-// --- THE TRACING SCREEN ---
 class AlphabetTraceScreen extends StatefulWidget {
   const AlphabetTraceScreen({super.key});
 
@@ -37,35 +36,48 @@ class AlphabetTraceScreen extends StatefulWidget {
 }
 
 class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
-  List<Offset?> _points = [];
-  final GlobalKey _canvasKey = GlobalKey(); // Used to measure the canvas size
-  int _currentLevelIndex = 0; // Starts at 0 (Level 1)
+  final GlobalKey _canvasKey = GlobalKey();
+  int _currentLevelIndex = 0;
 
-  // --- OUR GAME LEVELS ---
+  // Tracking Progress
+  int _currentStrokeIndex = 0; // Which line are they drawing?
+  int _currentPointIndex = 0; // How far along that line are they?
+  List<List<Offset>> _denseStrokes = []; // The calculated path pixels
+
   final List<TraceLevel> _levels = [
     TraceLevel(
       letterName: "Big A",
-      imagePath: 'assets/fonts/game_letters/Trace_A.png',
-      checkpoints: [
-        const Offset(0.5, 0.35), // Top point
-        const Offset(0.42, 0.90), // Bottom Left
-        const Offset(0.58, 0.90), // Bottom Right
-        const Offset(0.5, 0.78), // Middle crossbar
+      imagePath: '',
+      strokes: [
+        // Stroke 1: Left diagonal down
+        [const Offset(0.5, 0.2), const Offset(0.2, 0.8)],
+        // Stroke 2: Right diagonal down
+        [const Offset(0.5, 0.2), const Offset(0.8, 0.8)],
+        // Stroke 3: Middle crossbar
+        [const Offset(0.35, 0.5), const Offset(0.65, 0.5)],
       ],
     ),
     TraceLevel(
       letterName: "Small a",
-      imagePath: 'assets/fonts/game_letters/Trace_small_a.png',
-      checkpoints: [
-        const Offset(0.55, 0.55), // Right straight line top
-        const Offset(0.5, 0.55), // Top curve
-        const Offset(0.45, 0.7), // Left curve
-        const Offset(0.5, 0.9), // Bottom curve
-        const Offset(0.55, 0.75), // Right straight line middle
-        const Offset(0.55, 0.93), // Right straight line bottom
+      imagePath: '',
+      strokes: [
+        // Stroke 1: The circle loop
+        [
+          const Offset(0.70, 0.50), // Start right-middle
+          const Offset(0.50, 0.40), // Curve top-left
+          const Offset(0.40, 0.45), // Curve left
+          const Offset(0.30, 0.60), // Curve bottom-left
+          const Offset(0.45, 0.80), // Curve bottom
+          const Offset(0.65, 0.75), // Curve right-up
+          const Offset(0.70, 0.65), // Connect to stem
+        ],
+        // Stroke 2: The straight stem down
+        [
+          const Offset(0.70, 0.35), // Start top of stem
+          const Offset(0.70, 0.85), // End bottom of stem
+        ],
       ],
     ),
-    // @Ron You need to add B, C, D here later!
   ];
 
   @override
@@ -75,69 +87,114 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    // We wait a frame so the canvas has a size, then generate the path
+    WidgetsBinding.instance.addPostFrameCallback((_) => _generateDensePaths());
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
 
-  void _clearBoard() {
+  // This breaks your waypoints into hundreds of tiny dots to track smooth progress
+  void _generateDensePaths() {
+    final RenderBox? renderBox =
+        _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final Size size = renderBox.size;
+    List<List<Offset>> newDenseStrokes = [];
+
+    for (var stroke in _levels[_currentLevelIndex].strokes) {
+      List<Offset> densePoints = [];
+      for (int i = 0; i < stroke.length - 1; i++) {
+        Offset p1 = Offset(
+          stroke[i].dx * size.width,
+          stroke[i].dy * size.height,
+        );
+        Offset p2 = Offset(
+          stroke[i + 1].dx * size.width,
+          stroke[i + 1].dy * size.height,
+        );
+
+        // Add a point every 5 pixels
+        double distance = sqrt(pow(p2.dx - p1.dx, 2) + pow(p2.dy - p1.dy, 2));
+        int steps = (distance / 5.0).ceil();
+
+        for (int j = 0; j <= steps; j++) {
+          densePoints.add(
+            Offset(
+              p1.dx + (p2.dx - p1.dx) * (j / steps),
+              p1.dy + (p2.dy - p1.dy) * (j / steps),
+            ),
+          );
+        }
+      }
+      newDenseStrokes.add(densePoints);
+    }
+
     setState(() {
-      _points.clear();
+      _denseStrokes = newDenseStrokes;
     });
   }
 
-  // --- THE MAGIC: EVALUATING THE TRACE ---
-  void _checkTrace() {
-    // 1. Get the exact width and height of the white drawing box
-    final RenderBox renderBox =
-        _canvasKey.currentContext!.findRenderObject() as RenderBox;
-    final Size canvasSize = renderBox.size;
+  void _onPanUpdate(DragUpdateDetails details) {
+    if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length)
+      return;
 
-    final currentLevel = _levels[_currentLevelIndex];
-    int hitCount = 0;
+    Offset dragPos = details.localPosition;
+    List<Offset> currentStroke = _denseStrokes[_currentStrokeIndex];
 
-    // 2. Loop through our invisible checkpoints
-    for (Offset targetPercentage in currentLevel.checkpoints) {
-      // Convert the percentage (0.5) to actual screen pixels (e.g., 300px)
-      Offset pixelTarget = Offset(
-        targetPercentage.dx * canvasSize.width,
-        targetPercentage.dy * canvasSize.height,
+    // Check if finger is close to the NEXT required point
+    if (_currentPointIndex < currentStroke.length) {
+      Offset target = currentStroke[_currentPointIndex];
+      double distance = sqrt(
+        pow(dragPos.dx - target.dx, 2) + pow(dragPos.dy - target.dy, 2),
       );
 
-      bool hit = false;
-
-      // 3. Check every point the child drew. Did they get close to this target?
-      for (Offset? drawnPoint in _points) {
-        if (drawnPoint != null) {
-          // Calculate distance using basic math (Pythagorean theorem)
-          double distance = sqrt(
-            pow(drawnPoint.dx - pixelTarget.dx, 2) +
-                pow(drawnPoint.dy - pixelTarget.dy, 2),
-          );
-
-          // If they drew within 50 pixels of the target, it counts as a hit!
-          if (distance < 50.0) {
-            hit = true;
-            break; // Move to the next target
+      // If they are within 40 pixels of the target dot, fill it in!
+      if (distance < 40.0) {
+        setState(() {
+          // Fast-forward progress if they drag fast
+          while (_currentPointIndex < currentStroke.length &&
+              sqrt(
+                    pow(dragPos.dx - currentStroke[_currentPointIndex].dx, 2) +
+                        pow(
+                          dragPos.dy - currentStroke[_currentPointIndex].dy,
+                          2,
+                        ),
+                  ) <
+                  40.0) {
+            _currentPointIndex++;
           }
+        });
+
+        // Did they finish this stroke?
+        if (_currentPointIndex >= currentStroke.length) {
+          _moveToNextStroke();
         }
       }
-
-      if (hit) hitCount++;
     }
+  }
 
-    // 4. Did they hit ALL the checkpoints?
-    if (hitCount == currentLevel.checkpoints.length) {
+  void _moveToNextStroke() {
+    setState(() {
+      _currentStrokeIndex++;
+      _currentPointIndex = 0;
+    });
+
+    // Did they finish the whole letter?
+    if (_currentStrokeIndex >= _denseStrokes.length) {
       _showSuccessDialog();
-    } else {
-      _showTryAgainDialog();
     }
+  }
+
+  void _resetBoard() {
+    setState(() {
+      _currentStrokeIndex = 0;
+      _currentPointIndex = 0;
+    });
   }
 
   void _showSuccessDialog() {
@@ -161,14 +218,15 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
+              Navigator.pop(context);
               setState(() {
-                _clearBoard();
-                // Move to next level, or loop back to 0 if they beat the game!
+                _resetBoard();
                 if (_currentLevelIndex < _levels.length - 1) {
                   _currentLevelIndex++;
+                  _generateDensePaths();
                 } else {
-                  _currentLevelIndex = 0; // Game beat! Back to start.
+                  _currentLevelIndex = 0;
+                  _generateDensePaths();
                 }
               });
             },
@@ -176,43 +234,6 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
               "Next Letter",
               style: TextStyle(
                 color: ColorTheme.orange,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showTryAgainDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text(
-          "Almost!",
-          style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            color: ColorTheme.orange,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: const Text(
-          "Try to trace exactly over the lines. You can do it!",
-          style: TextStyle(fontFamily: AppTextStyles.fredoka, fontSize: 18),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _clearBoard(); // Wipe the board for them to try again
-            },
-            child: const Text(
-              "Try Again",
-              style: TextStyle(
-                color: ColorTheme.deepNavyBlue,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),
@@ -233,8 +254,6 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
         child: Column(
           children: [
             const SizedBox(height: 12),
-
-            // --- HEADER ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Stack(
@@ -268,106 +287,49 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
                         color: ColorTheme.orange,
                         size: 32,
                       ),
-                      onPressed: _clearBoard,
+                      onPressed: _resetBoard,
                     ),
                   ),
                 ],
               ),
             ),
-
-            // --- THE TRACING CANVAS ---
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40.0,
-                  vertical: 8.0,
-                ),
-                child: Container(
-                  key: _canvasKey, // Attach the measuring tape here!
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: ColorTheme.deepNavyBlue.withOpacity(0.2),
-                      width: 4,
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      // LAYER 1: The background letter
-                      Center(
-                        child: Image.asset(
-                          currentLevel.imagePath,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => Text(
-                            currentLevel.letterName[currentLevel
-                                    .letterName
-                                    .length -
-                                1], // Pulls the last letter from the name
-                            style: TextStyle(
-                              fontFamily: AppTextStyles.fredoka,
-                              fontSize: 250,
-                              fontWeight: FontWeight.bold,
-                              color: ColorTheme.deepNavyBlue.withOpacity(0.15),
-                              height: 1.0,
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 1.0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Container(
+                      key: _canvasKey,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: ColorTheme.deepNavyBlue.withOpacity(0.2),
+                          width: 4,
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          GestureDetector(
+                            onPanUpdate: _onPanUpdate,
+                            child: CustomPaint(
+                              painter: GuidedTracePainter(
+                                denseStrokes: _denseStrokes,
+                                currentStrokeIndex: _currentStrokeIndex,
+                                currentPointIndex: _currentPointIndex,
+                              ),
+                              size: Size.infinite,
                             ),
                           ),
-                        ),
+                        ],
                       ),
-
-                      // LAYER 2: The Drawing Glass
-                      GestureDetector(
-                        onPanStart: (details) =>
-                            setState(() => _points.add(details.localPosition)),
-                        onPanUpdate: (details) =>
-                            setState(() => _points.add(details.localPosition)),
-                        onPanEnd: (details) =>
-                            setState(() => _points.add(null)),
-                        child: CustomPaint(
-                          painter: TracePainter(
-                            points: _points,
-                            checkpoints: currentLevel
-                                .checkpoints, // <-- Pass the checkpoints down!
-                          ),
-                          size: Size.infinite,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-
-            // --- NEW: THE CHECK BUTTON ---
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: ElevatedButton(
-                onPressed: _points.isEmpty
-                    ? null
-                    : _checkTrace, // Disable if they haven't drawn anything
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: ColorTheme.green,
-                  disabledBackgroundColor: Colors.grey.shade400,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  elevation: 4,
-                ),
-                child: const Text(
-                  "CHECK TRACE",
-                  style: TextStyle(
-                    fontFamily: AppTextStyles.fredoka,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
+            const SizedBox(height: 20), // Spacing where the button used to be
           ],
         ),
       ),
@@ -375,70 +337,112 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   }
 }
 
-//Visible checkpoints
-class TracePainter extends CustomPainter {
-  final List<Offset?> points;
-  final List<Offset> checkpoints;
+class GuidedTracePainter extends CustomPainter {
+  final List<List<Offset>> denseStrokes;
+  final int currentStrokeIndex;
+  final int currentPointIndex;
 
-  TracePainter({required this.points, required this.checkpoints});
+  GuidedTracePainter({
+    required this.denseStrokes,
+    required this.currentStrokeIndex,
+    required this.currentPointIndex,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. --- DRAW THE NUMBERED CHECKPOINTS FIRST ---
-    final circlePaint = Paint()
-      // Made it a bit more solid so the white text is easy to read
-      ..color = ColorTheme.green.withOpacity(0.8)
-      ..style = PaintingStyle.fill;
+    if (denseStrokes.isEmpty) return;
 
-    // We use a standard for-loop here instead of a for-in loop
-    // so we can access the index (i) to print the numbers!
-    for (int i = 0; i < checkpoints.length; i++) {
-      // Convert percentage to screen pixels
-      Offset cp = checkpoints[i];
-      Offset pixelTarget = Offset(cp.dx * size.width, cp.dy * size.height);
+    // --- 1. DRAW THE UNIFORM GREY BACKGROUND ---
+    // Save a temporary layer and tell it to be 20% transparent
+    canvas.saveLayer(
+      null,
+      Paint()..color = Colors.white.withValues(alpha: 0.2),
+    );
 
-      // Draw the circle (increased radius slightly to 20.0 to fit the number)
-      canvas.drawCircle(pixelTarget, 20.0, circlePaint);
-
-      // --- NEW: DRAW THE NUMBER INSIDE THE CIRCLE ---
-      TextPainter textPainter = TextPainter(
-        text: TextSpan(
-          text: '${i + 1}', // This prints 1, 2, 3, etc.
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            fontFamily: AppTextStyles.fredoka,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-
-      textPainter.layout();
-
-      // This math perfectly centers the text inside the circle
-      Offset textOffset = Offset(
-        pixelTarget.dx - (textPainter.width / 2),
-        pixelTarget.dy - (textPainter.height / 2),
-      );
-
-      textPainter.paint(canvas, textOffset);
-    }
-
-    // 2. --- DRAW THE INK ON TOP ---
-    final inkPaint = Paint()
-      ..color = ColorTheme.orange
+    // Draw the strokes completely SOLID inside this temporary layer
+    final bgPaint = Paint()
+      ..color = Colors
+          .grey // Notice there is no opacity here!
       ..strokeCap = StrokeCap.round
-      ..strokeWidth = 24.0
+      ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = 10.0
       ..style = PaintingStyle.stroke;
 
-    for (int i = 0; i < points.length - 1; i++) {
-      if (points[i] != null && points[i + 1] != null) {
-        canvas.drawLine(points[i]!, points[i + 1]!, inkPaint);
+    for (int i = 0; i < denseStrokes.length; i++) {
+      var stroke = denseStrokes[i];
+      if (stroke.isEmpty) continue;
+
+      Path bgPath = Path();
+      bgPath.moveTo(stroke[0].dx, stroke[0].dy);
+      for (int j = 1; j < stroke.length; j++) {
+        bgPath.lineTo(stroke[j].dx, stroke[j].dy);
+      }
+      canvas.drawPath(bgPath, bgPaint);
+    }
+
+    // Paste the temporary layer onto the screen (this applies the 20% transparency evenly!)
+    canvas.restore();
+
+    // --- 2. DRAW THE BLUE FILL & GREEN GUIDE ---
+    // These are drawn normally on top so they stay bright and solid
+    final fillPaint = Paint()
+      ..color = ColorTheme.lightBlue
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = 30.0
+      ..style = PaintingStyle.stroke;
+    final guidePaint = Paint()
+      ..color = ColorTheme.green
+      ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < denseStrokes.length; i++) {
+      var stroke = denseStrokes[i];
+      if (stroke.isEmpty) continue;
+
+      if (i < currentStrokeIndex) {
+        // Fully drawn previous strokes
+        Path fillPath = Path();
+        fillPath.moveTo(stroke[0].dx, stroke[0].dy);
+        for (int j = 1; j < stroke.length; j++) {
+          fillPath.lineTo(stroke[j].dx, stroke[j].dy);
+        }
+        canvas.drawPath(fillPath, fillPaint);
+      } else if (i == currentStrokeIndex) {
+        // Currently drawing stroke
+        if (currentPointIndex > 0) {
+          Path fillPath = Path();
+          fillPath.moveTo(stroke[0].dx, stroke[0].dy);
+          for (int j = 1; j < currentPointIndex; j++) {
+            fillPath.lineTo(stroke[j].dx, stroke[j].dy);
+          }
+          canvas.drawPath(fillPath, fillPaint);
+        }
+
+        // Draw the guiding green circle
+        if (currentPointIndex < stroke.length) {
+          canvas.drawCircle(stroke[currentPointIndex], 20.0, guidePaint);
+
+          final iconPaint = Paint()
+            ..color = Colors.white
+            ..strokeWidth = 4.0
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round;
+          Offset center = stroke[currentPointIndex];
+          canvas.drawLine(
+            Offset(center.dx - 5, center.dy),
+            Offset(center.dx, center.dy + 5),
+            iconPaint,
+          );
+          canvas.drawLine(
+            Offset(center.dx, center.dy + 5),
+            Offset(center.dx + 8, center.dy - 6),
+            iconPaint,
+          );
+        }
       }
     }
   }
 
   @override
-  bool shouldRepaint(covariant TracePainter oldDelegate) => true;
+  bool shouldRepaint(covariant GuidedTracePainter oldDelegate) => true;
 }

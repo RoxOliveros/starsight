@@ -8,9 +8,7 @@ void main() async {
 
   await Future.wait([
     Firebase.initializeApp(),
-    LottieCache.instance.preload([
-      'assets/animations/starsight.json',
-    ]),
+    LottieCache.instance.preload(['assets/animations/starsight.json']),
   ]);
 
   runApp(const App());

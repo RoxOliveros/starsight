@@ -47,11 +47,9 @@ class AuthService {
             'parentBirthYear': parentBirthYear,
           });
 
-      // 2. ONLY PUT EMAIL AND TYPE IN THE LINK!
-      // (This keeps the link short so email apps don't chop it off)
       Uri dynamicUri = Uri.https('starsight-app-10658.firebaseapp.com', '/', {
         'email': email,
-        'type': 'signup', // <-- Just the email and type, nothing else!
+        'type': 'signup',
       });
 
       var actionCodeSettings = ActionCodeSettings(
