@@ -44,6 +44,8 @@ dependencies:
   gif: ^2.1.0
   lottie: ^3.0.0
   dotted_border: ^2.1.0
+  speech_to_text: ^7.0.0
+  path_provider: ^2.1.4
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.1
@@ -83,8 +85,10 @@ flutter:
     - assets/images/backgrounds/
     - assets/images/arrows/
     - assets/images/objects/
+    - assets/images/lumi/
     - assets/fonts/game_letters/
     - assets/audio/
+    - assets/audio/values1/
     - assets/drafts/
     - assets/gifs/
     - assets/animations/

@@ -1,6 +1,6 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/jar_level_screen.dart';
-import 'package:StarSight/ui_layer/town_level.dart';
+import 'package:StarSight/ui_layer/lumi_town.dart/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart' hide LottieCache;
 import '../business_layer/lottie_cache.dart';
@@ -102,11 +102,13 @@ class _DashboardScreenState extends State<DashboardScreen>
       backgroundColor: ColorTheme.cream,
       body: SafeArea(
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
             // ── Full-screen cloud background ──────────────────────────
             Positioned.fill(
               child: IgnorePointer(
                 child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
                     // Left cloud
                     Positioned(

@@ -2,6 +2,8 @@ import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:StarSight/ui_layer/parents_pin.dart';
 import 'package:flutter/material.dart';
 
+import '../business_layer/lottie_cache.dart';
+
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
   static const Color deepNavyBlue = Color(0xFF5F7199);
@@ -143,6 +145,10 @@ class ProfileDayDialog extends StatelessWidget {
                   icon: Icons.group,
                   label: "Parent's Area",
                   onTap: () {
+                    LottieCache.instance.preload([
+                      'assets/animations/penguin_writing_onboard.json',
+                    ]);
+
                     Navigator.pop(context);
 
                     Navigator.push(
