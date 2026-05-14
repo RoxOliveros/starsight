@@ -1,11 +1,13 @@
+import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_drag.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_line_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
-import 'package:dotted_border/dotted_border.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_memory_match.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:lottie/lottie.dart';
-import 'package:StarSight/business_layer/orientation_service.dart';
 
 abstract class ColorTheme {
   static const Color darkbrown = Color(0xFF4E360D);
@@ -90,7 +92,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                 clipBehavior: Clip.none,
                 alignment: Alignment.topCenter,
                 children: [
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   Container(
                     width: 650,
                     height: 280,
@@ -103,23 +105,25 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // --- ROW 1: LEVELS 1-4 ---
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
-                            _LevelTile(level: 1, stars: 3),
-                            _LevelTile(level: 2, stars: 2),
+                            _LevelTile(level: 1),
+                            _LevelTile(level: 2),
                             _LevelTile(level: 3),
-                            _LockedTile(),
+                            _LevelTile(level: 4),
                           ],
                         ),
                         const SizedBox(height: 16),
+                        // --- ROW 2: LEVELS 5-8 ---
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
-                            _LockedTile(),
-                            _LockedTile(),
-                            _LockedTile(),
-                            _LockedTile(),
+                            _LevelTile(level: 5),
+                            _LevelTile(level: 6),
+                            _LevelTile(level: 7),
+                            _LevelTile(level: 8),
                           ],
                         ),
                       ],
@@ -146,7 +150,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
+                                color: Colors.black.withOpacity(0.3),
                                 offset: const Offset(0, 6),
                                 blurRadius: 8,
                               ),
@@ -236,9 +240,8 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
 
 class _LevelTile extends StatelessWidget {
   final int level;
-  final int stars;
 
-  const _LevelTile({required this.level, this.stars = 0});
+  const _LevelTile({required this.level});
 
   @override
   Widget build(BuildContext context) {
@@ -257,89 +260,66 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetMatchScreen(),
+                builder: (context) => const AlphabetDragScreen(),
               ),
             );
             break;
           case 3:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => AlphabetFallScreen()),
+              MaterialPageRoute(
+                builder: (context) => const AlphabetLineMatchScreen(),
+              ),
             );
+            break;
+          case 4:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AlphabetMatchScreen(),
+              ),
+            );
+            break;
+          case 5:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AlphabetFallScreen(),
+              ),
+            );
+            break;
+          case 6:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AlphabetMemoryMatchScreen(),
+              ),
+            );
+            break;
+          case 7:
+            // TODO: Add navigation for Level 7
+            break;
+          case 8:
+            // TODO: Add navigation for Level 8
             break;
         }
       },
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.bottomCenter,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: ColorTheme.forestgreen,
-              borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: ColorTheme.darkgreen, width: 5),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              '$level',
-              style: const TextStyle(
-                fontFamily: AppTextStyles.fredoka,
-                fontSize: 40,
-                color: ColorTheme.darkgreen,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -5,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(3, (i) {
-                return Image.asset(
-                  'assets/images/star.png',
-                  width: 14,
-                  height: 14,
-                  color: i < stars ? null : Colors.grey.shade400,
-                  colorBlendMode: BlendMode.srcIn,
-                );
-              }),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LockedTile extends StatelessWidget {
-  const _LockedTile();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 79,
-      height: 79,
-      child: DottedBorder(
-        borderType: BorderType.RRect,
-        radius: const Radius.circular(17),
-        color: Colors.grey.shade400,
-        strokeWidth: 5,
-        dashPattern: const [6, 3],
-        child: Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(17),
-          ),
-          child: Center(
-            child: Image.asset(
-              'assets/images/lock.png',
-              width: 40,
-              fit: BoxFit.contain,
-            ),
+      child: Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: ColorTheme.forestgreen,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: ColorTheme.darkgreen, width: 5),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '$level',
+          style: const TextStyle(
+            fontFamily: AppTextStyles.fredoka,
+            fontSize: 40,
+            color: ColorTheme.darkgreen,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),

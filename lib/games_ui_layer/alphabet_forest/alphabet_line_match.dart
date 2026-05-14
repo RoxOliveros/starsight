@@ -1,36 +1,21 @@
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-abstract class ColorTheme {
-  static const Color cream = Color(0xFFE8F4F8);
-  static const Color deepNavyBlue = Color(0xFF5E463E);
-  static const Color orange = Color(0xFFEC8A20);
-  static const Color green = Color(0xFF82C84B);
-  static const Color lightBlue = Color(0xFF75D5FF);
-  static const Color red = Color(0xFFE65C5C);
-  static const Color goldenYellow = Color(0xFFFBD481); // Add this new color!
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
 
 class AlphabetLineMatchScreen extends StatefulWidget {
   const AlphabetLineMatchScreen({super.key});
 
   @override
-  State<AlphabetLineMatchScreen> createState() => _AlphabetLineMatchScreenState();
+  State<AlphabetLineMatchScreen> createState() =>
+      _AlphabetLineMatchScreenState();
 }
 
 class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
-  // The letters we want to match
   final List<String> _leftLetters = ['A', 'B', 'C', 'D'];
   List<String> _rightLetters = [];
 
-  // Tracks which left index is connected to which right index
   final Map<int, int> _matches = {};
-
-  // Dragging state
   int? _draggingLeftIndex;
   Offset? _currentDragPos;
 
@@ -41,8 +26,6 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-
-    // Shuffle the right side so it's a puzzle!
     _rightLetters = List.from(['a', 'b', 'c', 'd'])..shuffle();
   }
 
@@ -66,18 +49,24 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
+        backgroundColor: ForestColorTheme.lightgrayishgreen,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
           "Awesome!",
           style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            color: ColorTheme.green,
+            fontFamily: ForestAppTextStyles.fredoka,
+            color: ForestColorTheme.darkseagreen,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: const Text(
           "You connected all the letters!",
-          style: TextStyle(fontFamily: AppTextStyles.fredoka, fontSize: 18),
+          style: TextStyle(
+            fontFamily: ForestAppTextStyles.fredoka,
+            fontSize: 18,
+            color: ForestColorTheme.seagreen,
+          ),
         ),
         actions: [
           TextButton(
@@ -88,7 +77,7 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
             child: const Text(
               "Play Again",
               style: TextStyle(
-                color: ColorTheme.orange,
+                color: ForestColorTheme.darkseagreen,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),
@@ -99,7 +88,6 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
     );
   }
 
-  // --- MATH HELPERS TO FIND DOT COORDINATES ---
   Offset _getLeftDotPosition(int index, Size size) {
     double ySpace = size.height / (_leftLetters.length + 1);
     return Offset(size.width * 0.35, ySpace * (index + 1));
@@ -110,16 +98,11 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
     return Offset(size.width * 0.65, ySpace * (index + 1));
   }
 
-  // --- DRAG LOGIC ---
   void _onPanStart(DragStartDetails details, Size size) {
     Offset touchPos = details.localPosition;
-
-    // Check if they touched near a LEFT dot
     for (int i = 0; i < _leftLetters.length; i++) {
-      if (_matches.containsKey(i)) continue; // Already matched!
-
+      if (_matches.containsKey(i)) continue;
       Offset dotPos = _getLeftDotPosition(i, size);
-      // If they touch within 40 pixels of the dot, grab it
       if ((touchPos - dotPos).distance < 40.0) {
         setState(() {
           _draggingLeftIndex = i;
@@ -140,29 +123,21 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
 
   void _onPanEnd(DragEndDetails details, Size size) {
     if (_draggingLeftIndex == null || _currentDragPos == null) return;
-
-    // Did they drop it near a RIGHT dot?
     for (int i = 0; i < _rightLetters.length; i++) {
       Offset dotPos = _getRightDotPosition(i, size);
-
       if ((_currentDragPos! - dotPos).distance < 50.0) {
-        // Is it the correct match? (e.g., 'E'.toLowerCase() == 'e')
         if (_leftLetters[_draggingLeftIndex!].toLowerCase() ==
             _rightLetters[i].toLowerCase()) {
           setState(() {
-            _matches[_draggingLeftIndex!] = i; // Save the successful connection
+            _matches[_draggingLeftIndex!] = i;
           });
-
-          // Check if they won the game
           if (_matches.length == _leftLetters.length) {
             _showSuccessDialog();
           }
-          break; // Stop checking
+          break;
         }
       }
     }
-
-    // Let go of the line
     setState(() {
       _draggingLeftIndex = null;
       _currentDragPos = null;
@@ -172,7 +147,7 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ColorTheme.cream, // Matches your yellow/cream background
+      backgroundColor: ForestColorTheme.lightgrayishgreen,
       body: SafeArea(
         child: Column(
           children: [
@@ -183,24 +158,17 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  Align(
+                  const Align(
                     alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: ColorTheme.deepNavyBlue,
-                        size: 28,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                    child: ForestBackButton(),
                   ),
                   const Text(
                     'Match the Letters',
                     style: TextStyle(
-                      fontFamily: AppTextStyles.fredoka,
+                      fontFamily: ForestAppTextStyles.fredoka,
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
-                      color: ColorTheme.deepNavyBlue,
+                      color: ForestColorTheme.darkseagreen,
                     ),
                   ),
                   Align(
@@ -208,7 +176,7 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
                     child: IconButton(
                       icon: const Icon(
                         Icons.refresh_rounded,
-                        color: ColorTheme.orange,
+                        color: ForestColorTheme.seagreen,
                         size: 32,
                       ),
                       onPressed: _resetGame,
@@ -218,11 +186,13 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
               ),
             ),
 
-            // GAME BOARD
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  Size canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+                  Size canvasSize = Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  );
 
                   return GestureDetector(
                     onPanStart: (details) => _onPanStart(details, canvasSize),
@@ -230,7 +200,6 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
                     onPanEnd: (details) => _onPanEnd(details, canvasSize),
                     child: Stack(
                       children: [
-                        // 1. THE DRAWING CANVAS (Lines go underneath the letters)
                         CustomPaint(
                           size: Size.infinite,
                           painter: LinePainter(
@@ -239,30 +208,30 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
                             matches: _matches,
                             draggingLeftIndex: _draggingLeftIndex,
                             currentDragPos: _currentDragPos,
-                            getLeftPos: (i) => _getLeftDotPosition(i, canvasSize),
-                            getRightPos: (i) => _getRightDotPosition(i, canvasSize),
+                            getLeftPos: (i) =>
+                                _getLeftDotPosition(i, canvasSize),
+                            getRightPos: (i) =>
+                                _getRightDotPosition(i, canvasSize),
                           ),
                         ),
 
-                        // 2. THE LEFT LETTERS
                         for (int i = 0; i < _leftLetters.length; i++)
                           Positioned(
                             left: canvasSize.width * 0.15,
                             top: _getLeftDotPosition(i, canvasSize).dy - 40,
                             child: _LetterBlock(
                               letter: _leftLetters[i],
-                              color: ColorTheme.goldenYellow,
+                              color: ForestColorTheme.mediumseagreen,
                             ),
                           ),
 
-                        // 3. THE RIGHT LETTERS
                         for (int i = 0; i < _rightLetters.length; i++)
                           Positioned(
                             left: canvasSize.width * 0.70,
                             top: _getRightDotPosition(i, canvasSize).dy - 40,
                             child: _LetterBlock(
                               letter: _rightLetters[i],
-                              color: ColorTheme.lightBlue,
+                              color: ForestColorTheme.seagreen,
                             ),
                           ),
                       ],
@@ -278,7 +247,6 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
   }
 }
 
-// --- WIDGET TO DRAW THE LETTERS ---
 class _LetterBlock extends StatelessWidget {
   final String letter;
   final Color color;
@@ -290,23 +258,18 @@ class _LetterBlock extends StatelessWidget {
     return Text(
       letter,
       style: TextStyle(
-        fontFamily: AppTextStyles.fredoka,
+        fontFamily: ForestAppTextStyles.fredoka,
         fontSize: 70,
         fontWeight: FontWeight.w900,
         color: color,
         shadows: const [
-          Shadow(
-            color: Colors.black26,
-            offset: Offset(2, 4),
-            blurRadius: 4,
-          ),
+          Shadow(color: Colors.black26, offset: Offset(2, 4), blurRadius: 4),
         ],
       ),
     );
   }
 }
 
-// --- CANVAS PAINTER TO DRAW THE LINES AND DOTS ---
 class LinePainter extends CustomPainter {
   final List<String> leftLetters;
   final List<String> rightLetters;
@@ -328,33 +291,40 @@ class LinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final dotPaint = Paint()..color = ColorTheme.orange..style = PaintingStyle.fill;
-    final dotShadowPaint = Paint()..color = Colors.black26..style = PaintingStyle.fill;
-    
+    final dotPaint = Paint()
+      ..color = ForestColorTheme.mediumseagreen
+      ..style = PaintingStyle.fill;
+    final dotShadowPaint = Paint()
+      ..color = Colors.black26
+      ..style = PaintingStyle.fill;
+
     final linePaint = Paint()
-      ..color = ColorTheme.red
-      ..strokeWidth = 6.0
+      ..color = ForestColorTheme.darkseagreen
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
-    // Draw all successfully matched lines
     matches.forEach((leftIndex, rightIndex) {
-      canvas.drawLine(getLeftPos(leftIndex), getRightPos(rightIndex), linePaint);
+      canvas.drawLine(
+        getLeftPos(leftIndex),
+        getRightPos(rightIndex),
+        linePaint,
+      );
     });
 
-    // Draw the active drag line
     if (draggingLeftIndex != null && currentDragPos != null) {
-      canvas.drawLine(getLeftPos(draggingLeftIndex!), currentDragPos!, linePaint);
+      canvas.drawLine(
+        getLeftPos(draggingLeftIndex!),
+        currentDragPos!,
+        linePaint,
+      );
     }
 
-    // Draw Left Dots
     for (int i = 0; i < leftLetters.length; i++) {
       Offset pos = getLeftPos(i);
       canvas.drawCircle(Offset(pos.dx + 2, pos.dy + 2), 12, dotShadowPaint);
       canvas.drawCircle(pos, 12, dotPaint);
     }
 
-    // Draw Right Dots
     for (int i = 0; i < rightLetters.length; i++) {
       Offset pos = getRightPos(i);
       canvas.drawCircle(Offset(pos.dx + 2, pos.dy + 2), 12, dotShadowPaint);

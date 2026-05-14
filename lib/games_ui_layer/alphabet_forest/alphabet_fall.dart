@@ -1,18 +1,9 @@
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 import 'dart:async';
-
-abstract class ColorTheme {
-  static const Color cream = Color(0xFFE8F4F8);
-  static const Color deepNavyBlue = Color(0xFF5E463E);
-  static const Color orange = Color(0xFFEC8A20);
-  static const Color green = Color(0xFF82C84B);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
 
 class AlphabetFallScreen extends StatefulWidget {
   const AlphabetFallScreen({super.key});
@@ -28,7 +19,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   final Random _random = Random();
   late Timer _spawnTimer;
   late Timer _gameTimer;
-  int _score = 0;
 
   @override
   void initState() {
@@ -43,18 +33,14 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
   void _setNewTarget() {
     setState(() {
-      // Pick a random uppercase letter as the goal
       _targetLetter = String.fromCharCode(_random.nextInt(26) + 65);
     });
   }
 
   void _startGameLoops() {
-    // Spawn a new ball every 1.5 seconds
     _spawnTimer = Timer.periodic(const Duration(milliseconds: 1500), (timer) {
       _spawnBall();
     });
-
-    // Game logic loop (60fps) to move balls down
     _gameTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
       _updateBallPositions();
     });
@@ -62,8 +48,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
   void _spawnBall() {
     if (!mounted) return;
-
-    // 30% chance the ball has the correct target letter
     bool isCorrect = _random.nextDouble() < 0.3;
     String ballLetter = isCorrect
         ? _targetLetter
@@ -73,9 +57,9 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
       _activeBalls.add(
         FallingBall(
           letter: ballLetter,
-          xPos: _random.nextDouble(), // Random horizontal start (0.0 to 1.0)
-          yPos: -0.1, // Start just above the screen
-          speed: 0.003 + (_random.nextDouble() * 0.004), // Random fall speed
+          xPos: _random.nextDouble(),
+          yPos: -0.1,
+          speed: 0.003 + (_random.nextDouble() * 0.004),
         ),
       );
     });
@@ -87,7 +71,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
       for (var ball in _activeBalls) {
         ball.yPos += ball.speed;
       }
-      // Remove balls that fell off the bottom
       _activeBalls.removeWhere((ball) => ball.yPos > 1.1);
     });
   }
@@ -98,28 +81,25 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   void _onBallTap(FallingBall ball) {
     if (ball.letter == _targetLetter) {
       setState(() {
-        _correctCount++; // Still tracking in the background
+        _correctCount++;
         _activeBalls.remove(ball);
 
-        // Check if it's time to applaud!
         if (_correctCount >= 5) {
           _showApplause();
-          _correctCount = 0; // Reset for the next round of 5
+          _correctCount = 0;
         } else {
-          _setNewTarget(); // Just change the letter for now
+          _setNewTarget();
         }
       });
     } else {
-      // ---  WRONG TAP LOGIC ---
       final double tapX = ball.xPos;
       final double tapY = ball.yPos;
 
       setState(() {
         _activeBalls.remove(ball);
-        _wrongEffects.add({'x': tapX, 'y': tapY}); // Show the 'X'
+        _wrongEffects.add({'x': tapX, 'y': tapY});
       });
 
-      // Remove the 'X' after half a second (500 milliseconds)
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
           setState(() {
@@ -132,47 +112,44 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     }
   }
 
-  // Applause Dialog
   void _showApplause() {
-    // Get the screen size
     final Size screenSize = MediaQuery.of(context).size;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
-
+        backgroundColor: ForestColorTheme.lightgrayishgreen,
         insetPadding: EdgeInsets.symmetric(horizontal: screenSize.width * 0.15),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Scale font size based on screen width
               Text("👏", style: TextStyle(fontSize: screenSize.width * 0.1)),
               const SizedBox(height: 16),
               Text(
                 "Great Job!",
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontFamily: AppTextStyles.fredoka,
-                  fontSize: screenSize.width * 0.05, // Responsive font
+                  fontFamily: ForestAppTextStyles.fredoka,
+                  fontSize: screenSize.width * 0.05,
                   fontWeight: FontWeight.bold,
-                  color: ColorTheme.green,
+                  color: ForestColorTheme.darkseagreen,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 "You found 5 letters!",
                 style: TextStyle(
-                  fontFamily: AppTextStyles.fredoka,
+                  fontFamily: ForestAppTextStyles.fredoka,
                   fontSize: screenSize.width * 0.03,
+                  color: ForestColorTheme.seagreen,
                 ),
               ),
               const SizedBox(height: 24),
               SizedBox(
-                width: screenSize.width * 0.3, // Responsive button width
+                width: screenSize.width * 0.3,
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () {
@@ -180,7 +157,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                     _setNewTarget();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorTheme.orange,
+                    backgroundColor: ForestColorTheme.darkseagreen,
                     shape: const StadiumBorder(),
                   ),
                   child: const Text(
@@ -207,7 +184,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ColorTheme.cream,
+      backgroundColor: ForestColorTheme.lightgrayishgreen,
       body: SafeArea(
         child: Stack(
           children: [
@@ -221,18 +198,18 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                     const Text(
                       "Find the Letter:",
                       style: TextStyle(
-                        fontFamily: AppTextStyles.fredoka,
+                        fontFamily: ForestAppTextStyles.fredoka,
                         fontSize: 24,
-                        color: ColorTheme.deepNavyBlue,
+                        color: ForestColorTheme.darkseagreen,
                       ),
                     ),
                     Text(
                       _targetLetter,
-                      style: TextStyle(
-                        fontFamily: AppTextStyles.fredoka,
+                      style: const TextStyle(
+                        fontFamily: ForestAppTextStyles.fredoka,
                         fontSize: 80,
                         fontWeight: FontWeight.bold,
-                        color: ColorTheme.orange,
+                        color: ForestColorTheme.seagreen,
                       ),
                     ),
                   ],
@@ -240,56 +217,51 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
               ),
             ),
 
-            //  FALLING BALLS AND EFFECTS
+            // 2. FALLING BALLS AND EFFECTS
             LayoutBuilder(
               builder: (context, constraints) {
-                double ballSize =
-                    constraints.maxWidth * 0.12; // Responsive ball size
+                double ballSize = constraints.maxWidth * 0.12;
 
                 return Stack(
                   children: [
-                    // A. Draw the active falling balls
-                    ..._activeBalls.map(
-                      (ball) {
-                        return Positioned(
-                          left: ball.xPos * (constraints.maxWidth - ballSize),
-                          top: ball.yPos * constraints.maxHeight,
-                          child: GestureDetector(
-                            onTap: () => _onBallTap(ball),
-                            child: SizedBox(
-                              width: ballSize,
-                              height: ballSize,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Image.asset(
-                                    'assets/images/objects/ball.png',
-                                    fit: BoxFit.contain,
+                    ..._activeBalls.map((ball) {
+                      return Positioned(
+                        left: ball.xPos * (constraints.maxWidth - ballSize),
+                        top: ball.yPos * constraints.maxHeight,
+                        child: GestureDetector(
+                          onTap: () => _onBallTap(ball),
+                          child: SizedBox(
+                            width: ballSize,
+                            height: ballSize,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Image.asset(
+                                  'assets/images/objects/ball.png',
+                                  fit: BoxFit.contain,
+                                ),
+                                Text(
+                                  ball.letter,
+                                  style: TextStyle(
+                                    fontFamily: ForestAppTextStyles.fredoka,
+                                    fontSize: ballSize * 0.4,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    shadows: const [
+                                      Shadow(
+                                        blurRadius: 4,
+                                        color: Colors.black45,
+                                        offset: Offset(2, 2),
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    ball.letter,
-                                    style: TextStyle(
-                                      fontFamily: AppTextStyles.fredoka,
-                                      fontSize: ballSize * 0.4,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                      shadows: const [
-                                        Shadow(
-                                          blurRadius: 4,
-                                          color: Colors.black45,
-                                          offset: Offset(2, 2),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
-                        );
-                      },
-                    ), // .toList() is not needed when using the spread operator (...)
-                    // B. Draw the Red 'X' for wrong taps!
+                        ),
+                      );
+                    }),
                     ..._wrongEffects.map((effect) {
                       return Positioned(
                         left: effect['x']! * (constraints.maxWidth - ballSize),
@@ -301,7 +273,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                             child: Icon(
                               Icons.close_rounded,
                               color: Colors.redAccent,
-                              size: ballSize * 0.8, // Make the X fill the space
+                              size: ballSize * 0.8,
                               shadows: const [
                                 Shadow(
                                   color: Colors.white,
@@ -319,19 +291,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
               },
             ),
 
-            // BACK BUTTON
-            Positioned(
-              top: 10,
-              left: 10,
-              child: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: ColorTheme.deepNavyBlue,
-                  size: 30,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
+            const Positioned(top: 10, left: 10, child: ForestBackButton()),
           ],
         ),
       ),

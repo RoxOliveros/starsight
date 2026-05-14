@@ -1,18 +1,7 @@
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-abstract class ColorTheme {
-  static const Color cream = Color(0xFFE8F4F8);
-  static const Color deepNavyBlue = Color(0xFF5E463E);
-  static const Color orange = Color(0xFFEC8A20);
-  static const Color green = Color(0xFF82C84B);
-  static const Color lightBlue = Color(0xFF75D5FF);
-  static const Color goldenYellow = Color(0xFFFBD481);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
 
 class AlphabetMatchScreen extends StatefulWidget {
   const AlphabetMatchScreen({super.key});
@@ -23,7 +12,6 @@ class AlphabetMatchScreen extends StatefulWidget {
 
 class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
     with SingleTickerProviderStateMixin {
-  // Track which letters have been successfully matched
   final Set<String> _matchedLetters = {};
   final List<String> _allLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
@@ -55,18 +43,24 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
+        backgroundColor: ForestColorTheme.lightgrayishgreen,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
           "Awesome!",
           style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            color: ColorTheme.green,
+            fontFamily: ForestAppTextStyles.fredoka,
+            color: ForestColorTheme.darkseagreen,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: const Text(
           "You matched all the stars!",
-          style: TextStyle(fontFamily: AppTextStyles.fredoka, fontSize: 18),
+          style: TextStyle(
+            fontFamily: ForestAppTextStyles.fredoka,
+            fontSize: 18,
+            color: ForestColorTheme.seagreen,
+          ),
         ),
         actions: [
           TextButton(
@@ -77,7 +71,7 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
             child: const Text(
               "Play Again",
               style: TextStyle(
-                color: ColorTheme.orange,
+                color: ForestColorTheme.darkseagreen,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),
@@ -91,19 +85,31 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ColorTheme.cream,
+      backgroundColor: ForestColorTheme.lightgrayishgreen, // Theme applied
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 12),
-            // HEADER
-            const Text(
-              'Alphabet Match',
-              style: TextStyle(
-                fontFamily: AppTextStyles.fredoka,
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                color: ColorTheme.deepNavyBlue,
+            // HEADER - Added ForestBackButton here!
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Stack(
+                alignment: Alignment.center,
+                children: const [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ForestBackButton(),
+                  ),
+                  Text(
+                    'Alphabet Match',
+                    style: TextStyle(
+                      fontFamily: ForestAppTextStyles.fredoka,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: ForestColorTheme.darkseagreen,
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -134,14 +140,14 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
                               details.data == letter && !isMatched,
                           onAcceptWithDetails: (details) {
                             setState(() => _matchedLetters.add(letter));
-                            if (_matchedLetters.length == 8)
+                            if (_matchedLetters.length == 8) {
                               _showSuccessDialog();
+                            }
                           },
                           builder: (context, candidateData, rejectedData) {
                             return Stack(
                               alignment: Alignment.center,
                               children: [
-                                // The Star Background
                                 Image.asset(
                                   'assets/images/star.png',
                                   color: isMatched
@@ -149,18 +155,17 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
                                       : Colors.white.withOpacity(0.4),
                                   fit: BoxFit.contain,
                                 ),
-                                // The Letter (Fredoka Font)
+                                // The Letter
                                 Text(
                                   letter,
                                   style: TextStyle(
-                                    fontFamily: AppTextStyles.fredoka,
+                                    fontFamily: ForestAppTextStyles.fredoka,
                                     fontSize: 50,
                                     fontWeight: FontWeight.bold,
                                     color: isMatched
-                                        ? ColorTheme.goldenYellow
-                                        : ColorTheme.deepNavyBlue.withOpacity(
-                                            0.2,
-                                          ),
+                                        ? ForestColorTheme.seagreen
+                                        : ForestColorTheme.darkseagreen
+                                              .withOpacity(0.2),
                                   ),
                                 ),
                               ],
@@ -190,7 +195,6 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
                             );
                           },
                           child: Draggable<String>(
-                            // Get the next letter that hasn't been matched yet
                             data: _allLetters.firstWhere(
                               (l) => !_matchedLetters.contains(l),
                             ),
@@ -230,10 +234,10 @@ class _DraggableLetter extends StatelessWidget {
       child: Text(
         letter,
         style: const TextStyle(
-          fontFamily: AppTextStyles.fredoka,
+          fontFamily: ForestAppTextStyles.fredoka,
           fontSize: 80,
           fontWeight: FontWeight.bold,
-          color: ColorTheme.lightBlue,
+          color: ForestColorTheme.mediumseagreen,
           shadows: [
             Shadow(color: Colors.black26, offset: Offset(0, 4), blurRadius: 8),
           ],

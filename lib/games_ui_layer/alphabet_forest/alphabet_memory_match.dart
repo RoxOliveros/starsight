@@ -1,18 +1,7 @@
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-abstract class ColorTheme {
-  static const Color cream = Color(0xFFE8F4F8);
-  static const Color deepNavyBlue = Color(0xFF5E463E);
-  static const Color orange = Color(0xFFEC8A20);
-  static const Color green = Color(0xFF82C84B);
-  static const Color lightBlue = Color(0xFF75D5FF);
-  static const Color goldenYellow = Color(0xFFFBD481);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
 
 class AlphabetMemoryMatchScreen extends StatefulWidget {
   const AlphabetMemoryMatchScreen({super.key});
@@ -23,13 +12,12 @@ class AlphabetMemoryMatchScreen extends StatefulWidget {
 }
 
 class _AlphabetMemoryMatchScreenState extends State<AlphabetMemoryMatchScreen> {
-  // 1. Setup the Board Data
   final List<String> _cards = ['A', 'B', 'C', 'D', 'a', 'b', 'c', 'd'];
   List<bool> _cardFllipped = List.filled(8, false);
   List<bool> _cardMatched = List.filled(8, false);
 
   int? _firstSelectedIndex;
-  bool _waitTimer = false; // Prevents tapping 3 cards at once
+  bool _waitTimer = false;
 
   @override
   void initState() {
@@ -38,7 +26,7 @@ class _AlphabetMemoryMatchScreenState extends State<AlphabetMemoryMatchScreen> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    _cards.shuffle(); // Shuffle every time they play!
+    _cards.shuffle();
   }
 
   @override
@@ -55,16 +43,12 @@ class _AlphabetMemoryMatchScreenState extends State<AlphabetMemoryMatchScreen> {
     });
 
     if (_firstSelectedIndex == null) {
-      // First card flipped
       _firstSelectedIndex = index;
     } else {
-      // Second card flipped - Check for match!
       _waitTimer = true;
       int first = _firstSelectedIndex!;
 
-      // Logic: A matches a, B matches b, etc.
       if (_cards[first].toLowerCase() == _cards[index].toLowerCase()) {
-        // MATCH FOUND!
         setState(() {
           _cardMatched[first] = true;
           _cardMatched[index] = true;
@@ -74,7 +58,6 @@ class _AlphabetMemoryMatchScreenState extends State<AlphabetMemoryMatchScreen> {
 
         if (_cardMatched.every((m) => m)) _showSuccessDialog();
       } else {
-        // NO MATCH - Flip them back after 1 second
         Future.delayed(const Duration(seconds: 1), () {
           if (mounted) {
             setState(() {
@@ -94,18 +77,24 @@ class _AlphabetMemoryMatchScreenState extends State<AlphabetMemoryMatchScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
+        backgroundColor: ForestColorTheme.lightgrayishgreen,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
           "Awesome!",
           style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            color: ColorTheme.green,
+            fontFamily: ForestAppTextStyles.fredoka,
+            color: ForestColorTheme.darkseagreen,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: const Text(
           "You found all the pairs!",
-          style: TextStyle(fontFamily: AppTextStyles.fredoka, fontSize: 18),
+          style: TextStyle(
+            fontFamily: ForestAppTextStyles.fredoka,
+            fontSize: 18,
+            color: ForestColorTheme.seagreen,
+          ),
         ),
         actions: [
           TextButton(
@@ -120,7 +109,7 @@ class _AlphabetMemoryMatchScreenState extends State<AlphabetMemoryMatchScreen> {
             child: const Text(
               "Play Again",
               style: TextStyle(
-                color: ColorTheme.orange,
+                color: ForestColorTheme.darkseagreen,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),
@@ -134,20 +123,34 @@ class _AlphabetMemoryMatchScreenState extends State<AlphabetMemoryMatchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ColorTheme.cream,
+      backgroundColor: ForestColorTheme.lightgrayishgreen,
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 12),
-            const Text(
-              'Alphabet Match',
-              style: TextStyle(
-                fontFamily: AppTextStyles.fredoka,
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                color: ColorTheme.deepNavyBlue,
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Stack(
+                alignment: Alignment.center,
+                children: const [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ForestBackButton(),
+                  ),
+                  Text(
+                    'Memory Match',
+                    style: TextStyle(
+                      fontFamily: ForestAppTextStyles.fredoka,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: ForestColorTheme.darkseagreen,
+                    ),
+                  ),
+                ],
               ),
             ),
+
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -172,31 +175,37 @@ class _AlphabetMemoryMatchScreenState extends State<AlphabetMemoryMatchScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(showFace ? 1.0 : 0.4),
                           borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: showFace
+                                ? ForestColorTheme.lightgreen
+                                : Colors.transparent,
+                            width: 3,
+                          ),
                         ),
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            // The Star Background
                             Image.asset(
                               'assets/images/star.png',
                               color: showFace
-                                  ? ColorTheme.goldenYellow.withOpacity(0.3)
+                                  ? ForestColorTheme.mediumseagreen.withOpacity(
+                                      0.2,
+                                    )
                                   : null,
                               fit: BoxFit.contain,
                             ),
-                            // The Letter (Only shows if flipped or matched)
                             if (showFace)
                               Text(
                                 _cards[index],
                                 style: TextStyle(
-                                  fontFamily: AppTextStyles.fredoka,
+                                  fontFamily: ForestAppTextStyles.fredoka,
                                   fontSize: 60,
                                   fontWeight: FontWeight.bold,
                                   color:
                                       _cards[index] ==
                                           _cards[index].toUpperCase()
-                                      ? ColorTheme.goldenYellow
-                                      : ColorTheme.lightBlue,
+                                      ? ForestColorTheme.mediumseagreen
+                                      : ForestColorTheme.seagreen,
                                 ),
                               ),
                           ],

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 
-// --- NEW LEVEL MODEL FOR GUIDED TRACING ---
 class TraceLevel {
   final String letterName;
   final String imagePath;
@@ -226,7 +225,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ForestColorTheme.lightgrayishgreen, // Applied Theme
+      backgroundColor: ForestColorTheme.lightgrayishgreen,
       body: SafeArea(
         child: Column(
           children: [
@@ -236,7 +235,6 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // --- REPLACED WITH CUSTOM BUTTON ---
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: ForestBackButton(),
@@ -244,10 +242,10 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
                   const Text(
                     'Alphabet Trace',
                     style: TextStyle(
-                      fontFamily: ForestAppTextStyles.fredoka, // Applied Theme
+                      fontFamily: ForestAppTextStyles.fredoka,
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
-                      color: ForestColorTheme.darkseagreen, // Applied Theme
+                      color: ForestColorTheme.darkseagreen,
                     ),
                   ),
                   Align(
@@ -255,7 +253,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
                     child: IconButton(
                       icon: const Icon(
                         Icons.refresh_rounded,
-                        color: ForestColorTheme.seagreen, // Applied Theme
+                        color: ForestColorTheme.seagreen,
                         size: 32,
                       ),
                       onPressed: _resetBoard,
@@ -276,7 +274,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: ForestColorTheme.lightgreen, // Applied Theme
+                          color: ForestColorTheme.lightgreen,
                           width: 4,
                         ),
                       ),
@@ -349,18 +347,15 @@ class GuidedTracePainter extends CustomPainter {
 
     canvas.restore();
 
-    // --- UPDATED TRACING COLORS TO MATCH FOREST THEME ---
     final fillPaint = Paint()
-      ..color = ForestColorTheme
-          .mediumseagreen // Replaced Light Blue
+      ..color = ForestColorTheme.mediumseagreen
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..strokeWidth = 30.0
       ..style = PaintingStyle.stroke;
 
     final guidePaint = Paint()
-      ..color = ForestColorTheme
-          .darkseagreen // Replaced Green
+      ..color = ForestColorTheme.darkseagreen
       ..style = PaintingStyle.fill;
 
     for (int i = 0; i < denseStrokes.length; i++) {

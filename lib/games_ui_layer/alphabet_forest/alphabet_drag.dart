@@ -1,17 +1,7 @@
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-abstract class ColorTheme {
-  static const Color cream = Color(0xFFE8F4F8);
-  static const Color deepNavyBlue = Color(0xFF5E463E);
-  static const Color orange = Color(0xFFEC8A20);
-  static const Color green = Color(0xFF82C84B);
-  static const Color lightBlue = Color(0xFF75D5FF);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
 
 class AlphabetDragScreen extends StatefulWidget {
   const AlphabetDragScreen({super.key});
@@ -33,7 +23,6 @@ class _AlphabetDragScreenState extends State<AlphabetDragScreen>
       DeviceOrientation.landscapeRight,
     ]);
 
-    // This makes the letter bob up and down continuously!
     _floatingController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -52,31 +41,37 @@ class _AlphabetDragScreenState extends State<AlphabetDragScreen>
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
+        backgroundColor: ForestColorTheme.lightgrayishgreen,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
           "Awesome!",
           style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            color: ColorTheme.green,
+            fontFamily: ForestAppTextStyles.fredoka,
+            color: ForestColorTheme.darkseagreen,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: const Text(
           "You dragged it perfectly!",
-          style: TextStyle(fontFamily: AppTextStyles.fredoka, fontSize: 18),
+          style: TextStyle(
+            fontFamily: ForestAppTextStyles.fredoka,
+            fontSize: 18,
+            color: ForestColorTheme.seagreen,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               setState(() {
-                _isMatched = false; // Reset for the next round
+                _isMatched = false;
               });
             },
             child: const Text(
               "Play Again",
               style: TextStyle(
-                color: ColorTheme.orange,
+                color: ForestColorTheme.darkseagreen,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),
@@ -90,7 +85,7 @@ class _AlphabetDragScreenState extends State<AlphabetDragScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ColorTheme.cream,
+      backgroundColor: ForestColorTheme.lightgrayishgreen,
       body: SafeArea(
         child: Column(
           children: [
@@ -100,25 +95,18 @@ class _AlphabetDragScreenState extends State<AlphabetDragScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Stack(
                 alignment: Alignment.center,
-                children: [
+                children: const [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: ColorTheme.deepNavyBlue,
-                        size: 28,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                    child: ForestBackButton(),
                   ),
-                  const Text(
+                  Text(
                     'Drag the Letter',
                     style: TextStyle(
-                      fontFamily: AppTextStyles.fredoka,
+                      fontFamily: ForestAppTextStyles.fredoka,
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
-                      color: ColorTheme.deepNavyBlue,
+                      color: ForestColorTheme.darkseagreen,
                     ),
                   ),
                 ],
@@ -137,49 +125,47 @@ class _AlphabetDragScreenState extends State<AlphabetDragScreen>
                         animation: _floatingController,
                         builder: (context, child) {
                           return Transform.translate(
-                            // Moves the letter up and down by 15 pixels
                             offset: Offset(0, -15 * _floatingController.value),
                             child: child,
                           );
                         },
                         child: Draggable<String>(
-                          data: 'B', // The secret data we are passing
+                          data: 'B',
                           feedback: const _LetterWidget(
                             letter: 'B',
-                            color: ColorTheme.lightBlue,
+                            color: ForestColorTheme.seagreen,
                             isDragging: true,
                           ),
                           childWhenDragging: const Opacity(
                             opacity: 0.0,
                             child: _LetterWidget(
                               letter: 'B',
-                              color: ColorTheme.lightBlue,
+                              color: ForestColorTheme.seagreen,
                             ),
                           ),
                           child: const _LetterWidget(
                             letter: 'B',
-                            color: ColorTheme.lightBlue,
+                            color: ForestColorTheme.seagreen,
                           ),
                         ),
                       )
                     else
-                      const SizedBox(width: 150), // Empty space when matched
+                      const SizedBox(width: 150),
+
                     // --- 2. THE TARGET (THE SHADOW) ---
                     DragTarget<String>(
                       onWillAcceptWithDetails: (details) {
-                        return details.data == 'B'; // Only accept a 'B'!
+                        return details.data == 'B';
                       },
                       onAcceptWithDetails: (details) {
                         setState(() {
                           _isMatched = true;
                         });
-                        // Add a tiny delay so they see it snap into place before the dialog pops up
                         Future.delayed(const Duration(milliseconds: 300), () {
                           _showSuccessDialog();
                         });
                       },
                       builder: (context, candidateData, rejectedData) {
-                        // If they hover over it, make it glow slightly
                         bool isHovering = candidateData.isNotEmpty;
 
                         return Container(
@@ -191,7 +177,9 @@ class _AlphabetDragScreenState extends State<AlphabetDragScreen>
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: ColorTheme.deepNavyBlue.withOpacity(0.2),
+                              color: ForestColorTheme.darkseagreen.withOpacity(
+                                0.2,
+                              ),
                               width: 4,
                               style: BorderStyle.solid,
                             ),
@@ -200,14 +188,13 @@ class _AlphabetDragScreenState extends State<AlphabetDragScreen>
                             child: _isMatched
                                 ? const _LetterWidget(
                                     letter: 'B',
-                                    color: ColorTheme.lightBlue,
-                                  ) // Show solid letter when won
+                                    color: ForestColorTheme.seagreen,
+                                  )
                                 : _LetterWidget(
                                     letter: 'B',
-                                    color: ColorTheme.deepNavyBlue.withOpacity(
-                                      0.15,
-                                    ),
-                                  ), // Show faint shadow initially
+                                    color: ForestColorTheme.darkseagreen
+                                        .withOpacity(0.15),
+                                  ),
                           ),
                         );
                       },
@@ -223,7 +210,6 @@ class _AlphabetDragScreenState extends State<AlphabetDragScreen>
   }
 }
 
-// A reusable widget to draw the letter so our code stays clean!
 class _LetterWidget extends StatelessWidget {
   final String letter;
   final Color color;
@@ -240,12 +226,11 @@ class _LetterWidget extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Transform.scale(
-        // Make it slightly bigger while they are dragging it
         scale: isDragging ? 1.2 : 1.0,
         child: Text(
           letter,
           style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
+            fontFamily: ForestAppTextStyles.fredoka,
             fontSize: 150,
             fontWeight: FontWeight.bold,
             color: color,
