@@ -13,12 +13,12 @@ abstract class AppTextStyles {
 }
 
 class AppDialog {
-  AppDialog._(); // prevent instantiation
+  AppDialog._();
 
   static void showSuccess(BuildContext context, {required String message}) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (_) => _AppDialogWidget(type: _DialogType.success, message: message),
     );
   }
@@ -26,7 +26,7 @@ class AppDialog {
   static void showError(BuildContext context, {required String message}) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (_) => _AppDialogWidget(type: _DialogType.error, message: message),
     );
   }
@@ -39,7 +39,7 @@ enum _DialogType { success, error }
 class _AppDialogWidget extends StatelessWidget {
   final _DialogType type;
   final String message;
-  const _AppDialogWidget({super.key, required this.type, required this.message});
+  const _AppDialogWidget({required this.type, required this.message});
 
   bool get _isSuccess => type == _DialogType.success;
 
@@ -53,13 +53,6 @@ class _AppDialogWidget extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Align(
-              alignment: Alignment.topLeft,
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const Icon(Icons.close, color: ColorTheme.brown, size: 22),
-              ),
-            ),
             const SizedBox(height: 8),
             Image.asset(
               _isSuccess

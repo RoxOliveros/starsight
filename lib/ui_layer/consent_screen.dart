@@ -1,6 +1,7 @@
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:flutter/material.dart';
 import '../business_layer/database_service.dart';
+import '../business_layer/lottie_cache.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -48,12 +49,13 @@ class _ConsentScreenState extends State<ConsentScreen> {
     // scroll to newly revealed section after frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       GlobalKey targetKey;
-      if (_revealedSections == 2)
+      if (_revealedSections == 2) {
         targetKey = _section2Key;
-      else if (_revealedSections == 3)
+      } else if (_revealedSections == 3) {
         targetKey = _section3Key;
-      else
+      } else {
         return;
+      }
 
       final ctx = targetKey.currentContext;
       if (ctx != null) {
@@ -448,9 +450,14 @@ class _Section3State extends State<_Section3> {
   }
 
   void _revealBulletsSequentially() async {
-    for (int i = 1; i <= 4; i++) {
-      await Future.delayed(const Duration(milliseconds: 1000));
-      if (mounted) setState(() => _visibleBullets = i);
+    await Future.delayed(const Duration(milliseconds: 1000));
+
+    for (int i = 1; i <= _bullets.length; i++) {
+      if (mounted) {
+        setState(() => _visibleBullets = i);
+      }
+
+      await Future.delayed(const Duration(seconds: 2));
     }
   }
 
@@ -458,7 +465,6 @@ class _Section3State extends State<_Section3> {
     "Your Child's Data Is Safely Stored And Protected. We Do Not Share Personal Information With Third Parties.",
     "StarSight Provides Learning Insights Only. It Does Not Diagnose Or Replace Professional Evaluation.",
     "All Insights And Reports Are Accessible Only To Parents Or Authorized Guardians.",
-    "You Can Turn Off AI Observation, Camera Access, Or Data Tracking Anytime In Settings.",
   ];
 
   @override
@@ -500,10 +506,10 @@ class _Section3State extends State<_Section3> {
                 children: [
                   AnimatedOpacity(
                     opacity: visible ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 1300),
+                    duration: const Duration(milliseconds: 1500),
                     child: AnimatedSlide(
                       offset: visible ? Offset.zero : const Offset(-0.2, 0),
-                      duration: const Duration(milliseconds: 1300),
+                      duration: const Duration(milliseconds: 1500),
                       curve: Curves.easeOut,
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -817,6 +823,19 @@ class _AllowedDialog extends StatelessWidget {
                   if (!context.mounted) return;
 
                   Navigator.of(context).pop();
+
+                  await LottieCache.instance.preload([
+                    'assets/animations/forest.json',
+                    'assets/animations/town.json',
+                    'assets/animations/arctic.json',
+                    'assets/animations/lagoon.json',
+                    'assets/animations/puzzle.json',
+                    'assets/animations/white_clouds_mirrored.json',
+                    'assets/animations/white_cloud.json',
+                    'assets/animations/movie_clapperboard.json',
+                  ]);
+
+                  if (!context.mounted) return;
 
                   Navigator.pushAndRemoveUntil(
                     context,

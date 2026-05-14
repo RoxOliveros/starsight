@@ -1,9 +1,9 @@
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:lottie/lottie.dart';
+import 'package:lottie/lottie.dart' hide LottieCache;
 import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
+import '../business_layer/lottie_cache.dart';
 import '../business_layer/orientation_service.dart';
 import 'app_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -50,6 +50,7 @@ class _SignInAccountState extends State<SignInAccount>
   @override
   void initState() {
     super.initState();
+
     OrientationService.setPortrait();
     _fadeController = AnimationController(
       vsync: this,
@@ -155,6 +156,17 @@ class _SignInAccountState extends State<SignInAccount>
 
         String fetchedNickname = await DatabaseService().getNickname();
 
+        await LottieCache.instance.preload([
+          'assets/animations/forest.json',
+          'assets/animations/town.json',
+          'assets/animations/arctic.json',
+          'assets/animations/lagoon.json',
+          'assets/animations/puzzle.json',
+          'assets/animations/white_clouds_mirrored.json',
+          'assets/animations/white_cloud.json',
+          'assets/animations/movie_clapperboard.json',
+        ]);
+
         if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
@@ -176,6 +188,7 @@ class _SignInAccountState extends State<SignInAccount>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: ColorTheme.cream,
       body: SafeArea(
         child: FadeTransition(

@@ -5,7 +5,6 @@ import 'package:lottie/lottie.dart';
 import '../business_layer/parent_age_verification_business_layer.dart';
 import 'app_dialog.dart';
 import 'appbar_signup.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 abstract class ColorTheme {
   static const Color goldenYellow = Color(0xFFFBD481);
@@ -56,13 +55,23 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
     if (ParentAgeController.isAdult(birthYear)) {
       setState(() => _digits.clear());
 
-      // Pass the baton directly!
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => ChildNickname(
-            parentBirthYear: birthYear.toString(), // <-- Handing it off
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 800),
+          pageBuilder: (context, animation, secondaryAnimation) => ChildNickname(
+            parentBirthYear: birthYear.toString(),
           ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final tween = Tween(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).chain(CurveTween(curve: Curves.easeInOut));
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
         ),
       );
     } else {

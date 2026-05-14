@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1031039579822-9icph36cdehtidv685i3gu2s7bm7i3km.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.starsight",
+            "certificate_hash": "dbf30c603926e446462e3c659b61df691e64743b"
+          }
+        },
+        {
           "client_id": "1031039579822-mbi0evb9gchcmk16709tq7imf3uuosim.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

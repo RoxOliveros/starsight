@@ -2,8 +2,8 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/jar_level_screen.dart';
 import 'package:StarSight/ui_layer/town_level.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:lottie/lottie.dart';
+import 'package:lottie/lottie.dart' hide LottieCache;
+import '../business_layer/lottie_cache.dart';
 import 'arctic_numberland/arctic_level.dart';
 import 'forest_level.dart';
 import 'lagoon_level.dart';
@@ -473,6 +473,8 @@ class _IslandTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final composition = LottieCache.instance.get(activity.imagePath);
+
     return GestureDetector(
       onTap: () => _navigate(context),
       child: AnimatedBuilder(
@@ -481,13 +483,14 @@ class _IslandTile extends StatelessWidget {
           offset: Offset(0, floatAnimation.value),
           child: child,
         ),
-        child: Lottie.asset(
-          activity.imagePath,
+        child: composition != null
+            ? Lottie(
+          composition: composition,
           width: size,
           height: size,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => _IslandPlaceholder(large: true),
-        ),
+        )
+            : _IslandPlaceholder(large: true),
       ),
     );
   }

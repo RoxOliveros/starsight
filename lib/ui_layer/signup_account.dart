@@ -59,6 +59,7 @@ class _SignUpAccountState extends State<SignUpAccount>
   @override
   void initState() {
     super.initState();
+
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -187,6 +188,7 @@ class _SignUpAccountState extends State<SignUpAccount>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: ColorTheme.cream,
       body: SafeArea(
         child: FadeTransition(

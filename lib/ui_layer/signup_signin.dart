@@ -1,5 +1,5 @@
 import 'package:StarSight/ui_layer/signin_account.dart';
-import 'package:StarSight/ui_layer/lottie_cache.dart';
+import 'package:StarSight/business_layer/lottie_cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart' hide LottieCache;
@@ -72,6 +72,14 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
   @override
   void initState() {
     super.initState();
+
+    LottieCache.instance.preload([
+      'assets/animations/dancing_dog.json',
+      'assets/animations/night_cloud.json',
+      'assets/animations/night_cloud_fluffy.json',
+      'assets/animations/white_clouds.json',
+    ]);
+
     OrientationService.setPortrait();
     _fadeController = AnimationController(
       vsync: this,
