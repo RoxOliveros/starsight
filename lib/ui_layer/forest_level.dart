@@ -1,4 +1,6 @@
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_drag.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/lvl_1.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
@@ -249,21 +251,23 @@ class _LevelTile extends StatelessWidget {
           case 1:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const lvl_1()),
+              MaterialPageRoute(
+                builder: (context) => const AlphabetTraceScreen(),
+              ),
             );
             break;
           case 2:
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetTraceScreen(),
+                builder: (context) => const AlphabetMatchScreen(),
               ),
             );
             break;
           case 3:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => AlphabetDragScreen()),
+              MaterialPageRoute(builder: (context) => AlphabetFallScreen()),
             );
             break;
         }
