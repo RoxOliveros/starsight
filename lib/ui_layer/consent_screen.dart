@@ -816,7 +816,7 @@ class _GoToDashboardDialog extends StatelessWidget {
                     'assets/animations/forest.json',
                     'assets/animations/town.json',
                     'assets/animations/arctic.json',
-                    'assets/animations/discovery_lagoon.json',
+                    'assets/animations/lagoon.json',
                     'assets/animations/puzzle.json',
                     'assets/animations/white_clouds_mirrored.json',
                     'assets/animations/white_cloud.json',

@@ -67,7 +67,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       title: 'Lagoon',
       subtitle: '...',
       isActive: false,
-      imagePath: 'assets/animations/discovery_lagoon.json',
+      imagePath: 'assets/animations/lagoon.json',
     ),
     _ActivityCard(
       title: 'Puzzle',
