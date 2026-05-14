@@ -47,17 +47,12 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     OrientationService.setLandscape();
     _resetGame();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     OrientationService.setLandscape();
     super.dispose();
   }

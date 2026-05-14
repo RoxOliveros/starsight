@@ -47,10 +47,6 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
 
     OrientationService.setLandscape();
 
@@ -64,7 +60,6 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
   @override
   void dispose() {
     _floatingController.dispose();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     OrientationService.setLandscape();
     super.dispose();
   }
