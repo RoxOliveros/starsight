@@ -1,3 +1,6 @@
+import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_drag.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_match.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -243,8 +246,32 @@ class _LevelTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        // --- THIS IS WHERE THE MAGIC HAPPENS ---
         switch (level) {
-
+          case 1:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const WeatherMatchScreen(),
+              ),
+            );
+            break;
+          case 2:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BodyPartsDragScreen(),
+              ),
+            );
+            break;
+          case 3:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BodyPartsAssemblyScreen(),
+              ),
+            );
+            break;
         }
       },
       child: Stack(
