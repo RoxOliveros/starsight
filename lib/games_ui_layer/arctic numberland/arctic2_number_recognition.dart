@@ -107,11 +107,11 @@ class _NumberRecognitionScreenState extends State<NumberRecognitionScreen> {
     );
   }
 
-  // Unselected → pictonblue | correct → lightblue | wrong tap → cadetblue
+  // Unselected → pictonblue | correct → green | wrong tap → red
   Color _choiceColor(int index) {
     if (_tappedIndex == null) return ArcticColorTheme.pictonblue;
-    if (_choices[index] == _correctNumber) return ArcticColorTheme.lightblue;
-    if (_tappedIndex == index) return ArcticColorTheme.cadetblue;
+    if (_choices[index] == _correctNumber) return Colors.green;
+    if (_tappedIndex == index) return Colors.red;
     return ArcticColorTheme.pictonblue;
   }
 

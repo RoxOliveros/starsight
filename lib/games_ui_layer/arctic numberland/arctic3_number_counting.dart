@@ -15,7 +15,6 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
   late List<int> _choices;
   late String _currentObject;
   int? _tappedIndex;
-  int _score = 0;
   int _round = 1;
   static const int _totalRounds = 5;
 
@@ -61,8 +60,6 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
     if (_tappedIndex != null) return;
     setState(() => _tappedIndex = index);
 
-    if (_choices[index] == _correctCount) _score++;
-
     await Future.delayed(const Duration(milliseconds: 900));
 
     if (_round >= _totalRounds) {
@@ -83,7 +80,7 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         backgroundColor: ArcticColorTheme.cotton,
         title: Text(
-          _score >= 4 ? '🌟 Amazing!' : '🎉 Good Try!',
+          '🌟 Amazing!',
           style: const TextStyle(
             fontFamily: ArcticAppTextStyles.fredoka,
             fontSize: 28,
@@ -92,7 +89,7 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
           ),
         ),
         content: Text(
-          'You got $_score out of $_totalRounds!',
+          'You did well!',
           style: const TextStyle(
             fontFamily: ArcticAppTextStyles.fredoka,
             fontSize: 22,
@@ -104,7 +101,6 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
             onPressed: () {
               Navigator.pop(context);
               setState(() {
-                _score = 0;
                 _round = 1;
                 _generateRound();
               });
@@ -124,11 +120,11 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
     );
   }
 
-  // Unselected → pictonblue | correct → lightblue | wrong tap → cadetblue
+  // Unselected → pictonblue | correct → green | wrong tap → red
   Color _choiceColor(int index) {
     if (_tappedIndex == null) return ArcticColorTheme.pictonblue;
-    if (_choices[index] == _correctCount) return ArcticColorTheme.lightblue;
-    if (_tappedIndex == index) return ArcticColorTheme.cadetblue;
+    if (_choices[index] == _correctCount) return Colors.green;
+    if (_tappedIndex == index) return Colors.red;
     return ArcticColorTheme.pictonblue;
   }
 

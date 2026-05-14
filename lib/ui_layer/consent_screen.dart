@@ -72,8 +72,8 @@ class _ConsentScreenState extends State<ConsentScreen> {
   void showAllowedDialog(BuildContext context) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => const _AllowedDialog(),
+      barrierDismissible: true,
+      builder: (context) => const _GoToDashboardDialog(),
     );
   }
 
@@ -753,8 +753,8 @@ class _AnimatedChip extends StatelessWidget {
   }
 }
 
-class _AllowedDialog extends StatelessWidget {
-  const _AllowedDialog();
+class _GoToDashboardDialog extends StatelessWidget {
+  const _GoToDashboardDialog();
 
   @override
   Widget build(BuildContext context) {
@@ -766,18 +766,6 @@ class _AllowedDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Close button ──────────────────────────────────────
-            Align(
-              alignment: Alignment.topLeft,
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: const Icon(
-                  Icons.close,
-                  color: ColorTheme.deepNavyBlue,
-                  size: 22,
-                ),
-              ),
-            ),
 
             const SizedBox(height: 8),
 

@@ -26,11 +26,8 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
   int? _wrongFlashDots;
 
   // Score tracking
-  int _score = 0;
   int _round = 1;
   static const int _totalRounds = 5;
-  bool _wrongThisRound = false;
-  final List<bool?> _scoreHistory = List.filled(5, null);
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -61,7 +58,6 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
     _numberCardOrder = List<int>.from(_roundNumbers)..shuffle();
     _dotCardOrder = List<int>.from(_roundNumbers)..shuffle();
     _matchedNumbers.clear();
-    _wrongThisRound = false;
     _wrongFlashNumber = null;
     _wrongFlashDots = null;
   }
@@ -74,12 +70,6 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
       setState(() => _matchedNumbers.add(droppedValue));
 
       if (_matchedNumbers.length == _roundNumbers.length) {
-        final correct = !_wrongThisRound;
-        setState(() {
-          _scoreHistory[_round - 1] = correct;
-          if (correct) _score++;
-        });
-
         await Future.delayed(const Duration(milliseconds: 700));
 
         if (_round >= _totalRounds) {
@@ -94,7 +84,6 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
     } else {
       // ❌ Wrong match — flash both cards
       setState(() {
-        _wrongThisRound = true;
         _wrongFlashNumber = droppedValue;
         _wrongFlashDots = targetValue;
       });
@@ -114,7 +103,7 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         backgroundColor: ArcticColorTheme.cotton,
         title: Text(
-          _score >= 4 ? '🌟 Amazing!' : '🎉 Good Try!',
+          '🌟 Amazing!',
           style: const TextStyle(
             fontFamily: ArcticAppTextStyles.fredoka,
             fontSize: 28,
@@ -123,7 +112,7 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
           ),
         ),
         content: Text(
-          'You got $_score out of $_totalRounds!',
+          'You did well!',
           style: const TextStyle(
             fontFamily: ArcticAppTextStyles.fredoka,
             fontSize: 22,
@@ -135,9 +124,7 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
             onPressed: () {
               Navigator.pop(context);
               setState(() {
-                _score = 0;
                 _round = 1;
-                _scoreHistory.fillRange(0, _totalRounds, null);
                 _startRound();
               });
             },
@@ -171,10 +158,10 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
     return ArcticColorTheme.slateblue;
   }
 
-  // Dot card (target): default fill → cotton | matched → lightblue | wrong → cadetblue
+  // Dot card (target): default fill → cotton | matched → green | wrong → red
   Color _dotCardFillColor(int value) {
-    if (_matchedNumbers.contains(value)) return ArcticColorTheme.lightblue;
-    if (_wrongFlashDots == value) return ArcticColorTheme.cadetblue;
+    if (_matchedNumbers.contains(value)) return Colors.green;
+    if (_wrongFlashDots == value) return Colors.red;
     return ArcticColorTheme.cotton;
   }
 
@@ -253,34 +240,6 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
             ),
 
             const SizedBox(height: 5),
-
-            // --- SCORE DOTS ---
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_totalRounds, (i) {
-                Color color;
-                if (_scoreHistory[i] == true) {
-                  color = ArcticColorTheme.lightblue;
-                } else if (_scoreHistory[i] == false) {
-                  color = ArcticColorTheme.cadetblue;
-                } else {
-                  color = Colors.grey.shade300;
-                }
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.symmetric(horizontal: 5),
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: color, width: 1.5),
-                  ),
-                );
-              }),
-            ),
-
-            const SizedBox(height: 6),
 
             // --- MAIN GAME AREA ---
             Expanded(
