@@ -3,6 +3,7 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
+import '../../games_ui_layer/arctic numberland/arctic1_number_introduction.dart';
 import '../../games_ui_layer/arctic numberland/arctic3_number_counting.dart';
 import '../../games_ui_layer/arctic numberland/arctic4_number_matching.dart';
 import '../../games_ui_layer/arctic numberland/arctic2_number_recognition.dart';
@@ -210,6 +211,12 @@ class _LevelTile extends StatelessWidget {
       onTap: () {
         switch (level) {
           case 1:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NumberIntroductionScreen(),
+              ),
+            );
             break;
           case 2:
             Navigator.push(

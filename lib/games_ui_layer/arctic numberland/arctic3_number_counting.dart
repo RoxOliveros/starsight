@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 
@@ -19,27 +19,21 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
   static const int _totalRounds = 5;
 
   final List<Map<String, String>> _objects = [
-    {'name': 'Apples', 'asset': 'assets/drafts/apple.png'},
-    {'name': 'Balls', 'asset': 'assets/drafts/ball.png'},
-    {'name': 'Stars', 'asset': 'assets/images/counting/star.png'},
+    {'name': 'Apples', 'asset': 'assets/images/objects/alarmclock.png'},
+    {'name': 'Balls', 'asset': 'assets/images/objects/ball.png'},
+    {'name': 'Stars', 'asset': 'assets/images/objects/car.png'},
   ];
 
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     _generateRound();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 
@@ -163,31 +157,9 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
                       color: ArcticColorTheme.cadetblue,
                     ),
                   ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: ArcticColorTheme.pictonblue,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '$_round / $_totalRounds',
-                        style: const TextStyle(
-                          fontFamily: ArcticAppTextStyles.fredoka,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: ArcticColorTheme.cotton,
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 4),
 
             const Text(
               'How many are there?',
@@ -215,10 +187,14 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
                       color: ArcticColorTheme.cotton,
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                          color: ArcticColorTheme.pictonblue, width: 4),
+                        color: ArcticColorTheme.pictonblue,
+                        width: 4,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: ArcticColorTheme.pictonblue.withValues(alpha: 0.3),
+                          color: ArcticColorTheme.pictonblue.withValues(
+                            alpha: 0.3,
+                          ),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -237,12 +213,12 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 14,
-                        mainAxisSpacing: 14,
-                        childAspectRatio: 1.4,
-                      ),
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 14,
+                            mainAxisSpacing: 14,
+                            childAspectRatio: 1.4,
+                          ),
                       itemCount: _choices.length,
                       itemBuilder: (context, index) {
                         return GestureDetector(
@@ -258,7 +234,9 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _choiceColor(index).withValues(alpha: 0.35),
+                                  color: _choiceColor(
+                                    index,
+                                  ).withValues(alpha: 0.35),
                                   blurRadius: 8,
                                   offset: const Offset(0, 3),
                                 ),
@@ -290,8 +268,9 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
+
+            _buildProgressDots(),
           ],
         ),
       ),
@@ -310,9 +289,31 @@ class _CountingObjectsScreenState extends State<CountingObjectsScreen> {
           width: 60,
           height: 60,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Text(
-            '🍎',
-            style: TextStyle(fontSize: 48),
+          errorBuilder: (_, __, ___) =>
+              const Text('🍎', style: TextStyle(fontSize: 48)),
+        );
+      }),
+    );
+  }
+
+  Widget _buildProgressDots() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_totalRounds, (i) {
+        final done = i + 1 < _round;
+        final current = i + 1 == _round;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          width: current ? 28 : 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: done
+                ? ArcticColorTheme.cadetblue
+                : current
+                ? ArcticColorTheme.pictonblue
+                : Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(8),
           ),
         );
       }),
