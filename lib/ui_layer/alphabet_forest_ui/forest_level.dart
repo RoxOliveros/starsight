@@ -5,7 +5,6 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_line_match.dar
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_memory_match.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:lottie/lottie.dart';
 
@@ -150,7 +149,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withValues(alpha: 0.3),
                                 offset: const Offset(0, 6),
                                 blurRadius: 8,
                               ),

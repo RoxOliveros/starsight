@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
-import '../business_layer/orientation_service.dart';
+import '../../business_layer/orientation_service.dart';
 
 abstract class ColorTheme {
   static const Color wasteland = Color(0xFF5F5630);
@@ -108,8 +108,8 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
-                            _LevelTile(level: 1, stars: 3),
-                            _LevelTile(level: 2, stars: 2),
+                            _LevelTile(level: 1),
+                            _LevelTile(level: 2),
                             _LevelTile(level: 3),
                             _LockedTile(),
                           ],
@@ -238,9 +238,8 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
 
 class _LevelTile extends StatelessWidget {
   final int level;
-  final int stars;
 
-  const _LevelTile({required this.level, this.stars = 0});
+  const _LevelTile({required this.level});
 
   @override
   Widget build(BuildContext context) {
@@ -295,21 +294,6 @@ class _LevelTile extends StatelessWidget {
                 color: ColorTheme.gunmetalgreen,
                 fontWeight: FontWeight.bold,
               ),
-            ),
-          ),
-          Positioned(
-            bottom: -5,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(3, (i) {
-                return Image.asset(
-                  'assets/images/star.png',
-                  width: 14,
-                  height: 14,
-                  color: i < stars ? null : Colors.grey.shade400,
-                  colorBlendMode: BlendMode.srcIn,
-                );
-              }),
             ),
           ),
         ],

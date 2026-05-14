@@ -1,12 +1,12 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/ui_layer/jar_level_screen.dart';
-import 'package:StarSight/ui_layer/lumi_town.dart/town_level.dart';
+import 'package:StarSight/ui_layer/jar/jar_level.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart' hide LottieCache;
 import '../business_layer/lottie_cache.dart';
 import 'arctic_numberland/arctic_level.dart';
 import 'alphabet_forest_ui/forest_level.dart';
-import 'lagoon_level.dart';
+import 'discovery_lagoon/lagoon_level.dart';
+import 'lumi_town/town_level.dart';
 import 'menu_dialog.dart';
 
 abstract class ColorTheme {
@@ -67,7 +67,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       title: 'Lagoon',
       subtitle: '...',
       isActive: false,
-      imagePath: 'assets/animations/lagoon.json',
+      imagePath: 'assets/animations/discovery_lagoon.json',
     ),
     _ActivityCard(
       title: 'Puzzle',

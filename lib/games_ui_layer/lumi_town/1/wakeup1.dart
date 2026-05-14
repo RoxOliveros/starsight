@@ -8,7 +8,7 @@ import 'package:lottie/lottie.dart' hide LottieCache;
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../../../business_layer/orientation_service.dart';
-import '../../../ui_layer/lumi_town.dart/lumi_buttons.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 class Lumi1ValuesWakeup extends StatefulWidget {
   final String imagePath;

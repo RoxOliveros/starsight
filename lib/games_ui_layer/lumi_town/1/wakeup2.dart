@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
-import '../../../ui_layer/lumi_town.dart/lumi_buttons.dart';
-import '../../../ui_layer/lumi_town.dart/lumi_theme.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../../../ui_layer/lumi_town/lumi_theme.dart';
 
 class Lumi2ValuesWakingup extends StatefulWidget {
   const Lumi2ValuesWakingup({super.key});

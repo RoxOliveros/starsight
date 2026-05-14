@@ -43,7 +43,6 @@ class ProfileDayDialog extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-
                 const SizedBox(height: 8),
 
                 // 👤 Profile Card
@@ -89,11 +88,7 @@ class ProfileDayDialog extends StatelessWidget {
                         ),
                       ),
 
-                      const Icon(
-                        Icons.star,
-                        color: ColorTheme.yellow,
-                        size: 26,
-                      ),
+                      Image.asset('assets/images/night_star.png', width: 35),
                     ],
                   ),
                 ),
