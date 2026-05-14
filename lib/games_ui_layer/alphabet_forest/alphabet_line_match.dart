@@ -21,6 +21,10 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
   int? _draggingLeftIndex;
   Offset? _currentDragPos;
 
+  final Color _yellowColor = const Color(0xFFFBD481);
+  final Color _blueColor = const Color(0xFF75D5FF);
+  final Color _redColor = const Color(0xFFE65C5C);
+
   @override
   void initState() {
     super.initState();
@@ -211,6 +215,8 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
                                 _getLeftDotPosition(i, canvasSize),
                             getRightPos: (i) =>
                                 _getRightDotPosition(i, canvasSize),
+                            dotColor: _yellowColor,
+                            lineColor: _redColor,
                           ),
                         ),
 
@@ -220,7 +226,7 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
                             top: _getLeftDotPosition(i, canvasSize).dy - 40,
                             child: _LetterBlock(
                               letter: _leftLetters[i],
-                              color: ForestColorTheme.mediumseagreen,
+                              color: _yellowColor,
                             ),
                           ),
 
@@ -230,7 +236,7 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
                             top: _getRightDotPosition(i, canvasSize).dy - 40,
                             child: _LetterBlock(
                               letter: _rightLetters[i],
-                              color: ForestColorTheme.seagreen,
+                              color: _blueColor,
                             ),
                           ),
                       ],
@@ -277,6 +283,8 @@ class LinePainter extends CustomPainter {
   final Offset? currentDragPos;
   final Offset Function(int) getLeftPos;
   final Offset Function(int) getRightPos;
+  final Color dotColor;
+  final Color lineColor;
 
   LinePainter({
     required this.leftLetters,
@@ -286,19 +294,22 @@ class LinePainter extends CustomPainter {
     required this.currentDragPos,
     required this.getLeftPos,
     required this.getRightPos,
+    required this.dotColor,
+    required this.lineColor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final dotPaint = Paint()
-      ..color = ForestColorTheme.mediumseagreen
+      ..color = dotColor
       ..style = PaintingStyle.fill;
     final dotShadowPaint = Paint()
       ..color = Colors.black26
       ..style = PaintingStyle.fill;
 
     final linePaint = Paint()
-      ..color = ForestColorTheme.darkseagreen
+      ..color = lineColor
+      ..strokeWidth = 6.0
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
