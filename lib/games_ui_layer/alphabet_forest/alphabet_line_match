@@ -1,0 +1,367 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+abstract class ColorTheme {
+  static const Color cream = Color(0xFFE8F4F8);
+  static const Color deepNavyBlue = Color(0xFF5E463E);
+  static const Color orange = Color(0xFFEC8A20);
+  static const Color green = Color(0xFF82C84B);
+  static const Color lightBlue = Color(0xFF75D5FF);
+  static const Color red = Color(0xFFE65C5C);
+  static const Color goldenYellow = Color(0xFFFBD481); // Add this new color!
+}
+
+abstract class AppTextStyles {
+  static const String fredoka = 'Fredoka';
+}
+
+class AlphabetLineMatchScreen extends StatefulWidget {
+  const AlphabetLineMatchScreen({super.key});
+
+  @override
+  State<AlphabetLineMatchScreen> createState() => _AlphabetLineMatchScreenState();
+}
+
+class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
+  // The letters we want to match
+  final List<String> _leftLetters = ['A', 'B', 'C', 'D'];
+  List<String> _rightLetters = [];
+
+  // Tracks which left index is connected to which right index
+  final Map<int, int> _matches = {};
+
+  // Dragging state
+  int? _draggingLeftIndex;
+  Offset? _currentDragPos;
+
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+
+    // Shuffle the right side so it's a puzzle!
+    _rightLetters = List.from(['a', 'b', 'c', 'd'])..shuffle();
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    super.dispose();
+  }
+
+  void _resetGame() {
+    setState(() {
+      _matches.clear();
+      _draggingLeftIndex = null;
+      _currentDragPos = null;
+      _rightLetters.shuffle();
+    });
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text(
+          "Awesome!",
+          style: TextStyle(
+            fontFamily: AppTextStyles.fredoka,
+            color: ColorTheme.green,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          "You connected all the letters!",
+          style: TextStyle(fontFamily: AppTextStyles.fredoka, fontSize: 18),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resetGame();
+            },
+            child: const Text(
+              "Play Again",
+              style: TextStyle(
+                color: ColorTheme.orange,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- MATH HELPERS TO FIND DOT COORDINATES ---
+  Offset _getLeftDotPosition(int index, Size size) {
+    double ySpace = size.height / (_leftLetters.length + 1);
+    return Offset(size.width * 0.35, ySpace * (index + 1));
+  }
+
+  Offset _getRightDotPosition(int index, Size size) {
+    double ySpace = size.height / (_rightLetters.length + 1);
+    return Offset(size.width * 0.65, ySpace * (index + 1));
+  }
+
+  // --- DRAG LOGIC ---
+  void _onPanStart(DragStartDetails details, Size size) {
+    Offset touchPos = details.localPosition;
+
+    // Check if they touched near a LEFT dot
+    for (int i = 0; i < _leftLetters.length; i++) {
+      if (_matches.containsKey(i)) continue; // Already matched!
+
+      Offset dotPos = _getLeftDotPosition(i, size);
+      // If they touch within 40 pixels of the dot, grab it
+      if ((touchPos - dotPos).distance < 40.0) {
+        setState(() {
+          _draggingLeftIndex = i;
+          _currentDragPos = touchPos;
+        });
+        break;
+      }
+    }
+  }
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    if (_draggingLeftIndex != null) {
+      setState(() {
+        _currentDragPos = details.localPosition;
+      });
+    }
+  }
+
+  void _onPanEnd(DragEndDetails details, Size size) {
+    if (_draggingLeftIndex == null || _currentDragPos == null) return;
+
+    // Did they drop it near a RIGHT dot?
+    for (int i = 0; i < _rightLetters.length; i++) {
+      Offset dotPos = _getRightDotPosition(i, size);
+
+      if ((_currentDragPos! - dotPos).distance < 50.0) {
+        // Is it the correct match? (e.g., 'E'.toLowerCase() == 'e')
+        if (_leftLetters[_draggingLeftIndex!].toLowerCase() ==
+            _rightLetters[i].toLowerCase()) {
+          setState(() {
+            _matches[_draggingLeftIndex!] = i; // Save the successful connection
+          });
+
+          // Check if they won the game
+          if (_matches.length == _leftLetters.length) {
+            _showSuccessDialog();
+          }
+          break; // Stop checking
+        }
+      }
+    }
+
+    // Let go of the line
+    setState(() {
+      _draggingLeftIndex = null;
+      _currentDragPos = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: ColorTheme.cream, // Matches your yellow/cream background
+      body: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            // HEADER
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: ColorTheme.deepNavyBlue,
+                        size: 28,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  const Text(
+                    'Match the Letters',
+                    style: TextStyle(
+                      fontFamily: AppTextStyles.fredoka,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: ColorTheme.deepNavyBlue,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.refresh_rounded,
+                        color: ColorTheme.orange,
+                        size: 32,
+                      ),
+                      onPressed: _resetGame,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // GAME BOARD
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  Size canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+
+                  return GestureDetector(
+                    onPanStart: (details) => _onPanStart(details, canvasSize),
+                    onPanUpdate: _onPanUpdate,
+                    onPanEnd: (details) => _onPanEnd(details, canvasSize),
+                    child: Stack(
+                      children: [
+                        // 1. THE DRAWING CANVAS (Lines go underneath the letters)
+                        CustomPaint(
+                          size: Size.infinite,
+                          painter: LinePainter(
+                            leftLetters: _leftLetters,
+                            rightLetters: _rightLetters,
+                            matches: _matches,
+                            draggingLeftIndex: _draggingLeftIndex,
+                            currentDragPos: _currentDragPos,
+                            getLeftPos: (i) => _getLeftDotPosition(i, canvasSize),
+                            getRightPos: (i) => _getRightDotPosition(i, canvasSize),
+                          ),
+                        ),
+
+                        // 2. THE LEFT LETTERS
+                        for (int i = 0; i < _leftLetters.length; i++)
+                          Positioned(
+                            left: canvasSize.width * 0.15,
+                            top: _getLeftDotPosition(i, canvasSize).dy - 40,
+                            child: _LetterBlock(
+                              letter: _leftLetters[i],
+                              color: ColorTheme.goldenYellow,
+                            ),
+                          ),
+
+                        // 3. THE RIGHT LETTERS
+                        for (int i = 0; i < _rightLetters.length; i++)
+                          Positioned(
+                            left: canvasSize.width * 0.70,
+                            top: _getRightDotPosition(i, canvasSize).dy - 40,
+                            child: _LetterBlock(
+                              letter: _rightLetters[i],
+                              color: ColorTheme.lightBlue,
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- WIDGET TO DRAW THE LETTERS ---
+class _LetterBlock extends StatelessWidget {
+  final String letter;
+  final Color color;
+
+  const _LetterBlock({required this.letter, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      letter,
+      style: TextStyle(
+        fontFamily: AppTextStyles.fredoka,
+        fontSize: 70,
+        fontWeight: FontWeight.w900,
+        color: color,
+        shadows: const [
+          Shadow(
+            color: Colors.black26,
+            offset: Offset(2, 4),
+            blurRadius: 4,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- CANVAS PAINTER TO DRAW THE LINES AND DOTS ---
+class LinePainter extends CustomPainter {
+  final List<String> leftLetters;
+  final List<String> rightLetters;
+  final Map<int, int> matches;
+  final int? draggingLeftIndex;
+  final Offset? currentDragPos;
+  final Offset Function(int) getLeftPos;
+  final Offset Function(int) getRightPos;
+
+  LinePainter({
+    required this.leftLetters,
+    required this.rightLetters,
+    required this.matches,
+    required this.draggingLeftIndex,
+    required this.currentDragPos,
+    required this.getLeftPos,
+    required this.getRightPos,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dotPaint = Paint()..color = ColorTheme.orange..style = PaintingStyle.fill;
+    final dotShadowPaint = Paint()..color = Colors.black26..style = PaintingStyle.fill;
+    
+    final linePaint = Paint()
+      ..color = ColorTheme.red
+      ..strokeWidth = 6.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    // Draw all successfully matched lines
+    matches.forEach((leftIndex, rightIndex) {
+      canvas.drawLine(getLeftPos(leftIndex), getRightPos(rightIndex), linePaint);
+    });
+
+    // Draw the active drag line
+    if (draggingLeftIndex != null && currentDragPos != null) {
+      canvas.drawLine(getLeftPos(draggingLeftIndex!), currentDragPos!, linePaint);
+    }
+
+    // Draw Left Dots
+    for (int i = 0; i < leftLetters.length; i++) {
+      Offset pos = getLeftPos(i);
+      canvas.drawCircle(Offset(pos.dx + 2, pos.dy + 2), 12, dotShadowPaint);
+      canvas.drawCircle(pos, 12, dotPaint);
+    }
+
+    // Draw Right Dots
+    for (int i = 0; i < rightLetters.length; i++) {
+      Offset pos = getRightPos(i);
+      canvas.drawCircle(Offset(pos.dx + 2, pos.dy + 2), 12, dotShadowPaint);
+      canvas.drawCircle(pos, 12, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant LinePainter oldDelegate) => true;
+}
