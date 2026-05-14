@@ -3,6 +3,8 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../business_layer/orientation_service.dart';
+
 class AlphabetLineMatchScreen extends StatefulWidget {
   const AlphabetLineMatchScreen({super.key});
 
@@ -22,16 +24,13 @@ class _AlphabetLineMatchScreenState extends State<AlphabetLineMatchScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     _rightLetters = List.from(['a', 'b', 'c', 'd'])..shuffle();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 

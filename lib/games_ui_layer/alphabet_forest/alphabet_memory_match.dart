@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
@@ -22,16 +23,13 @@ class _AlphabetMemoryMatchScreenState extends State<AlphabetMemoryMatchScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     _cards.shuffle();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 

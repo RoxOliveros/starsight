@@ -3,6 +3,8 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../business_layer/orientation_service.dart';
+
 class AlphabetDragScreen extends StatefulWidget {
   const AlphabetDragScreen({super.key});
 
@@ -18,10 +20,7 @@ class _AlphabetDragScreenState extends State<AlphabetDragScreen>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
 
     _floatingController = AnimationController(
       vsync: this,
@@ -32,7 +31,7 @@ class _AlphabetDragScreenState extends State<AlphabetDragScreen>
   @override
   void dispose() {
     _floatingController.dispose();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 

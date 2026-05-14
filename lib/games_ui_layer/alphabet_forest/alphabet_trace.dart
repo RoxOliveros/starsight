@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 
+import '../../business_layer/orientation_service.dart';
+
 class TraceLevel {
   final String letterName;
   final String imagePath;
@@ -63,16 +65,13 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     WidgetsBinding.instance.addPostFrameCallback((_) => _generateDensePaths());
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 

@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'dart:math';
 import 'dart:async';
 
+import '../../business_layer/orientation_service.dart';
+
 class AlphabetFallScreen extends StatefulWidget {
   const AlphabetFallScreen({super.key});
 
@@ -23,10 +25,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     _setNewTarget();
     _startGameLoops();
   }
@@ -177,7 +176,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   void dispose() {
     _spawnTimer.cancel();
     _gameTimer.cancel();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 

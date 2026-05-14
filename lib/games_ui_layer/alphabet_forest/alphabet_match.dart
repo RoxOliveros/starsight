@@ -3,6 +3,8 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../business_layer/orientation_service.dart';
+
 class AlphabetMatchScreen extends StatefulWidget {
   const AlphabetMatchScreen({super.key});
 
@@ -20,10 +22,7 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
 
     _floatingController = AnimationController(
       vsync: this,
@@ -34,7 +33,7 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
   @override
   void dispose() {
     _floatingController.dispose();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 

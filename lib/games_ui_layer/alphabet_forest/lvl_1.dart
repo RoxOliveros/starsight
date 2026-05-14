@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
 
+import '../../business_layer/orientation_service.dart';
+
 abstract class ColorTheme {
   static const Color cream = Color(0xFFE8F4F8);
   static const Color deepNavyBlue = Color(0xFF5E463E);
@@ -30,10 +32,7 @@ class _lvl_1State extends State<lvl_1> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
 
     _idleController = AnimationController(
       vsync: this,
@@ -63,10 +62,7 @@ class _lvl_1State extends State<lvl_1> with SingleTickerProviderStateMixin {
   void dispose() {
     _idleController.dispose();
     _audioPlayer.dispose();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 
