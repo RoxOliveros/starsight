@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -50,12 +51,14 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    OrientationService.setLandscape();
     _resetGame();
   }
 
   @override
   void dispose() {
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 

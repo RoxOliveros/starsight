@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -51,6 +52,8 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
       DeviceOrientation.landscapeRight,
     ]);
 
+    OrientationService.setLandscape();
+
     // This makes the word bob up and down continuously
     _floatingController = AnimationController(
       vsync: this,
@@ -62,6 +65,7 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
   void dispose() {
     _floatingController.dispose();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 
