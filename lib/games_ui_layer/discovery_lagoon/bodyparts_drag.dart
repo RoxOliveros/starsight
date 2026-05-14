@@ -1,6 +1,5 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 // --- GENERIC THEME (Replace later when you design the new map!) ---
 abstract class ColorTheme {
@@ -175,7 +174,7 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                         border: Border.all(color: ColorTheme.primary, width: 6),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 10,
                             offset: const Offset(0, 5),
                           ),
@@ -258,11 +257,13 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                               ),
                               decoration: BoxDecoration(
                                 color: isHovering
-                                    ? Colors.white.withOpacity(0.5)
+                                    ? Colors.white.withValues(alpha: 0.5)
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(24),
                                 border: Border.all(
-                                  color: ColorTheme.textDark.withOpacity(0.2),
+                                  color: ColorTheme.textDark.withValues(
+                                    alpha: 0.2,
+                                  ),
                                   width: 4,
                                   style: BorderStyle.solid,
                                 ),
@@ -275,8 +276,8 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                                       )
                                     : _WordWidget(
                                         word: currentPart.word,
-                                        color: ColorTheme.textDark.withOpacity(
-                                          0.15,
+                                        color: ColorTheme.textDark.withValues(
+                                          alpha: 0.15,
                                         ),
                                       ),
                               ),
@@ -318,14 +319,15 @@ class _WordWidget extends StatelessWidget {
           word,
           style: TextStyle(
             fontFamily: AppTextStyles.fredoka,
-            fontSize: 60, // Shrunk so long words fit perfectly
+            fontSize: 60,
+            // Shrunk so long words fit perfectly
             fontWeight: FontWeight.bold,
             color: color,
             height: 1.0,
             shadows: [
               if (isDragging)
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 10),
                 ),

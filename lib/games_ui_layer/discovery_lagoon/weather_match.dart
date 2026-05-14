@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../business_layer/orientation_service.dart';
 
 abstract class ColorTheme {
