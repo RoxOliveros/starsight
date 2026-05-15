@@ -2,7 +2,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// --- GENERIC THEME (Update later when you have your map theme!) ---
+// --- GENERIC THEME ---
 abstract class ColorTheme {
   static const Color background = Color(0xFFE8F4F8);
   static const Color textDark = Color(0xFF5E463E);
@@ -15,7 +15,6 @@ abstract class AppTextStyles {
   static const String fredoka = 'Fredoka';
 }
 
-// --- DATA MODELS ---
 class Habitat {
   final String id;
   final String imagePath;
@@ -50,7 +49,6 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
   int _currentAnimalIndex = 0;
   late final AnimationController _floatingController;
 
-  // 1. Define the Habitats (The backgrounds they drag onto)
   final List<Habitat> _habitats = [
     Habitat(
       id: 'town',
@@ -69,8 +67,6 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
     ),
   ];
 
-  // 2. Define the Animals (The sequence they will play through)
-  // NOTE: Make sure you add dog.png and bear.png to your assets folder!
   late List<Animal> _animals;
 
   @override
@@ -81,26 +77,25 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
       DeviceOrientation.landscapeRight,
     ]);
     OrientationService.setLandscape();
-    // Shuffle the animals so it's different every time they play!
+
     _animals = [
       Animal(
         name: 'Penguin',
-        imagePath: 'assets/images/penguin.png',
+        imagePath: 'assets/images/objects/penguin.png',
         targetHabitatId: 'arctic',
       ),
       Animal(
         name: 'Dog',
-        imagePath: 'assets/images/dog.png',
+        imagePath: 'assets/images/objects/dog.png',
         targetHabitatId: 'town',
       ),
       Animal(
         name: 'Bear',
-        imagePath: 'assets/images/bear.png',
+        imagePath: 'assets/images/objects/bear.png',
         targetHabitatId: 'forest',
       ),
     ]..shuffle();
 
-    // Floating animation for the animal
     _floatingController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -152,10 +147,10 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
               setState(() {
                 _isMatched = false;
                 if (isLast) {
-                  _currentAnimalIndex = 0; // Restart game
-                  _animals.shuffle(); // Shuffle for the new round
+                  _currentAnimalIndex = 0;
+                  _animals.shuffle();
                 } else {
-                  _currentAnimalIndex++; // Move to the next animal
+                  _currentAnimalIndex++;
                 }
               });
             },
@@ -176,6 +171,10 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
   @override
   Widget build(BuildContext context) {
     final currentAnimal = _animals[_currentAnimalIndex];
+    // Universal screen math
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double animalSize =
+        screenHeight * 0.35; // Animal will always be 35% of the screen height
 
     return Scaffold(
       backgroundColor: ColorTheme.background,
@@ -230,7 +229,6 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
                             setState(() {
                               _isMatched = true;
                             });
-                            // Small delay before showing dialog so they see the animal land
                             Future.delayed(
                               const Duration(milliseconds: 300),
                               _showSuccessDialog,
@@ -277,8 +275,7 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
                                   ? Center(
                                       child: Image.asset(
                                         currentAnimal.imagePath,
-                                        height:
-                                            120, // Size of animal when placed in habitat
+                                        height: animalSize * 0.8,
                                       ),
                                     )
                                   : null,
@@ -297,7 +294,7 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
               flex: 2,
               child: Center(
                 child: _isMatched
-                    ? const SizedBox.shrink() // Hide when matched
+                    ? const SizedBox.shrink()
                     : AnimatedBuilder(
                         animation: _floatingController,
                         builder: (context, child) {
@@ -307,20 +304,22 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
                           );
                         },
                         child: Draggable<String>(
-                          data: currentAnimal
-                              .targetHabitatId, // Passing the correct habitat ID
+                          data: currentAnimal.targetHabitatId,
                           feedback: _DraggableAnimal(
                             imagePath: currentAnimal.imagePath,
+                            size: animalSize,
                             isDragging: true,
                           ),
                           childWhenDragging: Opacity(
                             opacity: 0.0,
                             child: _DraggableAnimal(
                               imagePath: currentAnimal.imagePath,
+                              size: animalSize,
                             ),
                           ),
                           child: _DraggableAnimal(
                             imagePath: currentAnimal.imagePath,
+                            size: animalSize,
                           ),
                         ),
                       ),
@@ -336,9 +335,14 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
 // Helper widget for the animal image
 class _DraggableAnimal extends StatelessWidget {
   final String imagePath;
+  final double size;
   final bool isDragging;
 
-  const _DraggableAnimal({required this.imagePath, this.isDragging = false});
+  const _DraggableAnimal({
+    required this.imagePath,
+    required this.size,
+    this.isDragging = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -347,7 +351,7 @@ class _DraggableAnimal extends StatelessWidget {
       child: Transform.scale(
         scale: isDragging ? 1.2 : 1.0,
         child: Container(
-          height: 140, // Height of the animal character
+          height: size,
           decoration: BoxDecoration(
             boxShadow: [
               if (isDragging)

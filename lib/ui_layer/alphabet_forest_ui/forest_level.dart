@@ -4,6 +4,7 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_line_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_memory_match.dart';
+import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:lottie/lottie.dart';
@@ -121,8 +122,8 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                           children: const [
                             _LevelTile(level: 5),
                             _LevelTile(level: 6),
-                            _LevelTile(level: 7),
-                            _LevelTile(level: 8),
+                            _LockedTile(),
+                            _LockedTile(),
                           ],
                         ),
                       ],
@@ -295,12 +296,6 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
-          case 7:
-            // TODO: Add navigation for Level 7
-            break;
-          case 8:
-            // TODO: Add navigation for Level 8
-            break;
         }
       },
       child: Container(
@@ -319,6 +314,40 @@ class _LevelTile extends StatelessWidget {
             fontSize: 40,
             color: ColorTheme.darkgreen,
             fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LockedTile extends StatelessWidget {
+  const _LockedTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 79,
+      height: 79,
+      child: DottedBorder(
+        borderType: BorderType.RRect,
+        radius: const Radius.circular(17),
+        color: Colors.grey.shade400,
+        strokeWidth: 5,
+        dashPattern: const [6, 3],
+        child: Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(17),
+          ),
+          child: Center(
+            child: Image.asset(
+              'assets/images/lock.png',
+              width: 40,
+              fit: BoxFit.contain,
+            ),
           ),
         ),
       ),
