@@ -1,5 +1,6 @@
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_drag.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_line_match.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_match.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
@@ -250,9 +251,7 @@ class _LevelTile extends StatelessWidget {
           case 1:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const WeatherMatchScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const WeatherMatch()),
             );
             break;
           case 2:

@@ -1,116 +1,164 @@
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
-import '../../business_layer/orientation_service.dart';
+import 'package:flutter/services.dart';
 
+// --- GENERIC THEME ---
 abstract class ColorTheme {
-  static const Color cream = Color(0xFFE8F4F8);
-  static const Color deepNavyBlue = Color(0xFF5E463E);
-  static const Color orange = Color(0xFFEC8A20);
-  static const Color green = Color(0xFF82C84B);
-  static const Color red = Color(0xFFE65C5C);
-  static const Color goldenYellow = Color(0xFFFBD481);
+  static const Color background = Color(0xFFE8F4F8);
+  static const Color textDark = Color(0xFF5E463E);
+  static const Color primary = Color(0xFF75D5FF);
+  static const Color success = Color(0xFF82C84B);
+  static const Color accent = Color(0xFFEC8A20);
 }
 
 abstract class AppTextStyles {
   static const String fredoka = 'Fredoka';
 }
 
-class MatchItem {
+class Weatherbg {
   final String id;
   final String imagePath;
+  final String name;
 
-  MatchItem({required this.id, required this.imagePath});
+  Weatherbg({required this.id, required this.imagePath, required this.name});
 }
 
-class WeatherMatchScreen extends StatefulWidget {
-  const WeatherMatchScreen({super.key});
+class Weather {
+  final String name;
+  final String imagePath;
+  final String targetWeatherId;
+
+  Weather({
+    required this.name,
+    required this.imagePath,
+    required this.targetWeatherId,
+  });
+}
+
+class WeatherMatch extends StatefulWidget {
+  const WeatherMatch({super.key});
 
   @override
-  State<WeatherMatchScreen> createState() => _WeatherMatchScreenState();
+  State<WeatherMatch> createState() => _WeatherMatch();
 }
 
-class _WeatherMatchScreenState extends State<WeatherMatchScreen> {
-  // 1. Declare lists (initialized in initState)
-  late List<MatchItem> _leftItems;
-  late List<MatchItem> _rightItems;
+class _WeatherMatch extends State<WeatherMatch>
+    with SingleTickerProviderStateMixin {
+  bool _isMatched = false;
+  int _currentWeatherIndex = 0;
+  late final AnimationController _floatingController;
 
-  final Map<int, int> _matches = {};
-  int? _draggingLeftIndex;
-  Offset? _currentDragPos;
+  final List<Weatherbg> _Weatherbg = [
+    Weatherbg(
+      id: 'sunny',
+      imagePath: 'assets/images/sunny_weather.png',
+      name: 'Sunny',
+    ),
+    Weatherbg(
+      id: 'rainy',
+      imagePath: 'assets/images/rainy_weather.png',
+      name: 'Rainy',
+    ),
+    Weatherbg(
+      id: 'snowy',
+      imagePath: 'assets/images/snowy_weather.png',
+      name: 'Snowy',
+    ),
+  ];
+
+  late List<Weather> _weather;
 
   @override
   void initState() {
     super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     OrientationService.setLandscape();
 
-    // Setup AND shuffle both sides!
-    _leftItems = [
-      MatchItem(id: 'sunny', imagePath: 'assets/images/objects/sunny.png'),
-      MatchItem(id: 'winter', imagePath: 'assets/images/objects/winter.png'),
-      MatchItem(id: 'rainy', imagePath: 'assets/images/objects/rainy.png'),
+    _weather = [
+      Weather(
+        name: 'Sunny',
+        imagePath: 'assets/images/objects/sunny.png',
+        targetWeatherId: 'sunny',
+      ),
+      Weather(
+        name: 'Rainy',
+        imagePath: 'assets/images/objects/rainy.png',
+        targetWeatherId: 'rainy',
+      ),
+      Weather(
+        name: 'Snowy',
+        imagePath: 'assets/images/objects/winter.png',
+        targetWeatherId: 'snowy',
+      ),
     ]..shuffle();
 
-    _rightItems = [
-      MatchItem(
-        id: 'sunny',
-        imagePath: 'assets/images/objects/sunny_clothes.png',
-      ),
-      MatchItem(
-        id: 'winter',
-        imagePath: 'assets/images/objects/winter_clothes.png',
-      ),
-      MatchItem(
-        id: 'rainy',
-        imagePath: 'assets/images/objects/rainy_clothes.png',
-      ),
-    ]..shuffle();
+    _floatingController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
+    _floatingController.dispose();
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     OrientationService.setLandscape();
     super.dispose();
   }
 
-  void _resetGame() {
-    setState(() {
-      _matches.clear();
-      _draggingLeftIndex = null;
-      _currentDragPos = null;
-      _leftItems.shuffle(); // Shuffle left again!
-      _rightItems.shuffle(); // Shuffle right again!
-    });
-  }
-
   void _showSuccessDialog() {
+    bool isLast = _currentWeatherIndex == _weather.length - 1;
+    final currentWeather = _weather[_currentWeatherIndex];
+    final correctWeatherbg = _Weatherbg.firstWhere(
+      (h) => h.id == currentWeather.targetWeatherId,
+    );
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
-          "Awesome!",
+          "Correct!",
           style: TextStyle(
             fontFamily: AppTextStyles.fredoka,
-            color: ColorTheme.green,
-            fontSize: 24,
+            color: ColorTheme.success,
+            fontSize: 28,
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: const Text(
-          "You matched all the clothes to the weather!",
-          style: TextStyle(fontFamily: AppTextStyles.fredoka, fontSize: 18),
+        content: Text(
+          "The ${currentWeather.name} lives in the ${correctWeatherbg.name}!",
+          style: const TextStyle(
+            fontFamily: AppTextStyles.fredoka,
+            fontSize: 22,
+            color: ColorTheme.textDark,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _resetGame();
+              setState(() {
+                _isMatched = false;
+                if (isLast) {
+                  _currentWeatherIndex = 0;
+                  _weather.shuffle();
+                } else {
+                  _currentWeatherIndex++;
+                }
+              });
             },
-            child: const Text(
-              "Play Again",
-              style: TextStyle(
-                color: ColorTheme.orange,
+            child: Text(
+              isLast ? "Play Again" : "Next Weather",
+              style: const TextStyle(
+                color: ColorTheme.accent,
                 fontWeight: FontWeight.bold,
-                fontSize: 18,
+                fontSize: 20,
               ),
             ),
           ),
@@ -119,78 +167,20 @@ class _WeatherMatchScreenState extends State<WeatherMatchScreen> {
     );
   }
 
-  // --- GRID MATH HELPERS (Adjusted for better spacing) ---
-  Offset _getLeftDotPosition(int index, Size size) {
-    double ySpace = size.height / (_leftItems.length + 1);
-    return Offset(size.width * 0.30, ySpace * (index + 1)); // Pushed left
-  }
-
-  Offset _getRightDotPosition(int index, Size size) {
-    double ySpace = size.height / (_rightItems.length + 1);
-    return Offset(size.width * 0.70, ySpace * (index + 1)); // Pushed right
-  }
-
-  // --- DRAG LOGIC ---
-  void _onPanStart(DragStartDetails details, Size size) {
-    Offset touchPos = details.localPosition;
-
-    for (int i = 0; i < _leftItems.length; i++) {
-      if (_matches.containsKey(i)) continue;
-
-      Offset dotPos = _getLeftDotPosition(i, size);
-      if ((touchPos - dotPos).distance < 50.0) {
-        setState(() {
-          _draggingLeftIndex = i;
-          _currentDragPos = touchPos;
-        });
-        break;
-      }
-    }
-  }
-
-  void _onPanUpdate(DragUpdateDetails details) {
-    if (_draggingLeftIndex != null) {
-      setState(() {
-        _currentDragPos = details.localPosition;
-      });
-    }
-  }
-
-  void _onPanEnd(DragEndDetails details, Size size) {
-    if (_draggingLeftIndex == null || _currentDragPos == null) return;
-
-    for (int i = 0; i < _rightItems.length; i++) {
-      Offset dotPos = _getRightDotPosition(i, size);
-
-      if ((_currentDragPos! - dotPos).distance < 60.0) {
-        if (_leftItems[_draggingLeftIndex!].id == _rightItems[i].id) {
-          setState(() {
-            _matches[_draggingLeftIndex!] = i;
-          });
-
-          if (_matches.length == _leftItems.length) {
-            _showSuccessDialog();
-          }
-          break;
-        }
-      }
-    }
-
-    setState(() {
-      _draggingLeftIndex = null;
-      _currentDragPos = null;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final currentWeather = _weather[_currentWeatherIndex];
+    // Universal screen math
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double weatherSize = screenHeight * 0.35;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: ColorTheme.background,
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 12),
-            // HEADER
+            // --- HEADER ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Stack(
@@ -201,111 +191,138 @@ class _WeatherMatchScreenState extends State<WeatherMatchScreen> {
                     child: IconButton(
                       icon: const Icon(
                         Icons.arrow_back_ios_new_rounded,
-                        color: ColorTheme.deepNavyBlue,
-                        size: 28,
+                        color: ColorTheme.textDark,
+                        size: 32,
                       ),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ),
                   const Text(
-                    'Weather Match',
+                    'Animal Habitats',
                     style: TextStyle(
                       fontFamily: AppTextStyles.fredoka,
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
-                      color: ColorTheme.deepNavyBlue,
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.refresh_rounded,
-                        color: ColorTheme.orange,
-                        size: 32,
-                      ),
-                      onPressed: _resetGame,
+                      color: ColorTheme.textDark,
                     ),
                   ),
                 ],
               ),
             ),
 
-            // GAME BOARD
+            // --- 3 HABITAT BACKGROUNDS (Drag Targets) ---
             Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  Size canvasSize = Size(
-                    constraints.maxWidth,
-                    constraints.maxHeight,
-                  );
+              flex: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: _Weatherbg.map((habitat) {
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: DragTarget<String>(
+                          onWillAcceptWithDetails: (details) =>
+                              details.data == habitat.id,
+                          onAcceptWithDetails: (details) {
+                            setState(() {
+                              _isMatched = true;
+                            });
+                            Future.delayed(
+                              const Duration(milliseconds: 300),
+                              _showSuccessDialog,
+                            );
+                          },
+                          builder: (context, candidateData, rejectedData) {
+                            bool isHovering = candidateData.isNotEmpty;
 
-                  // NEW SIZING LOGIC: Use Height instead of Width!
-                  // 28% of the screen height ensures they never overlap vertically.
-                  double imageSize = constraints.maxHeight * 0.28;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isHovering
+                                      ? ColorTheme.success
+                                      : Colors.transparent,
+                                  width: isHovering ? 6 : 0,
+                                ),
+                                boxShadow: [
+                                  if (isHovering)
+                                    BoxShadow(
+                                      color: ColorTheme.success.withOpacity(
+                                        0.6,
+                                      ),
+                                      blurRadius: 15,
+                                      spreadRadius: 2,
+                                    ),
+                                ],
+                                image: DecorationImage(
+                                  image: AssetImage(habitat.imagePath),
+                                  fit: BoxFit.cover,
+                                  colorFilter: isHovering
+                                      ? null
+                                      : ColorFilter.mode(
+                                          Colors.black.withOpacity(0.1),
+                                          BlendMode.darken,
+                                        ),
+                                ),
+                              ),
+                              child:
+                                  _isMatched &&
+                                      currentWeather.targetWeatherId ==
+                                          habitat.id
+                                  ? Center(
+                                      child: Image.asset(
+                                        currentWeather.imagePath,
+                                        height:
+                                            weatherSize *
+                                            0.8, // Slightly smaller when placed
+                                      ),
+                                    )
+                                  : null,
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
 
-                  return GestureDetector(
-                    onPanStart: (details) => _onPanStart(details, canvasSize),
-                    onPanUpdate: _onPanUpdate,
-                    onPanEnd: (details) => _onPanEnd(details, canvasSize),
-                    child: Stack(
-                      children: [
-                        // 1. THE DRAWING CANVAS
-                        CustomPaint(
-                          size: Size.infinite,
-                          painter: LinePainter(
-                            itemCount: _leftItems.length,
-                            matches: _matches,
-                            draggingLeftIndex: _draggingLeftIndex,
-                            currentDragPos: _currentDragPos,
-                            getLeftPos: (i) =>
-                                _getLeftDotPosition(i, canvasSize),
-                            getRightPos: (i) =>
-                                _getRightDotPosition(i, canvasSize),
+            // --- DRAGGABLE ANIMAL AREA ---
+            Expanded(
+              flex: 2,
+              child: Center(
+                child: _isMatched
+                    ? const SizedBox.shrink()
+                    : AnimatedBuilder(
+                        animation: _floatingController,
+                        builder: (context, child) {
+                          return Transform.translate(
+                            offset: Offset(0, -10 * _floatingController.value),
+                            child: child,
+                          );
+                        },
+                        child: Draggable<String>(
+                          data: currentWeather.targetWeatherId,
+                          feedback: _DraggableWeather(
+                            imagePath: currentWeather.imagePath,
+                            size: weatherSize,
+                            isDragging: true,
+                          ),
+                          childWhenDragging: Opacity(
+                            opacity: 0.0,
+                            child: _DraggableWeather(
+                              imagePath: currentWeather.imagePath,
+                              size: weatherSize,
+                            ),
+                          ),
+                          child: _DraggableWeather(
+                            imagePath: currentWeather.imagePath,
+                            size: weatherSize,
                           ),
                         ),
-
-                        // 2. THE LEFT IMAGES (Weather)
-                        for (int i = 0; i < _leftItems.length; i++)
-                          Positioned(
-                            left:
-                                canvasSize.width * 0.12 -
-                                (imageSize / 2), // Pushed left
-                            top:
-                                _getLeftDotPosition(i, canvasSize).dy -
-                                (imageSize / 2),
-                            child: SizedBox(
-                              width: imageSize,
-                              height: imageSize,
-                              child: Image.asset(
-                                _leftItems[i].imagePath,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ),
-
-                        // 3. THE RIGHT IMAGES (Clothes)
-                        for (int i = 0; i < _rightItems.length; i++)
-                          Positioned(
-                            left:
-                                canvasSize.width * 0.88 -
-                                (imageSize / 2), // Pushed right
-                            top:
-                                _getRightDotPosition(i, canvasSize).dy -
-                                (imageSize / 2),
-                            child: SizedBox(
-                              width: imageSize,
-                              height: imageSize,
-                              child: Image.asset(
-                                _rightItems[i].imagePath,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
+                      ),
               ),
             ),
           ],
@@ -315,66 +332,38 @@ class _WeatherMatchScreenState extends State<WeatherMatchScreen> {
   }
 }
 
-class LinePainter extends CustomPainter {
-  final int itemCount;
-  final Map<int, int> matches;
-  final int? draggingLeftIndex;
-  final Offset? currentDragPos;
-  final Offset Function(int) getLeftPos;
-  final Offset Function(int) getRightPos;
+class _DraggableWeather extends StatelessWidget {
+  final String imagePath;
+  final double size;
+  final bool isDragging;
 
-  LinePainter({
-    required this.itemCount,
-    required this.matches,
-    required this.draggingLeftIndex,
-    required this.currentDragPos,
-    required this.getLeftPos,
-    required this.getRightPos,
+  const _DraggableWeather({
+    required this.imagePath,
+    required this.size,
+    this.isDragging = false,
   });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final dotPaint = Paint()
-      ..color = ColorTheme.goldenYellow
-      ..style = PaintingStyle.fill;
-    final dotShadowPaint = Paint()
-      ..color = Colors.black26
-      ..style = PaintingStyle.fill;
-
-    final linePaint = Paint()
-      ..color = ColorTheme.red
-      ..strokeWidth = 8.0
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    matches.forEach((leftIndex, rightIndex) {
-      canvas.drawLine(
-        getLeftPos(leftIndex),
-        getRightPos(rightIndex),
-        linePaint,
-      );
-    });
-
-    if (draggingLeftIndex != null && currentDragPos != null) {
-      canvas.drawLine(
-        getLeftPos(draggingLeftIndex!),
-        currentDragPos!,
-        linePaint,
-      );
-    }
-
-    for (int i = 0; i < itemCount; i++) {
-      Offset lPos = getLeftPos(i);
-      Offset rPos = getRightPos(i);
-
-      canvas.drawCircle(Offset(lPos.dx + 2, lPos.dy + 2), 14, dotShadowPaint);
-      canvas.drawCircle(lPos, 14, dotPaint);
-
-      canvas.drawCircle(Offset(rPos.dx + 2, rPos.dy + 2), 14, dotShadowPaint);
-      canvas.drawCircle(rPos, 14, dotPaint);
-    }
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Transform.scale(
+        scale: isDragging ? 1.2 : 1.0,
+        child: Container(
+          height: size,
+          decoration: BoxDecoration(
+            boxShadow: [
+              if (isDragging)
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 10),
+                ),
+            ],
+          ),
+          child: Image.asset(imagePath, fit: BoxFit.contain),
+        ),
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant LinePainter oldDelegate) => true;
 }
