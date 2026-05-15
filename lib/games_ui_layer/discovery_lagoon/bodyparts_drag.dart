@@ -1,7 +1,6 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
 
-// --- GENERIC THEME (Replace later when you design the new map!) ---
 abstract class ColorTheme {
   static const Color background = Color(0xFFE8F4F8);
   static const Color textDark = Color(0xFF5E463E);
@@ -65,6 +64,7 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
 
   void _showSuccessDialog() {
     bool isLast = _currentIndex == _parts.length - 1;
+    final Size screenSize = MediaQuery.of(context).size;
 
     showDialog(
       context: context,
@@ -72,20 +72,20 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
       builder: (_) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
+        title: Text(
           "Awesome!",
           style: TextStyle(
             fontFamily: AppTextStyles.fredoka,
             color: ColorTheme.success,
-            fontSize: 28,
+            fontSize: screenSize.width * 0.04, // Responsive font
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
           "You matched the ${_parts[_currentIndex].word}!",
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: AppTextStyles.fredoka,
-            fontSize: 22,
+            fontSize: screenSize.width * 0.03, // Responsive font
             color: ColorTheme.textDark,
           ),
         ),
@@ -104,10 +104,10 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
             },
             child: Text(
               isLast ? "Play Again" : "Next Part",
-              style: const TextStyle(
+              style: TextStyle(
                 color: ColorTheme.accent,
                 fontWeight: FontWeight.bold,
-                fontSize: 20,
+                fontSize: screenSize.width * 0.025,
               ),
             ),
           ),
@@ -119,6 +119,9 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
   @override
   Widget build(BuildContext context) {
     final currentPart = _parts[_currentIndex];
+    final Size screenSize = MediaQuery.of(context).size;
+    final double imageSize = screenSize.height * 0.40;
+    final double wordFontSize = screenSize.width * 0.06;
 
     return Scaffold(
       backgroundColor: ColorTheme.background,
@@ -167,7 +170,8 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                   children: [
                     // --- 1. THE IMAGE TO IDENTIFY ---
                     Container(
-                      height: 180,
+                      height: imageSize,
+                      width: imageSize,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
@@ -212,29 +216,32 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                                 word: currentPart.word,
                                 color: ColorTheme.primary,
                                 isDragging: true,
+                                fontSize: wordFontSize, // Passes universal math
                               ),
                               childWhenDragging: Opacity(
                                 opacity: 0.0,
                                 child: _WordWidget(
                                   word: currentPart.word,
                                   color: ColorTheme.primary,
+                                  fontSize: wordFontSize,
                                 ),
                               ),
                               child: _WordWidget(
                                 word: currentPart.word,
                                 color: ColorTheme.primary,
+                                fontSize: wordFontSize,
                               ),
                             ),
                           )
                         else
-                          const SizedBox(
-                            width: 150,
-                          ), // Empty space when matched
-
+                          SizedBox(
+                            width: screenSize.width * 0.2,
+                          ), // Shrinks space universally when matched
+                        // THE TARGET BOX
                         DragTarget<String>(
                           onWillAcceptWithDetails: (details) {
                             return details.data ==
-                                currentPart.word; // Only accept the exact word!
+                                currentPart.word; // Only accept the exact word
                           },
                           onAcceptWithDetails: (details) {
                             setState(() {
@@ -251,9 +258,11 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                             bool isHovering = candidateData.isNotEmpty;
 
                             return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
+                              padding: EdgeInsets.symmetric(
+                                horizontal:
+                                    screenSize.width *
+                                    0.03, // Responsive padding
+                                vertical: screenSize.height * 0.02,
                               ),
                               decoration: BoxDecoration(
                                 color: isHovering
@@ -273,12 +282,14 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                                     ? _WordWidget(
                                         word: currentPart.word,
                                         color: ColorTheme.success,
+                                        fontSize: wordFontSize,
                                       )
                                     : _WordWidget(
                                         word: currentPart.word,
                                         color: ColorTheme.textDark.withValues(
                                           alpha: 0.15,
                                         ),
+                                        fontSize: wordFontSize,
                                       ),
                               ),
                             );
@@ -297,15 +308,16 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
   }
 }
 
-// A reusable widget designed specifically for full words
 class _WordWidget extends StatelessWidget {
   final String word;
   final Color color;
   final bool isDragging;
+  final double fontSize;
 
   const _WordWidget({
     required this.word,
     required this.color,
+    required this.fontSize,
     this.isDragging = false,
   });
 
@@ -319,8 +331,7 @@ class _WordWidget extends StatelessWidget {
           word,
           style: TextStyle(
             fontFamily: AppTextStyles.fredoka,
-            fontSize: 60,
-            // Shrunk so long words fit perfectly
+            fontSize: fontSize, // No longer hardcoded to 60!
             fontWeight: FontWeight.bold,
             color: color,
             height: 1.0,
