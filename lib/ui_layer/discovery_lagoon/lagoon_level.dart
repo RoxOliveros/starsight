@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 
 import '../../business_layer/orientation_service.dart';
+import '../../games_ui_layer/discovery_lagoon/animal_habitant_match.dart';
 
 abstract class ColorTheme {
   static const Color wasteland = Color(0xFF5F5630);
@@ -111,7 +112,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                             _LevelTile(level: 1),
                             _LevelTile(level: 2),
                             _LevelTile(level: 3),
-                            _LockedTile(),
+                            _LevelTile(level: 4),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -268,6 +269,14 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const BodyPartsAssemblyScreen(),
+              ),
+            );
+            break;
+          case 4:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AnimalHabitatMatchScreen(),
               ),
             );
             break;
