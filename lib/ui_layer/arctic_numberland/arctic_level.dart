@@ -7,6 +7,7 @@ import '../../games_ui_layer/arctic numberland/arctic1_number_introduction.dart'
 import '../../games_ui_layer/arctic numberland/arctic3_number_counting.dart';
 import '../../games_ui_layer/arctic numberland/arctic4_number_matching.dart';
 import '../../games_ui_layer/arctic numberland/arctic2_number_recognition.dart';
+import '../../games_ui_layer/arctic numberland/arctic5_number_counttap.dart';
 import 'arctic_theme.dart';
 
 class ArcticLevelScreen extends StatefulWidget {
@@ -82,7 +83,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
-                            _LockedTile(),
+                            _LevelTile(level: 5),
                             _LockedTile(),
                             _LockedTile(),
                             _LockedTile(),
@@ -240,6 +241,12 @@ class _LevelTile extends StatelessWidget {
               MaterialPageRoute(
                 builder: (context) => const NumberMatchingScreen(),
               ),
+            );
+            break;
+          case 5:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const TapCountScreen()),
             );
             break;
         }
