@@ -1,24 +1,14 @@
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
-
 import '../../business_layer/orientation_service.dart';
-
-abstract class ColorTheme {
-  static const Color darkbrown = Color(0xFF4E360D);
-  static const Color verydarkdesaturatedblue  = Color(0xFF24334D);
-  static const Color darkdesaturatedblue  = Color(0xFF4C648A);
-  static const Color sunnyhue = Color(0xFFF9AB19);
-  static const Color goldenyellow = Color(0xFFFDCE57);
-  static const Color peach = Color(0xFFFBEBC6);
-  static const Color vandecane = Color(0xFFFAF7EB);
-  static const Color lightgrayishyellow  = Color(0xFFFEFAD3);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
+import '../../games_ui_layer/jar/jar1_color_sort.dart';
+import '../../games_ui_layer/jar/jar2_pattern_match.dart';
+import '../../games_ui_layer/jar/jar3_memory_match.dart';
+import '../../games_ui_layer/jar/jar4_shadow_match.dart';
+import '../../games_ui_layer/jar/jar5_jigsaw_puzzle.dart';
+import 'jar_buttons.dart';
+import 'jar_theme.dart';
 
 class JarLevelScreen extends StatefulWidget {
   const JarLevelScreen({super.key});
@@ -54,33 +44,7 @@ class _JarLevelScreenState extends State<JarLevelScreen> {
           ),
 
           //back button
-          Positioned(
-            top: 16,
-            left: 16,
-            child: GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: ColorTheme.lightgrayishyellow,
-                  borderRadius: BorderRadius.circular(25),
-                  border: Border.all(color: ColorTheme.sunnyhue, width: 5),
-                ),
-                child: const Text(
-                  'back',
-                  style: TextStyle(
-                    fontFamily: AppTextStyles.fredoka,
-                    fontSize: 18,
-                    color: ColorTheme.sunnyhue,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: JarBackButton()),
 
           // 🌿 Content
           Center(
@@ -96,9 +60,12 @@ class _JarLevelScreenState extends State<JarLevelScreen> {
                     height: 280,
                     padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
                     decoration: BoxDecoration(
-                      color: ColorTheme.vandecane,
+                      color: JarColorTheme.vandecane,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: ColorTheme.darkbrown, width: 8),
+                      border: Border.all(
+                        color: JarColorTheme.darkbrown,
+                        width: 8,
+                      ),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -109,14 +76,14 @@ class _JarLevelScreenState extends State<JarLevelScreen> {
                             _LevelTile(level: 1),
                             _LevelTile(level: 2),
                             _LevelTile(level: 3),
-                            _LockedTile(),
+                            _LevelTile(level: 4),
                           ],
                         ),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
-                            _LockedTile(),
+                            _LevelTile(level: 5),
                             _LockedTile(),
                             _LockedTile(),
                             _LockedTile(),
@@ -138,10 +105,10 @@ class _JarLevelScreenState extends State<JarLevelScreen> {
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: ColorTheme.darkdesaturatedblue,
+                            color: JarColorTheme.darkdesaturatedblue,
                             borderRadius: BorderRadius.circular(25),
                             border: Border.all(
-                              color: ColorTheme.verydarkdesaturatedblue,
+                              color: JarColorTheme.verydarkdesaturatedblue,
                               width: 5,
                             ),
                             boxShadow: [
@@ -155,9 +122,9 @@ class _JarLevelScreenState extends State<JarLevelScreen> {
                           child: const Text(
                             ' SELECT LEVEL ',
                             style: TextStyle(
-                              fontFamily: AppTextStyles.fredoka,
+                              fontFamily: JarAppTextStyles.fredoka,
                               fontSize: 25,
-                              color: ColorTheme.peach,
+                              color: JarColorTheme.peach,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1,
                             ),
@@ -244,7 +211,46 @@ class _LevelTile extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         switch (level) {
-
+          case 1:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const JarColorSortScreen(),
+              ),
+            );
+            break;
+          case 2:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const JarPatternMatchScreen(),
+              ),
+            );
+            break;
+          case 3:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const JarMemoryMatchScreen(),
+              ),
+            );
+            break;
+          case 4:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const JarShadowMatchScreen(),
+              ),
+            );
+            break;
+          case 5:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const JarJigsawPuzzleScreen(),
+              ),
+            );
+            break;
         }
       },
       child: Stack(
@@ -255,17 +261,20 @@ class _LevelTile extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: ColorTheme.goldenyellow,
+              color: JarColorTheme.goldenyellow,
               borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: ColorTheme.darkdesaturatedblue, width: 5),
+              border: Border.all(
+                color: JarColorTheme.darkdesaturatedblue,
+                width: 5,
+              ),
             ),
             alignment: Alignment.center,
             child: Text(
               '$level',
               style: const TextStyle(
-                fontFamily: AppTextStyles.fredoka,
+                fontFamily: JarAppTextStyles.fredoka,
                 fontSize: 40,
-                color: ColorTheme.darkdesaturatedblue,
+                color: JarColorTheme.darkdesaturatedblue,
                 fontWeight: FontWeight.bold,
               ),
             ),
