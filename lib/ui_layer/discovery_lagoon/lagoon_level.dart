@@ -120,7 +120,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
-                            _LockedTile(),
+                            _LevelTile(level: 5),
                             _LockedTile(),
                             _LockedTile(),
                             _LockedTile(),
@@ -259,7 +259,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const BodyPartsDragScreen(),
+                builder: (context) => const WeatherMatchScreen(),
               ),
             );
             break;
@@ -267,11 +267,19 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const BodyPartsAssemblyScreen(),
+                builder: (context) => const BodyPartsDragScreen(),
               ),
             );
             break;
           case 4:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BodyPartsAssemblyScreen(),
+              ),
+            );
+            break;
+          case 5:
             Navigator.push(
               context,
               MaterialPageRoute(
