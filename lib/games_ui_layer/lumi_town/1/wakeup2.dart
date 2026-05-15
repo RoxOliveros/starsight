@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:lottie/lottie.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/lumi_theme.dart';
@@ -21,7 +22,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
   void initState() {
     super.initState();
     _playAlarm();
-    Future.delayed(const Duration(seconds: 10), () async {
+    Future.delayed(const Duration(seconds: 9), () async {
       if (mounted) {
         await _audioPlayer.stop();
         setState(() => _showNext = true);
@@ -71,7 +72,12 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
       key: const ValueKey('awake'),
         child: Stack(fit: StackFit.expand,
           children: [
-            Image.asset('assets/gifs/awake.gif', fit: BoxFit.cover),
+            Lottie.asset(
+              'assets/animations/awake.json',
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
 
             //X button
             Positioned(top: 25, left: 25, child: LumiXButton()),

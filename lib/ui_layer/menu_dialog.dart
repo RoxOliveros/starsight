@@ -1,7 +1,6 @@
 import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:StarSight/ui_layer/parents_pin.dart';
 import 'package:flutter/material.dart';
-
 import '../business_layer/lottie_cache.dart';
 
 abstract class ColorTheme {

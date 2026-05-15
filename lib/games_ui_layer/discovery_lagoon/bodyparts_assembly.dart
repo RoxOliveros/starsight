@@ -1,6 +1,5 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 // --- GENERIC THEME ---
 abstract class ColorTheme {
@@ -47,17 +46,12 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     OrientationService.setLandscape();
     _resetGame();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -265,7 +259,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen> {
             Container(
               height: 120,
               padding: const EdgeInsets.symmetric(vertical: 10),
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: .5),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: _availableParts.map((part) {
@@ -318,7 +312,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen> {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: isHovering ? Colors.white : Colors.white.withOpacity(0.9),
+            color: isHovering ? Colors.white : Colors.white.withValues(alpha: 0.9),
             border: Border.all(
               color: isHovering ? ColorTheme.success : Colors.black87,
               width: isHovering ? 6 : 4,
@@ -326,7 +320,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen> {
             boxShadow: [
               if (isHovering)
                 BoxShadow(
-                  color: ColorTheme.success.withOpacity(0.5),
+                  color: ColorTheme.success.withValues(alpha: 0.5),
                   blurRadius: 10,
                 ),
             ],
@@ -364,7 +358,7 @@ class _DraggableImage extends StatelessWidget {
             boxShadow: [
               if (isDragging)
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 5),
                 ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 
@@ -34,19 +35,13 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     _startRound();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 
@@ -201,28 +196,6 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
                       color: ArcticColorTheme.cadetblue,
                     ),
                   ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: ArcticColorTheme.pictonblue,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '$_round / $_totalRounds',
-                        style: const TextStyle(
-                          fontFamily: ArcticAppTextStyles.fredoka,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: ArcticColorTheme.cotton,
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -265,15 +238,13 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
                   // RIGHT — DragTarget dot cards
                   Column(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: _dotCardOrder
-                        .map(_buildDotTarget)
-                        .toList(),
+                    children: _dotCardOrder.map(_buildDotTarget).toList(),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 8),
+            _buildProgressDots(),
           ],
         ),
       ),
@@ -325,61 +296,61 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
       child: isMatched
           ? cardChild
           : Draggable<int>(
-        data: value,
-        feedback: Material(
-          color: Colors.transparent,
-          child: Container(
-            width: 100,
-            height: 90,
-            decoration: BoxDecoration(
-              color: ArcticColorTheme.pictonblue,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Image.asset(
-                'assets/fonts/game_numbers/$value.png',
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Center(
-                  child: Text(
-                    '$value',
-                    style: const TextStyle(
-                      fontFamily: ArcticAppTextStyles.fredoka,
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: ArcticColorTheme.cotton,
+              data: value,
+              feedback: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: 100,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: ArcticColorTheme.pictonblue,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Image.asset(
+                      'assets/fonts/game_numbers/$value.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(
+                          '$value',
+                          style: const TextStyle(
+                            fontFamily: ArcticAppTextStyles.fredoka,
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: ArcticColorTheme.cotton,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ),
-        childWhenDragging: Opacity(
-          opacity: 0.35,
-          child: Container(
-            width: 85,
-            height: 72,
-            decoration: BoxDecoration(
-              color: ArcticColorTheme.pictonblue,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: ArcticColorTheme.slateblue,
-                width: 3,
+              childWhenDragging: Opacity(
+                opacity: 0.35,
+                child: Container(
+                  width: 85,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: ArcticColorTheme.pictonblue,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: ArcticColorTheme.slateblue,
+                      width: 3,
+                    ),
+                  ),
+                  child: cardChild,
+                ),
               ),
+              child: cardChild,
             ),
-            child: cardChild,
-          ),
-        ),
-        child: cardChild,
-      ),
     );
   }
 
@@ -390,7 +361,7 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
 
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) =>
-      !isMatched && !_matchedNumbers.contains(details.data),
+          !isMatched && !_matchedNumbers.contains(details.data),
       onAcceptWithDetails: (details) => _onDropped(details.data, value),
       builder: (context, candidateData, rejectedData) {
         final isHovering = candidateData.isNotEmpty;
@@ -410,10 +381,7 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: borderColor,
-              width: isHovering ? 3.5 : 3,
-            ),
+            border: Border.all(color: borderColor, width: isHovering ? 3.5 : 3),
             boxShadow: [
               BoxShadow(
                 color: borderColor.withValues(alpha: 0.3),
@@ -431,7 +399,7 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
               runSpacing: 5,
               children: List.generate(
                 value,
-                    (_) => Container(
+                (_) => Container(
                   width: 14,
                   height: 14,
                   decoration: BoxDecoration(
@@ -446,6 +414,30 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildProgressDots() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_totalRounds, (i) {
+        final done = i + 1 < _round;
+        final current = i + 1 == _round;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          width: current ? 28 : 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: done
+                ? ArcticColorTheme.cadetblue
+                : current
+                ? ArcticColorTheme.pictonblue
+                : Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+      }),
     );
   }
 }

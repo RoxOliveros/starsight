@@ -7,6 +7,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:lottie/lottie.dart' hide LottieCache;
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import '../../../business_layer/lottie_cache.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
@@ -54,6 +55,8 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
 
     // 1. Lock to landscape.
     OrientationService.setLandscape();
+
+    LottieCache.instance.preload(['assets/animations/awake.json']);
 
     // 2. Hide system UI for a truly immersive full-screen experience.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -243,7 +246,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
             Icon(Icons.broken_image_outlined, color: Colors.white54, size: 64),
             SizedBox(height: 12),
             Text(
-              'Image not found.\nCheck assets/images/animations/sleeping.json',
+              'Image not found.\nCheck assets/animations/sleeping.json',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white54, fontSize: 14),
             ),

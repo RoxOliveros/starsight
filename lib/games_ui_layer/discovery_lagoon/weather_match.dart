@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../business_layer/orientation_service.dart';
 
 abstract class ColorTheme {
@@ -41,11 +40,6 @@ class _WeatherMatchScreenState extends State<WeatherMatchScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-
     OrientationService.setLandscape();
 
     // Setup AND shuffle both sides!
@@ -73,7 +67,6 @@ class _WeatherMatchScreenState extends State<WeatherMatchScreen> {
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     OrientationService.setLandscape();
     super.dispose();
   }

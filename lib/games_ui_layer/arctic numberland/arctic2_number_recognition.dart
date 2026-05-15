@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 
@@ -21,19 +21,13 @@ class _NumberRecognitionScreenState extends State<NumberRecognitionScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     _generateRound();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 
@@ -150,33 +144,9 @@ class _NumberRecognitionScreenState extends State<NumberRecognitionScreen> {
                       color: ArcticColorTheme.cadetblue,
                     ),
                   ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: ArcticColorTheme.pictonblue,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '$_round / $_totalRounds',
-                        style: const TextStyle(
-                          fontFamily: ArcticAppTextStyles.fredoka,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: ArcticColorTheme.cotton,
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 8),
 
             // --- PROMPT ---
             const Text(
@@ -299,9 +269,37 @@ class _NumberRecognitionScreenState extends State<NumberRecognitionScreen> {
               ),
             ),
             const SizedBox(height: 16),
+
+            _buildProgressDots(),
+
+            const SizedBox(height: 4),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildProgressDots() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_totalRounds, (i) {
+        final done = i + 1 < _round;
+        final current = i + 1 == _round;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          width: current ? 28 : 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: done
+                ? ArcticColorTheme.cadetblue
+                : current
+                ? ArcticColorTheme.pictonblue
+                : Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+      }),
     );
   }
 }
