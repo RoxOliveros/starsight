@@ -71,10 +71,6 @@ class _WeatherMatch extends State<WeatherMatch>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     OrientationService.setLandscape();
 
     _weather = [
@@ -104,7 +100,6 @@ class _WeatherMatch extends State<WeatherMatch>
   @override
   void dispose() {
     _floatingController.dispose();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -198,7 +193,7 @@ class _WeatherMatch extends State<WeatherMatch>
                     ),
                   ),
                   const Text(
-                    'Animal Habitats',
+                    'Weather Match',
                     style: TextStyle(
                       fontFamily: AppTextStyles.fredoka,
                       fontSize: 32,
@@ -248,7 +243,7 @@ class _WeatherMatch extends State<WeatherMatch>
                                 boxShadow: [
                                   if (isHovering)
                                     BoxShadow(
-                                      color: ColorTheme.success.withOpacity(
+                                      color: ColorTheme.success.withValues(alpha:
                                         0.6,
                                       ),
                                       blurRadius: 15,
@@ -261,7 +256,7 @@ class _WeatherMatch extends State<WeatherMatch>
                                   colorFilter: isHovering
                                       ? null
                                       : ColorFilter.mode(
-                                          Colors.black.withOpacity(0.1),
+                                          Colors.black.withValues(alpha: 0.1),
                                           BlendMode.darken,
                                         ),
                                 ),
@@ -355,7 +350,7 @@ class _DraggableWeather extends StatelessWidget {
             boxShadow: [
               if (isDragging)
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 15,
                   offset: const Offset(0, 10),
                 ),

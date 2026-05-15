@@ -1,8 +1,6 @@
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
 import '../../business_layer/orientation_service.dart';
 
 class AlphabetLineMatchScreen extends StatefulWidget {

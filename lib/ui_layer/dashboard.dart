@@ -52,25 +52,25 @@ class _DashboardScreenState extends State<DashboardScreen>
       imagePath: 'assets/animations/forest.json',
     ),
     _ActivityCard(
-      title: 'Town',
+      title: 'Lumi Town',
       subtitle: '...',
       isActive: false,
       imagePath: 'assets/animations/town.json',
     ),
     _ActivityCard(
-      title: 'Artic',
+      title: 'Artic Numberland',
       subtitle: '...',
       isActive: false,
       imagePath: 'assets/animations/arctic.json',
     ),
     _ActivityCard(
-      title: 'Lagoon',
+      title: 'Discovery Lagoon',
       subtitle: '...',
       isActive: false,
       imagePath: 'assets/animations/lagoon.json',
     ),
     _ActivityCard(
-      title: 'Puzzle',
+      title: 'Puzzle Peaks',
       subtitle: '...',
       isActive: false,
       imagePath: 'assets/animations/puzzle.json',
@@ -391,7 +391,8 @@ class _MainIslandCard extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 // ISLAND CAROUSEL
 // ══════════════════════════════════════════════════════════════════════════════
-class _IslandCarousel extends StatelessWidget {
+
+class _IslandCarousel extends StatefulWidget {
   final List<_ActivityCard> activities;
   final Animation<double> floatAnimation;
   final double height;
@@ -403,23 +404,81 @@ class _IslandCarousel extends StatelessWidget {
   });
 
   @override
+  State<_IslandCarousel> createState() => _IslandCarouselState();
+}
+
+class _IslandCarouselState extends State<_IslandCarousel> {
+  final ScrollController _scrollController = ScrollController();
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _scrollController.addListener(() {
+      final maxScroll = _scrollController.position.maxScrollExtent;
+      final currentScroll = _scrollController.offset;
+
+      final percent = currentScroll / maxScroll;
+
+      final newIndex =
+      (percent * (widget.activities.length - 1)).round();
+
+      if (newIndex != _currentIndex) {
+        setState(() {
+          _currentIndex = newIndex;
+        });
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        itemCount: activities.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
-        itemBuilder: (context, index) {
-          return _IslandTile(
-            activity: activities[index],
-            floatAnimation: floatAnimation,
-            size: height,
-          );
-        },
-      ),
+    return Column(
+      children: [
+        SizedBox(
+          height: widget.height,
+          child: ListView.separated(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            itemCount: widget.activities.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 16),
+            itemBuilder: (context, index) {
+              return _IslandTile(
+                activity: widget.activities[index],
+                floatAnimation: widget.floatAnimation,
+                size: widget.height,
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            widget.activities.length,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+
+              width: _currentIndex == index ? 18 : 10,
+              height: 10,
+
+              decoration: BoxDecoration(
+                color: _currentIndex == index
+                    ? ColorTheme.orange
+                    : ColorTheme.yelloworange.withValues(alpha: 0.4),
+
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -427,72 +486,129 @@ class _IslandCarousel extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 // ISLAND ISLAND
 // ══════════════════════════════════════════════════════════════════════════════
-class _IslandTile extends StatelessWidget {
+
+class _IslandTile extends StatefulWidget {
   final _ActivityCard activity;
   final Animation<double> floatAnimation;
   final double size;
+  final Duration glowDuration;
 
   const _IslandTile({
     required this.activity,
     required this.floatAnimation,
     required this.size,
+    this.glowDuration = const Duration(milliseconds: 300),
   });
 
+  @override
+  State<_IslandTile> createState() => _IslandTileState();
+}
+
+class _IslandTileState extends State<_IslandTile>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _tapController;
+  late Animation<double> _scaleAnimation;
+  bool _glowing = false;
+
   void _navigate(BuildContext context) {
-    switch (activity.title) {
-      case 'Alphabet Forest':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
-        );
-        break;
-      case 'Town':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const TownLevelScreen()),
-        );
-        break;
-      case 'Artic':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-        );
-        break;
-      case 'Lagoon':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const LagoonLevelScreen()),
-        );
-        break;
-      case 'Puzzle':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const JarLevelScreen()),
-        );
-        break;
-    }
+    final navigator = Navigator.of(context);
+    setState(() => _glowing = true);
+    _tapController.forward()
+        .then((_) => Future.delayed(widget.glowDuration))
+        .then((_) => _tapController.reverse())
+        .then((_) {
+      if (!mounted) return;
+      setState(() => _glowing = false);
+      switch (widget.activity.title) {
+        case 'Alphabet Forest':
+          navigator.push(MaterialPageRoute(builder: (_) => const ForestLevelScreen()));
+          break;
+        case 'Lumi Town':
+          navigator.push(MaterialPageRoute(builder: (_) => const TownLevelScreen()));
+          break;
+        case 'Artic Numberland':
+          navigator.push(MaterialPageRoute(builder: (_) => const ArcticLevelScreen()));
+          break;
+        case 'Discovery Lagoon':
+          navigator.push(MaterialPageRoute(builder: (_) => const LagoonLevelScreen()));
+          break;
+        case 'Puzzle Peaks':
+          navigator.push(MaterialPageRoute(builder: (_) => const JarLevelScreen()));
+          break;
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _tapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.12).animate(
+      CurvedAnimation(parent: _tapController, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _tapController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final composition = LottieCache.instance.get(activity.imagePath);
+    final composition = LottieCache.instance.get(widget.activity.imagePath);
 
     return GestureDetector(
       onTap: () => _navigate(context),
       child: AnimatedBuilder(
-        animation: floatAnimation,
+        animation: Listenable.merge([widget.floatAnimation, _scaleAnimation]),
         builder: (_, child) => Transform.translate(
-          offset: Offset(0, floatAnimation.value),
-          child: child,
+          offset: Offset(0, widget.floatAnimation.value),
+          child: Transform.scale(
+            scale: _scaleAnimation.value,
+            child: child,
+          ),
         ),
-        child: composition != null
-            ? Lottie(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: _glowing
+                    ? [
+                  BoxShadow(
+                    color: ColorTheme.yellow.withValues(alpha: 0.8),
+                    blurRadius: 40,
+                    spreadRadius: 10,
+                  ),
+                ]
+                    : [],
+              ),
+              child: composition != null
+                  ? Lottie(
                 composition: composition,
-                width: size,
-                height: size,
+                width: widget.size,
+                height: widget.size * 0.85,
                 fit: BoxFit.contain,
               )
-            : _IslandPlaceholder(large: true),
+                  : _IslandPlaceholder(large: true),
+            ),
+            Text(
+              widget.activity.title,
+              style: const TextStyle(
+                fontFamily: AppTextStyles.fredoka,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: ColorTheme.deepNavyBlue,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -20,7 +20,7 @@ class Lumi1ValuesWakeup extends StatefulWidget {
   const Lumi1ValuesWakeup({
     super.key,
     this.imagePath = 'assets/animations/sleeping.json',
-    this.audioBinPath2 = 'assets/audio/values1/gising.mp3',
+    this.audioBinPath2 = 'assets/audio/values1/gising.wav',
     this.loopAudio = false,
     this.volume = 1.0,
   });
@@ -83,7 +83,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
       await _audioPlayer.setVolume(widget.volume);
       await _audioPlayer.setReleaseMode(ReleaseMode.release);
 
-      // Load and play gising.mp3 directly
+      // Load and play gising.wav directly
       final ByteData data = await rootBundle.load(widget.audioBinPath2);
       final Uint8List bytes = data.buffer.asUint8List();
       final String fileName = widget.audioBinPath2.split('/').last;
@@ -98,7 +98,6 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
         if (mounted) setState(() => _audioFinished = true);
         _initSpeech();
       });
-
     } catch (e) {
       debugPrint('[Lumi1ValuesWakeup] Audio error: $e');
       if (mounted) setState(() => _audioError = e.toString());
@@ -111,60 +110,84 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     _speechAvailable = await _speech.initialize(
       onError: (e) {
         debugPrint('[Speech] Error: $e');
-        // Restart on error after a short delay
-        Future.delayed(const Duration(seconds: 1), _startListening);
+        if (!_completed) {
+          Future.delayed(const Duration(milliseconds: 300), _startListening);
+        }
       },
       onStatus: (s) {
         debugPrint('[Speech] Status: $s');
-        // Restart when session ends naturally
-        if (s == 'done' || s == 'notListening') {
-          Future.delayed(const Duration(milliseconds: 500), _startListening);
+        // Restart whenever it goes idle/done, unless we intentionally stopped
+        if ((s == 'done' || s == 'notListening') && !_completed) {
+          Future.delayed(const Duration(milliseconds: 300), _startListening);
         }
       },
     );
-    // Resolve locale once after init
+
     final locales = await _speech.locales();
     final hasFil = locales.any((l) => l.localeId == 'fil_PH');
+
     _localeId = hasFil ? 'fil_PH' : 'en_US';
+
     debugPrint('[Speech] Using locale: $_localeId');
 
-    if (_speechAvailable) _startListening();
+    if (_speechAvailable) {
+      _startListening();
+    }
   }
-
-  String _lastInterimWords = '';
 
   void _startListening() {
     if (!_speechAvailable || _completed) return;
-    _lastInterimWords = '';
-    debugPrint('[Speech] Started listening...');
+
+    debugPrint('[Speech] Started continuous listening...');
+
     _speech.listen(
       localeId: _localeId,
-      listenFor: const Duration(seconds: 60),
-      pauseFor: const Duration(seconds: 10),
+      listenFor: const Duration(minutes: 1),
+      pauseFor: const Duration(minutes: 1),
       onResult: (result) {
-        debugPrint('[Speech] Heard: "${result.recognizedWords}" | final: ${result.finalResult}');
-        final words = result.recognizedWords.toLowerCase();
+        debugPrint('[Speech] Heard: "${result.recognizedWords}"');
 
-        // Count NEW "gising" appearances compared to last interim
-        final newCount = _countWord(words, 'gising');
-        final oldCount = _countWord(_lastInterimWords, 'gising');
+        const variants = [
+          'gising',
+          'gisin',
+          'ising',
+          'giging',
+          'gisen',
+          'giseng',
+        ];
 
-        if (newCount > oldCount) {
-          final diff = newCount - oldCount;
-          debugPrint('[Speech] ✅ +$diff Gising detected! Total: ${_gisingCount + diff}');
-          setState(() => _gisingCount = (_gisingCount + diff).clamp(0, _gisingTarget));
-          if (_gisingCount >= _gisingTarget) _onCompleted();
+        bool containsVariant(String word) {
+          return variants.any((v) => word.contains(v));
         }
 
-        _lastInterimWords = words;
-      },
-      onSoundLevelChange: null,
-    );
-  }
+        final words = result.recognizedWords.toLowerCase().split(' ');
 
-  int _countWord(String text, String word) {
-    if (text.isEmpty) return 0;
-    return word.allMatches(text).length;
+        int detected = 0;
+
+        for (final word in words) {
+          if (containsVariant(word)) {
+            detected++;
+          }
+        }
+
+        // ONLY increase gradually
+        if (detected > _gisingCount) {
+          setState(() {
+            _gisingCount = detected.clamp(0, _gisingTarget);
+          });
+
+          debugPrint('[Speech] ✅ Count: $_gisingCount');
+
+          if (_gisingCount >= _gisingTarget) {
+            _onCompleted();
+          }
+        }
+      },
+      listenOptions: SpeechListenOptions(
+        partialResults: true,
+        cancelOnError: false,
+      ),
+    );
   }
 
   void _onCompleted() {
@@ -172,23 +195,20 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     setState(() => _completed = true);
     _speech.stop();
     _audioPlayer.stop();
-    Future.delayed(
-      const Duration(milliseconds: 1500),
-          () {
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (_, __, ___) => const Lumi2ValuesWakingup(),
-              transitionsBuilder: (_, animation, __, child) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              transitionDuration: const Duration(milliseconds: 1500),
-            ),
-          );
-        }
-      },
-    );
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => const Lumi2ValuesWakingup(),
+            transitionsBuilder: (_, animation, __, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 1500),
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -218,6 +238,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
+              frameRate: FrameRate(30),
               errorBuilder: (context, error, stack) => _buildImageError(),
             ),
 
@@ -227,7 +248,16 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
             _buildMeter(),
 
             //X button
-            Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(
+              top: 25,
+              left: 25,
+              child: LumiXButton(
+                onTap: () {
+                  _speech.stop();
+                  Navigator.pop(context);
+                },
+              ),
+            ),
           ],
         ),
       ),
@@ -330,21 +360,31 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
                           height: 22,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: reached ? const Color(0xFFFFD700) : Colors.white24,
+                            color: reached
+                                ? const Color(0xFFFFD700)
+                                : Colors.white24,
                             border: Border.all(
                               color: reached ? Colors.orange : Colors.white38,
                               width: 2,
                             ),
                             boxShadow: reached
-                                ? [BoxShadow(
-                              color: Colors.amber.withValues(alpha: 0.8),
-                              blurRadius: 8,
-                              spreadRadius: 1,
-                            )]
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.amber.withValues(
+                                        alpha: 0.8,
+                                      ),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                    ),
+                                  ]
                                 : [],
                           ),
                           child: reached
-                              ? const Icon(Icons.star_rounded, size: 13, color: Colors.white)
+                              ? const Icon(
+                                  Icons.star_rounded,
+                                  size: 13,
+                                  color: Colors.white,
+                                )
                               : null,
                         ),
                       ),

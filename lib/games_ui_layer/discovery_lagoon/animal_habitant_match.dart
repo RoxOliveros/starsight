@@ -1,6 +1,5 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 // --- GENERIC THEME ---
 abstract class ColorTheme {
@@ -72,10 +71,6 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     OrientationService.setLandscape();
 
     _animals = [
@@ -105,7 +100,6 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
   @override
   void dispose() {
     _floatingController.dispose();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -250,7 +244,7 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
                                 boxShadow: [
                                   if (isHovering)
                                     BoxShadow(
-                                      color: ColorTheme.success.withOpacity(
+                                      color: ColorTheme.success.withValues(alpha:
                                         0.6,
                                       ),
                                       blurRadius: 15,
@@ -263,7 +257,7 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
                                   colorFilter: isHovering
                                       ? null
                                       : ColorFilter.mode(
-                                          Colors.black.withOpacity(0.1),
+                                          Colors.black.withValues(alpha: 0.1),
                                           BlendMode.darken,
                                         ),
                                 ),
@@ -356,7 +350,7 @@ class _DraggableAnimal extends StatelessWidget {
             boxShadow: [
               if (isDragging)
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 15,
                   offset: const Offset(0, 10),
                 ),
