@@ -150,68 +150,92 @@ class _AlphabetMemoryMatchScreenState extends State<AlphabetMemoryMatchScreen> {
             ),
 
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40.0,
-                  vertical: 20.0,
-                ),
-                child: GridView.builder(
-                  itemCount: 8,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    mainAxisSpacing: 20,
-                    crossAxisSpacing: 20,
-                    childAspectRatio: 1.2,
-                  ),
-                  itemBuilder: (context, index) {
-                    bool showFace = _cardFllipped[index] || _cardMatched[index];
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  double horizontalPadding = 80.0;
+                  double verticalPadding = 20.0;
+                  double spacing = 16.0;
 
-                    return GestureDetector(
-                      onTap: () => _onCardTap(index),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(showFace ? 1.0 : 0.4),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: showFace
-                                ? ForestColorTheme.lightgreen
-                                : Colors.transparent,
-                            width: 3,
-                          ),
-                        ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Image.asset(
-                              'assets/images/star.png',
-                              color: showFace
-                                  ? ForestColorTheme.mediumseagreen.withOpacity(
-                                      0.2,
-                                    )
-                                  : null,
-                              fit: BoxFit.contain,
-                            ),
-                            if (showFace)
-                              Text(
-                                _cards[index],
-                                style: TextStyle(
-                                  fontFamily: ForestAppTextStyles.fredoka,
-                                  fontSize: 60,
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      _cards[index] ==
-                                          _cards[index].toUpperCase()
-                                      ? ForestColorTheme.mediumseagreen
-                                      : ForestColorTheme.seagreen,
-                                ),
-                              ),
-                          ],
-                        ),
+                  double cellWidth =
+                      (constraints.maxWidth -
+                          horizontalPadding -
+                          (spacing * 3)) /
+                      4;
+                  double cellHeight =
+                      (constraints.maxHeight - verticalPadding - spacing) / 2;
+                  double calculatedAspectRatio = cellWidth / cellHeight;
+
+                  return Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding / 2,
+                      vertical: verticalPadding / 2,
+                    ),
+                    child: GridView.builder(
+                      physics:
+                          const NeverScrollableScrollPhysics(), // Disables scrolling entirely!
+                      itemCount: 8,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        mainAxisSpacing: spacing,
+                        crossAxisSpacing: spacing,
+                        childAspectRatio:
+                            calculatedAspectRatio, // Applies the perfect fit calculation
                       ),
-                    );
-                  },
-                ),
+                      itemBuilder: (context, index) {
+                        bool showFace =
+                            _cardFllipped[index] || _cardMatched[index];
+
+                        return GestureDetector(
+                          onTap: () => _onCardTap(index),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(
+                                showFace ? 1.0 : 0.4,
+                              ),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: showFace
+                                    ? ForestColorTheme.lightgreen
+                                    : Colors.transparent,
+                                width: 3,
+                              ),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Image.asset(
+                                  'assets/images/star.png',
+                                  color: showFace
+                                      ? ForestColorTheme.mediumseagreen
+                                            .withOpacity(0.2)
+                                      : null,
+                                  fit: BoxFit.contain,
+                                ),
+                                if (showFace)
+                                  Text(
+                                    _cards[index],
+                                    style: TextStyle(
+                                      fontFamily: ForestAppTextStyles.fredoka,
+                                      fontSize:
+                                          cellHeight *
+                                          0.5, // Font scales with the card height
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          _cards[index] ==
+                                              _cards[index].toUpperCase()
+                                          ? ForestColorTheme.mediumseagreen
+                                          : ForestColorTheme.seagreen,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             ),
           ],

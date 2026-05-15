@@ -15,7 +15,9 @@ class AlphabetMatchScreen extends StatefulWidget {
 class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
     with SingleTickerProviderStateMixin {
   final Set<String> _matchedLetters = {};
-  final List<String> _allLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+  // We only have 4 letters now!
+  final List<String> _allLetters = ['A', 'B', 'C', 'D'];
 
   late final AnimationController _floatingController;
 
@@ -83,13 +85,16 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Universal sizing for the stars
+    final double starSize = MediaQuery.of(context).size.height * 0.28;
+
     return Scaffold(
-      backgroundColor: ForestColorTheme.lightgrayishgreen, // Theme applied
+      backgroundColor: ForestColorTheme.lightgrayishgreen,
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 12),
-            // HEADER - Added ForestBackButton here!
+            // HEADER
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Stack(
@@ -115,68 +120,64 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen>
             Expanded(
               child: Stack(
                 children: [
-                  // 1. THE STAR GRID (DragTargets)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40.0,
-                      vertical: 20.0,
-                    ),
-                    child: GridView.builder(
-                      itemCount: 8,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 4,
-                            mainAxisSpacing: 20,
-                            crossAxisSpacing: 20,
-                            childAspectRatio: 1.2,
-                          ),
-                      itemBuilder: (context, index) {
-                        String letter = _allLetters[index];
-                        bool isMatched = _matchedLetters.contains(letter);
+                  // 1. THE STAR ROW
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: _allLetters.map((letter) {
+                          bool isMatched = _matchedLetters.contains(letter);
 
-                        return DragTarget<String>(
-                          onWillAcceptWithDetails: (details) =>
-                              details.data == letter && !isMatched,
-                          onAcceptWithDetails: (details) {
-                            setState(() => _matchedLetters.add(letter));
-                            if (_matchedLetters.length == 8) {
-                              _showSuccessDialog();
-                            }
-                          },
-                          builder: (context, candidateData, rejectedData) {
-                            return Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Image.asset(
-                                  'assets/images/star.png',
-                                  color: isMatched
-                                      ? null
-                                      : Colors.white.withOpacity(0.4),
-                                  fit: BoxFit.contain,
+                          return DragTarget<String>(
+                            onWillAcceptWithDetails: (details) =>
+                                details.data == letter && !isMatched,
+                            onAcceptWithDetails: (details) {
+                              setState(() => _matchedLetters.add(letter));
+
+                              if (_matchedLetters.length ==
+                                  _allLetters.length) {
+                                _showSuccessDialog();
+                              }
+                            },
+                            builder: (context, candidateData, rejectedData) {
+                              return SizedBox(
+                                width: starSize,
+                                height: starSize,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Image.asset(
+                                      'assets/images/star.png',
+                                      color: isMatched
+                                          ? null
+                                          : Colors.white.withOpacity(0.4),
+                                      fit: BoxFit.contain,
+                                    ),
+                                    Text(
+                                      letter,
+                                      style: TextStyle(
+                                        fontFamily: ForestAppTextStyles.fredoka,
+                                        fontSize: 50,
+                                        fontWeight: FontWeight.bold,
+                                        color: isMatched
+                                            ? ForestColorTheme.seagreen
+                                            : ForestColorTheme.darkseagreen
+                                                  .withOpacity(0.2),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                // The Letter
-                                Text(
-                                  letter,
-                                  style: TextStyle(
-                                    fontFamily: ForestAppTextStyles.fredoka,
-                                    fontSize: 50,
-                                    fontWeight: FontWeight.bold,
-                                    color: isMatched
-                                        ? ForestColorTheme.seagreen
-                                        : ForestColorTheme.darkseagreen
-                                              .withOpacity(0.2),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
+                              );
+                            },
+                          );
+                        }).toList(),
+                      ),
                     ),
                   ),
 
                   // 2. THE FLOATING LETTER TO DRAG
-                  if (_matchedLetters.length < 8)
+                  if (_matchedLetters.length < _allLetters.length)
                     Positioned(
                       bottom: 20,
                       left: 0,

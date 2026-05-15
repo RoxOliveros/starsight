@@ -1,20 +1,9 @@
+import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// --- GENERIC THEME ---
-abstract class ColorTheme {
-  static const Color background = Color(0xFFE8F4F8);
-  static const Color textDark = Color(0xFF5E463E);
-  static const Color primary = Color(0xFF75D5FF);
-  static const Color success = Color(0xFF82C84B);
-  static const Color accent = Color(0xFFEC8A20);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
-
-// --- NEW MODEL FOR PUZZLE PIECES ---
 class PuzzlePiece {
   final int id; // 0=TL, 1=TR, 2=BL, 3=BR
   final String imagePath;
@@ -33,7 +22,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
   late List<PuzzlePiece> _availablePieces;
   final Map<int, PuzzlePiece> _placedPieces = {};
 
-  // The 4 pre-cropped images!
+  //4 pre-cropped images!
   final List<PuzzlePiece> _allPieces = [
     PuzzlePiece(id: 0, imagePath: 'assets/images/apple_tl.png'), // Top Left
     PuzzlePiece(id: 1, imagePath: 'assets/images/apple_tr.png'), // Top Right
@@ -48,12 +37,14 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    OrientationService.setLandscape();
     _resetGame();
   }
 
   @override
   void dispose() {
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 
@@ -70,13 +61,13 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: ForestColorTheme.lightgrayishgreen,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
           "Amazing!",
           style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            color: ColorTheme.success,
+            fontFamily: ForestAppTextStyles.fredoka,
+            color: ForestColorTheme.darkseagreen,
             fontSize: 28,
             fontWeight: FontWeight.bold,
           ),
@@ -84,9 +75,9 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
         content: const Text(
           "You completed the picture!",
           style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
+            fontFamily: ForestAppTextStyles.fredoka,
             fontSize: 22,
-            color: ColorTheme.textDark,
+            color: ForestColorTheme.seagreen,
           ),
         ),
         actions: [
@@ -98,7 +89,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
             child: const Text(
               "Play Again",
               style: TextStyle(
-                color: ColorTheme.accent,
+                color: ForestColorTheme.darkseagreen,
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
               ),
@@ -118,23 +109,16 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
     final double pieceSize = boardSize / 2; // Size of a single square piece
 
     return Scaffold(
-      backgroundColor: ColorTheme.background,
+      backgroundColor: ForestColorTheme.lightgrayishgreen,
       body: SafeArea(
         child: Row(
           children: [
             // --- LEFT SIDE: BACK BUTTON ---
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+            const Padding(
+              padding: EdgeInsets.all(16.0),
               child: Align(
                 alignment: Alignment.topLeft,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: ColorTheme.textDark,
-                    size: 32,
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                ),
+                child: ForestBackButton(),
               ),
             ),
 
@@ -148,10 +132,10 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
                     const Text(
                       'Complete the Picture!',
                       style: TextStyle(
-                        fontFamily: AppTextStyles.fredoka,
+                        fontFamily: ForestAppTextStyles.fredoka,
                         fontSize: 32,
                         fontWeight: FontWeight.w800,
-                        color: ColorTheme.textDark,
+                        color: ForestColorTheme.darkseagreen,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -162,7 +146,10 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
                       height: boardSize,
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.5),
-                        border: Border.all(color: ColorTheme.primary, width: 4),
+                        border: Border.all(
+                          color: ForestColorTheme.lightgreen,
+                          width: 4,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: GridView.builder(
@@ -249,12 +236,12 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
           decoration: BoxDecoration(
             border: Border.all(
               color: isHovering
-                  ? ColorTheme.success
-                  : ColorTheme.textDark.withOpacity(0.1),
+                  ? ForestColorTheme.seagreen
+                  : ForestColorTheme.darkseagreen.withOpacity(0.1),
               width: isHovering ? 4 : 1,
             ),
             color: isHovering
-                ? ColorTheme.success.withOpacity(0.2)
+                ? ForestColorTheme.lightgreen.withOpacity(0.4)
                 : Colors.transparent,
           ),
           child: isFilled
@@ -300,7 +287,6 @@ class _PuzzlePieceWidget extends StatelessWidget {
                 ),
             ],
           ),
-
           child: Image.asset(
             imagePath,
             width: size,

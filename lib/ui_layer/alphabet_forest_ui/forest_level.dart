@@ -4,6 +4,7 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_line_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_memory_match.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
@@ -121,7 +122,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
                             _LevelTile(level: 5),
-                            _LevelTile(level: 6),
+                            _LockedTile(),
                             _LockedTile(),
                             _LockedTile(),
                           ],
@@ -252,7 +253,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetTraceScreen(),
+                builder: (context) => const AlphabetPuzzleScreen(),
               ),
             );
             break;
@@ -260,7 +261,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetDragScreen(),
+                builder: (context) => const AlphabetTraceScreen(),
               ),
             );
             break;
@@ -268,7 +269,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetLineMatchScreen(),
+                builder: (context) => const AlphabetMatchScreen(),
               ),
             );
             break;
@@ -276,19 +277,11 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetMatchScreen(),
-              ),
-            );
-            break;
-          case 5:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
                 builder: (context) => const AlphabetFallScreen(),
               ),
             );
             break;
-          case 6:
+          case 5:
             Navigator.push(
               context,
               MaterialPageRoute(
