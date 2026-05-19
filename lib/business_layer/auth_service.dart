@@ -32,7 +32,6 @@ class AuthService {
   Future<bool> sendMagicLink({
     required String email,
     required String nickname,
-    required String age,
     required List<String> goals,
     required String parentBirthYear,
   }) async {
@@ -42,7 +41,6 @@ class AuthService {
           .doc(email)
           .set({
             'nickname': nickname,
-            'age': age,
             'goals': goals,
             'parentBirthYear': parentBirthYear,
           });
@@ -142,7 +140,6 @@ class AuthService {
                   uid: userCredential.user!.uid,
                   email: email,
                   childNickname: data['nickname'],
-                  childAge: data['age'],
                   childGoals: goals,
                   parentBirthYear: data['parentBirthYear'],
                 );

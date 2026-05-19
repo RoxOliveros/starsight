@@ -2,7 +2,6 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class PuzzlePiece {
   final int id; // 0=TL, 1=TR, 2=BL, 3=BR
@@ -33,17 +32,12 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     OrientationService.setLandscape();
     _resetGame();
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -145,7 +139,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
                       width: boardSize,
                       height: boardSize,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                         border: Border.all(
                           color: ForestColorTheme.lightgreen,
                           width: 4,
@@ -172,7 +166,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
             // --- RIGHT SIDE: AVAILABLE PIECES (Draggables) ---
             Container(
               width: screenSize.width * 0.25,
-              color: Colors.white.withOpacity(0.4),
+              color: Colors.white.withValues(alpha: 0.4),
               child: Center(
                 child: SingleChildScrollView(
                   child: Wrap(
@@ -237,11 +231,11 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
             border: Border.all(
               color: isHovering
                   ? ForestColorTheme.seagreen
-                  : ForestColorTheme.darkseagreen.withOpacity(0.1),
+                  : ForestColorTheme.darkseagreen.withValues(alpha: 0.1),
               width: isHovering ? 4 : 1,
             ),
             color: isHovering
-                ? ForestColorTheme.lightgreen.withOpacity(0.4)
+                ? ForestColorTheme.lightgreen.withValues(alpha: 0.4)
                 : Colors.transparent,
           ),
           child: isFilled
@@ -281,7 +275,7 @@ class _PuzzlePieceWidget extends StatelessWidget {
             boxShadow: [
               if (isDragging)
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 10,
                   offset: const Offset(5, 5),
                 ),

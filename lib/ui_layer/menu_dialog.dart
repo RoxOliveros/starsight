@@ -22,25 +22,20 @@ class ProfileDayDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
-    // pick a responsive square size (adjust 0.75 if you want bigger/smaller)
-    final dialogSize =
-        (size.width < size.height ? size.width : size.height) * 0.75;
-
-    return Dialog(
-      backgroundColor: const Color(0xFFE9C679),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9C679),
+      ),
       child: SizedBox(
-        width: dialogSize,
-        height: dialogSize,
+        width: double.infinity,
+        height: double.infinity,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
 
           // ✅ makes content scrollable if it overflows
           child: SingleChildScrollView(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: MainAxisSize.max,
               children: [
                 const SizedBox(height: 8),
 

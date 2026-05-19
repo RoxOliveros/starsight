@@ -1,9 +1,8 @@
+import 'package:StarSight/ui_layer/parents_pin_setup.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'appbar_signup.dart';
-import 'parent_age_verification.dart';
-import 'signup_account.dart';
 
 abstract class ColorTheme {
   static const Color goldenYellow = Color(0xFFFBD481);
@@ -18,13 +17,11 @@ abstract class Fonts {
 
 class ChildGoal extends StatefulWidget {
   final String nickname;
-  final String age;
   final String parentBirthYear;
 
   const ChildGoal({
     super.key,
     required this.nickname,
-    required this.age,
     required this.parentBirthYear,
   });
 
@@ -53,9 +50,8 @@ class _ChildGoalState extends State<ChildGoal> {
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
-        pageBuilder: (context, animation, secondaryAnimation) => SignUpAccount(
+        pageBuilder: (context, animation, secondaryAnimation) => ParentPinVerification(
           nickname: widget.nickname,
-          age: widget.age,
           goals: selectedGoals,
           parentBirthYear: widget.parentBirthYear,
         ),
@@ -101,7 +97,7 @@ class _ChildGoalState extends State<ChildGoal> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AppTopBar(progress: 1.0),
+                AppTopBar(progress: 0.75),
 
                 // Header row
                 Padding(

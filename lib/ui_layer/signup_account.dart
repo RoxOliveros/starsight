@@ -1,5 +1,5 @@
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
@@ -34,14 +34,12 @@ abstract class AppTextStyles {
 
 class SignUpAccount extends StatefulWidget {
   final String nickname;
-  final String age;
   final List<String> goals;
   final String parentBirthYear;
 
   const SignUpAccount({
     super.key,
     required this.nickname,
-    required this.age,
     required this.goals,
     required this.parentBirthYear,
   });
@@ -60,10 +58,8 @@ class _SignUpAccountState extends State<SignUpAccount>
   void initState() {
     super.initState();
 
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
+    OrientationService.setPortrait();
+
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -108,7 +104,6 @@ class _SignUpAccountState extends State<SignUpAccount>
     bool isSent = await AuthService().sendMagicLink(
       email: email,
       nickname: widget.nickname,
-      age: widget.age,
       goals: widget.goals,
       parentBirthYear: widget.parentBirthYear,
     );
@@ -165,7 +160,6 @@ class _SignUpAccountState extends State<SignUpAccount>
           uid: user.uid,
           email: user.email ?? '',
           childNickname: widget.nickname,
-          childAge: widget.age,
           childGoals: widget.goals,
           parentBirthYear: widget.parentBirthYear,
         );

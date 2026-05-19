@@ -1,10 +1,9 @@
+import 'package:StarSight/ui_layer/child_goal.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-
 import 'app_dialog.dart';
 import 'appbar_signup.dart';
-import 'child_age.dart';
 
 abstract class ColorTheme {
   static const Color goldenYellow = Color(0xFFFBD481);
@@ -48,10 +47,11 @@ class _ChildNickname extends State<ChildNickname> {
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
-        pageBuilder: (context, animation, secondaryAnimation) => ChildAge(
+        pageBuilder: (context, animation, secondaryAnimation) => ChildGoal(
           nickname: nickname,
           parentBirthYear: widget.parentBirthYear,
         ),
+
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final tween = Tween(
             begin: const Offset(0, 1),

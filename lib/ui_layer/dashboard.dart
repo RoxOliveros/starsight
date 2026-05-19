@@ -100,6 +100,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ColorTheme.cream,
+      drawer: Drawer(
+        backgroundColor: const Color(0xFFE9C679),
+        child: ProfileDayDialog(name: widget.nickname),
+      ),
       body: SafeArea(
         child: Stack(
           clipBehavior: Clip.none,
@@ -255,10 +259,7 @@ class _AvatarBadge extends StatelessWidget {
   const _AvatarBadge({required this.name});
 
   void _showProfileDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => ProfileDayDialog(name: name),
-    );
+    Scaffold.of(context).openDrawer();
   }
 
   @override
@@ -267,63 +268,70 @@ class _AvatarBadge extends StatelessWidget {
     const double pillHeight = 22;
     const double pillOverlap = 11;
 
-    return GestureDetector(
-      onTap: () => _showProfileDialog(context),
-      child: SizedBox(
-        width: circleSize,
-        height: circleSize + pillHeight - pillOverlap,
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.topCenter,
-          children: [
-            // Circle profile
-            Container(
-              width: circleSize,
-              height: circleSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: ColorTheme.yelloworange, width: 3),
-              ),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/drafts/avatar.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
-                      Container(color: const Color(0xFFD4C4F0)),
-                ),
-              ),
-            ),
-
-            // Name pill
-            Positioned(
-              top: circleSize - pillOverlap,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  height: pillHeight,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+    return Builder(
+      builder: (context) {
+        return GestureDetector(
+          onTap: () => _showProfileDialog(context),
+          child: SizedBox(
+            width: circleSize,
+            height: circleSize + pillHeight - pillOverlap,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.topCenter,
+              children: [
+                // Circle profile
+                Container(
+                  width: circleSize,
+                  height: circleSize,
                   decoration: BoxDecoration(
-                    color: ColorTheme.yelloworange,
-                    borderRadius: BorderRadius.circular(12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: ColorTheme.yelloworange,
+                      width: 3,
+                    ),
                   ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    name,
-                    style: const TextStyle(
-                      fontFamily: AppTextStyles.fredoka,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                      letterSpacing: 1,
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/drafts/avatar.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          Container(color: const Color(0xFFD4C4F0)),
                     ),
                   ),
                 ),
-              ),
+
+                // Name pill
+                Positioned(
+                  top: circleSize - pillOverlap,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      height: pillHeight,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: ColorTheme.yelloworange,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                          fontFamily: AppTextStyles.fredoka,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -421,8 +429,7 @@ class _IslandCarouselState extends State<_IslandCarousel> {
 
       final percent = currentScroll / maxScroll;
 
-      final newIndex =
-      (percent * (widget.activities.length - 1)).round();
+      final newIndex = (percent * (widget.activities.length - 1)).round();
 
       if (newIndex != _currentIndex) {
         setState(() {
@@ -497,6 +504,7 @@ class _IslandTile extends StatefulWidget {
     required this.activity,
     required this.floatAnimation,
     required this.size,
+    // ignore: unused_element_parameter
     this.glowDuration = const Duration(milliseconds: 300),
   });
 
@@ -513,30 +521,41 @@ class _IslandTileState extends State<_IslandTile>
   void _navigate(BuildContext context) {
     final navigator = Navigator.of(context);
     setState(() => _glowing = true);
-    _tapController.forward()
+    _tapController
+        .forward()
         .then((_) => Future.delayed(widget.glowDuration))
         .then((_) => _tapController.reverse())
         .then((_) {
-      if (!mounted) return;
-      setState(() => _glowing = false);
-      switch (widget.activity.title) {
-        case 'Alphabet Forest':
-          navigator.push(MaterialPageRoute(builder: (_) => const ForestLevelScreen()));
-          break;
-        case 'Lumi Town':
-          navigator.push(MaterialPageRoute(builder: (_) => const TownLevelScreen()));
-          break;
-        case 'Artic Numberland':
-          navigator.push(MaterialPageRoute(builder: (_) => const ArcticLevelScreen()));
-          break;
-        case 'Discovery Lagoon':
-          navigator.push(MaterialPageRoute(builder: (_) => const LagoonLevelScreen()));
-          break;
-        case 'Puzzle Peaks':
-          navigator.push(MaterialPageRoute(builder: (_) => const JarLevelScreen()));
-          break;
-      }
-    });
+          if (!mounted) return;
+          setState(() => _glowing = false);
+          switch (widget.activity.title) {
+            case 'Alphabet Forest':
+              navigator.push(
+                MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
+              );
+              break;
+            case 'Lumi Town':
+              navigator.push(
+                MaterialPageRoute(builder: (_) => const TownLevelScreen()),
+              );
+              break;
+            case 'Artic Numberland':
+              navigator.push(
+                MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
+              );
+              break;
+            case 'Discovery Lagoon':
+              navigator.push(
+                MaterialPageRoute(builder: (_) => const LagoonLevelScreen()),
+              );
+              break;
+            case 'Puzzle Peaks':
+              navigator.push(
+                MaterialPageRoute(builder: (_) => const JarLevelScreen()),
+              );
+              break;
+          }
+        });
   }
 
   @override
@@ -546,9 +565,10 @@ class _IslandTileState extends State<_IslandTile>
       vsync: this,
       duration: const Duration(milliseconds: 120),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.12).animate(
-      CurvedAnimation(parent: _tapController, curve: Curves.easeOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.12,
+    ).animate(CurvedAnimation(parent: _tapController, curve: Curves.easeOut));
   }
 
   @override
@@ -567,10 +587,7 @@ class _IslandTileState extends State<_IslandTile>
         animation: Listenable.merge([widget.floatAnimation, _scaleAnimation]),
         builder: (_, child) => Transform.translate(
           offset: Offset(0, widget.floatAnimation.value),
-          child: Transform.scale(
-            scale: _scaleAnimation.value,
-            child: child,
-          ),
+          child: Transform.scale(scale: _scaleAnimation.value, child: child),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -581,21 +598,21 @@ class _IslandTileState extends State<_IslandTile>
                 shape: BoxShape.circle,
                 boxShadow: _glowing
                     ? [
-                  BoxShadow(
-                    color: ColorTheme.yellow.withValues(alpha: 0.8),
-                    blurRadius: 40,
-                    spreadRadius: 10,
-                  ),
-                ]
+                        BoxShadow(
+                          color: ColorTheme.yellow.withValues(alpha: 0.8),
+                          blurRadius: 40,
+                          spreadRadius: 10,
+                        ),
+                      ]
                     : [],
               ),
               child: composition != null
                   ? Lottie(
-                composition: composition,
-                width: widget.size,
-                height: widget.size * 0.85,
-                fit: BoxFit.contain,
-              )
+                      composition: composition,
+                      width: widget.size,
+                      height: widget.size * 0.85,
+                      fit: BoxFit.contain,
+                    )
                   : _IslandPlaceholder(large: true),
             ),
             Text(

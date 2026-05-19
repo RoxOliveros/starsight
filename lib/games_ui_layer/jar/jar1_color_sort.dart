@@ -321,25 +321,25 @@ class _JarColorSortScreenState extends State<JarColorSortScreen>
       ),
       child: _poolBalls.isEmpty
           ? Center(
-        child: Text(
-          '✨ All done!',
-          style: TextStyle(
-            fontFamily: JarAppTextStyles.fredoka,
-            fontSize: 22,
-            color: JarColorTheme.sunnyhue,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      )
+              child: Text(
+                '✨ All done!',
+                style: TextStyle(
+                  fontFamily: JarAppTextStyles.fredoka,
+                  fontSize: 22,
+                  color: JarColorTheme.sunnyhue,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
           : Wrap(
-        alignment: WrapAlignment.center,
-        runAlignment: WrapAlignment.center,
-        spacing: 12,
-        runSpacing: 10,
-        children: List.generate(_poolBalls.length, (i) {
-          return _buildDraggableBall(_poolBalls[i], i);
-        }),
-      ),
+              alignment: WrapAlignment.center,
+              runAlignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 10,
+              children: List.generate(_poolBalls.length, (i) {
+                return _buildDraggableBall(_poolBalls[i], i);
+              }),
+            ),
     );
   }
 
@@ -352,14 +352,13 @@ class _JarColorSortScreenState extends State<JarColorSortScreen>
       colorBlendMode: BlendMode.modulate,
     );
 
-    return Draggable<_Ball>(
-      data: ball,
-      feedback: Material(
-        color: Colors.transparent,
-        child: starWidget(62),
+    return RepaintBoundary(
+      child: Draggable<_Ball>(
+        data: ball,
+        feedback: Material(color: Colors.transparent, child: starWidget(62)),
+        childWhenDragging: Opacity(opacity: 0.25, child: starWidget(54)),
+        child: starWidget(54),
       ),
-      childWhenDragging: Opacity(opacity: 0.25, child: starWidget(54)),
-      child: starWidget(54),
     );
   }
 
@@ -377,79 +376,95 @@ class _JarColorSortScreenState extends State<JarColorSortScreen>
   }
 
   Widget _buildJarTarget(
-      int jarIndex,
-      _JarPair pair,
-      List<_Ball> contents,
-      bool wrongFlash,
-      ) {
+    int jarIndex,
+    _JarPair pair,
+    List<_Ball> contents,
+    bool wrongFlash,
+  ) {
     final isFull = contents.length == _ballsPerColor;
 
-    return DragTarget<_Ball>(
-      onWillAcceptWithDetails: (details) => !isFull,
-      onAcceptWithDetails: (details) => _onDroppedOnJar(jarIndex, details.data),
-      builder: (context, candidateData, rejectedData) {
-        final isHovering = candidateData.isNotEmpty;
+    return RepaintBoundary(
+      child: DragTarget<_Ball>(
+        onWillAcceptWithDetails: (details) => !isFull,
+        onAcceptWithDetails: (details) =>
+            _onDroppedOnJar(jarIndex, details.data),
+        builder: (context, candidateData, rejectedData) {
+          final isHovering = candidateData.isNotEmpty;
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                // Jar image
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: isHovering ? 115 : 105,
-                  height: isHovering ? 130 : 120,
-                  child: Image.asset(
-                    'assets/images/jar_bnw.png',
-                    fit: BoxFit.fill,
-                    color: wrongFlash ? JarColorTheme.goldenyellow.withValues(alpha: 0.6) : pair.jarColor.withValues(alpha: 0.85),
-                    colorBlendMode: BlendMode.modulate,
-                  ),
-                ),
-
-                // Stars inside jar
-                if (contents.isNotEmpty)
-                  Positioned(
-                    bottom: 20,
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 0,
-                      runSpacing: 2,
-                      children: contents.map((b) => Image.asset(
-                        'assets/images/star_bnw.png',
-                        width: 26,
-                        height: 26,
-                        color: b.pair.ballColor,
-                        colorBlendMode: BlendMode.modulate,
-                      )).toList(),
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  // Jar image
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: isHovering ? 115 : 105,
+                    height: isHovering ? 130 : 120,
+                    child: Image.asset(
+                      'assets/images/jar_bnw.png',
+                      fit: BoxFit.fill,
+                      color: wrongFlash
+                          ? JarColorTheme.goldenyellow.withValues(alpha: 0.6)
+                          : pair.jarColor.withValues(alpha: 0.85),
+                      colorBlendMode: BlendMode.modulate,
                     ),
                   ),
 
-                // Hover arrow
-                if (isHovering && !isFull)
-                  Positioned(
-                    bottom: 20,
-                    child: Icon(Icons.arrow_downward_rounded, color: pair.jarColor, size: 28),
-                  ),
+                  // Stars inside jar
+                  if (contents.isNotEmpty)
+                    Positioned(
+                      bottom: 20,
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 0,
+                        runSpacing: 2,
+                        children: contents
+                            .map(
+                              (b) => Image.asset(
+                                'assets/images/star_bnw.png',
+                                width: 26,
+                                height: 26,
+                                color: b.pair.ballColor,
+                                colorBlendMode: BlendMode.modulate,
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
 
-                // Wrong flash text
-                if (wrongFlash)
-                  Positioned(
-                    bottom: 8,
-                    child: Text('Oops! 💛', style: TextStyle(
-                      fontFamily: JarAppTextStyles.fredoka,
-                      fontSize: 13,
-                      color: JarColorTheme.darkbrown,
-                      fontWeight: FontWeight.bold,
-                    )),
-                  ),
-              ],
-            ),
-          ],
-        );
-      },
+                  // Hover arrow
+                  if (isHovering && !isFull)
+                    Positioned(
+                      bottom: 20,
+                      child: Icon(
+                        Icons.arrow_downward_rounded,
+                        color: pair.jarColor,
+                        size: 28,
+                      ),
+                    ),
+
+                  // Wrong flash text
+                  if (wrongFlash)
+                    Positioned(
+                      bottom: 8,
+                      child: Text(
+                        'Oops! 💛',
+                        style: TextStyle(
+                          fontFamily: JarAppTextStyles.fredoka,
+                          fontSize: 13,
+                          color: JarColorTheme.darkbrown,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 

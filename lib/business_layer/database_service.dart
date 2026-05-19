@@ -9,7 +9,6 @@ class DatabaseService {
     required String email,
     required String parentBirthYear, // <--- This fixes the first error!
     required String childNickname,
-    required String childAge,
     required List<String> childGoals,
   }) async {
     // Save to Firestore
@@ -26,7 +25,6 @@ class DatabaseService {
         .doc(childNickname)
         .set({
           'nickname': childNickname,
-          'age': childAge,
           'goals': childGoals,
           'createdAt': FieldValue.serverTimestamp(),
         });
