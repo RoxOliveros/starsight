@@ -76,17 +76,17 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
     _animals = [
       Animal(
         name: 'Penguin',
-        imagePath: 'assets/images/objects/penguin.png',
+        imagePath: 'assets/images/penguin.png',
         targetHabitatId: 'arctic',
       ),
       Animal(
         name: 'Dog',
-        imagePath: 'assets/images/objects/dog.png',
+        imagePath: 'assets/images/dog.png',
         targetHabitatId: 'town',
       ),
       Animal(
         name: 'Bear',
-        imagePath: 'assets/images/objects/bear.png',
+        imagePath: 'assets/images/bear.png',
         targetHabitatId: 'forest',
       ),
     ]..shuffle();
@@ -244,8 +244,8 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
                                 boxShadow: [
                                   if (isHovering)
                                     BoxShadow(
-                                      color: ColorTheme.success.withValues(alpha:
-                                        0.6,
+                                      color: ColorTheme.success.withValues(
+                                        alpha: 0.6,
                                       ),
                                       blurRadius: 15,
                                       spreadRadius: 2,
