@@ -100,7 +100,6 @@ class AuthService {
     }
   }
 
-  // CATCH THE LINK AND UNPACK IT
   Future<String> handleIncomingLink() async {
     final appLinks = AppLinks();
 
@@ -111,14 +110,26 @@ class AuthService {
         String link = initialUri.toString();
 
         if (FirebaseAuth.instance.isSignInWithEmailLink(link)) {
+          // 1. Try to get parameters directly first
           String? email = initialUri.queryParameters['email'];
           String? type = initialUri.queryParameters['type'];
 
+          // 2. THE FIX: If they are null, Firebase hid them inside 'continueUrl'!
+          if (email == null) {
+            String? continueUrlStr = initialUri.queryParameters['continueUrl'];
+            if (continueUrlStr != null) {
+              Uri continueUri = Uri.parse(continueUrlStr);
+              email = continueUri.queryParameters['email'];
+              type = continueUri.queryParameters['type'];
+            }
+          }
+
+          // 3. Now we have the email, proceed with sign in!
           if (email != null) {
             final userCredential = await FirebaseAuth.instance
                 .signInWithEmailLink(email: email, emailLink: link);
 
-            // 3. If it was a Sign Up, grab data from the waiting room!
+            // If it was a Sign Up, grab data from the waiting room!
             if (type == 'signup') {
               DocumentSnapshot tempDoc = await FirebaseFirestore.instance
                   .collection('temp_signups')
