@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:StarSight/ui_layer/splash_screen.dart';
 import 'business_layer/lottie_cache.dart';
-import 'games_ui_layer/arctic_numberland/lvl1_one_introduction.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,8 +24,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      //home: SplashScreen(),
-      home: NumberOneIntroductionScreen(),
+      home: SplashScreen(),
     );
   }
 }
