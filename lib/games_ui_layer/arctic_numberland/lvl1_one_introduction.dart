@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
+import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../goodjob_prompt.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
@@ -73,7 +75,6 @@ class _NumberOneIntroductionScreenState
   late AnimationController _objectTapCtrl;
   late Animation<double> _objectTapScale;
   late AnimationController _winCtrl;
-  late Animation<double> _winScale;
 
   // ─────────────────────────────────────────────────────────────────────────
   @override
@@ -179,11 +180,6 @@ class _NumberOneIntroductionScreenState
       vsync: this,
       duration: const Duration(milliseconds: 550),
     );
-    _winScale = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.12), weight: 60),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 20),
-    ]).animate(CurvedAnimation(parent: _winCtrl, curve: Curves.easeOut));
   }
 
   // ── Speech init ───────────────────────────────────────────────────────────
@@ -261,7 +257,8 @@ class _NumberOneIntroductionScreenState
           _onWordRecognized();
         }
       },
-      onSoundLevelChange: (_) {}, // keeps session alive on some devices
+      onSoundLevelChange: (_) {},
+      // keeps session alive on some devices
       listenFor: const Duration(seconds: 30),
       pauseFor: const Duration(seconds: 15),
       localeId: 'en_US',
@@ -306,17 +303,6 @@ class _NumberOneIntroductionScreenState
     _starsCtrl.forward(from: 0);
   }
 
-  void _replayGame() {
-    setState(() {
-      _objectTapped = false;
-      _showWinDialog = false;
-    });
-    _objectTapCtrl.reset();
-    _winCtrl.reset();
-    _starsCtrl.reset();
-    _randomiseObjectPosition();
-  }
-
   // ─────────────────────────────────────────────────────────────────────────
   @override
   void dispose() {
@@ -357,21 +343,17 @@ class _NumberOneIntroductionScreenState
           SafeArea(
             child: Stack(
               children: [
-                // Back button always visible
                 Positioned(top: 8, left: 12, child: ArcticBackButton()),
-
-                // ── INTRO ────────────────────────────────────────────────
                 if (_screenPhase == _ScreenPhase.intro) _buildIntroContent(),
-
-                // ── MINI GAME ────────────────────────────────────────────
                 if (_screenPhase == _ScreenPhase.miniGame)
                   FadeTransition(opacity: _mgFade, child: _buildMiniGame()),
-
-                // Win dialog
-                if (_showWinDialog) Positioned.fill(child: _buildWinDialog()),
               ],
             ),
           ),
+
+          // ← Win dialog OUTSIDE SafeArea, directly on root Stack
+          if (_showWinDialog)
+            Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
     );
@@ -394,43 +376,50 @@ class _NumberOneIntroductionScreenState
   }
 
   Widget _buildIntroDoma() {
-    return LayoutBuilder(builder: (context, constraints) {
-      final h = constraints.maxHeight;
-      final domaH = h * 1.1; // bigger than screen height so body clips out
-      final floatY = Tween<double>(begin: -8, end: 8).evaluate(
-        CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
-      );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final h = constraints.maxHeight;
+        final domaH = h * 1.1; // bigger than screen height so body clips out
+        final floatY = Tween<double>(begin: -8, end: 8).evaluate(
+          CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+        );
 
-      return ClipRect( // clips the lower body
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: SlideTransition(
-            position: _domaSlide,
-            child: FadeTransition(
-              opacity: _domaFade,
-              child: AnimatedBuilder(
-                animation: _domaFloatCtrl,
-                builder: (_, child) => Transform.translate(
-                  offset: Offset(0, _introPhase == _IntroPhase.celebrating ? 0 : floatY),
-                  child: child,
-                ),
-                child: ScaleTransition(
-                  scale: _introPhase == _IntroPhase.celebrating
-                      ? _celebrateScale
-                      : const AlwaysStoppedAnimation(1.0),
-                  child: Image.asset(
-                    'assets/images/characters/doma_the_penguin.png',
-                    height: domaH,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => _FallbackDoma(height: domaH),
+        return ClipRect(
+          // clips the lower body
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: SlideTransition(
+              position: _domaSlide,
+              child: FadeTransition(
+                opacity: _domaFade,
+                child: AnimatedBuilder(
+                  animation: _domaFloatCtrl,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(
+                      0,
+                      _introPhase == _IntroPhase.celebrating ? 0 : floatY,
+                    ),
+                    child: child,
+                  ),
+                  child: ScaleTransition(
+                    scale: _introPhase == _IntroPhase.celebrating
+                        ? _celebrateScale
+                        : const AlwaysStoppedAnimation(1.0),
+                    child: Image.asset(
+                      'assets/images/characters/doma_the_penguin.png',
+                      height: domaH,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                          _FallbackDoma(height: domaH),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 
   Widget _buildIntroRight() {
@@ -452,24 +441,27 @@ class _NumberOneIntroductionScreenState
   }
 
   Widget _buildIntroNumber() {
-    return LayoutBuilder(builder: (context, constraints) {
-      final h = constraints.maxHeight;
-      final cardSize = (h * 0.45).clamp(100.0, 160.0); // bigger card
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final h = constraints.maxHeight;
+        final cardSize = (h * 0.45).clamp(100.0, 160.0); // bigger card
 
-      return Center(
-        child: _introPhase != _IntroPhase.domaEntering &&
-            _introPhase != _IntroPhase.playingIntro
-            ? AnimatedBuilder(
-          animation: _numberDanceCtrl,
-          builder: (_, child) => Transform.rotate(
-            angle: _numberDance.value,
-            child: ScaleTransition(scale: _numberPop, child: child),
-          ),
-          child: _NumberCard(number: 1, size: cardSize),
-        )
-            : const SizedBox.shrink(),
-      );
-    });
+        return Center(
+          child:
+              _introPhase != _IntroPhase.domaEntering &&
+                  _introPhase != _IntroPhase.playingIntro
+              ? AnimatedBuilder(
+                  animation: _numberDanceCtrl,
+                  builder: (_, child) => Transform.rotate(
+                    angle: _numberDance.value,
+                    child: ScaleTransition(scale: _numberPop, child: child),
+                  ),
+                  child: _NumberCard(number: 1, size: cardSize),
+                )
+              : const SizedBox.shrink(),
+        );
+      },
+    );
   }
 
   Widget _buildMicArea(double h, double w) {
@@ -769,132 +761,28 @@ class _NumberOneIntroductionScreenState
   // ══════════════════════════════════════════════════════════════════════════
   // WIN DIALOG
   // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildWinDialog() {
-    return Container(
-      color: Colors.black.withValues(alpha: 0.45),
-      alignment: Alignment.center,
-      child: ScaleTransition(
-        scale: _winScale,
-        child: Container(
-          width: 300,
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('🎉', style: TextStyle(fontSize: 48)),
-              const SizedBox(height: 8),
-              Text(
-                'Well Done!',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: ArcticColorTheme.cadetblue,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'You found the 1 ball! ⭐',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: 17,
-                  color: ArcticColorTheme.pictonblue,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Play again
-                  _DialogButton(
-                    label: 'Again',
-                    icon: Icons.replay_rounded,
-                    color: ArcticColorTheme.pictonblue,
-                    onTap: _replayGame,
-                  ),
-                  const SizedBox(width: 12),
-                  // Continue (plug in your next route)
-                  _DialogButton(
-                    label: 'Continue',
-                    icon: Icons.arrow_forward_rounded,
-                    color: ArcticColorTheme.cadetblue,
-                    onTap: () {
-                      // TODO: Navigator.pushReplacement to next level/screen
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Dialog button helper
-// ─────────────────────────────────────────────────────────────────────────────
-class _DialogButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _DialogButton({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.4),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 18),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
+  Widget _buildGoodJobOverlay() {
+    return GoodJobOverlay(
+      characterImage: 'assets/images/characters/doma_the_penguin.png',
+      closeButtonColor: const Color(0xFF4A90D9),
+      // or your arctic blue
+      onNext: () {
+        // TODO: @Tin push to your next level screen
+        // Navigator.of(context).pushReplacement(
+        //   MaterialPageRoute(builder: (_) => const NextLevelScreen()),
+        // );
+      },
+      onRestart: () {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const NumberOneIntroductionScreen()),
+        );
+      },
+      onBack: () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
+          (route) => false,
+        );
+      },
     );
   }
 }

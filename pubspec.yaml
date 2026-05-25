@@ -85,6 +85,7 @@ flutter:
     - assets/images/
     - assets/images/backgrounds/
     - assets/images/arrows/
+    - assets/images/buttons/
     - assets/images/objects/
     - assets/images/objects/arctic/
     - assets/images/lumi/
