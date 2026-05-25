@@ -41,6 +41,7 @@ dependencies:
   shared_preferences: ^2.5.5
   cloud_firestore: ^6.3.0
   audioplayers: ^6.6.0
+  just_audio: ^0.9.40
   gif: ^2.1.0
   lottie: ^3.0.0
   dotted_border: ^2.1.0
@@ -85,10 +86,14 @@ flutter:
     - assets/images/backgrounds/
     - assets/images/arrows/
     - assets/images/objects/
+    - assets/images/objects/arctic/
     - assets/images/lumi/
+    - assets/images/characters/
     - assets/fonts/game_letters/
+    - assets/fonts/game_numbers/
     - assets/audio/
     - assets/audio/values1/
+    - assets/audio/arctic/level1/
     - assets/drafts/
     - assets/gifs/
     - assets/animations/

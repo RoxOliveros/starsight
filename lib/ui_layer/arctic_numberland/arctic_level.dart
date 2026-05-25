@@ -8,6 +8,7 @@ import '../../games_ui_layer/arctic_numberland/arctic2_number_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/arctic3_number_counting.dart';
 import '../../games_ui_layer/arctic_numberland/arctic4_number_matching.dart';
 import '../../games_ui_layer/arctic_numberland/arctic5_number_counttap.dart';
+import '../../games_ui_layer/arctic_numberland/lvl1_one_introduction.dart';
 import 'arctic_theme.dart';
 
 class ArcticLevelScreen extends StatefulWidget {
@@ -84,9 +85,9 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
                             _LevelTile(level: 5),
-                            _LockedTile(),
-                            _LockedTile(),
-                            _LockedTile(),
+                            _LevelTile(level: 6),
+                            _LevelTile(level: 7),
+                            _LevelTile(level: 8),
                           ],
                         ),
                       ],
@@ -215,11 +216,19 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
+                builder: (context) => const NumberOneIntroductionScreen(),
+              ),
+            );
+            break;
+          case 6:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
                 builder: (context) => const NumberIntroductionScreen(),
               ),
             );
             break;
-          case 2:
+          case 7:
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -227,7 +236,7 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
-          case 3:
+          case 8:
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -235,7 +244,7 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
-          case 4:
+          case 9:
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -243,7 +252,7 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
-          case 5:
+          case 10:
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const TapCountScreen()),

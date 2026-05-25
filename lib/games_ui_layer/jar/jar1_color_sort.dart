@@ -90,6 +90,7 @@ class _JarColorSortScreenState extends State<JarColorSortScreen>
       duration: const Duration(milliseconds: 600),
     );
 
+    _enterCtrl.forward();
     _startRound();
   }
 
@@ -120,7 +121,6 @@ class _JarColorSortScreenState extends State<JarColorSortScreen>
     _wrongFlashB = false;
     _roundComplete = false;
     _celebCtrl.reset();
-    _enterCtrl.forward(from: 0);
   }
 
   Future<void> _onDroppedOnJar(int jarIndex, _Ball ball) async {
@@ -151,6 +151,7 @@ class _JarColorSortScreenState extends State<JarColorSortScreen>
           setState(() {
             _round++;
             _startRound();
+            _enterCtrl.forward(from: 0);
           });
         }
       }
