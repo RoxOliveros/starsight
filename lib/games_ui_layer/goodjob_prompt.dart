@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 // SAMPLE
 // Widget _buildGoodJobOverlay() {
 //   return GoodJobOverlay(
-//     characterImage: CHARACTERPATH <-- CHANGE THIS,
-//     closeButtonColor: const Color(BUTTONCOLOR <-- CHANGE THIS),
+//     characterImage: 'CHARACTERPATH' <-- CHANGE THIS,
+//     closeButtonColor: ___ColorTheme.Blue(BUTTONCOLOR <-- CHANGE THIS),
 //     // or your arctic blue
 //     onNext: () {
 //       // Navigator.of(context).pushReplacement(
@@ -15,15 +15,15 @@ import 'package:flutter/material.dart';
 //     onRestart: () {
 //         Navigator.of(context).pushReplacement(
 //           MaterialPageRoute(builder: (_) => const GameScreen()<-- CHANGE THIS),
-//         );
+//        );
 //       },
 //     onBack: () {
-//       Navigator.of(context).pushAndRemoveUntil(
-//         MaterialPageRoute(builder: (_) => const LevelScreen() <-- CHANGE THIS),
-//             (route) => false,
-//       );
-//     },
-//   );
+//         Navigator.of(context).pushAndRemoveUntil(
+//           MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
+//                (route) => route.isFirst,
+//         );
+//      },
+//    );
 // }
 
 class GoodJobOverlay extends StatefulWidget {
@@ -100,7 +100,6 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
 
     _entranceCtrl.forward();
   }
-
 
   @override
   void dispose() {

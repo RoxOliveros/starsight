@@ -721,9 +721,12 @@ class _NumberOneIntroductionScreenState
                       child: GestureDetector(
                         onTap: () {
                           setState(() => _wrongTapped = true);
-                          Future.delayed(const Duration(milliseconds: 1000), () {
-                            if (mounted) setState(() => _wrongTapped = false);
-                          });
+                          Future.delayed(
+                            const Duration(milliseconds: 1000),
+                            () {
+                              if (mounted) setState(() => _wrongTapped = false);
+                            },
+                          );
                         },
                         child: Container(
                           width: objSize,
@@ -783,6 +786,84 @@ class _NumberOneIntroductionScreenState
 
     return Stack(
       children: [
+        if (_tracedPoints.where((p) => p != const Offset(-1, -1)).length > 5)
+          Positioned(
+            bottom: h * 0.06,
+            left: w * 0.15,
+            right: w * 0.15,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(50),
+              child: Container(
+                height: 18,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(50),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    // Filled portion
+                    FractionallySizedBox(
+                      widthFactor:
+                          (_tracedPoints
+                                      .where((p) => p != const Offset(-1, -1))
+                                      .length /
+                                  50)
+                              .clamp(0.0, 1.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(50),
+                          gradient: LinearGradient(
+                            colors: _tracingComplete
+                                ? [Colors.greenAccent, Colors.green]
+                                : [
+                                    ArcticColorTheme.pictonblue,
+                                    ArcticColorTheme.slateblue,
+                                  ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  (_tracingComplete
+                                          ? Colors.greenAccent
+                                          : ArcticColorTheme.pictonblue)
+                                      .withValues(alpha: 0.6),
+                              blurRadius: 10,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Shine overlay
+                    Positioned(
+                      top: 2,
+                      left: 6,
+                      right: 6,
+                      child: Container(
+                        height: 5,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(50),
+                          color: Colors.white.withValues(alpha: 0.35),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
         // Instruction banner
         Positioned(
           top: 0,
@@ -817,21 +898,6 @@ class _NumberOneIntroductionScreenState
           ),
         ),
 
-        // The "1" PNG as the tracing guide — centered
-        Positioned(
-          left: traceLeft,
-          top: traceTop,
-          width: traceW,
-          height: traceH,
-          child: Opacity(
-            opacity: 0.6,
-            child: Image.asset(
-              'assets/fonts/game_numbers/1.png',
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
-
         // Gesture layer on top of the "1"
         Positioned(
           left: traceLeft,
@@ -855,6 +921,7 @@ class _NumberOneIntroductionScreenState
               });
             },
             child: CustomPaint(
+              size: Size(traceW, traceH),
               painter: _NumberTracePainter(
                 tracedPoints: _tracedPoints,
                 isComplete: _tracingComplete,
@@ -890,58 +957,53 @@ class _NumberOneIntroductionScreenState
               ),
             ),
           ),
-
-        // Done button — shown after at least some tracing
-        if (_tracedPoints.length > 10 && !_tracingComplete)
-          Positioned(
-            bottom: h * 0.06,
-            right: w * 0.06,
-            child: GestureDetector(
-              onTap: () {
-                setState(() => _tracingComplete = true);
-                Future.delayed(const Duration(seconds: 2), () {
-                  if (mounted) {
-                    setState(() => _miniGamePhase = _MiniGamePhase.tapping);
-                    _playAudio(
-                      'assets/audio/arctic/level1/click_one_snowman.wav',
-                    );
-                  }
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 28,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: ArcticColorTheme.slateblue,
-                  borderRadius: BorderRadius.circular(32),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  '✓',
-                  style: TextStyle(
-                    fontFamily: ArcticAppTextStyles.fredoka,
-                    fontSize: (h * 0.07).clamp(14.0, 20.0),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
       ],
     );
   }
 
   void _checkTracingComplete(double w, double h) {
-    // no-op — completion handled by Done button
+    final validPoints = _tracedPoints
+        .where((p) => p != const Offset(-1, -1))
+        .toList();
+
+    if (validPoints.length < 15) return;
+
+    final ys = validPoints.map((p) => p.dy).toList();
+    final traceH = h * 0.75;
+
+    final minY = ys.reduce(min);
+    final maxY = ys.reduce(max);
+
+    // Must cover at least 55% vertical range (was 70%)
+    final verticalCoverage = (maxY - minY) / traceH;
+    if (verticalCoverage < 0.55) return;
+
+    // Must start in top 40% (was 25%) — accounts for diagonal top stroke
+    final firstChunk = validPoints.take(validPoints.length ~/ 4).toList();
+    final avgYStart =
+        firstChunk.map((p) => p.dy).reduce((a, b) => a + b) / firstChunk.length;
+    if (avgYStart > traceH * 0.40) return;
+
+    // Must end in bottom 40% (was 80%) — base horizontal stroke ends mid-bottom
+    final lastChunk = validPoints.skip((validPoints.length * 3) ~/ 4).toList();
+    final avgYEnd =
+        lastChunk.map((p) => p.dy).reduce((a, b) => a + b) / lastChunk.length;
+    if (avgYEnd < traceH * 0.55) return;
+
+    // Overall downward movement
+    if (avgYEnd <= avgYStart + traceH * 0.2) return;
+
+    _onTracingAccepted();
+  }
+
+  Future<void> _onTracingAccepted() async {
+    if (_tracingComplete) return;
+    setState(() => _tracingComplete = true);
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) {
+      setState(() => _miniGamePhase = _MiniGamePhase.tapping);
+      _playAudio('assets/audio/arctic/level1/click_one_snowman.wav');
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -967,7 +1029,7 @@ class _NumberOneIntroductionScreenState
       onBack: () {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-          (route) => false,
+              (route) => route.isFirst,
         );
       },
     );
@@ -991,11 +1053,11 @@ class _NumberCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Image.asset(
-            'assets/fonts/game_numbers/$number.png',
+            'assets/fonts/game_numbers/1.png',
             width: size,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Text(
-              '$number',
+              '1',
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: size * 0.75,
@@ -1036,30 +1098,155 @@ class _NumberTracePainter extends CustomPainter {
 
   _NumberTracePainter({required this.tracedPoints, required this.isComplete});
 
+  // The "1" is defined as 3 strokes in normalized 0..1 coords:
+  // Stroke A: diagonal flag (top-left → top of stem)
+  // Stroke B: vertical stem (top → bottom)
+  // Stroke C: base foot (bottom-left → bottom-right)
+  static const _guideStrokes = [
+    [Offset(0.10, 0.35), Offset(0.48, 0.22)], // A: flag — start further left
+    [Offset(0.48, 0.22), Offset(0.48, 0.88)], // B: stem — unchanged
+    [Offset(0.20, 0.88), Offset(0.76, 0.88)], // C: base — centered under stem
+  ];
+
+  static const _dotLabels = ['1', '2', '3'];
+  static const _dotPositions = [
+    Offset(0.10, 0.35), // dot 1: further left so it doesn't overlap dot 2
+    Offset(0.48, 0.22), // dot 2: top of stem
+    Offset(0.20, 0.88), // dot 3: start of base
+  ];
+
   @override
   void paint(Canvas canvas, Size size) {
-    if (tracedPoints.length < 2) return;
+    final w = size.width;
+    final h = size.height;
 
-    final tracePaint = Paint()
-      ..color = isComplete ? Colors.greenAccent : Colors.yellowAccent
-      ..strokeWidth = size.width * 0.10
+    // ── Draw guide strokes (dashed) ──
+    final guidePaint = Paint()
+      ..color = const Color(0xFF1565C0).withValues(alpha: 0.85)
+      ..strokeWidth = w * 0.10
       ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
-    final tracePath = Path();
-    bool newStroke = true;
-    for (final p in tracedPoints) {
-      if (p == const Offset(-1, -1)) {
-        newStroke = true; // sentinel = pen-up
-      } else if (newStroke) {
-        tracePath.moveTo(p.dx, p.dy);
-        newStroke = false;
-      } else {
-        tracePath.lineTo(p.dx, p.dy);
-      }
+    for (final stroke in _guideStrokes) {
+      final p1 = Offset(stroke[0].dx * w, stroke[0].dy * h);
+      final p2 = Offset(stroke[1].dx * w, stroke[1].dy * h);
+      _drawDashed(canvas, p1, p2, guidePaint, dashLen: 10, gapLen: 8);
     }
-    canvas.drawPath(tracePath, tracePaint);
+
+    // ── Draw numbered dots ──
+    for (var i = 0; i < _dotPositions.length; i++) {
+      final pos = Offset(_dotPositions[i].dx * w, _dotPositions[i].dy * h);
+      final dotR = w * 0.12;
+
+      // Orange circle
+      canvas.drawCircle(pos, dotR, Paint()..color = const Color(0xFFFF6B35));
+      // White border
+      canvas.drawCircle(
+        pos,
+        dotR,
+        Paint()
+          ..color = Colors.white
+          ..strokeWidth = 2
+          ..style = PaintingStyle.stroke,
+      );
+
+      // Number label
+      final tp = TextPainter(
+        text: TextSpan(
+          text: _dotLabels[i],
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: dotR * 1.1,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
+    }
+
+    // ── Draw arrow hints ──
+    final arrowPaint = Paint()
+      ..color = const Color(0xFFFF6B35)
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    _drawArrow(
+      canvas,
+      Offset(0.07 * w, 0.38 * h),
+      Offset(0.42 * w, 0.26 * h),
+      arrowPaint,
+    ); // flag: 1→2 (up-right)
+    _drawArrow(
+      canvas,
+      Offset(0.48 * w, 0.42 * h),
+      Offset(0.48 * w, 0.65 * h),
+      arrowPaint,
+    ); // stem: midpoint downward, below dot 2
+    _drawArrow(
+      canvas,
+      Offset(0.22 * w, 0.88 * h),
+      Offset(0.50 * w, 0.88 * h),
+      arrowPaint,
+    ); // base: left→right from dot 3
+
+    // ── Draw user trace ──
+    if (tracedPoints.length >= 2) {
+      final tracePaint = Paint()
+        ..color = isComplete ? Colors.greenAccent : Colors.yellowAccent
+        ..strokeWidth = w * 0.10
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..style = PaintingStyle.stroke;
+
+      final path = Path();
+      bool newStroke = true;
+      for (final p in tracedPoints) {
+        if (p == const Offset(-1, -1)) {
+          newStroke = true;
+        } else if (newStroke) {
+          path.moveTo(p.dx, p.dy);
+          newStroke = false;
+        } else {
+          path.lineTo(p.dx, p.dy);
+        }
+      }
+      canvas.drawPath(path, tracePaint);
+    }
+  }
+
+  void _drawDashed(
+    Canvas canvas,
+    Offset p1,
+    Offset p2,
+    Paint paint, {
+    double dashLen = 10,
+    double gapLen = 6,
+  }) {
+    final total = (p2 - p1).distance;
+    final dir = (p2 - p1) / total;
+    double walked = 0;
+    bool drawing = true;
+    while (walked < total) {
+      final segLen = drawing ? dashLen : gapLen;
+      final end = (walked + segLen).clamp(0, total);
+      if (drawing) {
+        canvas.drawLine(p1 + dir * walked, p1 + dir * end.toDouble(), paint);
+      }
+      walked += segLen;
+      drawing = !drawing;
+    }
+  }
+
+  void _drawArrow(Canvas canvas, Offset from, Offset to, Paint paint) {
+    canvas.drawLine(from, to, paint);
+    // Arrowhead
+    final dir = (to - from) / (to - from).distance;
+    final perp = Offset(-dir.dy, dir.dx);
+    const headLen = 7.0;
+    canvas.drawLine(to, to - dir * headLen + perp * headLen * 0.5, paint);
+    canvas.drawLine(to, to - dir * headLen - perp * headLen * 0.5, paint);
   }
 
   @override
