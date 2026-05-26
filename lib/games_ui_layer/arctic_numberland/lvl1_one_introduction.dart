@@ -20,6 +20,8 @@ enum _IntroPhase {
   done,
 }
 
+enum _MiniGamePhase { tracing, tapping }
+
 class NumberOneIntroductionScreen extends StatefulWidget {
   const NumberOneIntroductionScreen({super.key});
 
@@ -43,15 +45,21 @@ class _NumberOneIntroductionScreenState
   bool _speechAvailable = false;
   bool _isListening = false;
   bool _recognized = false;
-  String _lastWords = '';
 
   // ── Mini-game state ────────────────────────────────────────────────────────
   bool _objectTapped = false;
   bool _showWinDialog = false;
-  late Offset _objectPos; // randomised each game start
+  late Offset _objectPos;
+
+  _MiniGamePhase _miniGamePhase = _MiniGamePhase.tracing;
+
+  // ── Tracing ────────────────────────────────────────────────────────
+  final List<Offset> _tracedPoints = [];
+  bool _tracingComplete = false;
+  Offset? _canePosition;
 
   // ── Shared animations ─────────────────────────────────────────────────────
-  late AnimationController _domaFloatCtrl; // idle float
+  late AnimationController _domaFloatCtrl;
 
   // ── Intro animations ──────────────────────────────────────────────────────
   late AnimationController _domaSlideCtrl;
@@ -69,7 +77,7 @@ class _NumberOneIntroductionScreenState
   late AnimationController _starsCtrl;
 
   // ── Mini-game animations ──────────────────────────────────────────────────
-  late AnimationController _mgTransitionCtrl; // fade intro → game
+  late AnimationController _mgTransitionCtrl;
   late Animation<double> _mgFade;
   late AnimationController _objectWiggleCtrl;
   late AnimationController _objectTapCtrl;
@@ -192,7 +200,7 @@ class _NumberOneIntroductionScreenState
   // ── Intro flow ────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    _domaSlideCtrl.forward(); // Doma slides in
+    _domaSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
     _bubbleCtrl.forward();
@@ -202,12 +210,12 @@ class _NumberOneIntroductionScreenState
     _numberPopCtrl.forward();
     _numberDanceCtrl.repeat(reverse: true);
     await Future.delayed(const Duration(milliseconds: 1500));
-    _numberDanceCtrl.stop();
     await _playAudio('assets/audio/arctic/level1/say_one.wav');
     await Future.delayed(const Duration(milliseconds: 300));
 
     _setIntroPhase(_IntroPhase.listening);
     _startListening();
+    _numberDanceCtrl.stop();
   }
 
   Future<void> _playAudio(String asset) async {
@@ -250,7 +258,6 @@ class _NumberOneIntroductionScreenState
     _speech.listen(
       onResult: (result) {
         final words = result.recognizedWords.toLowerCase();
-        setState(() => _lastWords = words);
         if (words.contains('one') || words.contains('won')) {
           _speech.stop();
           setState(() => _isListening = false);
@@ -352,8 +359,7 @@ class _NumberOneIntroductionScreenState
           ),
 
           // ← Win dialog OUTSIDE SafeArea, directly on root Stack
-          if (_showWinDialog)
-            Positioned.fill(child: _buildGoodJobOverlay()),
+          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
     );
@@ -365,11 +371,41 @@ class _NumberOneIntroductionScreenState
   Widget _buildIntroContent() {
     return Positioned.fill(
       top: 50,
-      child: Row(
+      child: Stack(
         children: [
-          Expanded(flex: 4, child: _buildIntroDoma()),
-          Expanded(flex: 3, child: _buildIntroNumber()),
-          Expanded(flex: 3, child: _buildIntroRight()),
+          Row(
+            children: [
+              // LEFT SIDE — Penguin
+              Expanded(
+                child: Center(
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.38,
+                    child: _buildIntroDoma(),
+                  ),
+                ),
+              ),
+
+              // RIGHT SIDE — Number
+              Expanded(
+                child: Center(
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.28,
+                    child: _buildIntroNumber(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Listening prompt
+          if (_introPhase == _IntroPhase.listening)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 30),
+                child: _buildBottomListeningPrompt(),
+              ),
+            ),
         ],
       ),
     );
@@ -379,7 +415,7 @@ class _NumberOneIntroductionScreenState
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        final domaH = h * 1.1; // bigger than screen height so body clips out
+        final domaH = h * 1.1;
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
         );
@@ -387,7 +423,7 @@ class _NumberOneIntroductionScreenState
         return ClipRect(
           // clips the lower body
           child: Align(
-            alignment: Alignment.bottomCenter,
+            alignment: Alignment.bottomLeft,
             child: SlideTransition(
               position: _domaSlide,
               child: FadeTransition(
@@ -422,21 +458,56 @@ class _NumberOneIntroductionScreenState
     );
   }
 
-  Widget _buildIntroRight() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final h = constraints.maxHeight;
-        final w = constraints.maxWidth;
+  Widget _buildBottomListeningPrompt() {
+    return AnimatedBuilder(
+      animation: _micPulseCtrl,
+      builder: (_, child) => Transform.scale(
+        scale: _isListening ? _micPulse.value : 1.0,
+        child: child,
+      ),
+      child: GestureDetector(
+        onTap: _isListening ? null : _startListening,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1565C0).withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(40),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.35),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF6B6B).withValues(alpha: 0.4),
+                blurRadius: 20,
+                spreadRadius: 3,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.graphic_eq_rounded, color: Colors.white, size: 34),
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (_introPhase == _IntroPhase.listening) _buildMicArea(h, w),
-            // if (_introPhase == _IntroPhase.celebrating)
-            //   _buildCelebrateMessage(h),
-          ],
-        );
-      },
+              const SizedBox(width: 10),
+
+              Icon(
+                _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
+                color: Colors.white,
+                size: 30,
+              ),
+
+              const SizedBox(width: 10),
+
+              Icon(
+                Icons.multitrack_audio_rounded,
+                color: Colors.white,
+                size: 34,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -444,9 +515,10 @@ class _NumberOneIntroductionScreenState
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        final cardSize = (h * 0.45).clamp(100.0, 160.0); // bigger card
+        final cardSize = (h * 0.5).clamp(100.0, 160.0);
 
-        return Center(
+        return Align(
+          alignment: Alignment.center,
           child:
               _introPhase != _IntroPhase.domaEntering &&
                   _introPhase != _IntroPhase.playingIntro
@@ -463,126 +535,6 @@ class _NumberOneIntroductionScreenState
       },
     );
   }
-
-  Widget _buildMicArea(double h, double w) {
-    final micSize = (h * 0.22).clamp(56.0, 90.0);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          margin: const EdgeInsets.only(bottom: 20),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1565C0).withValues(alpha: 0.75),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.4),
-              width: 1.5,
-            ),
-          ),
-          child: Text(
-            'Say  "ONE" 🎙️',
-            style: TextStyle(
-              fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.09).clamp(16.0, 26.0),
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              shadows: const [
-                Shadow(
-                  color: Colors.black,
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-          ),
-        ),
-        AnimatedBuilder(
-          animation: _micPulseCtrl,
-          builder: (_, child) => Transform.scale(
-            scale: _isListening ? _micPulse.value : 1.0,
-            child: child,
-          ),
-          child: GestureDetector(
-            onTap: _isListening ? null : _startListening,
-            child: Container(
-              width: micSize,
-              height: micSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _isListening
-                    ? const Color(0xFFFF6B6B)
-                    : ArcticColorTheme.pictonblue,
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        (_isListening
-                                ? const Color(0xFFFF6B6B)
-                                : ArcticColorTheme.pictonblue)
-                            .withValues(alpha: 0.55),
-                    blurRadius: _isListening ? 28 : 14,
-                    spreadRadius: _isListening ? 6 : 0,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(
-                _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-                color: Colors.white,
-                size: micSize * 0.52,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (_isListening)
-          _ListeningRings(controller: _micPulseCtrl, size: micSize),
-        if (_lastWords.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Text(
-              '"$_lastWords"',
-              style: TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  // Widget _buildCelebrateMessage(double h) {
-  //   return Column(
-  //     mainAxisSize: MainAxisSize.min,
-  //     children: [
-  //       const Text('🎉', style: TextStyle(fontSize: 52)),
-  //       const SizedBox(height: 8),
-  //       Text(
-  //         'Amazing!',
-  //         style: TextStyle(
-  //           fontFamily: ArcticAppTextStyles.fredoka,
-  //           fontSize: (h * 0.12).clamp(24.0, 40.0),
-  //           fontWeight: FontWeight.bold,
-  //           color: Colors.white,
-  //           shadows: const [
-  //             Shadow(color: Colors.black, blurRadius: 10, offset: Offset(0, 3)),
-  //           ],
-  //         ),
-  //       ),
-  //       const SizedBox(height: 6),
-  //       Text(
-  //         'You said ONE! ⭐',
-  //         style: TextStyle(
-  //           fontFamily: ArcticAppTextStyles.fredoka,
-  //           fontSize: (h * 0.08).clamp(16.0, 24.0),
-  //           color: Colors.white.withValues(alpha: 0.9),
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
 
   // ══════════════════════════════════════════════════════════════════════════
   // MINI GAME
@@ -608,154 +560,308 @@ class _NumberOneIntroductionScreenState
 
           return Stack(
             children: [
-              // Instruction banner
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.45),
-                        width: 1.5,
+              if (_miniGamePhase == _MiniGamePhase.tracing)
+                _buildTracingLayer(w, h)
+              else ...[
+                // Instruction banner
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ArcticColorTheme.pictonblue.withValues(
+                          alpha: 0.8,
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('👆', style: TextStyle(fontSize: 22)),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Tap ONE Snowman!',
+                            style: TextStyle(
+                              fontFamily: ArcticAppTextStyles.fredoka,
+                              fontSize: (h * 0.09).clamp(16.0, 26.0),
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              shadows: const [
+                                Shadow(
+                                  color: Color(0x55003366),
+                                  blurRadius: 6,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('👆', style: TextStyle(fontSize: 22)),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Tap the Snowman!',
-                          style: TextStyle(
-                            fontFamily: ArcticAppTextStyles.fredoka,
-                            fontSize: (h * 0.09).clamp(16.0, 26.0),
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            shadows: const [
-                              Shadow(
-                                color: Color(0x55003366),
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
+                  ),
+                ),
+
+                Positioned(
+                  left: w * 0.18,
+                  top: h * 0.5 - (h * 0.30) / 2,
+                  child: _NumberCard(number: 1, size: h * 0.3),
+                ),
+
+                // The tappable object
+                if (!_objectTapped)
+                  Positioned(
+                    left: objX,
+                    top: objY,
+                    child: AnimatedBuilder(
+                      animation: _objectWiggleCtrl,
+                      builder: (_, child) {
+                        final wiggle = (_objectWiggleCtrl.value - 0.5) * 10;
+                        return Transform.translate(
+                          offset: Offset(0, wiggle),
+                          child: child,
+                        );
+                      },
+                      child: GestureDetector(
+                        onTap: _onObjectTapped,
+                        child: Container(
+                          width: objSize,
+                          height: objSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: ArcticColorTheme.pictonblue,
+                            boxShadow: [
+                              BoxShadow(
+                                color: ArcticColorTheme.pictonblue.withValues(
+                                  alpha: 0.5,
+                                ),
+                                blurRadius: 20,
+                                offset: const Offset(0, 6),
                               ),
                             ],
+                            border: Border.all(color: Colors.white, width: 3),
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(objSize * 0.12),
+                            child: Image.asset(
+                              'assets/images/objects/arctic/snowman.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Text(
+                                '',
+                                style: TextStyle(fontSize: 40),
+                              ),
+                            ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ),
 
-              // Doma watching from the side (small)
-              Positioned(
-                bottom: 0,
-                left: 12,
-                child: AnimatedBuilder(
-                  animation: _domaFloatCtrl,
-                  builder: (_, child) {
-                    final f = Tween<double>(begin: -5, end: 5).evaluate(
-                      CurvedAnimation(
-                        parent: _domaFloatCtrl,
-                        curve: Curves.easeInOut,
-                      ),
-                    );
-                    return Transform.translate(
-                      offset: Offset(0, f),
-                      child: child,
-                    );
-                  },
-                  child: Image.asset(
-                    'assets/images/characters/doma_the_penguin.png',
-                    height: (h * 0.38).clamp(70.0, 130.0),
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        _FallbackDoma(height: (h * 0.38).clamp(70.0, 130.0)),
-                  ),
-                ),
-              ),
-
-              // The tappable object
-              if (!_objectTapped)
-                Positioned(
-                  left: objX,
-                  top: objY,
-                  child: AnimatedBuilder(
-                    animation: _objectWiggleCtrl,
-                    builder: (_, child) {
-                      final wiggle = (_objectWiggleCtrl.value - 0.5) * 10;
-                      return Transform.translate(
-                        offset: Offset(0, wiggle),
-                        child: child,
-                      );
-                    },
-                    child: GestureDetector(
-                      onTap: _onObjectTapped,
+                // Tap burst (scale-out on tap)
+                if (_objectTapped &&
+                    _objectTapCtrl.status != AnimationStatus.completed)
+                  Positioned(
+                    left: objX,
+                    top: objY,
+                    child: ScaleTransition(
+                      scale: _objectTapScale,
                       child: Container(
                         width: objSize,
                         height: objSize,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: ArcticColorTheme.pictonblue,
-                          boxShadow: [
-                            BoxShadow(
-                              color: ArcticColorTheme.pictonblue.withValues(
-                                alpha: 0.5,
-                              ),
-                              blurRadius: 20,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                          border: Border.all(color: Colors.white, width: 3),
+                          color: Colors.yellow.withValues(alpha: 0.7),
                         ),
-                        child: Padding(
-                          padding: EdgeInsets.all(objSize * 0.12),
-                          child: Image.asset(
-                            'assets/images/objects/arctic/snowman.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
-                                const Text('', style: TextStyle(fontSize: 40)),
-                          ),
+                        child: const Center(
+                          child: Text('⭐', style: TextStyle(fontSize: 36)),
                         ),
                       ),
                     ),
                   ),
-                ),
-
-              // Tap burst (scale-out on tap)
-              if (_objectTapped &&
-                  _objectTapCtrl.status != AnimationStatus.completed)
-                Positioned(
-                  left: objX,
-                  top: objY,
-                  child: ScaleTransition(
-                    scale: _objectTapScale,
-                    child: Container(
-                      width: objSize,
-                      height: objSize,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.yellow.withValues(alpha: 0.7),
-                      ),
-                      child: const Center(
-                        child: Text('⭐', style: TextStyle(fontSize: 36)),
-                      ),
-                    ),
-                  ),
-                ),
+              ],
             ],
           );
         },
       ),
     );
+  }
+
+  Widget _buildTracingLayer(double w, double h) {
+    final caneSize = h * 0.14;
+    final numberSize = h * 0.55;
+
+    final centerX = w / 2;
+    final centerY = h / 2;
+    final traceW = numberSize * 0.5;
+    final traceH = numberSize;
+    final traceLeft = centerX - traceW / 2;
+    final traceTop = centerY - traceH / 2;
+
+    return Stack(
+      children: [
+        // Instruction banner
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white, width: 3),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('✏️', style: TextStyle(fontSize: 22)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Trace the number 1!',
+                    style: TextStyle(
+                      fontFamily: ArcticAppTextStyles.fredoka,
+                      fontSize: (h * 0.09).clamp(14.0, 22.0),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // The "1" PNG as the tracing guide — centered
+        Positioned(
+          left: traceLeft,
+          top: traceTop,
+          width: traceW,
+          height: traceH,
+          child: Opacity(
+            opacity: 0.6,
+            child: Image.asset(
+              'assets/fonts/game_numbers/1.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+
+        // Gesture layer on top of the "1"
+        Positioned(
+          left: traceLeft,
+          top: traceTop,
+          width: traceW,
+          height: traceH,
+          child: GestureDetector(
+            onPanUpdate: (details) {
+              setState(() {
+                _tracedPoints.add(details.localPosition);
+                _canePosition = Offset(
+                  traceLeft + details.localPosition.dx,
+                  traceTop + details.localPosition.dy,
+                );
+              });
+              _checkTracingComplete(w, h);
+            },
+            onPanEnd: (_) {
+              setState(() {
+                _tracedPoints.add(const Offset(-1, -1));
+              });
+            },
+            child: CustomPaint(
+              painter: _NumberTracePainter(
+                tracedPoints: _tracedPoints,
+                isComplete: _tracingComplete,
+              ),
+            ),
+          ),
+        ),
+
+        // Cane follows finger while dragging
+        if (_canePosition != null)
+          Positioned(
+            left: _canePosition!.dx - caneSize / 2,
+            top: _canePosition!.dy - caneSize,
+            child: IgnorePointer(
+              child: Image.asset(
+                'assets/images/objects/arctic/sugarcane.png',
+                width: caneSize,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+
+        // Cane resting position when not dragging
+        if (_canePosition == null && !_tracingComplete)
+          Positioned(
+            bottom: h * 0.08,
+            left: w * 0.06,
+            child: IgnorePointer(
+              child: Image.asset(
+                'assets/images/objects/arctic/sugarcane.png',
+                width: caneSize,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+
+        // Done button — shown after at least some tracing
+        if (_tracedPoints.length > 10 && !_tracingComplete)
+          Positioned(
+            bottom: h * 0.06,
+            right: w * 0.06,
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _tracingComplete = true);
+                Future.delayed(const Duration(seconds: 2), () {
+                  if (mounted) {
+                    setState(() => _miniGamePhase = _MiniGamePhase.tapping);
+                  }
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: ArcticColorTheme.slateblue,
+                  borderRadius: BorderRadius.circular(32),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  '✓',
+                  style: TextStyle(
+                    fontFamily: ArcticAppTextStyles.fredoka,
+                    fontSize: (h * 0.07).clamp(14.0, 20.0),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _checkTracingComplete(double w, double h) {
+    // no-op — completion handled by Done button
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -764,8 +870,7 @@ class _NumberOneIntroductionScreenState
   Widget _buildGoodJobOverlay() {
     return GoodJobOverlay(
       characterImage: 'assets/images/characters/doma_the_penguin.png',
-      closeButtonColor: const Color(0xFF4A90D9),
-      // or your arctic blue
+      closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         // TODO: @Tin push to your next level screen
         // Navigator.of(context).pushReplacement(
@@ -774,7 +879,9 @@ class _NumberOneIntroductionScreenState
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const NumberOneIntroductionScreen()),
+          MaterialPageRoute(
+            builder: (_) => const NumberOneIntroductionScreen(),
+          ),
         );
       },
       onBack: () {
@@ -800,25 +907,84 @@ class _NumberCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: size,
-      height: size,
-      child: Center(
-        child: Image.asset(
-          'assets/fonts/game_numbers/$number.png',
-          width: size * 0.65,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Text(
-            '$number',
-            style: TextStyle(
-              fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: size * 0.65,
-              fontWeight: FontWeight.bold,
-              color: ArcticColorTheme.pictonblue,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            'assets/fonts/game_numbers/$number.png',
+            width: size,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Text(
+              '$number',
+              style: TextStyle(
+                fontFamily: ArcticAppTextStyles.fredoka,
+                fontSize: size * 0.75,
+                fontWeight: FontWeight.bold,
+                color: ArcticColorTheme.pictonblue,
+              ),
             ),
           ),
-        ),
+
+          SizedBox(height: size * 0.05),
+
+          Text(
+            'ONE',
+            style: TextStyle(
+              fontFamily: ArcticAppTextStyles.fredoka,
+              fontSize: size * 0.26,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 2,
+              shadows: const [
+                Shadow(
+                  color: Colors.black54,
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _NumberTracePainter extends CustomPainter {
+  final List<Offset> tracedPoints;
+  final bool isComplete;
+
+  _NumberTracePainter({required this.tracedPoints, required this.isComplete});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (tracedPoints.length < 2) return;
+
+    final tracePaint = Paint()
+      ..color = isComplete ? Colors.greenAccent : Colors.yellowAccent
+      ..strokeWidth = size.width * 0.10
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+
+    final tracePath = Path();
+    bool newStroke = true;
+    for (final p in tracedPoints) {
+      if (p == const Offset(-1, -1)) {
+        newStroke = true; // sentinel = pen-up
+      } else if (newStroke) {
+        tracePath.moveTo(p.dx, p.dy);
+        newStroke = false;
+      } else {
+        tracePath.lineTo(p.dx, p.dy);
+      }
+    }
+    canvas.drawPath(tracePath, tracePaint);
+  }
+
+  @override
+  bool shouldRepaint(_NumberTracePainter old) =>
+      old.tracedPoints != tracedPoints || old.isComplete != isComplete;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -871,51 +1037,6 @@ class _AudioWaveformState extends State<_AudioWaveform>
               ),
             );
           }),
-        );
-      },
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Listening rings
-// ─────────────────────────────────────────────────────────────────────────────
-class _ListeningRings extends StatelessWidget {
-  final AnimationController controller;
-  final double size;
-
-  const _ListeningRings({required this.controller, required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (_, __) {
-        return SizedBox(
-          width: size * 2.2,
-          height: size * 1.2,
-          child: Stack(
-            alignment: Alignment.center,
-            children: List.generate(3, (i) {
-              final scale = 1.0 + controller.value * 0.4 * (i + 1) * 0.35;
-              final opacity =
-                  (1.0 - controller.value * 0.6).clamp(0.0, 1.0) / (i + 1);
-              return Transform.scale(
-                scale: scale,
-                child: Container(
-                  width: size,
-                  height: size,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFFFF6B6B).withValues(alpha: opacity),
-                      width: 2.5,
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
         );
       },
     );

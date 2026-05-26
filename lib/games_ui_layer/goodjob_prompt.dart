@@ -1,3 +1,4 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 // SAMPLE
@@ -56,9 +57,14 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
   late Animation<double> _charScale;
   late Animation<double> _charBounce;
 
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
   @override
   void initState() {
     super.initState();
+
+    _initAudio();
+    _playYeySound();
 
     _entranceCtrl = AnimationController(
       vsync: this,
@@ -95,12 +101,22 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
     _entranceCtrl.forward();
   }
 
+
   @override
   void dispose() {
     _entranceCtrl.dispose();
     _starsCtrl.dispose();
     _charBounceCtrl.dispose();
+    _audioPlayer.dispose();
     super.dispose();
+  }
+
+  Future<void> _initAudio() async {
+    await _audioPlayer.setReleaseMode(ReleaseMode.stop);
+  }
+
+  Future<void> _playYeySound() async {
+    await _audioPlayer.play(AssetSource('audio/yey.wav'));
   }
 
   @override
