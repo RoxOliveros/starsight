@@ -1,4 +1,5 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +12,10 @@ class PuzzlePiece {
 }
 
 class AlphabetPuzzleScreen extends StatefulWidget {
-  const AlphabetPuzzleScreen({super.key});
+  // You can pass the letter you want to play through the constructor later!
+  final String startingLetter;
+
+  const AlphabetPuzzleScreen({super.key, this.startingLetter = 'A'});
 
   @override
   State<AlphabetPuzzleScreen> createState() => _AlphabetPuzzleScreenState();
@@ -21,18 +25,16 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
   late List<PuzzlePiece> _availablePieces;
   final Map<int, PuzzlePiece> _placedPieces = {};
 
-  //4 pre-cropped images!
-  final List<PuzzlePiece> _allPieces = [
-    PuzzlePiece(id: 0, imagePath: 'assets/images/apple_tl.png'), // Top Left
-    PuzzlePiece(id: 1, imagePath: 'assets/images/apple_tr.png'), // Top Right
-    PuzzlePiece(id: 2, imagePath: 'assets/images/apple_bl.png'), // Bottom Left
-    PuzzlePiece(id: 3, imagePath: 'assets/images/apple_br.png'), // Bottom Right
-  ];
+  late List<PuzzlePiece> _allPieces;
+  late String _fullImagePath; // Added for the background hint
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    // Load the correct pieces and background before starting the game
+    _loadLetter(widget.startingLetter);
     _resetGame();
   }
 
@@ -42,72 +44,149 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
     super.dispose();
   }
 
+  // --- 1. THE LETTER LOADING METHOD ---
+  void _loadLetter(String letter) {
+    switch (letter.toUpperCase()) {
+      case 'A':
+        _fullImagePath =
+            'assets/images/alphabets/apple_full.png'; // image for the background
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/apple_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/apple_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/apple_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/apple_br.png'),
+        ];
+        break;
+      case 'B':
+        _fullImagePath = 'assets/images/alphabets/ball_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/ball_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/ball_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/ball_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/ball_br.png'),
+        ];
+        break;
+      case 'C':
+        _fullImagePath = 'assets/images/alphabets/car_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/car_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/car_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/car_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/car_br.png'),
+        ];
+        break;
+      case 'D':
+        _fullImagePath = 'assets/images/alphabets/duck_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/duck_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/duck_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/duck_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/duck_br.png'),
+        ];
+        break;
+      case 'E':
+        _fullImagePath = 'assets/images/alphabets/egg_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/egg_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/egg_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/egg_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/egg_br.png'),
+        ];
+        break;
+      default:
+        // Fallback just in case
+        _fullImagePath = 'assets/images/alphabets/apple_full.png';
+        _allPieces = [];
+    }
+  }
+
   void _resetGame() {
     setState(() {
       _placedPieces.clear();
-      _availablePieces = List.from(_allPieces)
-        ..shuffle(); // Shuffle the pieces!
+      _availablePieces = List.from(_allPieces)..shuffle();
     });
+  }
+
+  // Helper to find the next letter in the alphabet
+  String _getNextLetter(String currentLetter) {
+    int charCode = currentLetter.toUpperCase().codeUnitAt(0);
+
+    // If the letter is between A (65) and Y (89), return the next letter!
+    if (charCode >= 65 && charCode < 90) {
+      return String.fromCharCode(charCode + 1);
+    }
+
+    // If they finished 'Z', return a flag to tell the app they are done
+    return 'DONE';
   }
 
   void _showSuccessDialog() {
     showDialog(
       context: context,
+      barrierColor: Colors.transparent,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: ForestColorTheme.lightgrayishgreen,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
-          "Amazing!",
-          style: TextStyle(
-            fontFamily: ForestAppTextStyles.fredoka,
-            color: ForestColorTheme.darkseagreen,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: const Text(
-          "You completed the picture!",
-          style: TextStyle(
-            fontFamily: ForestAppTextStyles.fredoka,
-            fontSize: 22,
-            color: ForestColorTheme.seagreen,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
+      builder: (_) => Material(
+        type: MaterialType.transparency,
+        child: GoodJobOverlay(
+          characterImage: 'assets/images/dog.png',
+          closeButtonColor: ForestColorTheme.mediumseagreen,
+
+          //Wag po buburahin 1
+          // 1. NEXT BUTTON: What happens when they click the right arrow?
+          // onNext: () {
+          // Navigator.pop(context);
+          // Navigator.pop(
+          //   context,
+          // );
+          // },
+          //Wag po buburahin 2
+
+          // 1. NEXT BUTTON: What happens when they click the right arrow?
+          onNext: () {
+            Navigator.pop(context); // 1st: Close the Good Job prompt
+
+            String nextLetter = _getNextLetter(widget.startingLetter);
+
+            if (nextLetter == 'DONE') {
+              // If they finished Z, just go back to the Map!
               Navigator.pop(context);
-              _resetGame();
-            },
-            child: const Text(
-              "Play Again",
-              style: TextStyle(
-                color: ForestColorTheme.darkseagreen,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-          ),
-        ],
+            } else {
+              // If there is a next letter, replace the current screen with the new one
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      AlphabetPuzzleScreen(startingLetter: nextLetter),
+                ),
+              );
+            }
+          },
+
+          onRestart: () {
+            Navigator.pop(context);
+            _resetGame();
+          },
+
+          onBack: () {
+            Navigator.pop(context);
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Universal screen math
     final Size screenSize = MediaQuery.of(context).size;
-    final double boardSize =
-        screenSize.height * 0.65; // The total 2x2 grid size
-    final double pieceSize = boardSize / 2; // Size of a single square piece
+    final double boardSize = screenSize.height * 0.65;
+    final double pieceSize = boardSize / 2;
 
     return Scaffold(
       backgroundColor: ForestColorTheme.lightgrayishgreen,
       body: SafeArea(
         child: Row(
           children: [
-            // --- LEFT SIDE: BACK BUTTON ---
             const Padding(
               padding: EdgeInsets.all(16.0),
               child: Align(
@@ -116,7 +195,6 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
               ),
             ),
 
-            // --- CENTER: THE PUZZLE BOARD ---
             Expanded(
               flex: 3,
               child: Center(
@@ -134,7 +212,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // The 2x2 Grid
+                    // The 2x2 Grid Board
                     Container(
                       width: boardSize,
                       height: boardSize,
@@ -145,6 +223,12 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
                           width: 4,
                         ),
                         borderRadius: BorderRadius.circular(12),
+                        // --- 2. THE LOW OPACITY BACKGROUND HINT ---
+                        image: DecorationImage(
+                          image: AssetImage(_fullImagePath),
+                          fit: BoxFit.cover,
+                          opacity: 0.25, // 25% opacity so it's a faded hint
+                        ),
                       ),
                       child: GridView.builder(
                         physics: const NeverScrollableScrollPhysics(),
@@ -163,7 +247,6 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
               ),
             ),
 
-            // --- RIGHT SIDE: AVAILABLE PIECES (Draggables) ---
             Container(
               width: screenSize.width * 0.25,
               color: Colors.white.withValues(alpha: 0.4),
@@ -204,13 +287,11 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
     );
   }
 
-  // The empty slots on the board waiting to receive a piece
   Widget _buildTargetSlot(int slotIndex, double size) {
     bool isFilled = _placedPieces.containsKey(slotIndex);
     PuzzlePiece? placedPiece = _placedPieces[slotIndex];
 
     return DragTarget<PuzzlePiece>(
-      // Only accept if the piece's ID matches the Slot Index (0 goes to 0, 1 to 1)
       onWillAcceptWithDetails: (details) =>
           details.data.id == slotIndex && !isFilled,
       onAcceptWithDetails: (details) {
@@ -234,6 +315,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
                   : ForestColorTheme.darkseagreen.withValues(alpha: 0.1),
               width: isHovering ? 4 : 1,
             ),
+            // Changed this to be more transparent so the background hint shows through clearly
             color: isHovering
                 ? ForestColorTheme.lightgreen.withValues(alpha: 0.4)
                 : Colors.transparent,
@@ -243,14 +325,13 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
                   imagePath: placedPiece!.imagePath,
                   size: size,
                 )
-              : null, // Empty slot
+              : null,
         );
       },
     );
   }
 }
 
-// --- SIMPLIFIED WIDGET FOR THE IMAGES ---
 class _PuzzlePieceWidget extends StatelessWidget {
   final String imagePath;
   final double size;
