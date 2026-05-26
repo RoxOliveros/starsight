@@ -50,10 +50,11 @@ class _NumberOneIntroductionScreenState
   bool _objectTapped = false;
   bool _showWinDialog = false;
   late Offset _objectPos;
-
-  _MiniGamePhase _miniGamePhase = _MiniGamePhase.tracing;
+  bool _wrongTapped = false;
+  late Offset _decoyPos;
 
   // ── Tracing ────────────────────────────────────────────────────────
+  _MiniGamePhase _miniGamePhase = _MiniGamePhase.tracing;
   final List<Offset> _tracedPoints = [];
   bool _tracingComplete = false;
   Offset? _canePosition;
@@ -288,15 +289,26 @@ class _NumberOneIntroductionScreenState
     _mgTransitionCtrl.forward();
     _randomiseObjectPosition();
     setState(() => _screenPhase = _ScreenPhase.miniGame);
+    await _playAudio('assets/audio/arctic/level1/write_one.wav');
   }
 
   // ── Mini-game logic ───────────────────────────────────────────────────────
   void _randomiseObjectPosition() {
     final rng = Random();
-    // We'll position within a normalised 0-1 box; actual layout uses LayoutBuilder
+
+    final snowmanOnTop = rng.nextBool();
+
     _objectPos = Offset(
-      0.25 + rng.nextDouble() * 0.50, // 25%–75% horizontally
-      0.20 + rng.nextDouble() * 0.45, // 20%–65% vertically
+      0.55 + rng.nextDouble() * 0.35,
+      snowmanOnTop
+          ? 0.20 + rng.nextDouble() * 0.15
+          : 0.55 + rng.nextDouble() * 0.15,
+    );
+    _decoyPos = Offset(
+      0.55 + rng.nextDouble() * 0.35,
+      snowmanOnTop
+          ? 0.55 + rng.nextDouble() * 0.15
+          : 0.20 + rng.nextDouble() * 0.15,
     );
   }
 
@@ -548,25 +560,15 @@ class _NumberOneIntroductionScreenState
           final h = constraints.maxHeight;
           final objSize = (h * 0.28).clamp(72.0, 120.0);
 
-          // Absolute position from normalised coords
-          final objX = (_objectPos.dx * w - objSize / 2).clamp(
-            0.0,
-            w - objSize,
-          );
-          final objY = (_objectPos.dy * h - objSize / 2).clamp(
-            60.0,
-            h - objSize,
-          );
-
           return Stack(
             children: [
               if (_miniGamePhase == _MiniGamePhase.tracing)
                 _buildTracingLayer(w, h)
               else ...[
-                // Instruction banner
+                // Instruction banner — anchored top center
                 Positioned(
                   top: 0,
-                  left: 0,
+                  left: w * 0.35,
                   right: 0,
                   child: Center(
                     child: Container(
@@ -609,26 +611,30 @@ class _NumberOneIntroductionScreenState
                   ),
                 ),
 
+                // Number card — left side
                 Positioned(
-                  left: w * 0.18,
+                  left: w * 0.08,
                   top: h * 0.5 - (h * 0.30) / 2,
                   child: _NumberCard(number: 1, size: h * 0.3),
                 ),
 
-                // The tappable object
+                // ── Snowman (correct) ──
                 if (!_objectTapped)
                   Positioned(
-                    left: objX,
-                    top: objY,
+                    left: (_objectPos.dx * w - objSize / 2).clamp(
+                      w * 0.55,
+                      w - objSize,
+                    ),
+                    top: (_objectPos.dy * h - objSize / 2).clamp(
+                      h * 0.25,
+                      h - objSize,
+                    ),
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
-                      builder: (_, child) {
-                        final wiggle = (_objectWiggleCtrl.value - 0.5) * 10;
-                        return Transform.translate(
-                          offset: Offset(0, wiggle),
-                          child: child,
-                        );
-                      },
+                      builder: (_, child) => Transform.translate(
+                        offset: Offset(0, (_objectWiggleCtrl.value - 0.5) * 10),
+                        child: child,
+                      ),
                       child: GestureDetector(
                         onTap: _onObjectTapped,
                         child: Container(
@@ -654,7 +660,7 @@ class _NumberOneIntroductionScreenState
                               'assets/images/objects/arctic/snowman.png',
                               fit: BoxFit.contain,
                               errorBuilder: (_, __, ___) => const Text(
-                                '',
+                                '⛄',
                                 style: TextStyle(fontSize: 40),
                               ),
                             ),
@@ -664,12 +670,18 @@ class _NumberOneIntroductionScreenState
                     ),
                   ),
 
-                // Tap burst (scale-out on tap)
+                // Snowman tap burst
                 if (_objectTapped &&
                     _objectTapCtrl.status != AnimationStatus.completed)
                   Positioned(
-                    left: objX,
-                    top: objY,
+                    left: (_objectPos.dx * w - objSize / 2).clamp(
+                      w * 0.55,
+                      w - objSize,
+                    ),
+                    top: (_objectPos.dy * h - objSize / 2).clamp(
+                      h * 0.25,
+                      h - objSize,
+                    ),
                     child: ScaleTransition(
                       scale: _objectTapScale,
                       child: Container(
@@ -685,6 +697,71 @@ class _NumberOneIntroductionScreenState
                       ),
                     ),
                   ),
+
+                // ── Ice cream (decoy) ──
+                if (!_objectTapped)
+                  Positioned(
+                    left: (_decoyPos.dx * w - objSize / 2).clamp(
+                      w * 0.55,
+                      w - objSize,
+                    ),
+                    top: (_decoyPos.dy * h - objSize / 2).clamp(
+                      h * 0.25,
+                      h - objSize,
+                    ),
+                    child: AnimatedBuilder(
+                      animation: _objectWiggleCtrl,
+                      builder: (_, child) => Transform.translate(
+                        offset: Offset(
+                          0,
+                          (_objectWiggleCtrl.value - 0.5) * -10,
+                        ),
+                        child: child,
+                      ),
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() => _wrongTapped = true);
+                          Future.delayed(const Duration(milliseconds: 1000), () {
+                            if (mounted) setState(() => _wrongTapped = false);
+                          });
+                        },
+                        child: Container(
+                          width: objSize,
+                          height: objSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: ArcticColorTheme.pictonblue.withValues(
+                              alpha: 0.85,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: ArcticColorTheme.pictonblue.withValues(
+                                  alpha: 0.4,
+                                ),
+                                blurRadius: 20,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: _wrongTapped ? Colors.red : Colors.white,
+                              width: _wrongTapped ? 4 : 3,
+                            ),
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(objSize * 0.12),
+                            child: Image.asset(
+                              'assets/images/objects/arctic/icecream.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Text(
+                                '🍦',
+                                style: TextStyle(fontSize: 40),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ],
           );
@@ -695,7 +772,7 @@ class _NumberOneIntroductionScreenState
 
   Widget _buildTracingLayer(double w, double h) {
     final caneSize = h * 0.14;
-    final numberSize = h * 0.55;
+    final numberSize = h * 0.75;
 
     final centerX = w / 2;
     final centerY = h / 2;
@@ -789,8 +866,8 @@ class _NumberOneIntroductionScreenState
         // Cane follows finger while dragging
         if (_canePosition != null)
           Positioned(
-            left: _canePosition!.dx - caneSize / 2,
-            top: _canePosition!.dy - caneSize,
+            left: _canePosition!.dx - caneSize * 0.15,
+            top: _canePosition!.dy - caneSize * 0.92,
             child: IgnorePointer(
               child: Image.asset(
                 'assets/images/objects/arctic/sugarcane.png',
@@ -825,6 +902,9 @@ class _NumberOneIntroductionScreenState
                 Future.delayed(const Duration(seconds: 2), () {
                   if (mounted) {
                     setState(() => _miniGamePhase = _MiniGamePhase.tapping);
+                    _playAudio(
+                      'assets/audio/arctic/level1/click_one_snowman.wav',
+                    );
                   }
                 });
               },
