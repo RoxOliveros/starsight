@@ -1,9 +1,9 @@
+import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
-
 import '../../business_layer/orientation_service.dart';
 
 class TraceLevel {
@@ -19,7 +19,10 @@ class TraceLevel {
 }
 
 class AlphabetTraceScreen extends StatefulWidget {
-  const AlphabetTraceScreen({super.key});
+  final String startingLetter;
+
+  // Defaults to 'A' if no letter is passed
+  const AlphabetTraceScreen({super.key, this.startingLetter = 'A'});
 
   @override
   State<AlphabetTraceScreen> createState() => _AlphabetTraceScreenState();
@@ -34,38 +37,16 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   int _currentPointIndex = 0;
   List<List<Offset>> _denseStrokes = [];
 
-  final List<TraceLevel> _levels = [
-    TraceLevel(
-      letterName: "Big A",
-      imagePath: '',
-      strokes: [
-        [const Offset(0.5, 0.2), const Offset(0.2, 0.8)],
-        [const Offset(0.5, 0.2), const Offset(0.8, 0.8)],
-        [const Offset(0.35, 0.5), const Offset(0.65, 0.5)],
-      ],
-    ),
-    TraceLevel(
-      letterName: "Small a",
-      imagePath: '',
-      strokes: [
-        [
-          const Offset(0.70, 0.50),
-          const Offset(0.50, 0.40),
-          const Offset(0.40, 0.45),
-          const Offset(0.30, 0.60),
-          const Offset(0.45, 0.80),
-          const Offset(0.65, 0.75),
-          const Offset(0.70, 0.65),
-        ],
-        [const Offset(0.70, 0.35), const Offset(0.70, 0.85)],
-      ],
-    ),
-  ];
+  late List<TraceLevel> _levels;
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    // Load the specific letter's strokes
+    _loadLetter(widget.startingLetter);
+
     WidgetsBinding.instance.addPostFrameCallback((_) => _generateDensePaths());
   }
 
@@ -73,6 +54,394 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   void dispose() {
     OrientationService.setLandscape();
     super.dispose();
+  }
+
+  // --- THE DYNAMIC LETTER LOADER ---
+  void _loadLetter(String letter) {
+    switch (letter.toUpperCase()) {
+      case 'A':
+        _levels = [
+          TraceLevel(
+            letterName: "Big A",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.5, 0.2), const Offset(0.2, 0.8)],
+              [const Offset(0.5, 0.2), const Offset(0.8, 0.8)],
+              [const Offset(0.35, 0.5), const Offset(0.65, 0.5)],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small a",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.70, 0.50),
+                const Offset(0.50, 0.40),
+                const Offset(0.40, 0.45),
+                const Offset(0.30, 0.60),
+                const Offset(0.45, 0.80),
+                const Offset(0.65, 0.75),
+                const Offset(0.70, 0.65),
+              ],
+              [const Offset(0.70, 0.35), const Offset(0.70, 0.85)],
+            ],
+          ),
+        ];
+        break;
+      case 'B':
+        _levels = [
+          TraceLevel(
+            letterName: "Big B",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
+              [
+                const Offset(0.3, 0.2),
+                const Offset(0.6, 0.2),
+                const Offset(0.7, 0.35),
+                const Offset(0.6, 0.5),
+                const Offset(0.3, 0.5),
+              ], // Top Loop
+              [
+                const Offset(0.3, 0.5),
+                const Offset(0.65, 0.5),
+                const Offset(0.75, 0.65),
+                const Offset(0.65, 0.8),
+                const Offset(0.3, 0.8),
+              ], // Bot Loop
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small b",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
+              [
+                const Offset(0.3, 0.5),
+                const Offset(0.6, 0.5),
+                const Offset(0.7, 0.65),
+                const Offset(0.6, 0.8),
+                const Offset(0.3, 0.8),
+              ], // Loop
+            ],
+          ),
+        ];
+        break;
+      case 'C':
+        _levels = [
+          TraceLevel(
+            letterName: "Big C",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.7, 0.25),
+                const Offset(0.5, 0.2),
+                const Offset(0.3, 0.4),
+                const Offset(0.3, 0.6),
+                const Offset(0.5, 0.8),
+                const Offset(0.7, 0.75),
+              ],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small c",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.65, 0.55),
+                const Offset(0.5, 0.5),
+                const Offset(0.35, 0.6),
+                const Offset(0.35, 0.7),
+                const Offset(0.5, 0.8),
+                const Offset(0.65, 0.75),
+              ],
+            ],
+          ),
+        ];
+        break;
+      case 'D':
+        _levels = [
+          TraceLevel(
+            letterName: "Big D",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
+              [
+                const Offset(0.3, 0.2),
+                const Offset(0.6, 0.2),
+                const Offset(0.75, 0.5),
+                const Offset(0.6, 0.8),
+                const Offset(0.3, 0.8),
+              ], // Big Loop
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small d",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.6, 0.5),
+                const Offset(0.4, 0.5),
+                const Offset(0.3, 0.65),
+                const Offset(0.4, 0.8),
+                const Offset(0.6, 0.8),
+              ], // Loop
+              [const Offset(0.6, 0.2), const Offset(0.6, 0.8)], // Vertical
+            ],
+          ),
+        ];
+        break;
+      case 'E':
+        _levels = [
+          TraceLevel(
+            letterName: "Big E",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
+              [const Offset(0.3, 0.2), const Offset(0.65, 0.2)], // Top
+              [const Offset(0.3, 0.5), const Offset(0.55, 0.5)], // Mid
+              [const Offset(0.3, 0.8), const Offset(0.65, 0.8)], // Bot
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small e",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.35, 0.65),
+                const Offset(0.65, 0.65),
+                const Offset(0.65, 0.5),
+                const Offset(0.5, 0.45),
+                const Offset(0.35, 0.55),
+                const Offset(0.35, 0.75),
+                const Offset(0.5, 0.85),
+                const Offset(0.7, 0.75),
+              ],
+            ],
+          ),
+        ];
+        break;
+      case 'F':
+        _levels = [
+          TraceLevel(
+            letterName: "Big F",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
+              [const Offset(0.3, 0.2), const Offset(0.65, 0.2)], // Top
+              [const Offset(0.3, 0.5), const Offset(0.55, 0.5)], // Mid
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small f",
+            imagePath: '',
+            strokes: [
+              // Stroke 1: The top hook and straight line down
+              [
+                const Offset(0.60, 0.25), // Start at top right of the hook
+                const Offset(0.50, 0.15), // Curve up to the top middle
+                const Offset(0.40, 0.25), // Curve down to the left
+                const Offset(0.40, 0.85), // Go straight down to the bottom
+              ],
+              // Stroke 2: The middle crossbar
+              [
+                const Offset(0.25, 0.45), // Start left of the stem
+                const Offset(0.55, 0.45), // Cross over to the right
+              ],
+            ],
+          ),
+        ];
+        break;
+      case 'G':
+        _levels = [
+          TraceLevel(
+            letterName: "Big G",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.7, 0.25),
+                const Offset(0.5, 0.2),
+                const Offset(0.3, 0.4),
+                const Offset(0.3, 0.6),
+                const Offset(0.5, 0.8),
+                const Offset(0.7, 0.7),
+                const Offset(0.7, 0.55),
+                const Offset(0.5, 0.55),
+              ], // C-curve into horizontal
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small g",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.6, 0.4),
+                const Offset(0.4, 0.4),
+                const Offset(0.3, 0.55),
+                const Offset(0.4, 0.7),
+                const Offset(0.6, 0.7),
+                const Offset(0.6, 0.4),
+              ], // Top circle
+              [
+                const Offset(0.6, 0.4),
+                const Offset(0.6, 0.8),
+                const Offset(0.5, 0.9),
+                const Offset(0.35, 0.85),
+              ], // Stem & hook
+            ],
+          ),
+        ];
+        break;
+      case 'H':
+        _levels = [
+          TraceLevel(
+            letterName: "Big H",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Left vertical
+              [
+                const Offset(0.7, 0.2),
+                const Offset(0.7, 0.8),
+              ], // Right vertical
+              [const Offset(0.3, 0.5), const Offset(0.7, 0.5)], // Crossbar
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small h",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Tall vertical
+              [
+                const Offset(0.3, 0.5),
+                const Offset(0.5, 0.45),
+                const Offset(0.65, 0.55),
+                const Offset(0.65, 0.8),
+              ], // Arch down
+            ],
+          ),
+        ];
+        break;
+      case 'I':
+        _levels = [
+          TraceLevel(
+            letterName: "Big I",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.3, 0.2),
+                const Offset(0.7, 0.2),
+              ], // Top horizontal
+              [
+                const Offset(0.3, 0.8),
+                const Offset(0.7, 0.8),
+              ], // Bottom horizontal
+              [
+                const Offset(0.5, 0.2),
+                const Offset(0.5, 0.8),
+              ], // Middle vertical
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small i",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.5, 0.4), const Offset(0.5, 0.8)], // Stem
+              [
+                const Offset(0.5, 0.25),
+                const Offset(0.5, 0.26),
+              ], // Dot (tiny stroke)
+            ],
+          ),
+        ];
+        break;
+      case 'J':
+        _levels = [
+          TraceLevel(
+            letterName: "Big J",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.3, 0.2),
+                const Offset(0.7, 0.2),
+              ], // Top horizontal
+              [
+                const Offset(0.5, 0.2),
+                const Offset(0.5, 0.7),
+                const Offset(0.4, 0.8),
+                const Offset(0.3, 0.7),
+              ], // Stem & hook
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small j",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.5, 0.4),
+                const Offset(0.5, 0.8),
+                const Offset(0.4, 0.9),
+                const Offset(0.3, 0.85),
+              ], // Stem & hook
+              [const Offset(0.5, 0.25), const Offset(0.5, 0.26)], // Dot
+            ],
+          ),
+        ];
+        break;
+      case 'K':
+        _levels = [
+          TraceLevel(
+            letterName: "Big K",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
+              [const Offset(0.7, 0.2), const Offset(0.3, 0.5)], // Top diagonal
+              [
+                const Offset(0.3, 0.5),
+                const Offset(0.7, 0.8),
+              ], // Bottom diagonal
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small k",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Tall vertical
+              [
+                const Offset(0.6, 0.45),
+                const Offset(0.3, 0.6),
+              ], // Top diagonal (smaller)
+              [
+                const Offset(0.3, 0.6),
+                const Offset(0.6, 0.8),
+              ], // Bottom diagonal
+            ],
+          ),
+        ];
+        break;
+      default:
+        // Fallback to A if something goes wrong
+        _levels = [
+          TraceLevel(
+            letterName: "Big A",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.5, 0.2), const Offset(0.2, 0.8)],
+              [const Offset(0.5, 0.2), const Offset(0.8, 0.8)],
+              [const Offset(0.35, 0.5), const Offset(0.65, 0.5)],
+            ],
+          ),
+        ];
+    }
+  }
+
+  // --- HELPER FOR THE NEXT LETTER ---
+  String _getNextLetter(String currentLetter) {
+    int charCode = currentLetter.toUpperCase().codeUnitAt(0);
+    // Move to next letter if between A-Y
+    if (charCode >= 65 && charCode < 90) {
+      return String.fromCharCode(charCode + 1);
+    }
+    return 'DONE';
   }
 
   void _generateDensePaths() {
@@ -116,8 +485,9 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
-    if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length)
+    if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length) {
       return;
+    }
 
     Offset dragPos = details.localPosition;
     List<Offset> currentStroke = _denseStrokes[_currentStrokeIndex];
@@ -169,54 +539,58 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   }
 
   void _showSuccessDialog() {
+    bool isLastSubLevel = _currentLevelIndex == _levels.length - 1;
+
     showDialog(
       context: context,
+      useSafeArea: false,
+      barrierColor: Colors.transparent,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        backgroundColor: ForestColorTheme.lightgrayishgreen,
-        title: const Text(
-          "Awesome!",
-          style: TextStyle(
-            fontFamily: ForestAppTextStyles.fredoka,
-            color: ForestColorTheme.darkseagreen,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: const Text(
-          "You traced it perfectly!",
-          style: TextStyle(
-            fontFamily: ForestAppTextStyles.fredoka,
-            color: ForestColorTheme.seagreen,
-            fontSize: 22,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
+      builder: (_) => Material(
+        type: MaterialType.transparency,
+        child: GoodJobOverlay(
+          characterImage: 'assets/images/dog.png',
+          closeButtonColor: ForestColorTheme.mediumseagreen,
+
+          onNext: () {
+            Navigator.pop(context); // Close the dialog
+
+            if (!isLastSubLevel) {
+              // If they just finished uppercase, move to lowercase
               setState(() {
                 _resetBoard();
-                if (_currentLevelIndex < _levels.length - 1) {
-                  _currentLevelIndex++;
-                  _generateDensePaths();
-                } else {
-                  _currentLevelIndex = 0;
-                  _generateDensePaths();
-                }
+                _currentLevelIndex++;
+                _generateDensePaths();
               });
-            },
-            child: const Text(
-              "Next Letter",
-              style: TextStyle(
-                color: ForestColorTheme.darkseagreen,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-          ),
-        ],
+            } else {
+              // If they finished lowercase, go to the NEXT letter entirely!
+              String nextLetter = _getNextLetter(widget.startingLetter);
+              if (nextLetter == 'DONE') {
+                Navigator.pop(context); // Return to map if Z is done
+              } else {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AlphabetTraceScreen(startingLetter: nextLetter),
+                  ),
+                );
+              }
+            }
+          },
+
+          onRestart: () {
+            Navigator.pop(context);
+            setState(() {
+              _resetBoard(); // Restart current trace
+            });
+          },
+
+          onBack: () {
+            Navigator.pop(context);
+            Navigator.pop(context); // Go back to Map
+          },
+        ),
       ),
     );
   }
@@ -238,9 +612,9 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
                     alignment: Alignment.centerLeft,
                     child: ForestBackButton(),
                   ),
-                  const Text(
-                    'Alphabet Trace',
-                    style: TextStyle(
+                  Text(
+                    'Trace ${_levels[_currentLevelIndex].letterName}',
+                    style: const TextStyle(
                       fontFamily: ForestAppTextStyles.fredoka,
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
@@ -326,10 +700,10 @@ class GuidedTracePainter extends CustomPainter {
     );
 
     final bgPaint = Paint()
-      ..color = Colors.grey
+      ..color = Colors.grey.shade300
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..strokeWidth = 10.0
+      ..strokeWidth = 35.0
       ..style = PaintingStyle.stroke;
 
     for (int i = 0; i < denseStrokes.length; i++) {
