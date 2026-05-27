@@ -8,7 +8,8 @@ import '../../games_ui_layer/arctic_numberland/arctic2_number_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/arctic3_number_counting.dart';
 import '../../games_ui_layer/arctic_numberland/arctic4_number_matching.dart';
 import '../../games_ui_layer/arctic_numberland/arctic5_number_counttap.dart';
-import '../../games_ui_layer/arctic_numberland/lvl1_one_introduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl1_zero_introduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import 'arctic_theme.dart';
 
 class ArcticLevelScreen extends StatefulWidget {
@@ -213,6 +214,14 @@ class _LevelTile extends StatelessWidget {
       onTap: () {
         switch (level) {
           case 1:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NumberZeroIntroductionScreen(),
+              ),
+            );
+            break;
+          case 2:
             Navigator.push(
               context,
               MaterialPageRoute(

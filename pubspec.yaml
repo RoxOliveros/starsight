@@ -94,7 +94,9 @@ flutter:
     - assets/fonts/game_numbers/
     - assets/audio/
     - assets/audio/values1/
+    - assets/audio/arctic/
     - assets/audio/arctic/level1/
+    - assets/audio/arctic/level2/
     - assets/drafts/
     - assets/gifs/
     - assets/animations/

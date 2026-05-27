@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -9,29 +10,27 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
 
-enum _ScreenPhase { intro, miniGame }
+enum _ScreenPhase { intro, tracing }
 
 enum _IntroPhase {
   domaEntering,
   playingIntro,
-  playingSayOne,
+  playingSayZero,
   listening,
   celebrating,
   done,
 }
 
-enum _MiniGamePhase { tracing, tapping }
-
-class NumberOneIntroductionScreen extends StatefulWidget {
-  const NumberOneIntroductionScreen({super.key});
+class NumberZeroIntroductionScreen extends StatefulWidget {
+  const NumberZeroIntroductionScreen({super.key});
 
   @override
-  State<NumberOneIntroductionScreen> createState() =>
-      _NumberOneIntroductionScreenState();
+  State<NumberZeroIntroductionScreen> createState() =>
+      _NumberZeroIntroductionScreenState();
 }
 
-class _NumberOneIntroductionScreenState
-    extends State<NumberOneIntroductionScreen>
+class _NumberZeroIntroductionScreenState
+    extends State<NumberZeroIntroductionScreen>
     with TickerProviderStateMixin {
   // ── Top-level phase ────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -46,18 +45,11 @@ class _NumberOneIntroductionScreenState
   bool _isListening = false;
   bool _recognized = false;
 
-  // ── Mini-game state ────────────────────────────────────────────────────────
-  bool _objectTapped = false;
-  bool _showWinDialog = false;
-  late Offset _objectPos;
-  bool _wrongTapped = false;
-  late Offset _decoyPos;
-
-  // ── Tracing ────────────────────────────────────────────────────────
-  _MiniGamePhase _miniGamePhase = _MiniGamePhase.tracing;
+  // ── Tracing ────────────────────────────────────────────────────────────────
   final List<Offset> _tracedPoints = [];
   bool _tracingComplete = false;
   Offset? _canePosition;
+  bool _showWinDialog = false;
 
   // ── Shared animations ─────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
@@ -74,16 +66,10 @@ class _NumberOneIntroductionScreenState
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
   late Animation<double> _numberPop;
-  late AnimationController _bubbleCtrl;
-  late AnimationController _starsCtrl;
 
-  // ── Mini-game animations ──────────────────────────────────────────────────
+  // ── Tracing animations ────────────────────────────────────────────────────
   late AnimationController _mgTransitionCtrl;
   late Animation<double> _mgFade;
-  late AnimationController _objectWiggleCtrl;
-  late AnimationController _objectTapCtrl;
-  late Animation<double> _objectTapScale;
-  late AnimationController _winCtrl;
 
   // ─────────────────────────────────────────────────────────────────────────
   @override
@@ -95,14 +81,12 @@ class _NumberOneIntroductionScreenState
     _startIntroFlow();
   }
 
-  // ── Animation init ────────────────────────────────────────────────────────
   void _initAnimations() {
     _domaFloatCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2200),
     )..repeat(reverse: true);
 
-    // Intro
     _domaSlideCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -154,44 +138,13 @@ class _NumberOneIntroductionScreenState
       CurvedAnimation(parent: _numberDanceCtrl, curve: Curves.easeInOut),
     );
 
-    _bubbleCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-
-    _starsCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    );
-
-    // Mini-game
     _mgTransitionCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
     _mgFade = CurvedAnimation(parent: _mgTransitionCtrl, curve: Curves.easeIn);
-
-    _objectWiggleCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-
-    _objectTapCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-    _objectTapScale = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.4), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.4, end: 0.0), weight: 60),
-    ]).animate(CurvedAnimation(parent: _objectTapCtrl, curve: Curves.easeOut));
-
-    _winCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 550),
-    );
   }
 
-  // ── Speech init ───────────────────────────────────────────────────────────
   Future<void> _initSpeech() async {
     _speechAvailable = await _speech.initialize(
       onError: (e) => debugPrint('STT error: $e'),
@@ -204,14 +157,13 @@ class _NumberOneIntroductionScreenState
     _domaSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
-    _bubbleCtrl.forward();
-    await _playAudio('assets/audio/arctic/level1/one_intro.wav');
+    await _playAudio('assets/audio/arctic/level1/zero_intro.wav');
 
-    _setIntroPhase(_IntroPhase.playingSayOne);
+    _setIntroPhase(_IntroPhase.playingSayZero);
     _numberPopCtrl.forward();
     _numberDanceCtrl.repeat(reverse: true);
     await Future.delayed(const Duration(milliseconds: 1500));
-    await _playAudio('assets/audio/arctic/level1/say_one.wav');
+    await _playAudio('assets/audio/arctic/level1/say_zero.wav');
     await Future.delayed(const Duration(milliseconds: 300));
 
     _setIntroPhase(_IntroPhase.listening);
@@ -222,11 +174,12 @@ class _NumberOneIntroductionScreenState
   Future<void> _playAudio(String asset) async {
     try {
       final completer = Completer<void>();
-      _player.onPlayerComplete.listen((_) {
+      final sub = _player.onPlayerComplete.listen((_) {
         if (!completer.isCompleted) completer.complete();
       });
       await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
       await completer.future;
+      await sub.cancel();
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
       await Future.delayed(const Duration(seconds: 2));
@@ -245,7 +198,6 @@ class _NumberOneIntroductionScreenState
       return;
     }
 
-    // ← ADD THIS: restart automatically on timeout/done
     _speech.statusListener = (status) {
       if (!mounted) return;
       if (status == 'done' || status == 'notListening') {
@@ -259,14 +211,13 @@ class _NumberOneIntroductionScreenState
     _speech.listen(
       onResult: (result) {
         final words = result.recognizedWords.toLowerCase();
-        if (words.contains('one') || words.contains('won')) {
+        if (words.contains('zero') || words.contains('hero')) {
           _speech.stop();
           setState(() => _isListening = false);
           _onWordRecognized();
         }
       },
       onSoundLevelChange: (_) {},
-      // keeps session alive on some devices
       listenFor: const Duration(seconds: 30),
       pauseFor: const Duration(seconds: 15),
       localeId: 'en_US',
@@ -279,47 +230,50 @@ class _NumberOneIntroductionScreenState
 
     _setIntroPhase(_IntroPhase.celebrating);
     _celebrateCtrl.forward(from: 0);
-    _starsCtrl.forward(from: 0);
 
-    await _playAudio('assets/audio/arctic/level1/tara_laro.wav');
+    await _playAudio('assets/audio/arctic/level1/now_you_know_zero.wav');
     await Future.delayed(const Duration(milliseconds: 500));
 
-    // ── Transition to mini game ──────────────────────────────────────────
     _setIntroPhase(_IntroPhase.done);
     _mgTransitionCtrl.forward();
-    _randomiseObjectPosition();
-    setState(() => _screenPhase = _ScreenPhase.miniGame);
-    await _playAudio('assets/audio/arctic/level1/write_one.wav');
+    setState(() => _screenPhase = _ScreenPhase.tracing);
+    await _playAudio('assets/audio/arctic/level1/write_zero.wav');
   }
 
-  // ── Mini-game logic ───────────────────────────────────────────────────────
-  void _randomiseObjectPosition() {
-    final rng = Random();
+  // ── Tracing logic ─────────────────────────────────────────────────────────
+  void _checkTracingComplete(double w, double h) {
+    final validPoints = _tracedPoints
+        .where((p) => p != const Offset(-1, -1))
+        .toList();
 
-    final snowmanOnTop = rng.nextBool();
+    if (validPoints.length < 40) return;
 
-    _objectPos = Offset(
-      0.55 + rng.nextDouble() * 0.35,
-      snowmanOnTop
-          ? 0.20 + rng.nextDouble() * 0.15
-          : 0.55 + rng.nextDouble() * 0.15,
-    );
-    _decoyPos = Offset(
-      0.55 + rng.nextDouble() * 0.35,
-      snowmanOnTop
-          ? 0.55 + rng.nextDouble() * 0.15
-          : 0.20 + rng.nextDouble() * 0.15,
-    );
+    // Zero is a closed oval — check it covers both vertical and horizontal range
+    final ys = validPoints.map((p) => p.dy).toList();
+    final xs = validPoints.map((p) => p.dx).toList();
+    final traceH = h * 0.55;
+    final traceW = traceH * 0.5; // matches traceW = numberSize * 0.5
+
+    final verticalCoverage = (ys.reduce(max) - ys.reduce(min)) / traceH;
+    final horizontalCoverage = (xs.reduce(max) - xs.reduce(min)) / traceW;
+
+    if (verticalCoverage < 0.50) return;
+    if (horizontalCoverage < 0.40) return;
+
+    // Must have points in both top and bottom halves (closed loop)
+    final topPoints = validPoints.where((p) => p.dy < traceH * 0.5).length;
+    final bottomPoints = validPoints.where((p) => p.dy >= traceH * 0.5).length;
+    if (topPoints < 3 || bottomPoints < 3) return;
+
+    _onTracingAccepted();
   }
 
-  Future<void> _onObjectTapped() async {
-    if (_objectTapped) return;
-    setState(() => _objectTapped = true);
-    await _objectTapCtrl.forward(from: 0);
-    await Future.delayed(const Duration(milliseconds: 200));
-    setState(() => _showWinDialog = true);
-    _winCtrl.forward(from: 0);
-    _starsCtrl.forward(from: 0);
+  Future<void> _onTracingAccepted() async {
+    if (_tracingComplete) return;
+    setState(() => _tracingComplete = true);
+    await _playAudio('assets/audio/arctic/mahusay.wav');
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted) setState(() => _showWinDialog = true);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -333,13 +287,8 @@ class _NumberOneIntroductionScreenState
       _celebrateCtrl,
       _micPulseCtrl,
       _numberPopCtrl,
-      _bubbleCtrl,
-      _starsCtrl,
-      _mgTransitionCtrl,
-      _objectWiggleCtrl,
-      _objectTapCtrl,
-      _winCtrl,
       _numberDanceCtrl,
+      _mgTransitionCtrl,
     ]) {
       c.dispose();
     }
@@ -364,13 +313,14 @@ class _NumberOneIntroductionScreenState
               children: [
                 Positioned(top: 8, left: 12, child: ArcticBackButton()),
                 if (_screenPhase == _ScreenPhase.intro) _buildIntroContent(),
-                if (_screenPhase == _ScreenPhase.miniGame)
-                  FadeTransition(opacity: _mgFade, child: _buildMiniGame()),
+                if (_screenPhase == _ScreenPhase.tracing)
+                  FadeTransition(
+                    opacity: _mgFade,
+                    child: _buildTracingScreen(),
+                  ),
               ],
             ),
           ),
-
-          // ← Win dialog OUTSIDE SafeArea, directly on root Stack
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -387,7 +337,6 @@ class _NumberOneIntroductionScreenState
         children: [
           Row(
             children: [
-              // LEFT SIDE — Penguin
               Expanded(
                 child: Center(
                   child: SizedBox(
@@ -396,8 +345,6 @@ class _NumberOneIntroductionScreenState
                   ),
                 ),
               ),
-
-              // RIGHT SIDE — Number
               Expanded(
                 child: Center(
                   child: SizedBox(
@@ -408,8 +355,6 @@ class _NumberOneIntroductionScreenState
               ),
             ],
           ),
-
-          // Listening prompt
           if (_introPhase == _IntroPhase.listening)
             Align(
               alignment: Alignment.bottomCenter,
@@ -433,7 +378,6 @@ class _NumberOneIntroductionScreenState
         );
 
         return ClipRect(
-          // clips the lower body
           child: Align(
             alignment: Alignment.bottomLeft,
             child: SlideTransition(
@@ -499,19 +443,19 @@ class _NumberOneIntroductionScreenState
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.graphic_eq_rounded, color: Colors.white, size: 34),
-
+              const Icon(
+                Icons.graphic_eq_rounded,
+                color: Colors.white,
+                size: 34,
+              ),
               const SizedBox(width: 10),
-
               Icon(
                 _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
                 color: Colors.white,
                 size: 30,
               ),
-
               const SizedBox(width: 10),
-
-              Icon(
+              const Icon(
                 Icons.multitrack_audio_rounded,
                 color: Colors.white,
                 size: 34,
@@ -540,7 +484,7 @@ class _NumberOneIntroductionScreenState
                     angle: _numberDance.value,
                     child: ScaleTransition(scale: _numberPop, child: child),
                   ),
-                  child: _NumberCard(number: 1, size: cardSize),
+                  child: _NumberCard(number: 0, size: cardSize),
                 )
               : const SizedBox.shrink(),
         );
@@ -549,225 +493,16 @@ class _NumberOneIntroductionScreenState
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // MINI GAME
+  // TRACING SCREEN
   // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildMiniGame() {
+  Widget _buildTracingScreen() {
     return Positioned.fill(
       top: 50,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
           final h = constraints.maxHeight;
-          final objSize = (h * 0.28).clamp(72.0, 120.0);
-
-          return Stack(
-            children: [
-              if (_miniGamePhase == _MiniGamePhase.tracing)
-                _buildTracingLayer(w, h)
-              else ...[
-                // Instruction banner — anchored top center
-                Positioned(
-                  top: 0,
-                  left: w * 0.35,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      margin: const EdgeInsets.only(top: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: ArcticColorTheme.pictonblue.withValues(
-                          alpha: 0.8,
-                        ),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white, width: 3),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('👆', style: TextStyle(fontSize: 22)),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Tap ONE Snowman!',
-                            style: TextStyle(
-                              fontFamily: ArcticAppTextStyles.fredoka,
-                              fontSize: (h * 0.09).clamp(16.0, 26.0),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: const [
-                                Shadow(
-                                  color: Color(0x55003366),
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Number card — left side
-                Positioned(
-                  left: w * 0.08,
-                  top: h * 0.5 - (h * 0.30) / 2,
-                  child: _NumberCard(number: 1, size: h * 0.3),
-                ),
-
-                // ── Snowman (correct) ──
-                if (!_objectTapped)
-                  Positioned(
-                    left: (_objectPos.dx * w - objSize / 2).clamp(
-                      w * 0.55,
-                      w - objSize,
-                    ),
-                    top: (_objectPos.dy * h - objSize / 2).clamp(
-                      h * 0.25,
-                      h - objSize,
-                    ),
-                    child: AnimatedBuilder(
-                      animation: _objectWiggleCtrl,
-                      builder: (_, child) => Transform.translate(
-                        offset: Offset(0, (_objectWiggleCtrl.value - 0.5) * 10),
-                        child: child,
-                      ),
-                      child: GestureDetector(
-                        onTap: _onObjectTapped,
-                        child: Container(
-                          width: objSize,
-                          height: objSize,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: ArcticColorTheme.pictonblue,
-                            boxShadow: [
-                              BoxShadow(
-                                color: ArcticColorTheme.pictonblue.withValues(
-                                  alpha: 0.5,
-                                ),
-                                blurRadius: 20,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                            border: Border.all(color: Colors.white, width: 3),
-                          ),
-                          child: Padding(
-                            padding: EdgeInsets.all(objSize * 0.12),
-                            child: Image.asset(
-                              'assets/images/objects/arctic/snowman.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Text(
-                                '⛄',
-                                style: TextStyle(fontSize: 40),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // Snowman tap burst
-                if (_objectTapped &&
-                    _objectTapCtrl.status != AnimationStatus.completed)
-                  Positioned(
-                    left: (_objectPos.dx * w - objSize / 2).clamp(
-                      w * 0.55,
-                      w - objSize,
-                    ),
-                    top: (_objectPos.dy * h - objSize / 2).clamp(
-                      h * 0.25,
-                      h - objSize,
-                    ),
-                    child: ScaleTransition(
-                      scale: _objectTapScale,
-                      child: Container(
-                        width: objSize,
-                        height: objSize,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.yellow.withValues(alpha: 0.7),
-                        ),
-                        child: const Center(
-                          child: Text('⭐', style: TextStyle(fontSize: 36)),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // ── Ice cream (decoy) ──
-                if (!_objectTapped)
-                  Positioned(
-                    left: (_decoyPos.dx * w - objSize / 2).clamp(
-                      w * 0.55,
-                      w - objSize,
-                    ),
-                    top: (_decoyPos.dy * h - objSize / 2).clamp(
-                      h * 0.25,
-                      h - objSize,
-                    ),
-                    child: AnimatedBuilder(
-                      animation: _objectWiggleCtrl,
-                      builder: (_, child) => Transform.translate(
-                        offset: Offset(
-                          0,
-                          (_objectWiggleCtrl.value - 0.5) * -10,
-                        ),
-                        child: child,
-                      ),
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() => _wrongTapped = true);
-                          Future.delayed(
-                            const Duration(milliseconds: 1000),
-                            () {
-                              if (mounted) setState(() => _wrongTapped = false);
-                            },
-                          );
-                        },
-                        child: Container(
-                          width: objSize,
-                          height: objSize,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: ArcticColorTheme.pictonblue.withValues(
-                              alpha: 0.85,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ArcticColorTheme.pictonblue.withValues(
-                                  alpha: 0.4,
-                                ),
-                                blurRadius: 20,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                            border: Border.all(
-                              color: _wrongTapped ? Colors.red : Colors.white,
-                              width: _wrongTapped ? 4 : 3,
-                            ),
-                          ),
-                          child: Padding(
-                            padding: EdgeInsets.all(objSize * 0.12),
-                            child: Image.asset(
-                              'assets/images/objects/arctic/icecream.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Text(
-                                '🍦',
-                                style: TextStyle(fontSize: 40),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ],
-          );
+          return _buildTracingLayer(w, h);
         },
       ),
     );
@@ -775,7 +510,7 @@ class _NumberOneIntroductionScreenState
 
   Widget _buildTracingLayer(double w, double h) {
     final caneSize = h * 0.14;
-    final numberSize = h * 0.75;
+    final numberSize = h * 0.55;
 
     final centerX = w / 2;
     final centerY = h / 2;
@@ -786,6 +521,7 @@ class _NumberOneIntroductionScreenState
 
     return Stack(
       children: [
+        // Progress bar
         if (_tracedPoints.where((p) => p != const Offset(-1, -1)).length > 5)
           Positioned(
             bottom: h * 0.06,
@@ -812,13 +548,12 @@ class _NumberOneIntroductionScreenState
                 ),
                 child: Stack(
                   children: [
-                    // Filled portion
                     FractionallySizedBox(
                       widthFactor:
                           (_tracedPoints
                                       .where((p) => p != const Offset(-1, -1))
                                       .length /
-                                  50)
+                                  40)
                               .clamp(0.0, 1.0),
                       child: Container(
                         decoration: BoxDecoration(
@@ -845,7 +580,6 @@ class _NumberOneIntroductionScreenState
                         ),
                       ),
                     ),
-                    // Shine overlay
                     Positioned(
                       top: 2,
                       left: 6,
@@ -884,7 +618,7 @@ class _NumberOneIntroductionScreenState
                   const Text('✏️', style: TextStyle(fontSize: 22)),
                   const SizedBox(width: 8),
                   Text(
-                    'Trace the number 1!',
+                    'Trace the number 0!',
                     style: TextStyle(
                       fontFamily: ArcticAppTextStyles.fredoka,
                       fontSize: (h * 0.09).clamp(14.0, 22.0),
@@ -898,7 +632,19 @@ class _NumberOneIntroductionScreenState
           ),
         ),
 
-        // Gesture layer on top of the "1"
+        // Tracing image
+        Positioned(
+          left: traceLeft,
+          top: traceTop,
+          width: traceW,
+          height: traceH,
+          child: Image.asset(
+            'assets/fonts/game_numbers/0_tracing.png',
+            fit: BoxFit.contain,
+          ),
+        ),
+
+        // Gesture + user trace layer
         Positioned(
           left: traceLeft,
           top: traceTop,
@@ -922,7 +668,7 @@ class _NumberOneIntroductionScreenState
             },
             child: CustomPaint(
               size: Size(traceW, traceH),
-              painter: _NumberTracePainter(
+              painter: _UserTracePainter(
                 tracedPoints: _tracedPoints,
                 isComplete: _tracingComplete,
               ),
@@ -930,7 +676,7 @@ class _NumberOneIntroductionScreenState
           ),
         ),
 
-        // Cane follows finger while dragging
+        // Cane follows finger
         if (_canePosition != null)
           Positioned(
             left: _canePosition!.dx - caneSize * 0.15,
@@ -944,7 +690,7 @@ class _NumberOneIntroductionScreenState
             ),
           ),
 
-        // Cane resting position when not dragging
+        // Cane resting position
         if (_canePosition == null && !_tracingComplete)
           Positioned(
             bottom: h * 0.08,
@@ -961,51 +707,6 @@ class _NumberOneIntroductionScreenState
     );
   }
 
-  void _checkTracingComplete(double w, double h) {
-    final validPoints = _tracedPoints
-        .where((p) => p != const Offset(-1, -1))
-        .toList();
-
-    if (validPoints.length < 15) return;
-
-    final ys = validPoints.map((p) => p.dy).toList();
-    final traceH = h * 0.75;
-
-    final minY = ys.reduce(min);
-    final maxY = ys.reduce(max);
-
-    // Must cover at least 55% vertical range (was 70%)
-    final verticalCoverage = (maxY - minY) / traceH;
-    if (verticalCoverage < 0.55) return;
-
-    // Must start in top 40% (was 25%) — accounts for diagonal top stroke
-    final firstChunk = validPoints.take(validPoints.length ~/ 4).toList();
-    final avgYStart =
-        firstChunk.map((p) => p.dy).reduce((a, b) => a + b) / firstChunk.length;
-    if (avgYStart > traceH * 0.40) return;
-
-    // Must end in bottom 40% (was 80%) — base horizontal stroke ends mid-bottom
-    final lastChunk = validPoints.skip((validPoints.length * 3) ~/ 4).toList();
-    final avgYEnd =
-        lastChunk.map((p) => p.dy).reduce((a, b) => a + b) / lastChunk.length;
-    if (avgYEnd < traceH * 0.55) return;
-
-    // Overall downward movement
-    if (avgYEnd <= avgYStart + traceH * 0.2) return;
-
-    _onTracingAccepted();
-  }
-
-  Future<void> _onTracingAccepted() async {
-    if (_tracingComplete) return;
-    setState(() => _tracingComplete = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) {
-      setState(() => _miniGamePhase = _MiniGamePhase.tapping);
-      _playAudio('assets/audio/arctic/level1/click_one_snowman.wav');
-    }
-  }
-
   // ══════════════════════════════════════════════════════════════════════════
   // WIN DIALOG
   // ══════════════════════════════════════════════════════════════════════════
@@ -1014,22 +715,23 @@ class _NumberOneIntroductionScreenState
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: @Tin push to your next level screen
-        // Navigator.of(context).pushReplacement(
-        //   MaterialPageRoute(builder: (_) => const NextLevelScreen()),
-        // );
-      },
-      onRestart: () {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => const NumberOneIntroductionScreen(),
           ),
         );
       },
+      onRestart: () {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const NumberZeroIntroductionScreen(),
+          ),
+        );
+      },
       onBack: () {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-              (route) => route.isFirst,
+          (route) => route.isFirst,
         );
       },
     );
@@ -1053,11 +755,11 @@ class _NumberCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Image.asset(
-            'assets/fonts/game_numbers/1.png',
+            'assets/fonts/game_numbers/0.png',
             width: size,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Text(
-              '1',
+              '0',
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: size * 0.75,
@@ -1066,11 +768,9 @@ class _NumberCard extends StatelessWidget {
               ),
             ),
           ),
-
           SizedBox(height: size * 0.05),
-
           Text(
-            'ONE',
+            'ZERO',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
               fontSize: size * 0.26,
@@ -1092,222 +792,44 @@ class _NumberCard extends StatelessWidget {
   }
 }
 
-class _NumberTracePainter extends CustomPainter {
+// ─────────────────────────────────────────────────────────────────────────────
+// User Trace Painter
+// ─────────────────────────────────────────────────────────────────────────────
+class _UserTracePainter extends CustomPainter {
   final List<Offset> tracedPoints;
   final bool isComplete;
 
-  _NumberTracePainter({required this.tracedPoints, required this.isComplete});
-
-  // The "1" is defined as 3 strokes in normalized 0..1 coords:
-  // Stroke A: diagonal flag (top-left → top of stem)
-  // Stroke B: vertical stem (top → bottom)
-  // Stroke C: base foot (bottom-left → bottom-right)
-  static const _guideStrokes = [
-    [Offset(0.10, 0.35), Offset(0.48, 0.22)], // A: flag — start further left
-    [Offset(0.48, 0.22), Offset(0.48, 0.88)], // B: stem — unchanged
-    [Offset(0.20, 0.88), Offset(0.76, 0.88)], // C: base — centered under stem
-  ];
-
-  static const _dotLabels = ['1', '2', '3'];
-  static const _dotPositions = [
-    Offset(0.10, 0.35), // dot 1: further left so it doesn't overlap dot 2
-    Offset(0.48, 0.22), // dot 2: top of stem
-    Offset(0.20, 0.88), // dot 3: start of base
-  ];
+  _UserTracePainter({required this.tracedPoints, required this.isComplete});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
+    if (tracedPoints.length < 2) return;
 
-    // ── Draw guide strokes (dashed) ──
-    final guidePaint = Paint()
-      ..color = const Color(0xFF1565C0).withValues(alpha: 0.85)
-      ..strokeWidth = w * 0.10
+    final tracePaint = Paint()
+      ..color = isComplete ? Colors.greenAccent : Colors.yellowAccent
+      ..strokeWidth = size.width * 0.10
       ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
-    for (final stroke in _guideStrokes) {
-      final p1 = Offset(stroke[0].dx * w, stroke[0].dy * h);
-      final p2 = Offset(stroke[1].dx * w, stroke[1].dy * h);
-      _drawDashed(canvas, p1, p2, guidePaint, dashLen: 10, gapLen: 8);
-    }
-
-    // ── Draw numbered dots ──
-    for (var i = 0; i < _dotPositions.length; i++) {
-      final pos = Offset(_dotPositions[i].dx * w, _dotPositions[i].dy * h);
-      final dotR = w * 0.12;
-
-      // Orange circle
-      canvas.drawCircle(pos, dotR, Paint()..color = const Color(0xFFFF6B35));
-      // White border
-      canvas.drawCircle(
-        pos,
-        dotR,
-        Paint()
-          ..color = Colors.white
-          ..strokeWidth = 2
-          ..style = PaintingStyle.stroke,
-      );
-
-      // Number label
-      final tp = TextPainter(
-        text: TextSpan(
-          text: _dotLabels[i],
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: dotR * 1.1,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
-    }
-
-    // ── Draw arrow hints ──
-    final arrowPaint = Paint()
-      ..color = const Color(0xFFFF6B35)
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    _drawArrow(
-      canvas,
-      Offset(0.07 * w, 0.38 * h),
-      Offset(0.42 * w, 0.26 * h),
-      arrowPaint,
-    ); // flag: 1→2 (up-right)
-    _drawArrow(
-      canvas,
-      Offset(0.48 * w, 0.42 * h),
-      Offset(0.48 * w, 0.65 * h),
-      arrowPaint,
-    ); // stem: midpoint downward, below dot 2
-    _drawArrow(
-      canvas,
-      Offset(0.22 * w, 0.88 * h),
-      Offset(0.50 * w, 0.88 * h),
-      arrowPaint,
-    ); // base: left→right from dot 3
-
-    // ── Draw user trace ──
-    if (tracedPoints.length >= 2) {
-      final tracePaint = Paint()
-        ..color = isComplete ? Colors.greenAccent : Colors.yellowAccent
-        ..strokeWidth = w * 0.10
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..style = PaintingStyle.stroke;
-
-      final path = Path();
-      bool newStroke = true;
-      for (final p in tracedPoints) {
-        if (p == const Offset(-1, -1)) {
-          newStroke = true;
-        } else if (newStroke) {
-          path.moveTo(p.dx, p.dy);
-          newStroke = false;
-        } else {
-          path.lineTo(p.dx, p.dy);
-        }
+    final path = Path();
+    bool newStroke = true;
+    for (final p in tracedPoints) {
+      if (p == const Offset(-1, -1)) {
+        newStroke = true;
+      } else if (newStroke) {
+        path.moveTo(p.dx, p.dy);
+        newStroke = false;
+      } else {
+        path.lineTo(p.dx, p.dy);
       }
-      canvas.drawPath(path, tracePaint);
     }
-  }
-
-  void _drawDashed(
-    Canvas canvas,
-    Offset p1,
-    Offset p2,
-    Paint paint, {
-    double dashLen = 10,
-    double gapLen = 6,
-  }) {
-    final total = (p2 - p1).distance;
-    final dir = (p2 - p1) / total;
-    double walked = 0;
-    bool drawing = true;
-    while (walked < total) {
-      final segLen = drawing ? dashLen : gapLen;
-      final end = (walked + segLen).clamp(0, total);
-      if (drawing) {
-        canvas.drawLine(p1 + dir * walked, p1 + dir * end.toDouble(), paint);
-      }
-      walked += segLen;
-      drawing = !drawing;
-    }
-  }
-
-  void _drawArrow(Canvas canvas, Offset from, Offset to, Paint paint) {
-    canvas.drawLine(from, to, paint);
-    // Arrowhead
-    final dir = (to - from) / (to - from).distance;
-    final perp = Offset(-dir.dy, dir.dx);
-    const headLen = 7.0;
-    canvas.drawLine(to, to - dir * headLen + perp * headLen * 0.5, paint);
-    canvas.drawLine(to, to - dir * headLen - perp * headLen * 0.5, paint);
+    canvas.drawPath(path, tracePaint);
   }
 
   @override
-  bool shouldRepaint(_NumberTracePainter old) =>
+  bool shouldRepaint(_UserTracePainter old) =>
       old.tracedPoints != tracedPoints || old.isComplete != isComplete;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Audio waveform
-// ─────────────────────────────────────────────────────────────────────────────
-class _AudioWaveform extends StatefulWidget {
-  const _AudioWaveform();
-
-  @override
-  State<_AudioWaveform> createState() => _AudioWaveformState();
-}
-
-class _AudioWaveformState extends State<_AudioWaveform>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) {
-        const heights = [12.0, 20.0, 28.0, 20.0, 12.0];
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(5, (i) {
-            final h =
-                heights[i] * (0.5 + 0.5 * sin((_ctrl.value + i * 0.2) * pi));
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              width: 5,
-              height: h.clamp(4.0, 28.0),
-              decoration: BoxDecoration(
-                color: ArcticColorTheme.pictonblue,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            );
-          }),
-        );
-      },
-    );
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
