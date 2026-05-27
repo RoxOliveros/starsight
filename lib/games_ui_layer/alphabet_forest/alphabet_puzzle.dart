@@ -123,6 +123,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
   void _showSuccessDialog() {
     showDialog(
       context: context,
+      useSafeArea: false,
       barrierColor: Colors.transparent,
       barrierDismissible: false,
       builder: (_) => Material(
