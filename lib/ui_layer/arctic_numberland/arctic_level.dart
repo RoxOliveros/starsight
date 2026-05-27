@@ -21,6 +21,8 @@ class ArcticLevelScreen extends StatefulWidget {
 }
 
 class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
+  int _page = 0;
+
   @override
   void initState() {
     super.initState();
@@ -75,22 +77,18 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _LevelTile(level: 1),
-                            _LevelTile(level: 2),
-                            _LevelTile(level: 3),
-                            _LevelTile(level: 4),
-                          ],
+                          children: List.generate(4, (i) {
+                            final level = _page * 8 + i + 1;
+                            return _LevelTile(level: level);
+                          }),
                         ),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _LevelTile(level: 5),
-                            _LevelTile(level: 6),
-                            _LevelTile(level: 7),
-                            _LevelTile(level: 8),
-                          ],
+                          children: List.generate(4, (i) {
+                            final level = _page * 8 + i + 5;
+                            return _LevelTile(level: level);
+                          }),
                         ),
                       ],
                     ),
@@ -165,9 +163,17 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                     left: -35,
                     top: 0,
                     bottom: 0,
-                    child: Image.asset(
-                      'assets/images/arrows/bttn_arctic_arrow_left.png',
-                      width: 70,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_page > 0) setState(() => _page--);
+                      },
+                      child: Opacity(
+                        opacity: _page > 0 ? 1.0 : 0.3,
+                        child: Image.asset(
+                          'assets/images/arrows/bttn_arctic_arrow_left.png',
+                          width: 70,
+                        ),
+                      ),
                     ),
                   ),
                   // Right arrow
@@ -175,9 +181,17 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                     right: -35,
                     top: 0,
                     bottom: 0,
-                    child: Image.asset(
-                      'assets/images/arrows/bttn_arctic_arrow_right.png',
-                      width: 70,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_page < 1) setState(() => _page++);
+                      },
+                      child: Opacity(
+                        opacity: _page < 1 ? 1.0 : 0.3,
+                        child: Image.asset(
+                          'assets/images/arrows/bttn_arctic_arrow_right.png',
+                          width: 70,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -278,6 +292,10 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
+          default:
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Coming soon!')),
+            );
         }
       },
       child: Stack(
