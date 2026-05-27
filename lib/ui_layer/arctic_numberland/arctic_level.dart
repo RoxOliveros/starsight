@@ -4,10 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/arctic_numberland/lvl4_number0123_reintroduction.dart';
-import '../../games_ui_layer/arctic_numberland/arctic2_number_recognition.dart';
-import '../../games_ui_layer/arctic_numberland/arctic3_number_counting.dart';
-import '../../games_ui_layer/arctic_numberland/arctic4_number_matching.dart';
-import '../../games_ui_layer/arctic_numberland/arctic5_number_counttap.dart';
+import '../../games_ui_layer/arctic_numberland/lvl5_number012_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/lvl1_zero_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl3_two_introduction.dart';
@@ -246,42 +243,12 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
-          case 6:
+          case 5:
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const Number012ReintroductionScreen(),
+                builder: (context) => const Number012RecognitionScreen(),
               ),
-            );
-            break;
-          case 7:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NumberRecognitionScreen(),
-              ),
-            );
-            break;
-          case 8:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const CountingObjectsScreen(),
-              ),
-            );
-            break;
-          case 9:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NumberMatchingScreen(),
-              ),
-            );
-            break;
-          case 10:
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const TapCountScreen()),
             );
             break;
         }
