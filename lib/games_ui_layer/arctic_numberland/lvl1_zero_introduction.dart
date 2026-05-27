@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:StarSight/games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -9,6 +8,7 @@ import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
+import 'number_tracing_widget.dart';
 
 enum _ScreenPhase { intro, tracing }
 
@@ -46,9 +46,6 @@ class _NumberZeroIntroductionScreenState
   bool _recognized = false;
 
   // ── Tracing ────────────────────────────────────────────────────────────────
-  final List<Offset> _tracedPoints = [];
-  bool _tracingComplete = false;
-  Offset? _canePosition;
   bool _showWinDialog = false;
 
   // ── Shared animations ─────────────────────────────────────────────────────
@@ -238,42 +235,6 @@ class _NumberZeroIntroductionScreenState
     _mgTransitionCtrl.forward();
     setState(() => _screenPhase = _ScreenPhase.tracing);
     await _playAudio('assets/audio/arctic/level1/write_zero.wav');
-  }
-
-  // ── Tracing logic ─────────────────────────────────────────────────────────
-  void _checkTracingComplete(double w, double h) {
-    final validPoints = _tracedPoints
-        .where((p) => p != const Offset(-1, -1))
-        .toList();
-
-    if (validPoints.length < 40) return;
-
-    // Zero is a closed oval — check it covers both vertical and horizontal range
-    final ys = validPoints.map((p) => p.dy).toList();
-    final xs = validPoints.map((p) => p.dx).toList();
-    final traceH = h * 0.55;
-    final traceW = traceH * 0.5; // matches traceW = numberSize * 0.5
-
-    final verticalCoverage = (ys.reduce(max) - ys.reduce(min)) / traceH;
-    final horizontalCoverage = (xs.reduce(max) - xs.reduce(min)) / traceW;
-
-    if (verticalCoverage < 0.50) return;
-    if (horizontalCoverage < 0.40) return;
-
-    // Must have points in both top and bottom halves (closed loop)
-    final topPoints = validPoints.where((p) => p.dy < traceH * 0.5).length;
-    final bottomPoints = validPoints.where((p) => p.dy >= traceH * 0.5).length;
-    if (topPoints < 3 || bottomPoints < 3) return;
-
-    _onTracingAccepted();
-  }
-
-  Future<void> _onTracingAccepted() async {
-    if (_tracingComplete) return;
-    setState(() => _tracingComplete = true);
-    await _playAudio('assets/audio/arctic/mahusay.wav');
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) setState(() => _showWinDialog = true);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -500,210 +461,14 @@ class _NumberZeroIntroductionScreenState
       top: 50,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final w = constraints.maxWidth;
-          final h = constraints.maxHeight;
-          return _buildTracingLayer(w, h);
+          return NumberTracingWidget(
+            number: 0,
+            player: _player,
+            successAudio: 'assets/audio/arctic/mahusay.wav',
+            onComplete: () => setState(() => _showWinDialog = true),
+          );
         },
       ),
-    );
-  }
-
-  Widget _buildTracingLayer(double w, double h) {
-    final caneSize = h * 0.14;
-    final numberSize = h * 0.55;
-
-    final centerX = w / 2;
-    final centerY = h / 2;
-    final traceW = numberSize * 0.5;
-    final traceH = numberSize;
-    final traceLeft = centerX - traceW / 2;
-    final traceTop = centerY - traceH / 2;
-
-    return Stack(
-      children: [
-        // Progress bar
-        if (_tracedPoints.where((p) => p != const Offset(-1, -1)).length > 5)
-          Positioned(
-            bottom: h * 0.06,
-            left: w * 0.15,
-            right: w * 0.15,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(50),
-              child: Container(
-                height: 18,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(50),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    FractionallySizedBox(
-                      widthFactor:
-                          (_tracedPoints
-                                      .where((p) => p != const Offset(-1, -1))
-                                      .length /
-                                  40)
-                              .clamp(0.0, 1.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(50),
-                          gradient: LinearGradient(
-                            colors: _tracingComplete
-                                ? [Colors.greenAccent, Colors.green]
-                                : [
-                                    ArcticColorTheme.pictonblue,
-                                    ArcticColorTheme.slateblue,
-                                  ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  (_tracingComplete
-                                          ? Colors.greenAccent
-                                          : ArcticColorTheme.pictonblue)
-                                      .withValues(alpha: 0.6),
-                              blurRadius: 10,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 2,
-                      left: 6,
-                      right: 6,
-                      child: Container(
-                        height: 5,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(50),
-                          color: Colors.white.withValues(alpha: 0.35),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-        // Instruction banner
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              decoration: BoxDecoration(
-                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white, width: 3),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('✏️', style: TextStyle(fontSize: 22)),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Trace the number 0!',
-                    style: TextStyle(
-                      fontFamily: ArcticAppTextStyles.fredoka,
-                      fontSize: (h * 0.09).clamp(14.0, 22.0),
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // Tracing image
-        Positioned(
-          left: traceLeft,
-          top: traceTop,
-          width: traceW,
-          height: traceH,
-          child: Image.asset(
-            'assets/fonts/game_numbers/0_tracing.png',
-            fit: BoxFit.contain,
-          ),
-        ),
-
-        // Gesture + user trace layer
-        Positioned(
-          left: traceLeft,
-          top: traceTop,
-          width: traceW,
-          height: traceH,
-          child: GestureDetector(
-            onPanUpdate: (details) {
-              setState(() {
-                _tracedPoints.add(details.localPosition);
-                _canePosition = Offset(
-                  traceLeft + details.localPosition.dx,
-                  traceTop + details.localPosition.dy,
-                );
-              });
-              _checkTracingComplete(w, h);
-            },
-            onPanEnd: (_) {
-              setState(() {
-                _tracedPoints.add(const Offset(-1, -1));
-              });
-            },
-            child: CustomPaint(
-              size: Size(traceW, traceH),
-              painter: _UserTracePainter(
-                tracedPoints: _tracedPoints,
-                isComplete: _tracingComplete,
-              ),
-            ),
-          ),
-        ),
-
-        // Cane follows finger
-        if (_canePosition != null)
-          Positioned(
-            left: _canePosition!.dx - caneSize * 0.15,
-            top: _canePosition!.dy - caneSize * 0.92,
-            child: IgnorePointer(
-              child: Image.asset(
-                'assets/images/objects/arctic/sugarcane.png',
-                width: caneSize,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-
-        // Cane resting position
-        if (_canePosition == null && !_tracingComplete)
-          Positioned(
-            bottom: h * 0.08,
-            left: w * 0.06,
-            child: IgnorePointer(
-              child: Image.asset(
-                'assets/images/objects/arctic/sugarcane.png',
-                width: caneSize,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-      ],
     );
   }
 
@@ -790,46 +555,6 @@ class _NumberCard extends StatelessWidget {
       ),
     );
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// User Trace Painter
-// ─────────────────────────────────────────────────────────────────────────────
-class _UserTracePainter extends CustomPainter {
-  final List<Offset> tracedPoints;
-  final bool isComplete;
-
-  _UserTracePainter({required this.tracedPoints, required this.isComplete});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (tracedPoints.length < 2) return;
-
-    final tracePaint = Paint()
-      ..color = isComplete ? Colors.greenAccent : Colors.yellowAccent
-      ..strokeWidth = size.width * 0.10
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
-    final path = Path();
-    bool newStroke = true;
-    for (final p in tracedPoints) {
-      if (p == const Offset(-1, -1)) {
-        newStroke = true;
-      } else if (newStroke) {
-        path.moveTo(p.dx, p.dy);
-        newStroke = false;
-      } else {
-        path.lineTo(p.dx, p.dy);
-      }
-    }
-    canvas.drawPath(path, tracePaint);
-  }
-
-  @override
-  bool shouldRepaint(_UserTracePainter old) =>
-      old.tracedPoints != tracedPoints || old.isComplete != isComplete;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

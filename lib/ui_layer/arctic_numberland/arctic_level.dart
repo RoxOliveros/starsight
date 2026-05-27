@@ -3,13 +3,14 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
-import '../../games_ui_layer/arctic_numberland/arctic1_number_introduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl4_number0123_reintroduction.dart';
 import '../../games_ui_layer/arctic_numberland/arctic2_number_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/arctic3_number_counting.dart';
 import '../../games_ui_layer/arctic_numberland/arctic4_number_matching.dart';
 import '../../games_ui_layer/arctic_numberland/arctic5_number_counttap.dart';
 import '../../games_ui_layer/arctic_numberland/lvl1_zero_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl3_two_introduction.dart';
 import 'arctic_theme.dart';
 
 class ArcticLevelScreen extends StatefulWidget {
@@ -229,11 +230,27 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
+          case 3:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NumberTwoIntroductionScreen(),
+              ),
+            );
+            break;
+          case 4:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number012ReintroductionScreen(),
+              ),
+            );
+            break;
           case 6:
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const NumberIntroductionScreen(),
+                builder: (context) => const Number012ReintroductionScreen(),
               ),
             );
             break;

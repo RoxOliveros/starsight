@@ -8,7 +8,6 @@ import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
-import 'lvl3_two_introduction.dart';
 import 'number_tracing_widget.dart';
 
 enum _ScreenPhase { intro, miniGame }
@@ -16,7 +15,7 @@ enum _ScreenPhase { intro, miniGame }
 enum _IntroPhase {
   domaEntering,
   playingIntro,
-  playingSayOne,
+  playingSayTwo,
   listening,
   celebrating,
   done,
@@ -24,16 +23,16 @@ enum _IntroPhase {
 
 enum _MiniGamePhase { tracing, tapping }
 
-class NumberOneIntroductionScreen extends StatefulWidget {
-  const NumberOneIntroductionScreen({super.key});
+class NumberTwoIntroductionScreen extends StatefulWidget {
+  const NumberTwoIntroductionScreen({super.key});
 
   @override
-  State<NumberOneIntroductionScreen> createState() =>
-      _NumberOneIntroductionScreenState();
+  State<NumberTwoIntroductionScreen> createState() =>
+      _NumberTwoIntroductionScreenState();
 }
 
-class _NumberOneIntroductionScreenState
-    extends State<NumberOneIntroductionScreen>
+class _NumberTwoIntroductionScreenState
+    extends State<NumberTwoIntroductionScreen>
     with TickerProviderStateMixin {
   // ── Top-level phase ────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -47,13 +46,21 @@ class _NumberOneIntroductionScreenState
   bool _speechAvailable = false;
   bool _isListening = false;
   bool _recognized = false;
+  Timer? _listenRestartTimer;
 
   // ── Mini-game state ────────────────────────────────────────────────────────
-  bool _objectTapped = false;
+  int _iceCreamsTapped = 0;
+  static const int _targetCount = 2;
   bool _showWinDialog = false;
   late Offset _objectPos;
+  late Offset _objectPos2;
   bool _wrongTapped = false;
   late Offset _decoyPos;
+  late String _decoyAsset;
+  late String _decoyEmoji;
+  Offset? _lastTappedPos;
+  bool _iceCream1Tapped = false;
+  bool _iceCream2Tapped = false;
 
   // ── Tracing ────────────────────────────────────────────────────────
   _MiniGamePhase _miniGamePhase = _MiniGamePhase.tracing;
@@ -185,13 +192,13 @@ class _NumberOneIntroductionScreenState
     _domaSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
-    await _playAudio('assets/audio/arctic/level2/one_intro.wav');
+    await _playAudio('assets/audio/arctic/level3/two_intro.wav');
 
-    _setIntroPhase(_IntroPhase.playingSayOne);
+    _setIntroPhase(_IntroPhase.playingSayTwo);
     _numberPopCtrl.forward();
     _numberDanceCtrl.repeat(reverse: true);
     await Future.delayed(const Duration(milliseconds: 1500));
-    await _playAudio('assets/audio/arctic/level2/say_one.wav');
+    await _playAudio('assets/audio/arctic/level3/say_two.wav');
     await Future.delayed(const Duration(milliseconds: 300));
 
     _setIntroPhase(_IntroPhase.listening);
@@ -226,31 +233,41 @@ class _NumberOneIntroductionScreenState
       return;
     }
 
-    // ← ADD THIS: restart automatically on timeout/done
+    if (!mounted || _introPhase != _IntroPhase.listening) return;
+
     _speech.statusListener = (status) {
       if (!mounted) return;
-      if (status == 'done' || status == 'notListening') {
-        if (_isListening && _introPhase == _IntroPhase.listening) {
-          Future.delayed(const Duration(milliseconds: 500), _startListening);
-        }
+      if ((status == 'done' || status == 'notListening') &&
+          _introPhase == _IntroPhase.listening &&
+          !_recognized) {
+        // Cancel any pending restart, schedule a new one
+        _listenRestartTimer?.cancel();
+        _listenRestartTimer = Timer(const Duration(milliseconds: 100), _startListening); // shorter gap
       }
     };
+
+    if (_speech.isListening) return; // already listening, don't double-start
 
     setState(() => _isListening = true);
     _speech.listen(
       onResult: (result) {
+        if (!result.finalResult) return; // only act on final results
         final words = result.recognizedWords.toLowerCase();
-        if (words.contains('one') || words.contains('won')) {
+        if (words.contains('two') ||
+            words.contains('too') ||
+            words.contains('tu') ||
+            words.contains('tow') ||
+            words.contains('to')) {
+          _listenRestartTimer?.cancel();
           _speech.stop();
           setState(() => _isListening = false);
           _onWordRecognized();
         }
       },
-      onSoundLevelChange: (_) {},
-      // keeps session alive on some devices
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 15),
+      listenFor: const Duration(seconds: 10),
+      pauseFor: const Duration(seconds: 4),
       localeId: 'en_US',
+      cancelOnError: false,
     );
   }
 
@@ -261,7 +278,7 @@ class _NumberOneIntroductionScreenState
     _setIntroPhase(_IntroPhase.celebrating);
     _celebrateCtrl.forward(from: 0);
 
-    await _playAudio('assets/audio/arctic/level2/tara_laro.wav');
+    await _playAudio('assets/audio/arctic/sobrang_galing.wav');
     await Future.delayed(const Duration(milliseconds: 500));
 
     // ── Transition to mini game ──────────────────────────────────────────
@@ -269,41 +286,53 @@ class _NumberOneIntroductionScreenState
     _mgTransitionCtrl.forward();
     _randomiseObjectPosition();
     setState(() => _screenPhase = _ScreenPhase.miniGame);
-    await _playAudio('assets/audio/arctic/level2/write_one.wav');
+    await _playAudio('assets/audio/arctic/level3/write_two.wav');
   }
 
   // ── Mini-game logic ───────────────────────────────────────────────────────
   void _randomiseObjectPosition() {
     final rng = Random();
 
-    final snowmanOnTop = rng.nextBool();
+    // Spread 3 objects vertically in the right half
+    final ySlots = [0.15, 0.45, 0.72]..shuffle(rng);
 
-    _objectPos = Offset(
-      0.55 + rng.nextDouble() * 0.35,
-      snowmanOnTop
-          ? 0.20 + rng.nextDouble() * 0.15
-          : 0.55 + rng.nextDouble() * 0.15,
-    );
-    _decoyPos = Offset(
-      0.55 + rng.nextDouble() * 0.35,
-      snowmanOnTop
-          ? 0.55 + rng.nextDouble() * 0.15
-          : 0.20 + rng.nextDouble() * 0.15,
-    );
+    _objectPos = Offset(0.58 + rng.nextDouble() * 0.30, ySlots[0]);   // ice cream 1
+    _objectPos2 = Offset(0.58 + rng.nextDouble() * 0.30, ySlots[1]);  // ice cream 2
+    _decoyPos   = Offset(0.58 + rng.nextDouble() * 0.30, ySlots[2]);  // decoy (sled or snowy_tree)
+
+
+    final useSled = Random().nextBool();
+    _decoyAsset = useSled
+        ? 'assets/images/objects/arctic/sled.png'
+        : 'assets/images/objects/arctic/snowy_tree.png';
+    _decoyEmoji = useSled ? '🛷' : '🌲';
   }
 
-  Future<void> _onObjectTapped() async {
-    if (_objectTapped) return;
-    setState(() => _objectTapped = true);
-    await _objectTapCtrl.forward(from: 0);
-    await Future.delayed(const Duration(milliseconds: 200));
-    setState(() => _showWinDialog = true);
+  Future<void> _onObjectTapped(Offset tappedPos, {required bool isFirst}) async {
+    if (_iceCreamsTapped >= _targetCount) return;
+    if (isFirst && _iceCream1Tapped) return;
+    if (!isFirst && _iceCream2Tapped) return;
+    setState(() {
+      _iceCreamsTapped++;
+      _lastTappedPos = tappedPos;
+      if (isFirst) {
+        _iceCream1Tapped = true;
+      } else {
+        _iceCream2Tapped = true;
+      }
+    });
+    _objectTapCtrl.forward(from: 0);
+    if (_iceCreamsTapped >= _targetCount) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      setState(() => _showWinDialog = true);
+    }
   }
 
   @override
   void dispose() {
     _player.dispose();
     _speech.stop();
+    _listenRestartTimer?.cancel();
     for (final c in [
       _domaFloatCtrl,
       _domaSlideCtrl,
@@ -347,6 +376,23 @@ class _NumberOneIntroductionScreenState
           // ← Win dialog OUTSIDE SafeArea, directly on root Stack
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
+      ),
+    );
+  }
+
+  Widget _buildObjectCircle(double size, String asset, String emoji, bool isWrong) {
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: ArcticColorTheme.pictonblue.withValues(alpha: isWrong ? 1.0 : 0.85),
+        border: Border.all(color: isWrong ? Colors.red : Colors.white, width: isWrong ? 4 : 3),
+        boxShadow: [BoxShadow(color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 6))],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(size * 0.12),
+        child: Image.asset(asset, fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Text(emoji, style: const TextStyle(fontSize: 40))),
       ),
     );
   }
@@ -514,7 +560,7 @@ class _NumberOneIntroductionScreenState
                     angle: _numberDance.value,
                     child: ScaleTransition(scale: _numberPop, child: child),
                   ),
-                  child: _NumberCard(number: 1, size: cardSize),
+                  child: _NumberCard(number: 2, size: cardSize),
                 )
               : const SizedBox.shrink(),
         );
@@ -538,12 +584,12 @@ class _NumberOneIntroductionScreenState
             children: [
               if (_miniGamePhase == _MiniGamePhase.tracing)
                 NumberTracingWidget(
-                  number: 1,
+                  number: 2,
                   player: _player,
                   successAudio: 'assets/audio/arctic/mahusay.wav',
                   onComplete: () {
                     setState(() => _miniGamePhase = _MiniGamePhase.tapping);
-                    _playAudio('assets/audio/arctic/level2/click_one_snowman.wav');
+                    _playAudio('assets/audio/arctic/level3/click_two_icecream.wav');
                   },
                 )
               else ...[
@@ -572,7 +618,7 @@ class _NumberOneIntroductionScreenState
                           const Text('👆', style: TextStyle(fontSize: 22)),
                           const SizedBox(width: 8),
                           Text(
-                            'Tap ONE Snowman!',
+                            'Tap TWO Ice Creams!',
                             style: TextStyle(
                               fontFamily: ArcticAppTextStyles.fredoka,
                               fontSize: (h * 0.09).clamp(16.0, 26.0),
@@ -597,11 +643,11 @@ class _NumberOneIntroductionScreenState
                 Positioned(
                   left: w * 0.08,
                   top: h * 0.5 - (h * 0.30) / 2,
-                  child: _NumberCard(number: 1, size: h * 0.3),
+                  child: _NumberCard(number: 2, size: h * 0.3),
                 ),
 
-                // ── Snowman (correct) ──
-                if (!_objectTapped)
+                // ── Ice Cream (correct) ──
+                if (!_iceCream1Tapped)
                   Positioned(
                     left: (_objectPos.dx * w - objSize / 2).clamp(
                       w * 0.55,
@@ -618,52 +664,36 @@ class _NumberOneIntroductionScreenState
                         child: child,
                       ),
                       child: GestureDetector(
-                        onTap: _onObjectTapped,
-                        child: Container(
-                          width: objSize,
-                          height: objSize,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: ArcticColorTheme.pictonblue,
-                            boxShadow: [
-                              BoxShadow(
-                                color: ArcticColorTheme.pictonblue.withValues(
-                                  alpha: 0.5,
-                                ),
-                                blurRadius: 20,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                            border: Border.all(color: Colors.white, width: 3),
-                          ),
-                          child: Padding(
-                            padding: EdgeInsets.all(objSize * 0.12),
-                            child: Image.asset(
-                              'assets/images/objects/arctic/snowman.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Text(
-                                '⛄',
-                                style: TextStyle(fontSize: 40),
-                              ),
-                            ),
-                          ),
-                        ),
+                        onTap: () => _onObjectTapped(_objectPos, isFirst: true),
+                        child: _buildObjectCircle(objSize, 'assets/images/objects/arctic/icecream.png', '🍦', false),
                       ),
                     ),
                   ),
 
-                // Snowman tap burst
-                if (_objectTapped &&
+                if (!_iceCream2Tapped)
+                  Positioned(
+                    left: (_objectPos2.dx * w - objSize / 2).clamp(w * 0.55, w - objSize),
+                    top:  (_objectPos2.dy * h - objSize / 2).clamp(h * 0.20, h - objSize),
+                    child: AnimatedBuilder(
+                      animation: _objectWiggleCtrl,
+                      builder: (_, child) => Transform.translate(
+                        offset: Offset(0, (_objectWiggleCtrl.value - 0.5) * 10),
+                        child: child,
+                      ),
+                      child: GestureDetector(
+                        onTap: () => _onObjectTapped(_objectPos2, isFirst: false),
+                        child: _buildObjectCircle(objSize, 'assets/images/objects/arctic/icecream.png', '🍦', false),
+                      ),
+                    ),
+                  ),
+
+                // tap burst
+                if (_iceCreamsTapped > 0 &&
+                    _lastTappedPos != null &&
                     _objectTapCtrl.status != AnimationStatus.completed)
                   Positioned(
-                    left: (_objectPos.dx * w - objSize / 2).clamp(
-                      w * 0.55,
-                      w - objSize,
-                    ),
-                    top: (_objectPos.dy * h - objSize / 2).clamp(
-                      h * 0.25,
-                      h - objSize,
-                    ),
+                    left: (_lastTappedPos!.dx * w - objSize / 2).clamp(w * 0.55, w - objSize),
+                    top:  (_lastTappedPos!.dy * h - objSize / 2).clamp(h * 0.20, h - objSize),
                     child: ScaleTransition(
                       scale: _objectTapScale,
                       child: Container(
@@ -680,70 +710,24 @@ class _NumberOneIntroductionScreenState
                     ),
                   ),
 
-                // ── Ice cream (decoy) ──
-                if (!_objectTapped)
+                if (_iceCreamsTapped < _targetCount)
                   Positioned(
-                    left: (_decoyPos.dx * w - objSize / 2).clamp(
-                      w * 0.55,
-                      w - objSize,
-                    ),
-                    top: (_decoyPos.dy * h - objSize / 2).clamp(
-                      h * 0.25,
-                      h - objSize,
-                    ),
+                    left: (_decoyPos.dx * w - objSize / 2).clamp(w * 0.55, w - objSize),
+                    top:  (_decoyPos.dy * h - objSize / 2).clamp(h * 0.20, h - objSize),
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
-                        offset: Offset(
-                          0,
-                          (_objectWiggleCtrl.value - 0.5) * -10,
-                        ),
+                        offset: Offset(0, (_objectWiggleCtrl.value - 0.5) * -10),
                         child: child,
                       ),
                       child: GestureDetector(
                         onTap: () {
                           setState(() => _wrongTapped = true);
-                          Future.delayed(
-                            const Duration(milliseconds: 1000),
-                            () {
-                              if (mounted) setState(() => _wrongTapped = false);
-                            },
-                          );
+                          Future.delayed(const Duration(milliseconds: 1000), () {
+                            if (mounted) setState(() => _wrongTapped = false);
+                          });
                         },
-                        child: Container(
-                          width: objSize,
-                          height: objSize,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: ArcticColorTheme.pictonblue.withValues(
-                              alpha: 0.85,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ArcticColorTheme.pictonblue.withValues(
-                                  alpha: 0.4,
-                                ),
-                                blurRadius: 20,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                            border: Border.all(
-                              color: _wrongTapped ? Colors.red : Colors.white,
-                              width: _wrongTapped ? 4 : 3,
-                            ),
-                          ),
-                          child: Padding(
-                            padding: EdgeInsets.all(objSize * 0.12),
-                            child: Image.asset(
-                              'assets/images/objects/arctic/icecream.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Text(
-                                '🍦',
-                                style: TextStyle(fontSize: 40),
-                              ),
-                            ),
-                          ),
-                        ),
+                        child: _buildObjectCircle(objSize, _decoyAsset, _decoyEmoji, _wrongTapped),
                       ),
                     ),
                   ),
@@ -763,14 +747,15 @@ class _NumberOneIntroductionScreenState
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const NumberTwoIntroductionScreen()),
-        );
+        // TODO: @Tin push to your next level screen
+        // Navigator.of(context).pushReplacement(
+        //   MaterialPageRoute(builder: (_) => const NextLevelScreen()),
+        // );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => const NumberOneIntroductionScreen(),
+            builder: (_) => const NumberTwoIntroductionScreen(),
           ),
         );
       },
@@ -801,11 +786,11 @@ class _NumberCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Image.asset(
-            'assets/fonts/game_numbers/1.png',
+            'assets/fonts/game_numbers/2.png',
             width: size,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Text(
-              '1',
+              '2',
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: size * 0.75,
@@ -818,7 +803,7 @@ class _NumberCard extends StatelessWidget {
           SizedBox(height: size * 0.05),
 
           Text(
-            'ONE',
+            'TWO',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
               fontSize: size * 0.26,

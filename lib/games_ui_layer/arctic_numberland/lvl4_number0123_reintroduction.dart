@@ -4,15 +4,15 @@ import 'package:flutter/material.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 
-class NumberIntroductionScreen extends StatefulWidget {
-  const NumberIntroductionScreen({super.key});
+class Number012ReintroductionScreen extends StatefulWidget {
+  const Number012ReintroductionScreen({super.key});
 
   @override
-  State<NumberIntroductionScreen> createState() =>
-      _NumberIntroductionScreenState();
+  State<Number012ReintroductionScreen> createState() =>
+      _Number012ReintroductionScreenState();
 }
 
-class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
+class _Number012ReintroductionScreenState extends State<Number012ReintroductionScreen>
     with TickerProviderStateMixin {
   int _currentNumber = 1;
   static const int _totalNumbers = 5;
