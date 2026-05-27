@@ -6,6 +6,7 @@ import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
+import 'lvl5_number012_recognition.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
@@ -518,10 +519,9 @@ class _Number012ReintroductionScreenState
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: @Tin push to your next level screen
-        // Navigator.of(context).pushReplacement(
-        //   MaterialPageRoute(builder: (_) => const ()),
-        // );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Number012RecognitionScreen()),
+        );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
