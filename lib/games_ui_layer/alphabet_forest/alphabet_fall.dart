@@ -1,14 +1,17 @@
+import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 import 'dart:async';
-
 import '../../business_layer/orientation_service.dart';
 
 class AlphabetFallScreen extends StatefulWidget {
-  const AlphabetFallScreen({super.key});
+  final String startingLetter;
+
+  // Defaults to 'A' if no letter is passed
+  const AlphabetFallScreen({super.key, this.startingLetter = 'A'});
 
   @override
   State<AlphabetFallScreen> createState() => _AlphabetFallScreenState();
@@ -16,46 +19,93 @@ class AlphabetFallScreen extends StatefulWidget {
 
 class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     with SingleTickerProviderStateMixin {
-  late String _targetLetter;
-  final List<FallingBall> _activeBalls = [];
+  late String _currentImagePath;
+  late List<String> _targetLetters; // Holds both ['A', 'a']
+
+  final List<FallingObject> _activeObjects = [];
   final Random _random = Random();
   late Timer _spawnTimer;
   late Timer _gameTimer;
+
+  int _correctCount = 0;
+  final int _winCondition = 5; // How many they need to catch to win
+  final List<Map<String, double>> _wrongEffects = [];
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-    _setNewTarget();
+
+    // Load the specific settings for A, B, or C
+    _loadLevel(widget.startingLetter);
+
     _startGameLoops();
   }
 
-  void _setNewTarget() {
-    setState(() {
-      _targetLetter = String.fromCharCode(_random.nextInt(26) + 65);
-    });
+  // --- THE DYNAMIC LEVEL LOADER ---
+  void _loadLevel(String letter) {
+    switch (letter.toUpperCase()) {
+      case 'A':
+        _currentImagePath = 'assets/images/objects/apple.png';
+        _targetLetters = ['A', 'a'];
+        break;
+      case 'B':
+        _currentImagePath = 'assets/images/objects/ball.png';
+        _targetLetters = ['B', 'b'];
+        break;
+      case 'C':
+        _currentImagePath = 'assets/images/objects/car.png';
+        _targetLetters = ['C', 'c'];
+        break;
+      // Add 'D', 'E', etc. here later!
+      default:
+        _currentImagePath = 'assets/images/objects/apple.png';
+        _targetLetters = ['A', 'a'];
+    }
+  }
+
+  // --- HELPER FOR NEXT LETTER ---
+  String _getNextLetter(String currentLetter) {
+    int charCode = currentLetter.toUpperCase().codeUnitAt(0);
+    if (charCode >= 65 && charCode < 90) {
+      return String.fromCharCode(charCode + 1);
+    }
+    return 'DONE';
   }
 
   void _startGameLoops() {
     _spawnTimer = Timer.periodic(const Duration(milliseconds: 1500), (timer) {
-      _spawnBall();
+      _spawnObject();
     });
     _gameTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
-      _updateBallPositions();
+      _updateObjectPositions();
     });
   }
 
-  void _spawnBall() {
+  void _spawnObject() {
     if (!mounted) return;
-    bool isCorrect = _random.nextDouble() < 0.3;
-    String ballLetter = isCorrect
-        ? _targetLetter
-        : String.fromCharCode(_random.nextInt(26) + 65);
+
+    // 40% chance to spawn a correct letter, 60% chance for a random wrong letter
+    bool isTarget = _random.nextDouble() < 0.4;
+    String letterToDrop;
+
+    if (isTarget) {
+      // Pick either the uppercase or lowercase target randomly
+      letterToDrop = _targetLetters[_random.nextInt(_targetLetters.length)];
+    } else {
+      // Generate a random letter that is NOT the target
+      do {
+        bool isUpper = _random.nextBool();
+        letterToDrop = isUpper
+            ? String.fromCharCode(_random.nextInt(26) + 65)
+            : String.fromCharCode(_random.nextInt(26) + 97);
+      } while (_targetLetters.contains(letterToDrop));
+    }
 
     setState(() {
-      _activeBalls.add(
-        FallingBall(
-          letter: ballLetter,
+      _activeObjects.add(
+        FallingObject(
+          letter: letterToDrop,
           xPos: _random.nextDouble(),
           yPos: -0.1,
           speed: 0.003 + (_random.nextDouble() * 0.004),
@@ -64,38 +114,38 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     });
   }
 
-  void _updateBallPositions() {
+  void _updateObjectPositions() {
     if (!mounted) return;
     setState(() {
-      for (var ball in _activeBalls) {
-        ball.yPos += ball.speed;
+      for (var obj in _activeObjects) {
+        obj.yPos += obj.speed;
       }
-      _activeBalls.removeWhere((ball) => ball.yPos > 1.1);
+      _activeObjects.removeWhere((obj) => obj.yPos > 1.1);
     });
   }
 
-  int _correctCount = 0;
-  final List<Map<String, double>> _wrongEffects = [];
-
-  void _onBallTap(FallingBall ball) {
-    if (ball.letter == _targetLetter) {
+  void _onObjectTap(FallingObject obj) {
+    // Check if the tapped letter is in our target list (e.g., 'A' or 'a')
+    if (_targetLetters.contains(obj.letter)) {
       setState(() {
         _correctCount++;
-        _activeBalls.remove(ball);
+        _activeObjects.remove(obj);
 
-        if (_correctCount >= 5) {
+        // TODO: Play "A" sound here in the future!
+
+        if (_correctCount >= _winCondition) {
+          _spawnTimer.cancel();
+          _gameTimer.cancel();
           _showApplause();
-          _correctCount = 0;
-        } else {
-          _setNewTarget();
         }
       });
     } else {
-      final double tapX = ball.xPos;
-      final double tapY = ball.yPos;
+      // Wrong letter tapped
+      final double tapX = obj.xPos;
+      final double tapY = obj.yPos;
 
       setState(() {
-        _activeBalls.remove(ball);
+        _activeObjects.remove(obj);
         _wrongEffects.add({'x': tapX, 'y': tapY});
       });
 
@@ -112,61 +162,47 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   }
 
   void _showApplause() {
-    final Size screenSize = MediaQuery.of(context).size;
-
     showDialog(
       context: context,
+      useSafeArea: false,
+      barrierColor: Colors.transparent,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: ForestColorTheme.lightgrayishgreen,
-        insetPadding: EdgeInsets.symmetric(horizontal: screenSize.width * 0.15),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text("👏", style: TextStyle(fontSize: screenSize.width * 0.1)),
-              const SizedBox(height: 16),
-              Text(
-                "Great Job!",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: ForestAppTextStyles.fredoka,
-                  fontSize: screenSize.width * 0.05,
-                  fontWeight: FontWeight.bold,
-                  color: ForestColorTheme.darkseagreen,
+      builder: (_) => Material(
+        type: MaterialType.transparency,
+        child: GoodJobOverlay(
+          characterImage: 'assets/images/dog.png',
+          closeButtonColor: ForestColorTheme.seagreen,
+
+          onNext: () {
+            Navigator.pop(context);
+            String nextLetter = _getNextLetter(widget.startingLetter);
+
+            if (nextLetter == 'DONE') {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      AlphabetFallScreen(startingLetter: nextLetter),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "You found 5 letters!",
-                style: TextStyle(
-                  fontFamily: ForestAppTextStyles.fredoka,
-                  fontSize: screenSize.width * 0.03,
-                  color: ForestColorTheme.seagreen,
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: screenSize.width * 0.3,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _setNewTarget();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ForestColorTheme.darkseagreen,
-                    shape: const StadiumBorder(),
-                  ),
-                  child: const Text(
-                    "Keep Playing!",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
-          ),
+              );
+            }
+          },
+
+          onRestart: () {
+            Navigator.pop(context);
+            setState(() {
+              _correctCount = 0;
+              _activeObjects.clear();
+              _startGameLoops(); // Restart the timers
+            });
+          },
+
+          onBack: () {
+            Navigator.pop(context);
+            Navigator.pop(context);
+          },
         ),
       ),
     );
@@ -174,8 +210,8 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
   @override
   void dispose() {
-    _spawnTimer.cancel();
-    _gameTimer.cancel();
+    if (_spawnTimer.isActive) _spawnTimer.cancel();
+    if (_gameTimer.isActive) _gameTimer.cancel();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -191,11 +227,11 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
             Align(
               alignment: Alignment.topCenter,
               child: Padding(
-                padding: const EdgeInsets.only(top: 20),
+                padding: const EdgeInsets.only(top: 10),
                 child: Column(
                   children: [
                     const Text(
-                      "Find the Letter:",
+                      "Catch the letters:",
                       style: TextStyle(
                         fontFamily: ForestAppTextStyles.fredoka,
                         fontSize: 24,
@@ -203,12 +239,22 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                       ),
                     ),
                     Text(
-                      _targetLetter,
+                      "${_targetLetters[0]} & ${_targetLetters[1]}", // Displays "A & a"
                       style: const TextStyle(
                         fontFamily: ForestAppTextStyles.fredoka,
-                        fontSize: 80,
+                        fontSize: 50,
                         fontWeight: FontWeight.bold,
                         color: ForestColorTheme.seagreen,
+                      ),
+                    ),
+                    // Score Tracker
+                    Text(
+                      "$_correctCount / $_winCondition",
+                      style: const TextStyle(
+                        fontFamily: ForestAppTextStyles.fredoka,
+                        fontSize: 24,
+                        color: ForestColorTheme.darkseagreen,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
@@ -216,40 +262,41 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
               ),
             ),
 
-            // 2. FALLING BALLS AND EFFECTS
+            // 2. FALLING OBJECTS AND EFFECTS
             LayoutBuilder(
               builder: (context, constraints) {
-                double ballSize = constraints.maxWidth * 0.12;
+                double objSize = constraints.maxWidth * 0.12;
 
                 return Stack(
                   children: [
-                    ..._activeBalls.map((ball) {
+                    ..._activeObjects.map((obj) {
                       return Positioned(
-                        left: ball.xPos * (constraints.maxWidth - ballSize),
-                        top: ball.yPos * constraints.maxHeight,
+                        left: obj.xPos * (constraints.maxWidth - objSize),
+                        top: obj.yPos * constraints.maxHeight,
                         child: GestureDetector(
-                          onTap: () => _onBallTap(ball),
+                          onTap: () => _onObjectTap(obj),
                           child: SizedBox(
-                            width: ballSize,
-                            height: ballSize,
+                            width: objSize,
+                            height: objSize,
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
+                                // Uses the dynamic image path!
                                 Image.asset(
-                                  'assets/images/objects/ball.png',
+                                  _currentImagePath,
                                   fit: BoxFit.contain,
                                 ),
                                 Text(
-                                  ball.letter,
+                                  obj.letter,
                                   style: TextStyle(
                                     fontFamily: ForestAppTextStyles.fredoka,
-                                    fontSize: ballSize * 0.4,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: objSize * 0.5,
+                                    fontWeight: FontWeight.w900,
                                     color: Colors.white,
                                     shadows: const [
                                       Shadow(
-                                        blurRadius: 4,
-                                        color: Colors.black45,
+                                        blurRadius: 6,
+                                        color: Colors.black87,
                                         offset: Offset(2, 2),
                                       ),
                                     ],
@@ -263,16 +310,16 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                     }),
                     ..._wrongEffects.map((effect) {
                       return Positioned(
-                        left: effect['x']! * (constraints.maxWidth - ballSize),
+                        left: effect['x']! * (constraints.maxWidth - objSize),
                         top: effect['y']! * constraints.maxHeight,
                         child: SizedBox(
-                          width: ballSize,
-                          height: ballSize,
+                          width: objSize,
+                          height: objSize,
                           child: Center(
                             child: Icon(
                               Icons.close_rounded,
                               color: Colors.redAccent,
-                              size: ballSize * 0.8,
+                              size: objSize * 0.8,
                               shadows: const [
                                 Shadow(
                                   color: Colors.white,
@@ -298,13 +345,13 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   }
 }
 
-class FallingBall {
+class FallingObject {
   final String letter;
   final double xPos;
   double yPos;
   final double speed;
 
-  FallingBall({
+  FallingObject({
     required this.letter,
     required this.xPos,
     required this.yPos,

@@ -85,6 +85,7 @@ flutter:
     - assets/images/
     - assets/images/backgrounds/
     - assets/images/arrows/
+    - assets/images/alphabets/
     - assets/images/buttons/
     - assets/images/objects/
     - assets/images/objects/arctic/
@@ -102,7 +103,7 @@ flutter:
     - assets/drafts/
     - assets/gifs/
     - assets/animations/
-    - assets/images/alphabets/
+  
 
 
   # An image asset can refer to one or more resolution-specific "variants", see
