@@ -11,6 +11,7 @@ import '../../games_ui_layer/arctic_numberland/lvl3_two_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl6_number012_counting.dart';
 import '../../games_ui_layer/arctic_numberland/lvl7_number012_matching.dart';
 import '../../games_ui_layer/arctic_numberland/lvl8_number012_counttap.dart';
+import '../../games_ui_layer/arctic_numberland/lvl9_three_introduction.dart';
 import 'arctic_theme.dart';
 
 class ArcticLevelScreen extends StatefulWidget {
@@ -292,10 +293,18 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
-          default:
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Coming soon!')),
+          case 9:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NumberThreeIntroductionScreen(),
+              ),
             );
+            break;
+          default:
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Coming soon!')));
         }
       },
       child: Stack(
