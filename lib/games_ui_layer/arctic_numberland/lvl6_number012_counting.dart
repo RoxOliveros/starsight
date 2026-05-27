@@ -1,42 +1,78 @@
-import 'dart:async';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
-import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
-import 'lvl6_number012_counting.dart';
+import '../../ui_layer/arctic_numberland/arctic_level.dart';
+import 'lvl7_number012_matching.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
-class Number012RecognitionScreen extends StatefulWidget {
-  const Number012RecognitionScreen({super.key});
+class Number012CountingObjectsScreen extends StatefulWidget {
+  const Number012CountingObjectsScreen({super.key});
 
   @override
-  State<Number012RecognitionScreen> createState() =>
-      _Number012RecognitionScreenState();
+  State<Number012CountingObjectsScreen> createState() =>
+      _Number012CountingObjectsScreenState();
 }
 
-class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
+class _Number012CountingObjectsScreenState
+    extends State<Number012CountingObjectsScreen>
     with TickerProviderStateMixin {
-  late int _correctNumber;
+  late int _correctCount;
   late List<int> _choices;
+  late String _currentObject;
   int? _tappedIndex;
   int _round = 1;
   static const int _totalRounds = 5;
-  bool _showWinDialog = false;
+
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
+  bool _showWinDialog = false;
   final AudioPlayer _player = AudioPlayer();
 
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
 
+  final List<Map<String, String>> _objects = [
+    {'name': 'Earmuffs', 'asset': 'assets/images/objects/arctic/earmuffs.png'},
+    {'name': 'Ice', 'asset': 'assets/images/objects/arctic/ice.png'},
+    {
+      'name': 'Ice Skates',
+      'asset': 'assets/images/objects/arctic/ice_skates.png',
+    },
+    {'name': 'Ice Cream', 'asset': 'assets/images/objects/arctic/icecream.png'},
+    {'name': 'Igloo', 'asset': 'assets/images/objects/arctic/igloo.png'},
+    {'name': 'Sled', 'asset': 'assets/images/objects/arctic/sled.png'},
+    {'name': 'Snowball', 'asset': 'assets/images/objects/arctic/snowball.png'},
+    {
+      'name': 'Snow Globe',
+      'asset': 'assets/images/objects/arctic/snowglobe.png',
+    },
+    {'name': 'Snowman', 'asset': 'assets/images/objects/arctic/snowman.png'},
+    {
+      'name': 'Snowy Sign Board',
+      'asset': 'assets/images/objects/arctic/snowy_signboard.png',
+    },
+    {
+      'name': 'Snowy Tree',
+      'asset': 'assets/images/objects/arctic/snowy_tree.png',
+    },
+    {
+      'name': 'Candy Cane',
+      'asset': 'assets/images/objects/arctic/candy_cane.png',
+    },
+    {
+      'name': 'Winter Hat',
+      'asset': 'assets/images/objects/arctic/winter_hat.png',
+    },
+  ];
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-
     _numberDanceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -59,10 +95,15 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   }
 
   void _generateRound() {
-    final all = [1, 2, 3, 4, 5]..shuffle();
-    _correctNumber = all.first;
-    final wrong = all.skip(1).take(3).toList();
-    _choices = [...wrong, _correctNumber]..shuffle();
+    final allNumbers = [0, 1, 2]..shuffle();
+    _correctCount = allNumbers.first;
+
+    final wrong = allNumbers.skip(1).take(3).toList();
+    _choices = [...wrong, _correctCount]..shuffle();
+
+    final obj = (_objects..shuffle()).first;
+    _currentObject = obj['asset']!;
+
     setState(() => _tappedIndex = null);
   }
 
@@ -70,7 +111,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
     if (_tappedIndex != null) return;
     setState(() => _tappedIndex = index);
 
-    if (_choices[index] == _correctNumber) {
+    if (_choices[index] == _correctCount) {
       _playAudio('assets/audio/bubble_pop.wav');
     }
 
@@ -87,7 +128,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
-    await _playAudio('assets/audio/arctic/level5/012_recog.wav');
+    await _playAudio('assets/audio/arctic/level6/012_counting.wav');
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
   }
@@ -110,14 +151,14 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   // Unselected → pictonblue | correct → green | wrong tap → red
   Color _choiceColor(int index) {
     if (_tappedIndex == null) return ArcticColorTheme.pictonblue;
-    if (_choices[index] == _correctNumber) return Colors.green;
+    if (_choices[index] == _correctCount) return Colors.green;
     if (_tappedIndex == index) return Colors.red;
     return ArcticColorTheme.pictonblue;
   }
 
   Color _choiceBorderColor(int index) {
     if (_tappedIndex == null) return ArcticColorTheme.slateblue;
-    if (_choices[index] == _correctNumber) return ArcticColorTheme.pictonblue;
+    if (_choices[index] == _correctCount) return ArcticColorTheme.pictonblue;
     if (_tappedIndex == index) return ArcticColorTheme.slateblue;
     return ArcticColorTheme.slateblue;
   }
@@ -153,36 +194,31 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                           child: ArcticBackButton(),
                         ),
                         const Text(
-                          'Number Recognition',
+                          'Counting Objects',
                           style: TextStyle(
                             fontFamily: ArcticAppTextStyles.fredoka,
                             fontSize: 28,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
-                            shadows: [
-                              Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2)),
-                            ],
+                            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  // --- PROMPT ---
                   const Text(
-                    'Tap the number you see!',
+                    'How many are there?',
                     style: TextStyle(
                       fontFamily: ArcticAppTextStyles.fredoka,
-                      fontSize: 20,
+                      fontSize: 22,
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
-                      shadows: [
-                        Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2)),
-                      ],
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
                     ),
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
                   // --- MAIN CONTENT ---
                   Expanded(
@@ -190,10 +226,11 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // BIG NUMBER CARD
+                        // OBJECTS DISPLAY BOX
                         Container(
-                          width: 180,
-                          height: 180,
+                          width: 340,
+                          height: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
                             color: ArcticColorTheme.cotton,
                             borderRadius: BorderRadius.circular(24),
@@ -212,29 +249,14 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                             ],
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Image.asset(
-                              'assets/fonts/game_numbers/$_correctNumber.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Center(
-                                child: Text(
-                                  '$_correctNumber',
-                                  style: const TextStyle(
-                                    fontFamily: ArcticAppTextStyles.fredoka,
-                                    fontSize: 100,
-                                    fontWeight: FontWeight.bold,
-                                    color: ArcticColorTheme.cadetblue,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
+                            padding: const EdgeInsets.all(16),
+                            child: _buildObjectGrid(),
                           ),
                         ),
 
-                        // CHOICES GRID
+                        // CHOICES
                         SizedBox(
-                          width: 280,
+                          width: 300,
                           child: GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -243,7 +265,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                                   crossAxisCount: 2,
                                   crossAxisSpacing: 14,
                                   mainAxisSpacing: 14,
-                                  childAspectRatio: 1.3,
+                                  childAspectRatio: 1.4,
                                 ),
                             itemCount: _choices.length,
                             itemBuilder: (context, index) {
@@ -279,7 +301,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                                           style: const TextStyle(
                                             fontFamily:
                                                 ArcticAppTextStyles.fredoka,
-                                            fontSize: 40,
+                                            fontSize: 36,
                                             fontWeight: FontWeight.bold,
                                             color: ArcticColorTheme.cotton,
                                           ),
@@ -298,14 +320,31 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                   const SizedBox(height: 16),
 
                   _buildProgressDots(),
-
-                  const SizedBox(height: 4),
                 ],
               ),
             ),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
+    );
+  }
+
+  Widget _buildObjectGrid() {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      runAlignment: WrapAlignment.center,
+      spacing: 12,
+      runSpacing: 12,
+      children: List.generate(_correctCount, (i) {
+        return Image.asset(
+          _currentObject,
+          width: 60,
+          height: 60,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) =>
+              const Text('🍎', style: TextStyle(fontSize: 48)),
+        );
+      }),
     );
   }
 
@@ -339,18 +378,18 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Number012CountingObjectsScreen()),
+          MaterialPageRoute(builder: (_) => const Number012MatchingScreen()),
         );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Number012RecognitionScreen()),
+          MaterialPageRoute(builder: (_) => const Number012CountingObjectsScreen()),
         );
       },
       onBack: () {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-          (route) => route.isFirst,
+              (route) => route.isFirst,
         );
       },
     );
@@ -372,7 +411,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                       height: MediaQuery.of(context).size.height * 0.65,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>
-                          const Text('🐧', style: TextStyle(fontSize: 60)),
+                      const Text('🐧', style: TextStyle(fontSize: 60)),
                     ),
                   ),
                 ),
@@ -387,9 +426,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                             final angle =
                                 _numberDance.value * ((i % 2 == 0) ? 1 : -1);
                             return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
                               child: Transform.rotate(
                                 angle: angle,
                                 child: _buildIntroNumberCard(i),
@@ -443,9 +480,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
             fontWeight: FontWeight.bold,
             color: Colors.white,
             letterSpacing: 2,
-            shadows: const [
-              Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2)),
-            ],
+            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
           ),
         ),
       ],

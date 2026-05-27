@@ -8,6 +8,9 @@ import '../../games_ui_layer/arctic_numberland/lvl5_number012_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/lvl1_zero_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl3_two_introduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl6_number012_counting.dart';
+import '../../games_ui_layer/arctic_numberland/lvl7_number012_matching.dart';
+import '../../games_ui_layer/arctic_numberland/lvl8_number012_counttap.dart';
 import 'arctic_theme.dart';
 
 class ArcticLevelScreen extends StatefulWidget {
@@ -248,6 +251,30 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const Number012RecognitionScreen(),
+              ),
+            );
+            break;
+          case 6:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number012CountingObjectsScreen(),
+              ),
+            );
+            break;
+          case 7:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number012MatchingScreen(),
+              ),
+            );
+            break;
+          case 8:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number012TapCountScreen(),
               ),
             );
             break;

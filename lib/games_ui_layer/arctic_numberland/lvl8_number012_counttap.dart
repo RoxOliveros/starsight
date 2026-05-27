@@ -3,58 +3,49 @@ import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
+import '../goodjob_prompt.dart';
+import '../../ui_layer/arctic_numberland/arctic_level.dart';
 
-class TapCountScreen extends StatefulWidget {
-  const TapCountScreen({super.key});
+enum _ScreenPhase { intro, miniGame }
+
+class Number012TapCountScreen extends StatefulWidget {
+  const Number012TapCountScreen({super.key});
 
   @override
-  State<TapCountScreen> createState() => _TapCountScreenState();
+  State<Number012TapCountScreen> createState() =>
+      _Number012TapCountScreenState();
 }
 
-class _TapCountScreenState extends State<TapCountScreen>
+class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     with TickerProviderStateMixin {
   // ── Constants ──────────────────────────────────────────────────────────────
 
   static const int _totalRounds = 5;
   static const int _poolSize = 5;
 
-  // One theme per number 1–5
+  _ScreenPhase _screenPhase = _ScreenPhase.intro;
+  bool _showWinDialog = false;
+  final AudioPlayer _player = AudioPlayer();
+
+  late AnimationController _numberDanceCtrl;
+  late Animation<double> _numberDance;
+
   static const _themes = [
-    _RoundTheme(
-      asset: 'assets/images/objects/ball.png',
-      label: 'ball',
-      color: Color(0xFFFFC857),
-    ),
-    _RoundTheme(
-      asset: 'assets/images/objects/car.png',
-      label: 'car',
-      color: Color(0xFFE84393),
-    ),
-    _RoundTheme(
-      asset: 'assets/images/objects/lamp.png',
-      label: 'lamp',
-      color: Color(0xFF4FC3F7),
-    ),
-    _RoundTheme(
-      asset: 'assets/images/objects/teddybear.png',
-      label: 'bear',
-      color: Color(0xFF81C784),
-    ),
-    _RoundTheme(
-      asset: 'assets/images/objects/plant.png',
-      label: 'plant',
-      color: Color(0xFFFF8A65),
-    ),
+    _RoundTheme(asset: 'assets/images/objects/arctic/snowball.png', label: 'Snowball', color: Color(0xFF4FC3F7)),  // index 0
+    _RoundTheme(asset: 'assets/images/objects/arctic/candy_cane.png', label: 'Candy Cane', color: Color(0xFFFFC857)), // index 1
+    _RoundTheme(asset: 'assets/images/objects/arctic/igloo.png', label: 'Igloo', color: Color(0xFF81C784)), // index 2
   ];
 
   // ── State ──────────────────────────────────────────────────────────────────
 
   int _round = 0; // index into _roundOrder
-  late List<int> _roundOrder; // shuffled [1,2,3,4,5]
+  late List<int> _roundOrder;
 
   int get _targetNumber => _roundOrder[_round];
 
-  _RoundTheme get _theme => _themes[_targetNumber - 1];
+  _RoundTheme get _theme => _themes[_targetNumber];
 
   // Which of the 5 objects are selected
   late List<bool> _selected;
@@ -87,7 +78,19 @@ class _TapCountScreenState extends State<TapCountScreen>
     super.initState();
     OrientationService.setLandscape();
 
-    _roundOrder = [1, 2, 3, 4, 5]..shuffle(Random());
+    final extras = [0, 1, 2]..shuffle(Random());
+    _roundOrder = ([0, 1, 2] + extras.take(2).toList())..shuffle(Random());
+
+    _numberDanceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..repeat(reverse: true);
+
+    _numberDance = Tween<double>(begin: -0.08, end: 0.08).animate(
+      CurvedAnimation(parent: _numberDanceCtrl, curve: Curves.easeInOut),
+    );
+
+    _startIntroFlow();
 
     _numberBounce = AnimationController(
       vsync: this,
@@ -139,6 +142,8 @@ class _TapCountScreenState extends State<TapCountScreen>
 
   @override
   void dispose() {
+    _numberDanceCtrl.dispose();
+    _player.dispose();
     OrientationService.setLandscape();
     _numberBounce.dispose();
     _enterCtrl.dispose();
@@ -172,12 +177,35 @@ class _TapCountScreenState extends State<TapCountScreen>
     _objScaleCtrls[index].forward(from: 0);
   }
 
+  Future<void> _startIntroFlow() async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    await _playAudio('assets/audio/arctic/level8/012_countandtap.wav');
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
+  }
+
+  Future<void> _playAudio(String asset) async {
+    try {
+      final completer = Completer<void>();
+      final sub = _player.onPlayerComplete.listen((_) {
+        if (!completer.isCompleted) completer.complete();
+      });
+      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
+      await completer.future;
+      await sub.cancel();
+    } catch (e) {
+      debugPrint('Audio error ($asset): $e');
+      await Future.delayed(const Duration(seconds: 2));
+    }
+  }
+
   Future<void> _onSubmit() async {
     if (_locked) return;
     _locked = true;
 
     if (_selectedCount == _targetNumber) {
       // ✅ Correct
+      _playAudio('assets/audio/bubble_pop.wav');
       setState(() => _submitFlashCorrect = true);
       _celebrationCtrl.forward(from: 0);
       _numberBounce.forward(from: 0);
@@ -185,7 +213,7 @@ class _TapCountScreenState extends State<TapCountScreen>
       await Future.delayed(const Duration(milliseconds: 1000));
 
       if (_round + 1 >= _totalRounds) {
-        _showEndDialog();
+        setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
         setState(() {
@@ -206,155 +234,120 @@ class _TapCountScreenState extends State<TapCountScreen>
     }
   }
 
-  void _showEndDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        backgroundColor: ArcticColorTheme.cotton,
-        title: const Text(
-          '🌟 You did it!',
-          style: TextStyle(
-            fontFamily: ArcticAppTextStyles.fredoka,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: ArcticColorTheme.cadetblue,
-          ),
-        ),
-        content: const Text(
-          'You can count so well!',
-          style: TextStyle(
-            fontFamily: ArcticAppTextStyles.fredoka,
-            fontSize: 22,
-            color: ArcticColorTheme.slateblue,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _round = 0;
-                _roundOrder = [1, 2, 3, 4, 5]..shuffle(Random());
-                _startRound();
-              });
-            },
-            child: const Text(
-              'Play Again',
-              style: TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 20,
-                color: ArcticColorTheme.pictonblue,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ArcticColorTheme.lightgrayishcyan,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-
-            // ── Header ──────────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Stack(
-                alignment: Alignment.center,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/bg_game_arctic.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+          if (_screenPhase == _ScreenPhase.intro)
+            _buildIntroContent()
+          else
+            SafeArea(
+              child: Column(
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: ArcticBackButton(),
-                  ),
-                  const Text(
-                    'Tap & Count',
-                    style: TextStyle(
-                      fontFamily: ArcticAppTextStyles.fredoka,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: ArcticColorTheme.cadetblue,
+                  const SizedBox(height: 12),
+
+                  // ── Header ──────────────────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ArcticBackButton(),
+                        ),
+                        const Text(
+                          'Tap & Count',
+                          style: TextStyle(
+                            fontFamily: ArcticAppTextStyles.fredoka,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: ArcticColorTheme.cadetblue,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+
+                  const SizedBox(height: 4),
+
+                  // ── Prompt ──────────────────────────────────────────────────────
+                  AnimatedBuilder(
+                    animation: _wrongShakeAnim,
+                    builder: (_, child) {
+                      final shake = sin(_wrongShakeAnim.value * pi * 5) * 6;
+                      return Transform.translate(
+                        offset: Offset(shake, 0),
+                        child: child,
+                      );
+                    },
+                    child: Text(
+                      _submitFlashWrong
+                          ? 'So close! Give it another try 🌟'
+                          : _submitFlashCorrect
+                          ? '🎉 Great job!'
+                          : 'Tap $_targetNumber ${_theme.label}${_targetNumber > 1 ? 's' : ''}!',
+                      style: TextStyle(
+                        fontFamily: ArcticAppTextStyles.fredoka,
+                        fontSize: 20,
+                        color: _submitFlashWrong
+                            ? const Color(0xFFFFB347)
+                            : ArcticColorTheme.cadetblue,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ── Main game area ───────────────────────────────────────────────
+                  Expanded(
+                    child: FadeTransition(
+                      opacity: _enterAnim,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const SizedBox(width: 20),
+
+                          // LEFT — Number card
+                          _buildNumberCard(),
+
+                          const SizedBox(width: 24),
+
+                          // Arrow
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: ArcticColorTheme.slateblue,
+                            size: 32,
+                          ),
+
+                          const SizedBox(width: 24),
+
+                          // RIGHT — Object grid + submit
+                          Expanded(child: _buildObjectArea()),
+
+                          const SizedBox(width: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  _buildProgressDots(),
+                  const SizedBox(height: 10),
                 ],
               ),
             ),
-
-            const SizedBox(height: 4),
-
-            // ── Prompt ──────────────────────────────────────────────────────
-            AnimatedBuilder(
-              animation: _wrongShakeAnim,
-              builder: (_, child) {
-                final shake = sin(_wrongShakeAnim.value * pi * 5) * 6;
-                return Transform.translate(
-                  offset: Offset(shake, 0),
-                  child: child,
-                );
-              },
-              child: Text(
-                _submitFlashWrong
-                    ? 'So close! Give it another try 🌟'
-                    : _submitFlashCorrect
-                    ? '🎉 Great job!'
-                    : 'Tap $_targetNumber ${_theme.label}${_targetNumber > 1 ? 's' : ''}!',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: 20,
-                  color: _submitFlashWrong
-                      ? const Color(0xFFFFB347)
-                      : ArcticColorTheme.cadetblue,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // ── Main game area ───────────────────────────────────────────────
-            Expanded(
-              child: FadeTransition(
-                opacity: _enterAnim,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(width: 20),
-
-                    // LEFT — Number card
-                    _buildNumberCard(),
-
-                    const SizedBox(width: 24),
-
-                    // Arrow
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      color: ArcticColorTheme.slateblue,
-                      size: 32,
-                    ),
-
-                    const SizedBox(width: 24),
-
-                    // RIGHT — Object grid + submit
-                    Expanded(child: _buildObjectArea()),
-
-                    const SizedBox(width: 20),
-                  ],
-                ),
-              ),
-            ),
-
-            _buildProgressDots(),
-            const SizedBox(height: 10),
-          ],
-        ),
+          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+        ],
       ),
     );
   }
@@ -461,7 +454,7 @@ class _TapCountScreenState extends State<TapCountScreen>
                   ? '✓ Correct!'
                   : _submitFlashWrong
                   ? 'Try again! 💛'
-                  : 'Submit',
+                  : '✔',
               style: const TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: 22,
@@ -569,6 +562,127 @@ class _TapCountScreenState extends State<TapCountScreen>
           ),
         );
       }),
+    );
+  }
+
+  Widget _buildGoodJobOverlay() {
+    return GoodJobOverlay(
+      characterImage: 'assets/images/characters/doma_the_penguin.png',
+      closeButtonColor: ArcticColorTheme.slateblue,
+      onNext: () {
+        // TODO: next screen
+      },
+      onRestart: () {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Number012TapCountScreen()),
+        );
+      },
+      onBack: () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
+          (route) => route.isFirst,
+        );
+      },
+    );
+  }
+
+  Widget _buildIntroContent() {
+    return SafeArea(
+      child: Stack(
+        children: [
+          Positioned(top: 8, left: 12, child: ArcticBackButton()),
+          Positioned.fill(
+            top: 50,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      'assets/images/characters/doma_the_penguin.png',
+                      height: MediaQuery.of(context).size.height * 0.65,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🐧', style: TextStyle(fontSize: 60)),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: _numberDanceCtrl,
+                      builder: (_, __) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(3, (i) {
+                            final angle =
+                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: Transform.rotate(
+                                angle: angle,
+                                child: _buildIntroNumberCard(i),
+                              ),
+                            );
+                          }),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIntroNumberCard(int number) {
+    final size = MediaQuery.of(context).size.height * 0.28;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: Image.asset(
+              'assets/fonts/game_numbers/$number.png',
+              width: size * 0.64,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Text(
+                '$number',
+                style: TextStyle(
+                  fontFamily: ArcticAppTextStyles.fredoka,
+                  fontSize: size * 0.6,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          ['ZERO', 'ONE', 'TWO'][number],
+          style: TextStyle(
+            fontFamily: ArcticAppTextStyles.fredoka,
+            fontSize: size * 0.22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 2,
+            shadows: [
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

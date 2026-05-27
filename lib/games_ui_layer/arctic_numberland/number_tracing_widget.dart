@@ -116,7 +116,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
             top: _canePosition!.dy - caneSize * 0.92,
             child: IgnorePointer(
               child: Image.asset(
-                'assets/images/objects/arctic/sugarcane.png',
+                'assets/images/objects/arctic/candy_cane.png',
                 width: caneSize,
                 fit: BoxFit.contain,
               ),
@@ -129,7 +129,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
             bottom: h * 0.08, left: w * 0.06,
             child: IgnorePointer(
               child: Image.asset(
-                'assets/images/objects/arctic/sugarcane.png',
+                'assets/images/objects/arctic/candy_cane.png',
                 width: caneSize,
                 fit: BoxFit.contain,
               ),

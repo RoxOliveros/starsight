@@ -1,17 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
+import '../goodjob_prompt.dart';
+import '../../ui_layer/arctic_numberland/arctic_level.dart';
+import 'lvl8_number012_counttap.dart';
 
-class NumberMatchingScreen extends StatefulWidget {
-  const NumberMatchingScreen({super.key});
+enum _ScreenPhase { intro, miniGame }
+
+class Number012MatchingScreen extends StatefulWidget {
+  const Number012MatchingScreen({super.key});
 
   @override
-  State<NumberMatchingScreen> createState() => _NumberMatchingScreenState();
+  State<Number012MatchingScreen> createState() =>
+      _Number012MatchingScreenState();
 }
 
-class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
+class _Number012MatchingScreenState extends State<Number012MatchingScreen>
+    with TickerProviderStateMixin {
   // Numbers used in this round (3 pairs)
   late List<int> _roundNumbers;
 
@@ -30,17 +38,37 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
   int _round = 1;
   static const int _totalRounds = 5;
 
+  _ScreenPhase _screenPhase = _ScreenPhase.intro;
+  bool _showWinDialog = false;
+  final AudioPlayer _player = AudioPlayer();
+
+  late AnimationController _numberDanceCtrl;
+  late Animation<double> _numberDance;
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    _numberDanceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..repeat(reverse: true);
+
+    _numberDance = Tween<double>(begin: -0.08, end: 0.08).animate(
+      CurvedAnimation(parent: _numberDanceCtrl, curve: Curves.easeInOut),
+    );
+
+    _startIntroFlow();
     _startRound();
   }
 
   @override
   void dispose() {
+    _numberDanceCtrl.dispose();
+    _player.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -48,7 +76,7 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
   // ── Round logic ───────────────────────────────────────────────────────────
 
   void _startRound() {
-    final all = [1, 2, 3, 4, 5]..shuffle();
+    final all = [0, 1, 2]..shuffle();
     _roundNumbers = all.take(3).toList();
     _numberCardOrder = List<int>.from(_roundNumbers)..shuffle();
     _dotCardOrder = List<int>.from(_roundNumbers)..shuffle();
@@ -61,14 +89,14 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
     if (_matchedNumbers.contains(droppedValue)) return;
 
     if (droppedValue == targetValue) {
-      // ✅ Correct match
+      _playAudio('assets/audio/bubble_pop.wav');
       setState(() => _matchedNumbers.add(droppedValue));
 
       if (_matchedNumbers.length == _roundNumbers.length) {
         await Future.delayed(const Duration(milliseconds: 700));
 
         if (_round >= _totalRounds) {
-          _showEndDialog();
+          setState(() => _showWinDialog = true);
         } else {
           setState(() {
             _round++;
@@ -90,52 +118,28 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
     }
   }
 
-  void _showEndDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        backgroundColor: ArcticColorTheme.cotton,
-        title: Text(
-          '🌟 Amazing!',
-          style: const TextStyle(
-            fontFamily: ArcticAppTextStyles.fredoka,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: ArcticColorTheme.cadetblue,
-          ),
-        ),
-        content: Text(
-          'You did well!',
-          style: const TextStyle(
-            fontFamily: ArcticAppTextStyles.fredoka,
-            fontSize: 22,
-            color: ArcticColorTheme.slateblue,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _round = 1;
-                _startRound();
-              });
-            },
-            child: const Text(
-              'Play Again',
-              style: TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 20,
-                color: ArcticColorTheme.pictonblue,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  Future<void> _startIntroFlow() async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    await _playAudio(
+      'assets/audio/arctic/level7/012_matching.wav',
+    ); // update path
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
+  }
+
+  Future<void> _playAudio(String asset) async {
+    try {
+      final completer = Completer<void>();
+      final sub = _player.onPlayerComplete.listen((_) {
+        if (!completer.isCompleted) completer.complete();
+      });
+      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
+      await completer.future;
+      await sub.cancel();
+    } catch (e) {
+      debugPrint('Audio error ($asset): $e');
+      await Future.delayed(const Duration(seconds: 2));
+    }
   }
 
   // ── Color helpers ─────────────────────────────────────────────────────────
@@ -172,81 +176,97 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ArcticColorTheme.lightgrayishcyan,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-
-            // --- HEADER ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Stack(
-                alignment: Alignment.center,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/bg_game_arctic.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+          if (_screenPhase == _ScreenPhase.intro)
+            _buildIntroContent()
+          else
+            SafeArea(
+              child: Column(
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: ArcticBackButton(),
-                  ),
-                  const Text(
-                    'Number Matching',
-                    style: TextStyle(
-                      fontFamily: ArcticAppTextStyles.fredoka,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: ArcticColorTheme.cadetblue,
+                  const SizedBox(height: 12),
+
+                  // --- HEADER ---
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ArcticBackButton(),
+                        ),
+                        const Text(
+                          'Number Matching',
+                          style: TextStyle(
+                            fontFamily: ArcticAppTextStyles.fredoka,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: ArcticColorTheme.cadetblue,
+                            shadows: [Shadow(color: Colors.white, blurRadius: 8, offset: Offset(0, 2))],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+
+                  const SizedBox(height: 3),
+
+                  // --- PROMPT ---
+                  const Text(
+                    'Drag the number to its matching dots!',
+                    style: TextStyle(
+                      fontFamily: ArcticAppTextStyles.fredoka,
+                      fontSize: 20,
+                      color: ArcticColorTheme.slateblue,
+                      shadows: [Shadow(color: Colors.white, blurRadius: 8, offset: Offset(0, 2))],
+                    ),
+                  ),
+
+                  const SizedBox(height: 5),
+
+                  // --- MAIN GAME AREA ---
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // LEFT — Draggable number cards
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: _numberCardOrder
+                              .map(_buildDraggableNumberCard)
+                              .toList(),
+                        ),
+
+                        // Center arrow hint
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: ArcticColorTheme.slateblue,
+                          size: 32,
+                        ),
+
+                        // RIGHT — DragTarget dot cards
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: _dotCardOrder.map(_buildDotTarget).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  _buildProgressDots(),
                 ],
               ),
             ),
-
-            const SizedBox(height: 3),
-
-            // --- PROMPT ---
-            const Text(
-              'Drag the number to its matching dots!',
-              style: TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 20,
-                color: ArcticColorTheme.slateblue,
-              ),
-            ),
-
-            const SizedBox(height: 5),
-
-            // --- MAIN GAME AREA ---
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // LEFT — Draggable number cards
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: _numberCardOrder
-                        .map(_buildDraggableNumberCard)
-                        .toList(),
-                  ),
-
-                  // Center arrow hint
-                  const Icon(
-                    Icons.arrow_forward_rounded,
-                    color: ArcticColorTheme.slateblue,
-                    size: 32,
-                  ),
-
-                  // RIGHT — DragTarget dot cards
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: _dotCardOrder.map(_buildDotTarget).toList(),
-                  ),
-                ],
-              ),
-            ),
-
-            _buildProgressDots(),
-          ],
-        ),
+          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+        ],
       ),
     );
   }
@@ -438,6 +458,129 @@ class _NumberMatchingScreenState extends State<NumberMatchingScreen> {
           ),
         );
       }),
+    );
+  }
+
+  Widget _buildGoodJobOverlay() {
+    return GoodJobOverlay(
+      characterImage: 'assets/images/characters/doma_the_penguin.png',
+      closeButtonColor: ArcticColorTheme.slateblue,
+      onNext: () {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Number012TapCountScreen()),
+        );
+      },
+      onRestart: () {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Number012MatchingScreen()),
+        );
+      },
+      onBack: () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
+          (route) => route.isFirst,
+        );
+      },
+    );
+  }
+
+  Widget _buildIntroContent() {
+    return SafeArea(
+      child: Stack(
+        children: [
+          Positioned(top: 8, left: 12, child: ArcticBackButton()),
+          Positioned.fill(
+            top: 50,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      'assets/images/characters/doma_the_penguin.png',
+                      height: MediaQuery.of(context).size.height * 0.65,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🐧', style: TextStyle(fontSize: 60)),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: _numberDanceCtrl,
+                      builder: (_, __) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(3, (i) {
+                            final angle =
+                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: Transform.rotate(
+                                angle: angle,
+                                child: _buildIntroNumberCard(i),
+                              ),
+                            );
+                          }),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIntroNumberCard(int number) {
+    final size = MediaQuery.of(context).size.height * 0.28;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: Image.asset(
+              'assets/fonts/game_numbers/$number.png',
+              width: size * 0.64,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Text(
+                '$number',
+                style: TextStyle(
+                  fontFamily: ArcticAppTextStyles.fredoka,
+                  fontSize: size * 0.6,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          ['ZERO', 'ONE', 'TWO'][number],
+          style: TextStyle(
+            fontFamily: ArcticAppTextStyles.fredoka,
+            fontSize: size * 0.22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 2,
+            shadows: [
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
