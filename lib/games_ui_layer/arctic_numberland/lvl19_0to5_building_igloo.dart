@@ -7,6 +7,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../goodjob_prompt.dart';
+import 'lvl20_0to5_match_snowglobe.dart';
 
 class Number0to5FillIglooScreen extends StatefulWidget {
   const Number0to5FillIglooScreen({super.key});
@@ -878,7 +879,11 @@ class _Number0to5FillIglooScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: @tin navigate to next screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const Number0to5MatchSnowglobesScreen(),
+          ),
+        );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
