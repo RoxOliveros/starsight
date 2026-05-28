@@ -8,7 +8,6 @@ import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
-import 'lvl10_four_introduction.dart';
 import 'number_tracing_widget.dart';
 
 enum _ScreenPhase { intro, miniGame }
@@ -24,17 +23,53 @@ enum _IntroPhase {
 
 enum _MiniGamePhase { tracing, tapping }
 
-class NumberThreeIntroductionScreen extends StatefulWidget {
-  const NumberThreeIntroductionScreen({super.key});
+class NumberFourIntroductionScreen extends StatefulWidget {
+  const NumberFourIntroductionScreen({super.key});
 
   @override
-  State<NumberThreeIntroductionScreen> createState() =>
-      _NumberThreeIntroductionScreenState();
+  State<NumberFourIntroductionScreen> createState() =>
+      _NumberFourIntroductionScreenState();
 }
 
-class _NumberThreeIntroductionScreenState
-    extends State<NumberThreeIntroductionScreen>
+class _NumberFourIntroductionScreenState
+    extends State<NumberFourIntroductionScreen>
     with TickerProviderStateMixin {
+  // ── Asset config ────────────────────────────────
+  static const int _targetCount = 4;
+  static const String _numberWord = 'FOUR';
+  static const int _numberInt = 4;
+  static const String _numberImagePath = 'assets/fonts/game_numbers/4.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
+
+  static const String _audioBubblePop = 'assets/audio/bubble_pop.wav';
+
+  // Correct tap targets
+  static const String _objectAsset =
+      'assets/images/objects/arctic/snowball.png';
+  static const String _objectEmoji = '⚪';
+
+  // Decoy options
+  static const String _decoyOptionAsset1 =
+      'assets/images/objects/arctic/ice.png';
+  static const String _decoyOptionEmoji1 = '🧊';
+  static const String _decoyOptionAsset2 =
+      'assets/images/objects/arctic/winter_hat.png';
+  static const String _decoyOptionEmoji2 = '🧢';
+
+  // Audio
+  static const String _audioIntro =
+      'assets/audio/arctic/level10/four_intro.wav';
+  static const String _audioSayNumber =
+      'assets/audio/arctic/level10/say_four.wav';
+  static const String _audioWrite =
+      'assets/audio/arctic/level10/write_four.wav';
+  static const String _audioCount =
+      'assets/audio/arctic/level10/count_four.wav';
+  static const String _audioGoodJob = 'assets/audio/arctic/magaling.wav';
+  static const String _audioVeryGood = 'assets/audio/arctic/sobrang_husay.wav';
+
   // ── Top-level phase ────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   _IntroPhase _introPhase = _IntroPhase.domaEntering;
@@ -50,16 +85,20 @@ class _NumberThreeIntroductionScreenState
   Timer? _listenRestartTimer;
 
   // ── Mini-game state ────────────────────────────────────────────────────────
-  int _iceCreamsTapped = 0;
-  static const int _targetCount = 3;
+  int _objectsTapped = 0;
   bool _showWinDialog = false;
   late Offset _objectPos;
   late Offset _objectPos2;
   late Offset _objectPos3;
+  late Offset _objectPos4;
   bool _wrongTapped = false;
+  bool _wrongTapped2 = false;
   late Offset _decoyPos;
+  late Offset _decoyPos2;
   late String _decoyAsset;
+  late String _decoyAsset2;
   late String _decoyEmoji;
+  late String _decoyEmoji2;
   Offset? _lastTappedPos;
 
   // ── Tracing ────────────────────────────────────────────────────────
@@ -192,13 +231,13 @@ class _NumberThreeIntroductionScreenState
     _domaSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
-    await _playAudio('assets/audio/arctic/level9/three_intro.wav');
+    await _playAudio(_audioIntro);
 
     _setIntroPhase(_IntroPhase.playingSayTwo);
     _numberPopCtrl.forward();
     _numberDanceCtrl.repeat(reverse: true);
     await Future.delayed(const Duration(milliseconds: 1500));
-    await _playAudio('assets/audio/arctic/level9/say_three.wav');
+    await _playAudio(_audioSayNumber);
     await Future.delayed(const Duration(milliseconds: 300));
 
     _setIntroPhase(_IntroPhase.listening);
@@ -254,22 +293,20 @@ class _NumberThreeIntroductionScreenState
     setState(() => _isListening = true);
     _speech.listen(
       onResult: (result) {
-        if (!result.finalResult) return; // only act on final results
         final words = result.recognizedWords.toLowerCase();
-        if (words.contains('three') ||
-            words.contains('tree') ||
-            words.contains('thre') ||
-            words.contains('tri') ||
-            words.contains('cri') ||
-            words.contains('cree') ||
-            words.contains('free')) {
+        final cleaned = words.replaceAll(RegExp(r'[^a-z]'), '');
+        if (RegExp(r'\b(four|for|fore|fur|por|pore|phor|foor|fo|faw|foh|forr|foru|fawr|fower|foar)\b').hasMatch(words) ||
+            cleaned.contains('four') ||
+            cleaned.contains('for') ||
+            cleaned.length >= 2 && cleaned.startsWith('f') ||
+            cleaned.length >= 2 && cleaned.startsWith('p') && cleaned.contains('o')) {
           _listenRestartTimer?.cancel();
           _speech.stop();
           setState(() => _isListening = false);
           _onWordRecognized();
         }
       },
-      listenFor: const Duration(seconds: 10),
+      listenFor: const Duration(seconds: 30),
       pauseFor: const Duration(seconds: 4),
       localeId: 'en_US',
     );
@@ -282,7 +319,7 @@ class _NumberThreeIntroductionScreenState
     _setIntroPhase(_IntroPhase.celebrating);
     _celebrateCtrl.forward(from: 0);
 
-    await _playAudio('assets/audio/arctic/magaling.wav');
+    await _playAudio(_audioGoodJob);
     await Future.delayed(const Duration(milliseconds: 500));
 
     // ── Transition to mini game ──────────────────────────────────────────
@@ -290,43 +327,48 @@ class _NumberThreeIntroductionScreenState
     _mgTransitionCtrl.forward();
     _randomiseObjectPosition();
     setState(() => _screenPhase = _ScreenPhase.miniGame);
-    await _playAudio('assets/audio/arctic/level9/write_three.wav');
+    await _playAudio(_audioWrite);
   }
 
   // ── Mini-game logic ───────────────────────────────────────────────────────
   void _randomiseObjectPosition() {
     final rng = Random();
 
-    // Spread 3 objects vertically in the right half
-    final ySlots = [0.15, 0.38, 0.62, 0.82]..shuffle(rng);
+    final slots = [
+      const Offset(0.58, 0.45),
+      const Offset(0.72, 0.45),
+      const Offset(0.86, 0.45),
+      const Offset(0.58, 0.82),
+      const Offset(0.72, 0.82),
+      const Offset(0.86, 0.82),
+    ]..shuffle(rng);
 
-    _objectPos = Offset(0.58 + rng.nextDouble() * 0.30, ySlots[0]);
-    _objectPos2 = Offset(0.58 + rng.nextDouble() * 0.30, ySlots[1]);
-    _objectPos3 = Offset(0.58 + rng.nextDouble() * 0.30, ySlots[2]);
-    _decoyPos = Offset(0.58 + rng.nextDouble() * 0.30, ySlots[3]);
+    _objectPos  = slots[0];
+    _objectPos2 = slots[1];
+    _objectPos3 = slots[2];
+    _objectPos4 = slots[3];
+    _decoyPos   = slots[4];
+    _decoyPos2  = slots[5];
 
-    final useSled = Random().nextBool();
-    _decoyAsset = useSled
-        ? 'assets/images/objects/arctic/sled.png'
-        : 'assets/images/objects/arctic/snowy_tree.png';
-    _decoyEmoji = useSled ? '🛷' : '🌲';
+    _decoyAsset  = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
+    _decoyEmoji  = (_decoyAsset == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji2;
+    _decoyAsset2 = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
+    _decoyEmoji2 = (_decoyAsset2 == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji2;
   }
 
-  // Add parameter: isFirst, isSecond, isThird — or use an index instead
-  // Simplest: switch to an index-based approach:
-
-  final List<bool> _iceCreamTapped = [false, false, false];
+  final List<bool> _objectTapped = [false, false, false, false];
 
   void _onObjectTapped(Offset tappedPos, {required int index}) async {
-    if (_iceCreamsTapped >= _targetCount) return;
-    if (_iceCreamTapped[index]) return;
+    if (_objectsTapped >= _targetCount) return;
+    if (_objectTapped[index]) return;
     setState(() {
-      _iceCreamsTapped++;
+      _objectsTapped++;
       _lastTappedPos = tappedPos;
-      _iceCreamTapped[index] = true;
+      _objectTapped[index] = true;
     });
     _objectTapCtrl.forward(from: 0);
-    if (_iceCreamsTapped >= _targetCount) {
+    _player.play(AssetSource(_audioBubblePop.replaceFirst('assets/', '')));
+    if (_objectsTapped >= _targetCount) {
       await Future.delayed(const Duration(milliseconds: 200));
       setState(() => _showWinDialog = true);
     }
@@ -360,12 +402,7 @@ class _NumberThreeIntroductionScreenState
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/backgrounds/bg_game_arctic.png',
-              fit: BoxFit.cover,
-            ),
-          ),
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
           SafeArea(
             child: Stack(
               children: [
@@ -499,7 +536,7 @@ class _NumberThreeIntroductionScreenState
                         ? _celebrateScale
                         : const AlwaysStoppedAnimation(1.0),
                     child: Image.asset(
-                      'assets/images/characters/doma_the_penguin.png',
+                      _characterImage,
                       height: domaH,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>
@@ -523,7 +560,7 @@ class _NumberThreeIntroductionScreenState
         child: child,
       ),
       child: GestureDetector(
-        onTap: _isListening ? null : _startListening,
+        onTap: _onWordRecognized,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 18),
           decoration: BoxDecoration(
@@ -585,7 +622,12 @@ class _NumberThreeIntroductionScreenState
                     angle: _numberDance.value,
                     child: ScaleTransition(scale: _numberPop, child: child),
                   ),
-                  child: _NumberCard(number: 3, size: cardSize),
+                  child: _NumberCard(
+                    number: _numberInt,
+                    numberWord: _numberWord,
+                    imagePath: _numberImagePath,
+                    size: cardSize,
+                  ),
                 )
               : const SizedBox.shrink(),
         );
@@ -604,26 +646,25 @@ class _NumberThreeIntroductionScreenState
           final w = constraints.maxWidth;
           final h = constraints.maxHeight;
           final objSize = (h * 0.28).clamp(72.0, 120.0);
+          final cardSize = (h * 0.30).clamp(80.0, 140.0);
 
           return Stack(
             children: [
               if (_miniGamePhase == _MiniGamePhase.tracing)
                 NumberTracingWidget(
-                  number: 3,
+                  number: _numberInt,
                   player: _player,
-                  successAudio: 'assets/audio/arctic/mahusay.wav',
+                  successAudio: _audioVeryGood,
                   onComplete: () {
                     setState(() => _miniGamePhase = _MiniGamePhase.tapping);
-                    _playAudio(
-                      'assets/audio/arctic/level9/count_three_tree.wav',
-                    );
+                    _playAudio(_audioCount);
                   },
                 )
               else ...[
                 // Instruction banner — anchored top center
                 Positioned(
                   top: 0,
-                  left: w * 0.35,
+                  left: 0,
                   right: 0,
                   child: Center(
                     child: Container(
@@ -645,7 +686,7 @@ class _NumberThreeIntroductionScreenState
                           const Text('👆', style: TextStyle(fontSize: 22)),
                           const SizedBox(width: 8),
                           Text(
-                            'Tap THREE Tree!',
+                            'Tap FOUR Snowball!',
                             style: TextStyle(
                               fontFamily: ArcticAppTextStyles.fredoka,
                               fontSize: (h * 0.09).clamp(16.0, 26.0),
@@ -668,22 +709,25 @@ class _NumberThreeIntroductionScreenState
 
                 // Number card — left side
                 Positioned(
-                  left: w * 0.08,
-                  top: h * 0.5 - (h * 0.30) / 2,
-                  child: _NumberCard(number: 3, size: h * 0.3),
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: w * 0.40,
+                  child: Center(
+                    child: _NumberCard(
+                      number: _numberInt,
+                      numberWord: _numberWord,
+                      imagePath: _numberImagePath,
+                      size: cardSize,
+                    ),
+                  ),
                 ),
 
-                // ── Ice Cream (correct) ──
-                if (!_iceCreamTapped[0])
+                // ── Correct Object ──
+                if (!_objectTapped[0])
                   Positioned(
-                    left: (_objectPos.dx * w - objSize / 2).clamp(
-                      w * 0.55,
-                      w - objSize,
-                    ),
-                    top: (_objectPos.dy * h - objSize / 2).clamp(
-                      h * 0.25,
-                      h - objSize,
-                    ),
+                    left: _objectPos.dx * w - objSize / 2,
+                    top:  _objectPos.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -694,24 +738,18 @@ class _NumberThreeIntroductionScreenState
                         onTap: () => _onObjectTapped(_objectPos, index: 0),
                         child: _buildObjectCircle(
                           objSize,
-                          'assets/images/objects/arctic/snowy_tree.png',
-                          '🌲',
+                          _objectAsset,
+                          _objectEmoji,
                           false,
                         ),
                       ),
                     ),
                   ),
 
-                if (!_iceCreamTapped[1])
+                if (!_objectTapped[1])
                   Positioned(
-                    left: (_objectPos2.dx * w - objSize / 2).clamp(
-                      w * 0.55,
-                      w - objSize,
-                    ),
-                    top: (_objectPos2.dy * h - objSize / 2).clamp(
-                      h * 0.20,
-                      h - objSize,
-                    ),
+                    left: _objectPos2.dx * w - objSize / 2,
+                    top:  _objectPos2.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -722,24 +760,18 @@ class _NumberThreeIntroductionScreenState
                         onTap: () => _onObjectTapped(_objectPos2, index: 1),
                         child: _buildObjectCircle(
                           objSize,
-                          'assets/images/objects/arctic/snowy_tree.png',
-                          '🌲',
+                          _objectAsset,
+                          _objectEmoji,
                           false,
                         ),
                       ),
                     ),
                   ),
 
-                if (!_iceCreamTapped[2])
+                if (!_objectTapped[2])
                   Positioned(
-                    left: (_objectPos3.dx * w - objSize / 2).clamp(
-                      w * 0.55,
-                      w - objSize,
-                    ),
-                    top: (_objectPos3.dy * h - objSize / 2).clamp(
-                      h * 0.20,
-                      h - objSize,
-                    ),
+                    left: _objectPos3.dx * w - objSize / 2,
+                    top:  _objectPos3.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -750,8 +782,30 @@ class _NumberThreeIntroductionScreenState
                         onTap: () => _onObjectTapped(_objectPos3, index: 2),
                         child: _buildObjectCircle(
                           objSize,
-                          'assets/images/objects/arctic/snowy_tree.png',
-                          '🍦',
+                          _objectAsset,
+                          _objectEmoji,
+                          false,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                if (!_objectTapped[3])
+                  Positioned(
+                    left: _objectPos4.dx * w - objSize / 2,
+                    top:  _objectPos4.dy * h - objSize / 2,
+                    child: AnimatedBuilder(
+                      animation: _objectWiggleCtrl,
+                      builder: (_, child) => Transform.translate(
+                        offset: Offset(0, (_objectWiggleCtrl.value - 0.5) * 10),
+                        child: child,
+                      ),
+                      child: GestureDetector(
+                        onTap: () => _onObjectTapped(_objectPos4, index: 3),
+                        child: _buildObjectCircle(
+                          objSize,
+                          _objectAsset,
+                          _objectEmoji,
                           false,
                         ),
                       ),
@@ -759,7 +813,7 @@ class _NumberThreeIntroductionScreenState
                   ),
 
                 // tap burst
-                if (_iceCreamsTapped > 0 &&
+                if (_objectsTapped > 0 &&
                     _lastTappedPos != null &&
                     _objectTapCtrl.status != AnimationStatus.completed)
                   Positioned(
@@ -768,7 +822,7 @@ class _NumberThreeIntroductionScreenState
                       w - objSize,
                     ),
                     top: (_lastTappedPos!.dy * h - objSize / 2).clamp(
-                      h * 0.20,
+                      h * 0.28,
                       h - objSize,
                     ),
                     child: ScaleTransition(
@@ -787,16 +841,10 @@ class _NumberThreeIntroductionScreenState
                     ),
                   ),
 
-                if (_iceCreamsTapped < _targetCount)
+                if (_objectsTapped < _targetCount)
                   Positioned(
-                    left: (_decoyPos.dx * w - objSize / 2).clamp(
-                      w * 0.55,
-                      w - objSize,
-                    ),
-                    top: (_decoyPos.dy * h - objSize / 2).clamp(
-                      h * 0.20,
-                      h - objSize,
-                    ),
+                    left: _decoyPos.dx * w - objSize / 2,
+                    top:  _decoyPos.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -825,6 +873,40 @@ class _NumberThreeIntroductionScreenState
                       ),
                     ),
                   ),
+                if (_objectsTapped < _targetCount)
+                  Positioned(
+                    left: _decoyPos2.dx * w - objSize / 2,
+                    top:  _decoyPos2.dy * h - objSize / 2,
+                    child: AnimatedBuilder(
+                      animation: _objectWiggleCtrl,
+                      builder: (_, child) => Transform.translate(
+                        offset: Offset(
+                          0,
+                          (_objectWiggleCtrl.value - 0.5) * -10,
+                        ),
+                        child: child,
+                      ),
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() => _wrongTapped2 = true);
+                          Future.delayed(
+                            const Duration(milliseconds: 1000),
+                            () {
+                              if (mounted) {
+                                setState(() => _wrongTapped2 = false);
+                              }
+                            },
+                          );
+                        },
+                        child: _buildObjectCircle(
+                          objSize,
+                          _decoyAsset2,
+                          _decoyEmoji2,
+                          _wrongTapped2,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ],
           );
@@ -838,17 +920,17 @@ class _NumberThreeIntroductionScreenState
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildGoodJobOverlay() {
     return GoodJobOverlay(
-      characterImage: 'assets/images/characters/doma_the_penguin.png',
+      characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const NumberFourIntroductionScreen()),
-        );
+        // Navigator.of(context).pushReplacement(
+        //   MaterialPageRoute(builder: (_) => const ()),
+        // );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => const NumberThreeIntroductionScreen(),
+            builder: (_) => const NumberFourIntroductionScreen(),
           ),
         );
       },
@@ -867,9 +949,16 @@ class _NumberThreeIntroductionScreenState
 // ─────────────────────────────────────────────────────────────────────────────
 class _NumberCard extends StatelessWidget {
   final int number;
+  final String numberWord;
+  final String imagePath;
   final double size;
 
-  const _NumberCard({required this.number, required this.size});
+  const _NumberCard({
+    required this.number,
+    required this.numberWord,
+    required this.imagePath,
+    required this.size,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -879,11 +968,11 @@ class _NumberCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Image.asset(
-            'assets/fonts/game_numbers/3.png',
+            imagePath,
             width: size,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Text(
-              '3',
+              numberWord,
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: size * 0.75,
@@ -896,7 +985,7 @@ class _NumberCard extends StatelessWidget {
           SizedBox(height: size * 0.05),
 
           Text(
-            'THREE',
+            numberWord,
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
               fontSize: size * 0.26,

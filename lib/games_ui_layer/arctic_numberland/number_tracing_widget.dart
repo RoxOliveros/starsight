@@ -40,11 +40,11 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 
   Widget _buildTracingLayer(double w, double h) {
     final caneSize = h * 0.14;
-    final numberSize = h * 0.55;
+    final numberSize = h * 0.85;
     final traceW = numberSize * 0.5;
     final traceH = numberSize;
     final traceLeft = w / 2 - traceW / 2;
-    final traceTop = h / 2 - traceH / 2;
+    final traceTop = h / 2 - traceH / 2 + 15;
 
     return Stack(
       children: [
@@ -217,7 +217,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         .where((p) => p != const Offset(-1, -1))
         .toList();
 
-    if (valid.length < 20) return;
+    if (valid.length < 12) return;
 
     // Skip top/bottom start-end checks for closed-loop numbers
     final isClosedLoop = widget.number == 0 || widget.number == 8;
@@ -227,13 +227,16 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
       final minY = ys.reduce(min);
       final maxY = ys.reduce(max);
 
-      if ((maxY - minY) / traceH < 0.55) return;
+      final minSpan = widget.number == 4 ? 0.40 : 0.55;
+      if ((maxY - minY) / traceH < minSpan) return;
 
       final firstY = valid.take(5).map((p) => p.dy).reduce((a, b) => a + b) / 5;
-      if (firstY > traceH * 0.55) return;
+      if (firstY > traceH * 0.75) return;
 
-      final lastY = valid.skip(valid.length - 5).map((p) => p.dy).reduce((a, b) => a + b) / 5;
-      if (lastY < traceH * 0.60) return;
+      if (widget.number != 4) {
+        final lastY = valid.skip(valid.length - 5).map((p) => p.dy).reduce((a, b) => a + b) / 5;
+        if (lastY < traceH * 0.60) return;
+      }
     }
 
     if (!_numberSpecificCheck(valid, traceW, traceH)) return;
@@ -291,20 +294,17 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         return middlePts >= 2;
 
       case 4:
-      // Has a strong vertical on the right half (the stem)
-        final rightStem = valid.where((p) => p.dx > traceW * 0.50).toList();
-        if (rightStem.length < 8) return false;
+        final rightStem = valid.where((p) => p.dx > traceW * 0.40).toList();
+        if (rightStem.length < 4) return false;
         final stemYs = rightStem.map((p) => p.dy).toList();
         final stemRange = stemYs.reduce(max) - stemYs.reduce(min);
-        if (stemRange < traceH * 0.55) return false;
-        // Has a horizontal crossbar in the upper-middle area
-        final crossPts = valid.where((p) => p.dy > traceH * 0.30 && p.dy < traceH * 0.65).toList();
+        if (stemRange < traceH * 0.30) return false;
+        final crossPts = valid.where((p) => p.dy > traceH * 0.20 && p.dy < traceH * 0.80).toList();
         if (crossPts.length < 3) return false;
         final crossXs = crossPts.map((p) => p.dx).toList();
-        return (crossXs.reduce(max) - crossXs.reduce(min)) >= traceW * 0.50;
+        return (crossXs.reduce(max) - crossXs.reduce(min)) >= traceW * 0.25;
 
       case 5:
-      // Top horizontal, then curves right at bottom
         final topPts = valid.where((p) => p.dy < traceH * 0.25).toList();
         if (topPts.length < 3) return false;
         final topXs = topPts.map((p) => p.dx).toList();
