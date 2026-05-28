@@ -11,6 +11,7 @@ import '../../games_ui_layer/arctic_numberland/lvl14_345_counting.dart';
 import '../../games_ui_layer/arctic_numberland/lvl15_345_matching.dart';
 import '../../games_ui_layer/arctic_numberland/lvl16_345_odd_one_out.dart';
 import '../../games_ui_layer/arctic_numberland/lvl17_012345_sequence.dart';
+import '../../games_ui_layer/arctic_numberland/lvl18_0to5_counting_trees.dart';
 import '../../games_ui_layer/arctic_numberland/lvl4_number012_reintroduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl5_number012_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/lvl1_zero_introduction.dart';
@@ -192,10 +193,10 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                     bottom: 0,
                     child: GestureDetector(
                       onTap: () {
-                        if (_page < 1) setState(() => _page++);
+                        if (_page < 2) setState(() => _page++);
                       },
                       child: Opacity(
-                        opacity: _page < 1 ? 1.0 : 0.3,
+                        opacity: _page < 2 ? 1.0 : 0.3,
                         child: Image.asset(
                           'assets/images/arrows/bttn_arctic_arrow_right.png',
                           width: 70,
@@ -370,6 +371,14 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const Number012345SequenceScreen(),
+              ),
+            );
+            break;
+          case 18:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number0to5CountingTreesScreen(),
               ),
             );
             break;

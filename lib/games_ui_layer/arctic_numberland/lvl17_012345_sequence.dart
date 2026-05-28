@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/games_ui_layer/arctic_numberland/lvl18_0to5_counting_trees.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -15,14 +16,13 @@ class Number012345SequenceScreen extends StatefulWidget {
       _Number012345SequenceScreenState();
 }
 
-class _Number012345SequenceScreenState
-    extends State<Number012345SequenceScreen> with TickerProviderStateMixin {
+class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
+    with TickerProviderStateMixin {
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 3;
   static const List<int> _allNumbers = [0, 1, 2, 3, 4, 5];
 
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_arctic.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
 
@@ -50,7 +50,7 @@ class _Number012345SequenceScreenState
   bool _roundComplete = false;
   bool _showWinDialog = false;
 
-  // Currently dragging
+  // ignore: unused_field
   int? _draggingNumber;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
@@ -92,13 +92,13 @@ class _Number012345SequenceScreenState
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(
-      CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut),
-    );
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _tilesEnterCtrl = AnimationController(
       vsync: this,
@@ -120,7 +120,7 @@ class _Number012345SequenceScreenState
     // 6 slot pulse controllers
     _slotPulseCtrlList = List.generate(
       6,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 500),
       ),
@@ -130,9 +130,7 @@ class _Number012345SequenceScreenState
         TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3), weight: 40),
         TweenSequenceItem(tween: Tween(begin: 1.3, end: 0.9), weight: 30),
         TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.0), weight: 30),
-      ]).animate(
-        CurvedAnimation(parent: ctrl, curve: Curves.easeOut),
-      );
+      ]).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOut));
     }).toList();
   }
 
@@ -321,7 +319,7 @@ class _Number012345SequenceScreenState
                     height: MediaQuery.of(context).size.height * 0.65,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
-                    const Text('🐧', style: TextStyle(fontSize: 60)),
+                        const Text('🐧', style: TextStyle(fontSize: 60)),
                   ),
                 ),
               ),
@@ -391,7 +389,11 @@ class _Number012345SequenceScreenState
             color: Colors.white,
             letterSpacing: 1.5,
             shadows: const [
-              Shadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2)),
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
             ],
           ),
         ),
@@ -426,22 +428,13 @@ class _Number012345SequenceScreenState
             const SizedBox(height: 12),
 
             // ── SLOTS ROW ──────────────────────────
-            ScaleTransition(
-              scale: _tilesEnter,
-              child: _buildSlotsRow(w, h),
-            ),
+            ScaleTransition(scale: _tilesEnter, child: _buildSlotsRow(w, h)),
 
             const SizedBox(height: 10),
 
             // ── TILES TRAY ─────────────────────────
             Expanded(
-              child: Stack(
-                children: [
-                  Center(
-                      child: _buildTilesTray(w, h),
-                  ),
-                ],
-              ),
+              child: Stack(children: [Center(child: _buildTilesTray(w, h))]),
             ),
 
             // ── PROGRESS DOTS ──────────────────────
@@ -557,12 +550,12 @@ class _Number012345SequenceScreenState
               ),
               boxShadow: isLocked
                   ? [
-                BoxShadow(
-                  color: Colors.greenAccent.withValues(alpha: 0.5),
-                  blurRadius: 14,
-                  spreadRadius: 2,
-                ),
-              ]
+                      BoxShadow(
+                        color: Colors.greenAccent.withValues(alpha: 0.5),
+                        blurRadius: 14,
+                        spreadRadius: 2,
+                      ),
+                    ]
                   : [],
             ),
             child: Stack(
@@ -727,21 +720,21 @@ class _Number012345SequenceScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: @tin navigate to next screen
-        // Navigator.of(context).pushReplacement(
-        //   MaterialPageRoute(builder: (_) => const NextScreen()),
-        // );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const Number0to5CountingTreesScreen(),
+          ),
+        );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-              builder: (_) => const Number012345SequenceScreen()),
+          MaterialPageRoute(builder: (_) => const Number012345SequenceScreen()),
         );
       },
       onBack: () {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-              (route) => route.isFirst,
+          (route) => route.isFirst,
         );
       },
     );
