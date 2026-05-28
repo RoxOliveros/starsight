@@ -7,6 +7,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../goodjob_prompt.dart';
+import 'lvl19_0to5_building_igloo.dart';
 
 class Number0to5CountingTreesScreen extends StatefulWidget {
   const Number0to5CountingTreesScreen({super.key});
@@ -843,10 +844,9 @@ class _Number0to5CountingTreesScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: @tin navigate to next screen
-        // Navigator.of(context).pushReplacement(
-        //   MaterialPageRoute(builder: (_) => const NextScreen()),
-        // );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Number0to5FillIglooScreen()),
+        );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(

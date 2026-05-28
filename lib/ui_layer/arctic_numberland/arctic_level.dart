@@ -12,6 +12,7 @@ import '../../games_ui_layer/arctic_numberland/lvl15_345_matching.dart';
 import '../../games_ui_layer/arctic_numberland/lvl16_345_odd_one_out.dart';
 import '../../games_ui_layer/arctic_numberland/lvl17_012345_sequence.dart';
 import '../../games_ui_layer/arctic_numberland/lvl18_0to5_counting_trees.dart';
+import '../../games_ui_layer/arctic_numberland/lvl19_0to5_building_igloo.dart';
 import '../../games_ui_layer/arctic_numberland/lvl4_number012_reintroduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl5_number012_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/lvl1_zero_introduction.dart';
@@ -379,6 +380,14 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const Number0to5CountingTreesScreen(),
+              ),
+            );
+            break;
+          case 19:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number0to5FillIglooScreen(),
               ),
             );
             break;
