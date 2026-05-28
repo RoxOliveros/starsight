@@ -87,6 +87,7 @@ flutter:
     - assets/images/arrows/
     - assets/images/alphabets/
     - assets/images/buttons/
+    - assets/images/icons/
     - assets/images/objects/
     - assets/images/objects/arctic/
     - assets/images/lumi/
@@ -109,6 +110,10 @@ flutter:
     - assets/audio/arctic/level11/
     - assets/audio/arctic/level12/
     - assets/audio/arctic/level13/
+    - assets/audio/arctic/level14/
+    - assets/audio/arctic/level15/
+    - assets/audio/arctic/level16/
+    - assets/audio/arctic/level17/
     - assets/drafts/
     - assets/gifs/
     - assets/animations/

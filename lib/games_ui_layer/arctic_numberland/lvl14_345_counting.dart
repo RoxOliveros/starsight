@@ -1,0 +1,643 @@
+import 'dart:async';
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
+import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
+import '../../ui_layer/arctic_numberland/arctic_level.dart';
+import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import '../goodjob_prompt.dart';
+import 'lvl15_345_matching.dart';
+
+enum _ScreenPhase { intro, miniGame }
+
+class Number345CountingScreen extends StatefulWidget {
+  const Number345CountingScreen({super.key});
+
+  @override
+  State<Number345CountingScreen> createState() =>
+      _Number345CountingScreenState();
+}
+
+class _Number345CountingScreenState extends State<Number345CountingScreen>
+    with TickerProviderStateMixin {
+  // ── Constants ──────────────────────────────────────────────────────────────
+  static const int _totalRounds = 5;
+  static const List<int> _numbers = [3, 4, 5];
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+
+  static const String _audioIntro = 'assets/audio/arctic/level14/intro.wav';
+  static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
+
+  // ── Objects pool (all arctic assets) ──────────────────────────────────────
+  static const List<Map<String, String>> _objects = [
+    {
+      'name': 'Candy Cane',
+      'asset': 'assets/images/objects/arctic/candy_cane.png',
+    },
+    {'name': 'Earmuffs', 'asset': 'assets/images/objects/arctic/earmuffs.png'},
+    {'name': 'Ice', 'asset': 'assets/images/objects/arctic/ice.png'},
+    {
+      'name': 'Ice Skates',
+      'asset': 'assets/images/objects/arctic/ice_skates.png',
+    },
+    {'name': 'Ice Cream', 'asset': 'assets/images/objects/arctic/icecream.png'},
+    {'name': 'Igloo', 'asset': 'assets/images/objects/arctic/igloo.png'},
+    {'name': 'Sled', 'asset': 'assets/images/objects/arctic/sled.png'},
+    {'name': 'Snowball', 'asset': 'assets/images/objects/arctic/snowball.png'},
+    {
+      'name': 'Snow Globe',
+      'asset': 'assets/images/objects/arctic/snowglobe.png',
+    },
+    {'name': 'Snowman', 'asset': 'assets/images/objects/arctic/snowman.png'},
+    {
+      'name': 'Snowy Sign',
+      'asset': 'assets/images/objects/arctic/snowy_signboard.png',
+    },
+    {
+      'name': 'Snowy Tree',
+      'asset': 'assets/images/objects/arctic/snowy_tree.png',
+    },
+    {
+      'name': 'Winter Hat',
+      'asset': 'assets/images/objects/arctic/winter_hat.png',
+    },
+  ];
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  _ScreenPhase _screenPhase = _ScreenPhase.intro;
+  bool _showWinDialog = false;
+
+  int _round = 1;
+  late int _correctCount;
+  late List<int> _choices;
+  late String _currentObjectAsset;
+  int? _tappedIndex;
+
+  // ── Audio ──────────────────────────────────────────────────────────────────
+  final AudioPlayer _player = AudioPlayer();
+
+  // ── Animations ─────────────────────────────────────────────────────────────
+  late AnimationController _numberDanceCtrl;
+  late Animation<double> _numberDance;
+
+  late AnimationController _domaFloatCtrl;
+
+  late AnimationController _objectsEnterCtrl;
+  late Animation<double> _objectsEnter;
+
+  late AnimationController _choicesEnterCtrl;
+  late Animation<double> _choicesEnter;
+
+  late AnimationController _correctPulseCtrl;
+  late Animation<double> _correctPulse;
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  @override
+  void initState() {
+    super.initState();
+    OrientationService.setLandscape();
+    _initAnimations();
+    _generateRound();
+    _startIntroFlow();
+  }
+
+  void _initAnimations() {
+    // Intro: numbers dance
+    _numberDanceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..repeat(reverse: true);
+    _numberDance = Tween<double>(begin: -0.08, end: 0.08).animate(
+      CurvedAnimation(parent: _numberDanceCtrl, curve: Curves.easeInOut),
+    );
+
+    // Doma floating
+    _domaFloatCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+
+    // Objects display box entrance
+    _objectsEnterCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _objectsEnter = CurvedAnimation(
+      parent: _objectsEnterCtrl,
+      curve: Curves.elasticOut,
+    );
+
+    // Choices entrance
+    _choicesEnterCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _choicesEnter = CurvedAnimation(
+      parent: _choicesEnterCtrl,
+      curve: Curves.easeOutBack,
+    );
+
+    // Correct answer pulse
+    _correctPulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _correctPulse =
+        TweenSequence([
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.25), weight: 40),
+          TweenSequenceItem(tween: Tween(begin: 1.25, end: 0.9), weight: 30),
+          TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.05), weight: 20),
+          TweenSequenceItem(tween: Tween(begin: 1.05, end: 1.0), weight: 10),
+        ]).animate(
+          CurvedAnimation(parent: _correctPulseCtrl, curve: Curves.easeOut),
+        );
+  }
+
+  // ── Round Logic ─────────────────────────────────────────────────────────────
+  void _generateRound() {
+    final rng = Random();
+
+    // Pick correct count from 3, 4, 5
+    _correctCount = _numbers[rng.nextInt(_numbers.length)];
+
+    // Build 3 wrong choices from the remaining numbers (no duplicates)
+    final others = _numbers.where((n) => n != _correctCount).toList()
+      ..shuffle(rng);
+    // We only have 2 other numbers (3,4,5 → 2 others), so pad with neighbor
+    final wrongChoices = [...others];
+    // Add one more distractor: +1 or -1 from correct, clamped to 3-6
+    final extra = (_correctCount + (rng.nextBool() ? 1 : -1)).clamp(3, 6);
+    if (!wrongChoices.contains(extra)) wrongChoices.add(extra);
+
+    // Build choices: 3 wrong + 1 correct, shuffled, capped at 4
+    _choices = [...wrongChoices.take(3), _correctCount]..shuffle(rng);
+
+    // Pick a random object
+    final obj = List.from(_objects)..shuffle(rng);
+    _currentObjectAsset = (obj.first as Map<String, String>)['asset']!;
+
+    _tappedIndex = null;
+  }
+
+  // ── Flow ───────────────────────────────────────────────────────────────────
+  Future<void> _startIntroFlow() async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    await _playAudio(_audioIntro);
+    if (!mounted) return;
+    setState(() => _screenPhase = _ScreenPhase.miniGame);
+    _animateRoundIn();
+  }
+
+  void _animateRoundIn() {
+    _objectsEnterCtrl.forward(from: 0);
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) _choicesEnterCtrl.forward(from: 0);
+    });
+  }
+
+  Future<void> _onChoiceTap(int index) async {
+    if (_tappedIndex != null) return;
+    setState(() => _tappedIndex = index);
+
+    final isCorrect = _choices[index] == _correctCount;
+
+    if (isCorrect) {
+      _correctPulseCtrl.forward(from: 0);
+      await _playAudio(_audioCorrect);
+    }
+
+    await Future.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
+
+    if (_round >= _totalRounds) {
+      setState(() => _showWinDialog = true);
+    } else {
+      setState(() {
+        _round++;
+        _generateRound();
+      });
+      _animateRoundIn();
+    }
+  }
+
+  // ── Audio ──────────────────────────────────────────────────────────────────
+  Future<void> _playAudio(String asset) async {
+    try {
+      final completer = Completer<void>();
+      final sub = _player.onPlayerComplete.listen((_) {
+        if (!completer.isCompleted) completer.complete();
+      });
+      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
+      await completer.future;
+      await sub.cancel();
+    } catch (e) {
+      debugPrint('Audio error ($asset): $e');
+      await Future.delayed(const Duration(seconds: 1));
+    }
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    _numberDanceCtrl.dispose();
+    _domaFloatCtrl.dispose();
+    _objectsEnterCtrl.dispose();
+    _choicesEnterCtrl.dispose();
+    _correctPulseCtrl.dispose();
+    OrientationService.setLandscape();
+    super.dispose();
+  }
+
+  // ── Choice Colors ──────────────────────────────────────────────────────────
+  Color _choiceColor(int index) {
+    if (_tappedIndex == null) return ArcticColorTheme.pictonblue;
+    if (_choices[index] == _correctCount) return Colors.green;
+    if (_tappedIndex == index) return Colors.red;
+    return ArcticColorTheme.pictonblue;
+  }
+
+  Color _choiceBorderColor(int index) {
+    if (_tappedIndex == null) return ArcticColorTheme.slateblue;
+    if (_choices[index] == _correctCount) return ArcticColorTheme.pictonblue;
+    if (_tappedIndex == index) return Colors.red.shade700;
+    return ArcticColorTheme.slateblue;
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Background
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+
+          if (_screenPhase == _ScreenPhase.intro)
+            _buildIntroContent()
+          else
+            SafeArea(child: _buildGameContent()),
+
+          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+        ],
+      ),
+    );
+  }
+
+  // ── Intro ──────────────────────────────────────────────────────────────────
+  Widget _buildIntroContent() {
+    return SafeArea(
+      child: Stack(
+        children: [
+          Positioned(top: 8, left: 12, child: ArcticBackButton()),
+          Positioned.fill(
+            top: 40,
+            child: Row(
+              children: [
+                // Doma
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      _characterImage,
+                      height: MediaQuery.of(context).size.height * 0.65,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🐧', style: TextStyle(fontSize: 60)),
+                    ),
+                  ),
+                ),
+                // Dancing numbers 3, 4, 5
+                Expanded(
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: _numberDanceCtrl,
+                      builder: (_, __) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(3, (i) {
+                            final angle =
+                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: Transform.rotate(
+                                angle: angle,
+                                child: _buildIntroNumberCard(i),
+                              ),
+                            );
+                          }),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIntroNumberCard(int i) {
+    final number = _numbers[i]; // 3, 4, 5
+    final size = MediaQuery.of(context).size.height * 0.28;
+    const words = ['THREE', 'FOUR', 'FIVE'];
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: Image.asset(
+              'assets/fonts/game_numbers/$number.png',
+              width: size * 0.64,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Text(
+                '$number',
+                style: TextStyle(
+                  fontFamily: ArcticAppTextStyles.fredoka,
+                  fontSize: size * 0.6,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          words[i],
+          style: TextStyle(
+            fontFamily: ArcticAppTextStyles.fredoka,
+            fontSize: size * 0.22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 2,
+            shadows: const [
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Game Content ───────────────────────────────────────────────────────────
+  Widget _buildGameContent() {
+    return Column(
+      children: [
+        const SizedBox(height: 12),
+
+        // ── HEADER ──────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+              const Text(
+                'Counting Objects',
+                style: TextStyle(
+                  fontFamily: ArcticAppTextStyles.fredoka,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black54,
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Subtitle — tappable to replay audio
+        GestureDetector(
+          onTap: () {},
+          child: Container(
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+            decoration: BoxDecoration(
+              color: ArcticColorTheme.pictonblue.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: const Text(
+              'How many are there?',
+              style: TextStyle(
+                fontFamily: ArcticAppTextStyles.fredoka,
+                fontSize: 20,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                shadows: [
+                  Shadow(
+                    color: Colors.black45,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // ── MAIN ROW ────────────────────────────
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Objects display box
+              ScaleTransition(scale: _objectsEnter, child: _buildObjectsBox()),
+
+              // Choices grid
+              ScaleTransition(scale: _choicesEnter, child: _buildChoicesGrid()),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // ── PROGRESS DOTS ───────────────────────
+        Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: _buildProgressDots(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildObjectsBox() {
+    return Container(
+      width: 300,
+      height: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: ArcticColorTheme.cotton,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: ArcticColorTheme.pictonblue, width: 4),
+        boxShadow: [
+          BoxShadow(
+            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: _buildObjectGrid(),
+      ),
+    );
+  }
+
+  Widget _buildObjectGrid() {
+    // Layout: up to 5 objects in a wrap
+    // For 3 → 3 items, 4 → 4 items, 5 → 5 items
+    return Wrap(
+      alignment: WrapAlignment.center,
+      runAlignment: WrapAlignment.center,
+      spacing: 10,
+      runSpacing: 10,
+      children: List.generate(_correctCount, (i) {
+        return Image.asset(
+          _currentObjectAsset,
+          width: 68,
+          height: 68,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) =>
+              const Text('❄️', style: TextStyle(fontSize: 48)),
+        );
+      }),
+    );
+  }
+
+  Widget _buildChoicesGrid() {
+    return SizedBox(
+      width: 250,
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.3,
+        ),
+        itemCount: _choices.length,
+        itemBuilder: (context, index) {
+          final isCorrect = _choices[index] == _correctCount;
+          final isTappedCorrect = _tappedIndex == index && isCorrect;
+
+          return GestureDetector(
+            onTap: () => _onChoiceTap(index),
+            child: ScaleTransition(
+              scale: isTappedCorrect
+                  ? _correctPulse
+                  : const AlwaysStoppedAnimation(1.0),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                decoration: BoxDecoration(
+                  color: _choiceColor(index),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: _choiceBorderColor(index),
+                    width: 3,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _choiceColor(index).withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Image.asset(
+                    'assets/fonts/game_numbers/${_choices[index]}.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Text(
+                        '${_choices[index]}',
+                        style: const TextStyle(
+                          fontFamily: ArcticAppTextStyles.fredoka,
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: ArcticColorTheme.cotton,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildProgressDots() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_totalRounds, (i) {
+        final done = i + 1 < _round;
+        final current = i + 1 == _round;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          width: current ? 28 : 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: done
+                ? ArcticColorTheme.cadetblue
+                : current
+                ? ArcticColorTheme.slateblue
+                : ArcticColorTheme.slateblue.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildGoodJobOverlay() {
+    return GoodJobOverlay(
+      characterImage: _characterImage,
+      closeButtonColor: ArcticColorTheme.slateblue,
+      onNext: () {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Number345MatchingScreen()),
+        );
+      },
+      onRestart: () {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Number345CountingScreen()),
+        );
+      },
+      onBack: () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
+          (route) => route.isFirst,
+        );
+      },
+    );
+  }
+}

@@ -7,7 +7,11 @@ import '../../games_ui_layer/arctic_numberland/lvl10_four_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl11_five_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl12_345_reintroduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl13_345_recognition.dart';
-import '../../games_ui_layer/arctic_numberland/lvl4_number0123_reintroduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl14_345_counting.dart';
+import '../../games_ui_layer/arctic_numberland/lvl15_345_matching.dart';
+import '../../games_ui_layer/arctic_numberland/lvl16_345_odd_one_out.dart';
+import '../../games_ui_layer/arctic_numberland/lvl17_012345_sequence.dart';
+import '../../games_ui_layer/arctic_numberland/lvl4_number012_reintroduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl5_number012_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/lvl1_zero_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
@@ -334,6 +338,38 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const Number345RecognitionScreen(),
+              ),
+            );
+            break;
+          case 14:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number345CountingScreen(),
+              ),
+            );
+            break;
+          case 15:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number345MatchingScreen(),
+              ),
+            );
+            break;
+          case 16:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number345OddOneOutScreen(),
+              ),
+            );
+            break;
+          case 17:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number012345SequenceScreen(),
               ),
             );
             break;

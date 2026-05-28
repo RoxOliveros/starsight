@@ -7,6 +7,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../goodjob_prompt.dart';
+import 'lvl14_345_counting.dart';
 
 class Number345RecognitionScreen extends StatefulWidget {
   const Number345RecognitionScreen({super.key});
@@ -650,10 +651,9 @@ class _Number345RecognitionScreenState extends State<Number345RecognitionScreen>
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        //TODO: @tin navigate to next
-        // Navigator.of(context).pushReplacement(
-        //   MaterialPageRoute(builder: (_) => const NextScreen()),
-        // );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Number345CountingScreen()),
+        );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
