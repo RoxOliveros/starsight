@@ -227,13 +227,13 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
       final minY = ys.reduce(min);
       final maxY = ys.reduce(max);
 
-      final minSpan = widget.number == 4 ? 0.40 : 0.55;
+      final minSpan = (widget.number == 4 || widget.number == 5) ? 0.40 : 0.55;
       if ((maxY - minY) / traceH < minSpan) return;
 
       final firstY = valid.take(5).map((p) => p.dy).reduce((a, b) => a + b) / 5;
       if (firstY > traceH * 0.75) return;
 
-      if (widget.number != 4) {
+      if (widget.number != 4 && widget.number != 5) {
         final lastY = valid.skip(valid.length - 5).map((p) => p.dy).reduce((a, b) => a + b) / 5;
         if (lastY < traceH * 0.60) return;
       }
@@ -305,15 +305,25 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         return (crossXs.reduce(max) - crossXs.reduce(min)) >= traceW * 0.25;
 
       case 5:
-        final topPts = valid.where((p) => p.dy < traceH * 0.25).toList();
-        if (topPts.length < 3) return false;
+      // Top horizontal bar
+        final topPts = valid.where((p) => p.dy < traceH * 0.40).toList();
+        if (topPts.length < 2) return false;
         final topXs = topPts.map((p) => p.dx).toList();
-        if ((topXs.reduce(max) - topXs.reduce(min)) < traceW * 0.45) return false;
-        // Bottom curve has points on right side
-        final bottomPts = valid.where((p) => p.dy > traceH * 0.55).toList();
-        if (bottomPts.length < 5) return false;
+        if ((topXs.reduce(max) - topXs.reduce(min)) < traceW * 0.20) return false;
+
+        // Bottom curve — right side coverage
+        final bottomPts = valid.where((p) => p.dy > traceH * 0.40).toList();
+        if (bottomPts.length < 3) return false;
         final bxs = bottomPts.map((p) => p.dx).toList();
-        return bxs.reduce(max) > traceW * 0.60;
+        if (bxs.reduce(max) < traceW * 0.30) return false; // loosened from 0.45
+
+        // Left side of bottom curve must exist (the round belly of 5)
+        final bottomLeft = bottomPts.where((p) => p.dx < traceW * 0.50).length;
+        if (bottomLeft < 2) return false;
+
+        // Overall vertical span
+        final ys = valid.map((p) => p.dy).toList();
+        return (ys.reduce(max) - ys.reduce(min)) > traceH * 0.35; // loosened from 0.45
 
       case 6:
       // Top curves left, then closes into a loop at bottom

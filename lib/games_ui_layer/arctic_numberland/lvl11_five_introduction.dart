@@ -8,7 +8,6 @@ import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
-import 'lvl11_five_introduction.dart';
 import 'number_tracing_widget.dart';
 
 enum _ScreenPhase { intro, miniGame }
@@ -24,22 +23,23 @@ enum _IntroPhase {
 
 enum _MiniGamePhase { tracing, tapping }
 
-class NumberFourIntroductionScreen extends StatefulWidget {
-  const NumberFourIntroductionScreen({super.key});
+class NumberFiveIntroductionScreen extends StatefulWidget {
+  const NumberFiveIntroductionScreen({super.key});
 
   @override
-  State<NumberFourIntroductionScreen> createState() =>
-      _NumberFourIntroductionScreenState();
+  State<NumberFiveIntroductionScreen> createState() =>
+      _NumberFiveIntroductionScreenState();
 }
 
-class _NumberFourIntroductionScreenState
-    extends State<NumberFourIntroductionScreen>
+class _NumberFiveIntroductionScreenState
+    extends State<NumberFiveIntroductionScreen>
     with TickerProviderStateMixin {
   // ── Asset config ────────────────────────────────
-  static const int _targetCount = 4;
-  static const String _numberWord = 'FOUR';
-  static const int _numberInt = 4;
-  static const String _numberImagePath = 'assets/fonts/game_numbers/4.png';
+  static const int _targetCount = 5;
+  static const String _numberWord = 'FIVE';
+  static const String _instructions = 'Tap FIVE Hats!';
+  static const int _numberInt = 5;
+  static const String _numberImagePath = 'assets/fonts/game_numbers/5.png';
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
@@ -48,28 +48,31 @@ class _NumberFourIntroductionScreenState
 
   // Correct tap targets
   static const String _objectAsset =
-      'assets/images/objects/arctic/snowball.png';
-  static const String _objectEmoji = '⚪';
+      'assets/images/objects/arctic/winter_hat.png';
+  static const String _objectEmoji = '🧢';
 
   // Decoy options
   static const String _decoyOptionAsset1 =
-      'assets/images/objects/arctic/ice.png';
-  static const String _decoyOptionEmoji1 = '🧊';
+      'assets/images/objects/arctic/snowglobe.png';
+  static const String _decoyOptionEmoji1 = '🔮';
   static const String _decoyOptionAsset2 =
-      'assets/images/objects/arctic/winter_hat.png';
-  static const String _decoyOptionEmoji2 = '🧢';
+      'assets/images/objects/arctic/snowy_signboard.png';
+  static const String _decoyOptionEmoji2 = '🪧';
+  static const String _decoyOptionAsset3 =
+      'assets/images/objects/arctic/candy_cane.png';
+  static const String _decoyOptionEmoji3 = '🍬';
 
   // Audio
   static const String _audioIntro =
-      'assets/audio/arctic/level10/four_intro.wav';
+      'assets/audio/arctic/level11/five_intro.wav';
   static const String _audioSayNumber =
-      'assets/audio/arctic/level10/say_four.wav';
+      'assets/audio/arctic/level11/say_five.wav';
   static const String _audioWrite =
-      'assets/audio/arctic/level10/write_four.wav';
+      'assets/audio/arctic/level11/write_five.wav';
   static const String _audioCount =
-      'assets/audio/arctic/level10/count_four.wav';
-  static const String _audioGoodJob = 'assets/audio/arctic/magaling.wav';
-  static const String _audioVeryGood = 'assets/audio/arctic/sobrang_husay.wav';
+      'assets/audio/arctic/level11/count_five.wav';
+  static const String _audioGoodJob = 'assets/audio/arctic/mahusay.wav';
+  static const String _audioVeryGood = 'assets/audio/arctic/magaling.wav';
 
   // ── Top-level phase ────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -101,6 +104,11 @@ class _NumberFourIntroductionScreenState
   late String _decoyEmoji;
   late String _decoyEmoji2;
   Offset? _lastTappedPos;
+  late Offset _objectPos5; // ADD
+  late Offset _decoyPos3; // ADD
+  late String _decoyAsset3; // ADD
+  late String _decoyEmoji3; // ADD
+  bool _wrongTapped3 = false; // ADD
 
   // ── Tracing ────────────────────────────────────────────────────────
   _MiniGamePhase _miniGamePhase = _MiniGamePhase.tracing;
@@ -274,43 +282,59 @@ class _NumberFourIntroductionScreenState
     }
 
     if (!mounted || _introPhase != _IntroPhase.listening) return;
-
-    _speech.statusListener = (status) {
-      if (!mounted) return;
-      if ((status == 'done' || status == 'notListening') &&
-          _introPhase == _IntroPhase.listening &&
-          !_recognized) {
-        // Cancel any pending restart, schedule a new one
-        _listenRestartTimer?.cancel();
-        _listenRestartTimer = Timer(
-          const Duration(milliseconds: 100),
-          _startListening,
-        ); // shorter gap
-      }
-    };
-
-    if (_speech.isListening) return; // already listening, don't double-start
+    if (_recognized) return;
+    if (_speech.isListening) return;
 
     setState(() => _isListening = true);
+
     _speech.listen(
       onResult: (result) {
+        if (_recognized) return;
         final words = result.recognizedWords.toLowerCase();
-        final cleaned = words.replaceAll(RegExp(r'[^a-z]'), '');
-        if (RegExp(r'\b(four|for|fore|fur|por|pore|phor|foor|fo|faw|foh|forr|foru|fawr|fower|foar)\b').hasMatch(words) ||
-            cleaned.contains('four') ||
-            cleaned.contains('for') ||
-            cleaned.length >= 2 && cleaned.startsWith('f') ||
-            cleaned.length >= 2 && cleaned.startsWith('p') && cleaned.contains('o')) {
+        final cleaned = words.replaceAll(RegExp(r'[^a-z\s]'), '').trim();
+
+        final matched =
+            cleaned.split(RegExp(r'\s+')).any((word) =>
+            word == 'five' ||
+                word == 'fi' ||
+                word == 'fife' ||
+                word == 'hive' ||
+                word == 'fine' ||
+                word == 'fyve' ||
+                word == 'fiev') ||
+                cleaned.contains('five');
+
+        if (matched) {
+          debugPrint('STT matched: "$words"');
           _listenRestartTimer?.cancel();
           _speech.stop();
           setState(() => _isListening = false);
           _onWordRecognized();
         }
       },
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 4),
+      onSoundLevelChange: null,
+      listenFor: const Duration(seconds: 60),
+      pauseFor: const Duration(seconds: 8),
       localeId: 'en_US',
+      cancelOnError: false,
     );
+
+    // Only restart on actual stop, with a longer delay
+    _speech.statusListener = (status) {
+      if (!mounted || _recognized) return;
+      debugPrint('STT status: $status');
+      if (status == 'done' || status == 'notListening') {
+        _listenRestartTimer?.cancel();
+        _listenRestartTimer = Timer(
+          const Duration(milliseconds: 800),
+              () {
+            if (!mounted || _recognized) return;
+            setState(() => _isListening = false);
+            _startListening();
+          },
+        );
+      }
+    };
   }
 
   Future<void> _onWordRecognized() async {
@@ -335,29 +359,48 @@ class _NumberFourIntroductionScreenState
   void _randomiseObjectPosition() {
     final rng = Random();
 
-    final slots = [
-      const Offset(0.58, 0.45),
-      const Offset(0.72, 0.45),
-      const Offset(0.86, 0.45),
-      const Offset(0.58, 0.82),
-      const Offset(0.72, 0.82),
-      const Offset(0.86, 0.82),
+    // 8 well-spaced slots on the RIGHT half only (x: 0.52–0.92)
+    final allSlots = [
+      const Offset(0.55, 0.30),
+      const Offset(0.70, 0.30),
+      const Offset(0.85, 0.30),
+      const Offset(0.55, 0.58),
+      const Offset(0.70, 0.58),
+      const Offset(0.85, 0.58),
+      const Offset(0.62, 0.85),
+      const Offset(0.78, 0.85),
     ]..shuffle(rng);
 
-    _objectPos  = slots[0];
-    _objectPos2 = slots[1];
-    _objectPos3 = slots[2];
-    _objectPos4 = slots[3];
-    _decoyPos   = slots[4];
-    _decoyPos2  = slots[5];
+    _objectPos  = allSlots[0];
+    _objectPos2 = allSlots[1];
+    _objectPos3 = allSlots[2];
+    _objectPos4 = allSlots[3];
+    _objectPos5 = allSlots[4];
+    _decoyPos   = allSlots[5];
+    _decoyPos2  = allSlots[6];
+    _decoyPos3  = allSlots[7];
 
-    _decoyAsset  = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
-    _decoyEmoji  = (_decoyAsset == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji2;
+    _decoyAsset = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
+    _decoyEmoji = (_decoyAsset == _decoyOptionAsset1)
+        ? _decoyOptionEmoji1
+        : _decoyOptionEmoji2;
     _decoyAsset2 = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
-    _decoyEmoji2 = (_decoyAsset2 == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji2;
+    _decoyEmoji2 = (_decoyAsset2 == _decoyOptionAsset1)
+        ? _decoyOptionEmoji1
+        : _decoyOptionEmoji2;
+    _decoyAsset3 = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset3;
+    _decoyEmoji3 = (_decoyAsset3 == _decoyOptionAsset1)
+        ? _decoyOptionEmoji1
+        : _decoyOptionEmoji3;
   }
 
-  final List<bool> _objectTapped = [false, false, false, false];
+  final List<bool> _objectTapped = [
+    false,
+    false,
+    false,
+    false,
+    false,
+  ];
 
   void _onObjectTapped(Offset tappedPos, {required int index}) async {
     if (_objectsTapped >= _targetCount) return;
@@ -501,6 +544,12 @@ class _NumberFourIntroductionScreenState
                 child: _buildBottomListeningPrompt(),
               ),
             ),
+          if (_introPhase == _IntroPhase.listening)
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: _buildSkipButton(),
+            ),
         ],
       ),
     );
@@ -561,7 +610,7 @@ class _NumberFourIntroductionScreenState
         child: child,
       ),
       child: GestureDetector(
-        onTap: _onWordRecognized,
+        onTap: null,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 18),
           decoration: BoxDecoration(
@@ -687,7 +736,7 @@ class _NumberFourIntroductionScreenState
                           const Text('👆', style: TextStyle(fontSize: 22)),
                           const SizedBox(width: 8),
                           Text(
-                            'Tap FOUR Snowball!',
+                            _instructions,
                             style: TextStyle(
                               fontFamily: ArcticAppTextStyles.fredoka,
                               fontSize: (h * 0.09).clamp(16.0, 26.0),
@@ -728,7 +777,7 @@ class _NumberFourIntroductionScreenState
                 if (!_objectTapped[0])
                   Positioned(
                     left: _objectPos.dx * w - objSize / 2,
-                    top:  _objectPos.dy * h - objSize / 2,
+                    top: _objectPos.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -750,7 +799,7 @@ class _NumberFourIntroductionScreenState
                 if (!_objectTapped[1])
                   Positioned(
                     left: _objectPos2.dx * w - objSize / 2,
-                    top:  _objectPos2.dy * h - objSize / 2,
+                    top: _objectPos2.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -772,7 +821,7 @@ class _NumberFourIntroductionScreenState
                 if (!_objectTapped[2])
                   Positioned(
                     left: _objectPos3.dx * w - objSize / 2,
-                    top:  _objectPos3.dy * h - objSize / 2,
+                    top: _objectPos3.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -794,7 +843,7 @@ class _NumberFourIntroductionScreenState
                 if (!_objectTapped[3])
                   Positioned(
                     left: _objectPos4.dx * w - objSize / 2,
-                    top:  _objectPos4.dy * h - objSize / 2,
+                    top: _objectPos4.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -803,6 +852,28 @@ class _NumberFourIntroductionScreenState
                       ),
                       child: GestureDetector(
                         onTap: () => _onObjectTapped(_objectPos4, index: 3),
+                        child: _buildObjectCircle(
+                          objSize,
+                          _objectAsset,
+                          _objectEmoji,
+                          false,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                if (!_objectTapped[4])
+                  Positioned(
+                    left: _objectPos5.dx * w - objSize / 2,
+                    top: _objectPos5.dy * h - objSize / 2,
+                    child: AnimatedBuilder(
+                      animation: _objectWiggleCtrl,
+                      builder: (_, child) => Transform.translate(
+                        offset: Offset(0, (_objectWiggleCtrl.value - 0.5) * 10),
+                        child: child,
+                      ),
+                      child: GestureDetector(
+                        onTap: () => _onObjectTapped(_objectPos5, index: 4),
                         child: _buildObjectCircle(
                           objSize,
                           _objectAsset,
@@ -845,7 +916,7 @@ class _NumberFourIntroductionScreenState
                 if (_objectsTapped < _targetCount)
                   Positioned(
                     left: _decoyPos.dx * w - objSize / 2,
-                    top:  _decoyPos.dy * h - objSize / 2,
+                    top: _decoyPos.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -877,7 +948,7 @@ class _NumberFourIntroductionScreenState
                 if (_objectsTapped < _targetCount)
                   Positioned(
                     left: _decoyPos2.dx * w - objSize / 2,
-                    top:  _decoyPos2.dy * h - objSize / 2,
+                    top: _decoyPos2.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -908,6 +979,27 @@ class _NumberFourIntroductionScreenState
                       ),
                     ),
                   ),
+                // 3rd decoy
+                if (_objectsTapped < _targetCount)
+                  Positioned(
+                    left: _decoyPos3.dx * w - objSize / 2,
+                    top:  _decoyPos3.dy * h - objSize / 2,
+                    child: AnimatedBuilder(
+                      animation: _objectWiggleCtrl,
+                      builder: (_, child) => Transform.translate(
+                        offset: Offset(0, (_objectWiggleCtrl.value - 0.5) * -10),
+                        child: child,
+                      ),
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() => _wrongTapped3 = true);
+                          Future.delayed(const Duration(milliseconds: 1000),
+                                  () { if (mounted) setState(() => _wrongTapped3 = false); });
+                        },
+                        child: _buildObjectCircle(objSize, _decoyAsset3, _decoyEmoji3, _wrongTapped3),
+                      ),
+                    ),
+                  ),
               ],
             ],
           );
@@ -924,14 +1016,14 @@ class _NumberFourIntroductionScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const NumberFiveIntroductionScreen()),
-        );
+        // Navigator.of(context).pushReplacement(
+        //   MaterialPageRoute(builder: (_) => const ()),
+        // );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => const NumberFourIntroductionScreen(),
+            builder: (_) => const NumberFiveIntroductionScreen(),
           ),
         );
       },
@@ -941,6 +1033,17 @@ class _NumberFourIntroductionScreenState
           (route) => route.isFirst,
         );
       },
+    );
+  }
+
+  Widget _buildSkipButton() {
+    return GestureDetector(
+      onTap: _onWordRecognized,
+      child: Image.asset(
+        'assets/images/buttons/skip.png',
+        width: 72,
+        fit: BoxFit.contain,
+      ),
     );
   }
 }

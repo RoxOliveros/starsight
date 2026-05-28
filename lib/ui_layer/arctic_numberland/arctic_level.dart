@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/arctic_numberland/lvl10_four_introduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl11_five_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl4_number0123_reintroduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl5_number012_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/lvl1_zero_introduction.dart';
@@ -307,6 +308,14 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const NumberFourIntroductionScreen(),
+              ),
+            );
+            break;
+          case 11:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NumberFiveIntroductionScreen(),
               ),
             );
             break;
