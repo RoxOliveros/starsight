@@ -5,6 +5,8 @@ import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/arctic_numberland/lvl10_four_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl11_five_introduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl12_345_reintroduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl13_345_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/lvl4_number0123_reintroduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl5_number012_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/lvl1_zero_introduction.dart';
@@ -316,6 +318,22 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const NumberFiveIntroductionScreen(),
+              ),
+            );
+            break;
+          case 12:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number345ReintroductionScreen(),
+              ),
+            );
+            break;
+          case 13:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Number345RecognitionScreen(),
               ),
             );
             break;

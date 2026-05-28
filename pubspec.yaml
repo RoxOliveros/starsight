@@ -107,6 +107,8 @@ flutter:
     - assets/audio/arctic/level9/
     - assets/audio/arctic/level10/
     - assets/audio/arctic/level11/
+    - assets/audio/arctic/level12/
+    - assets/audio/arctic/level13/
     - assets/drafts/
     - assets/gifs/
     - assets/animations/

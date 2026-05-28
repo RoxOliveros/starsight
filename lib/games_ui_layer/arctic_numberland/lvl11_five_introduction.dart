@@ -1016,6 +1016,7 @@ class _NumberFiveIntroductionScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
+        //TODO: @Tin navigate to next
         // Navigator.of(context).pushReplacement(
         //   MaterialPageRoute(builder: (_) => const ()),
         // );
