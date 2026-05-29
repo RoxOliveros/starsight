@@ -232,14 +232,13 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                 right: 24,
                 child: GestureDetector(
                   onTap: () {
-                    // Navigate to Trace Game later!
-                    print("Moving to Tracing Game!");
-                    Navigator.push(
+                    // 1. Goes from INTRO to PUZZLE (stays on the same letter)
+                    Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        // Notice how we specifically ask for 'A' here!
-                        builder: (context) =>
-                            const AlphabetPuzzleScreen(startingLetter: 'A'),
+                        builder: (context) => AlphabetPuzzleScreen(
+                          startingLetter: widget.startingLetter,
+                        ),
                       ),
                     );
                   },

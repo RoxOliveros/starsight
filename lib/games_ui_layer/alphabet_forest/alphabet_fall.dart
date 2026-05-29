@@ -57,7 +57,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
         _currentImagePath = 'assets/images/objects/car.png';
         _targetLetters = ['C', 'c'];
         break;
-      // Add 'D', 'E', etc. here later!
+      // Add 'D', 'E', etc. here later
       default:
         _currentImagePath = 'assets/images/objects/apple.png';
         _targetLetters = ['A', 'a'];
@@ -173,21 +173,10 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
           characterImage: 'assets/images/dog.png',
           closeButtonColor: ForestColorTheme.seagreen,
 
+          // 4. FALL is the last game. Return to the Map!
           onNext: () {
-            Navigator.pop(context);
-            String nextLetter = _getNextLetter(widget.startingLetter);
-
-            if (nextLetter == 'DONE') {
-              Navigator.pop(context);
-            } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      AlphabetFallScreen(startingLetter: nextLetter),
-                ),
-              );
-            }
+            Navigator.pop(context); // 1st: Close the Good Job prompt
+            Navigator.pop(context); // 2nd: Exit the game and return to Map
           },
 
           onRestart: () {

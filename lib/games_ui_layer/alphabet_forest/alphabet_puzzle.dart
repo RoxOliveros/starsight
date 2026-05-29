@@ -16,7 +16,7 @@ class AlphabetPuzzleScreen extends StatefulWidget {
   // You can pass the letter you want to play through the constructor later!
   final String startingLetter;
 
-  const AlphabetPuzzleScreen({super.key, this.startingLetter = 'A'});
+  const AlphabetPuzzleScreen({super.key, required this.startingLetter});
 
   @override
   State<AlphabetPuzzleScreen> createState() => _AlphabetPuzzleScreenState();
@@ -57,14 +57,6 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
           PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/apple_bl.png'),
           PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/apple_br.png'),
         ];
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            // Notice how we specifically ask for 'A' here!
-            builder: (context) =>
-                const AlphabetTraceScreen(startingLetter: 'A'),
-          ),
-        );
         break;
       case 'B':
         _fullImagePath = 'assets/images/alphabets/ball_full.png';
@@ -151,25 +143,17 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
           // },
           //Wag po buburahin 2
 
-          // 1. NEXT BUTTON: What happens when they click the right arrow?
+          // 2. Goes from PUZZLE to TRACE (stays on the same letter)
           onNext: () {
-            Navigator.pop(context); // 1st: Close the Good Job prompt
+            Navigator.pop(context); // Close the Good Job prompt
 
-            String nextLetter = _getNextLetter(widget.startingLetter);
-
-            if (nextLetter == 'DONE') {
-              // If they finished Z, just go back to the Map!
-              Navigator.pop(context);
-            } else {
-              // If there is a next letter, replace the current screen with the new one
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      AlphabetPuzzleScreen(startingLetter: nextLetter),
-                ),
-              );
-            }
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    AlphabetTraceScreen(startingLetter: widget.startingLetter),
+              ),
+            );
           },
 
           onRestart: () {

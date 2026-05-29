@@ -1,3 +1,4 @@
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -21,8 +22,7 @@ class TraceLevel {
 class AlphabetTraceScreen extends StatefulWidget {
   final String startingLetter;
 
-  // Defaults to 'A' if no letter is passed
-  const AlphabetTraceScreen({super.key, this.startingLetter = 'A'});
+  const AlphabetTraceScreen({super.key, required this.startingLetter});
 
   @override
   State<AlphabetTraceScreen> createState() => _AlphabetTraceScreenState();
@@ -552,30 +552,26 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
           characterImage: 'assets/images/dog.png',
           closeButtonColor: ForestColorTheme.mediumseagreen,
 
+          // 3. Goes from TRACE to FALL (stays on the same letter)
           onNext: () {
             Navigator.pop(context); // Close the dialog
 
             if (!isLastSubLevel) {
-              // If they just finished uppercase, move to lowercase
+              // Move from uppercase to lowercase trace
               setState(() {
                 _resetBoard();
                 _currentLevelIndex++;
                 _generateDensePaths();
               });
             } else {
-              // If they finished lowercase, go to the NEXT letter entirely!
-              String nextLetter = _getNextLetter(widget.startingLetter);
-              if (nextLetter == 'DONE') {
-                Navigator.pop(context); // Return to map if Z is done
-              } else {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AlphabetTraceScreen(startingLetter: nextLetter),
-                  ),
-                );
-              }
+              // When Trace is completely done, go to the FALL game!
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      AlphabetFallScreen(startingLetter: widget.startingLetter),
+                ),
+              );
             }
           },
 

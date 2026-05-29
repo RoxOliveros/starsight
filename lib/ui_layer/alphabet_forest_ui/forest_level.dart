@@ -261,7 +261,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetTraceScreen(),
+                builder: (context) =>
+                    const AlphabetPuzzleScreen(startingLetter: 'A'),
               ),
             );
             break;
@@ -269,7 +270,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetMatchScreen(),
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'B'),
               ),
             );
             break;
