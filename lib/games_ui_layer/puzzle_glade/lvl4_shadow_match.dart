@@ -7,12 +7,9 @@ import '../../ui_layer/puzzle_glade/jar_buttons.dart';
 import '../../ui_layer/puzzle_glade/jar_level.dart';
 import '../../ui_layer/puzzle_glade/jar_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl4_shadow_match.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-enum _IntroPhase { playingIntro, playingWelcome, done }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -31,70 +28,53 @@ const _kAllObjects = [
   'water_bottle',
 ];
 
-const _kPairsPerRound = 2;
-const _kPeekDuration = Duration(milliseconds: 1400);
-const _kTotalRounds = 5;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Card model
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _CardModel {
-  final int id;
-  final int pairId;
-  final String object;
-  bool isFaceUp = false;
-  bool isMatched = false;
-
-  _CardModel({required this.id, required this.pairId, required this.object});
-}
+const int _kChoices = 2;
+const int _kTotalRounds = 5;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class Lvl3JarMemoryMatchScreen extends StatefulWidget {
-  const Lvl3JarMemoryMatchScreen({super.key});
+class Lvl4ShadowMatchScreen extends StatefulWidget {
+  const Lvl4ShadowMatchScreen({super.key});
 
   @override
-  State<Lvl3JarMemoryMatchScreen> createState() =>
-      _Lvl3JarMemoryMatchScreenState();
+  State<Lvl4ShadowMatchScreen> createState() => _Lvl4ShadowMatchScreenState();
 }
 
-class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
+class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
     with TickerProviderStateMixin {
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
-  static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
 
   static const String _audioIntro =
-      'assets/audio/puzzle_glade/level3/intro.wav';
+      'assets/audio/puzzle_glade/level4/intro.wav';
   static const String _audioWelcome =
-      'assets/audio/puzzle_glade/level3/welcome.wav';
+      'assets/audio/puzzle_glade/level4/welcome.wav';
   static const String _audioInstructions =
-      'assets/audio/puzzle_glade/level3/instruction.wav';
-  static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
+      'assets/audio/puzzle_glade/level4/instruction.wav';
   static const String _audioSuccess = 'assets/audio/shine.wav';
+  static const String _audioWrong = 'assets/audio/bubble_pop.wav';
   static const String _audioComplete =
-      'assets/audio/puzzle_glade/level3/complete.wav';
+      'assets/audio/puzzle_glade/level4/complete.wav';
 
-  // ── Phase state ────────────────────────────────────────────────────────────
+  // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
 
-  // ── Game state ─────────────────────────────────────────────────────────────
+  // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
-  late List<_CardModel> _cards;
-  final List<int> _peekedIds = [];
-  bool _locked = false;
+  late String _answerObject;
+  late List<String> _choices;
+  bool _wrongFlash = false;
   bool _roundComplete = false;
-  int _matchesFound = 0;
+  int? _tappedIndex;
   bool _showWinDialog = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer(); // intro, welcome, instructions
-  final AudioPlayer _sfxPlayer = AudioPlayer(); // correct, success, complete
+  final AudioPlayer _bgPlayer = AudioPlayer();
+  final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
@@ -106,8 +86,8 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
-  late AnimationController _cardDanceCtrl;
-  late Animation<double> _cardDance;
+  late AnimationController _shadowDanceCtrl;
+  late Animation<double> _shadowDance;
   late AnimationController _speechBubbleCtrl;
 
   // Game transition
@@ -117,14 +97,15 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
   // Round
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
-  late AnimationController _celebCtrl;
-  late Animation<double> _celebAnim;
-
-  // Per-card flip
-  List<AnimationController> _flipCtrls = [];
-  List<Animation<double>> _flipAnims = [];
+  late AnimationController _pulseCtrl;
+  late Animation<double> _pulseAnim;
+  late AnimationController _bounceCtrl;
+  late Animation<double> _bounceAnim;
+  late AnimationController _revealCtrl;
+  late Animation<double> _revealAnim;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
+
   @override
   void initState() {
     super.initState();
@@ -140,19 +121,19 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
     _completePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
-    _cardDanceCtrl.dispose();
+    _shadowDanceCtrl.dispose();
     _speechBubbleCtrl.dispose();
     _gameEnterCtrl.dispose();
     _enterCtrl.dispose();
-    _celebCtrl.dispose();
-    for (final c in _flipCtrls) {
-      c.dispose();
-    }
+    _pulseCtrl.dispose();
+    _bounceCtrl.dispose();
+    _revealCtrl.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
 
   // ── Animation init ─────────────────────────────────────────────────────────
+
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
       vsync: this,
@@ -172,14 +153,13 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
       curve: const Interval(0, 0.4),
     );
 
-    _cardDanceCtrl = AnimationController(
+    _shadowDanceCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 700),
     )..repeat(reverse: true);
-    _cardDance = Tween<double>(
-      begin: -0.07,
-      end: 0.07,
-    ).animate(CurvedAnimation(parent: _cardDanceCtrl, curve: Curves.easeInOut));
+    _shadowDance = Tween<double>(begin: -0.07, end: 0.07).animate(
+      CurvedAnimation(parent: _shadowDanceCtrl, curve: Curves.easeInOut),
+    );
 
     _speechBubbleCtrl = AnimationController(
       vsync: this,
@@ -194,49 +174,62 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
 
     _enterCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 450),
+      duration: const Duration(milliseconds: 400),
     );
     _enterAnim = CurvedAnimation(parent: _enterCtrl, curve: Curves.easeOut);
 
-    _celebCtrl = AnimationController(
+    _pulseCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(
+      begin: 0.94,
+      end: 1.06,
+    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+
+    _bounceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
     );
-    _celebAnim = CurvedAnimation(parent: _celebCtrl, curve: Curves.elasticOut);
+    _bounceAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.25,
+    ).animate(CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut));
+
+    _revealCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _revealAnim = CurvedAnimation(parent: _revealCtrl, curve: Curves.easeIn);
   }
 
   // ── Intro flow ─────────────────────────────────────────────────────────────
+
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     _roxieSlideCtrl.forward();
 
-    _setIntroPhase(_IntroPhase.playingIntro);
     _speechBubbleCtrl.forward(from: 0);
-    await _playAudio(_audioIntro);
+    await _playBgAudio(_audioIntro);
 
-    _setIntroPhase(_IntroPhase.playingWelcome);
     _speechBubbleCtrl.forward(from: 0);
-    await _playAudio(_audioWelcome);
+    await _playBgAudio(_audioWelcome);
     await Future.delayed(const Duration(milliseconds: 400));
 
-    _setIntroPhase(_IntroPhase.done);
     _gameEnterCtrl.forward();
-    _buildRound();
+    _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
-    await _playAudio(_audioInstructions);
+    await _playBgAudio(_audioInstructions);
   }
 
-  Future<void> _playAudio(String asset) async {
+  Future<void> _playBgAudio(String asset) async {
     StreamSubscription? sub;
     try {
       final completer = Completer<void>();
-
       sub = _bgPlayer.onPlayerComplete.listen((_) {
         if (!completer.isCompleted) completer.complete();
       });
-
       await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-
       await completer.future.timeout(const Duration(seconds: 12));
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
@@ -245,129 +238,84 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
     }
   }
 
-  void _setIntroPhase(_IntroPhase p) {
-    if (!mounted) return;
-  }
-
   // ── Round setup ────────────────────────────────────────────────────────────
-  void _buildRound() {
+
+  void _startRound() {
     final rng = Random();
-    final pool = List<String>.from(_kAllObjects)..shuffle(rng);
-    final chosen = pool.take(_kPairsPerRound).toList();
+    final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
 
-    final rawCards = <_CardModel>[];
-    for (int i = 0; i < chosen.length; i++) {
-      rawCards.add(_CardModel(id: i * 2, pairId: i, object: chosen[i]));
-      rawCards.add(_CardModel(id: i * 2 + 1, pairId: i, object: chosen[i]));
-    }
-    rawCards.shuffle(rng);
-    _cards = rawCards;
+    _answerObject = shuffled[0];
+    _choices = shuffled.take(_kChoices).toList()..shuffle(rng);
 
-    for (final c in _flipCtrls) {
-      c.dispose();
-    }
-    _flipCtrls = List.generate(
-      _cards.length,
-      (_) => AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 380),
-      ),
-    );
-    _flipAnims = _flipCtrls
-        .map(
-          (ctrl) => Tween<double>(
-            begin: 0.0,
-            end: 1.0,
-          ).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeInOut)),
-        )
-        .toList();
-
-    _peekedIds.clear();
-    _locked = false;
+    _wrongFlash = false;
     _roundComplete = false;
-    _matchesFound = 0;
-    _celebCtrl.reset();
+    _tappedIndex = null;
+
+    _bounceCtrl.reset();
+    _revealCtrl.reset();
+    _pulseCtrl.repeat(reverse: true);
     _enterCtrl.forward(from: 0);
   }
 
-  // ── Card tap logic ─────────────────────────────────────────────────────────
-  Future<void> _onCardTap(int cardIndex) async {
-    if (_locked || _roundComplete) return;
+  // ── Choice tap ─────────────────────────────────────────────────────────────
 
-    final card = _cards[cardIndex];
-    if (card.isFaceUp || card.isMatched) return;
+  Future<void> _onChoiceTapped(int index) async {
+    if (_roundComplete || _wrongFlash) return;
 
-    setState(() {
-      card.isFaceUp = true;
-      _peekedIds.add(cardIndex);
-    });
-    _flipCtrls[cardIndex].forward();
+    final tapped = _choices[index];
 
-    if (_peekedIds.length < 2) return;
-
-    _locked = true;
-    final idxA = _peekedIds[0];
-    final idxB = _peekedIds[1];
-    final cardA = _cards[idxA];
-    final cardB = _cards[idxB];
-
-    if (cardA.pairId == cardB.pairId) {
-      _sfxPlayer.play(AssetSource(_audioCorrect.replaceFirst('assets/', '')));
-      await Future.delayed(const Duration(milliseconds: 500));
+    if (tapped == _answerObject) {
+      _pulseCtrl.stop();
       setState(() {
-        cardA.isMatched = true;
-        cardB.isMatched = true;
-        _peekedIds.clear();
-        _matchesFound++;
-        _locked = false;
+        _tappedIndex = index;
+        _roundComplete = true;
       });
+      _bounceCtrl.forward(from: 0);
+      _revealCtrl.forward(from: 0);
+      _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
 
-      if (_matchesFound == _kPairsPerRound) {
-        _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
-        await Future.delayed(const Duration(milliseconds: 300));
-        setState(() => _roundComplete = true);
-        _celebCtrl.forward();
-        await Future.delayed(const Duration(milliseconds: 1200));
+      await Future.delayed(const Duration(milliseconds: 1200));
 
-        if (_round >= _kTotalRounds) {
-          await Future.delayed(const Duration(milliseconds: 300));
-          await _bgPlayer.stop();
-          await _sfxPlayer.stop();
+      if (_round >= _kTotalRounds) {
+        await _bgPlayer.stop();
+        await _sfxPlayer.stop();
 
-          final completer = Completer<void>();
-          final sub = _completePlayer.onPlayerComplete.listen((_) {
-            if (!completer.isCompleted) completer.complete();
-          });
-          await _completePlayer.play(
-            AssetSource(_audioComplete.replaceFirst('assets/', '')),
-          );
-          await completer.future.timeout(const Duration(seconds: 10));
-          await sub.cancel();
+        final completer = Completer<void>();
+        final sub = _completePlayer.onPlayerComplete.listen((_) {
+          if (!completer.isCompleted) completer.complete();
+        });
+        await _completePlayer.play(
+          AssetSource(_audioComplete.replaceFirst('assets/', '')),
+        );
+        await completer.future.timeout(const Duration(seconds: 10));
+        await sub.cancel();
 
-          if (mounted) setState(() => _showWinDialog = true);
-        } else {
-          await _enterCtrl.reverse();
-          setState(() {
-            _round++;
-            _buildRound();
-          });
-        }
+        if (mounted) setState(() => _showWinDialog = true);
+      } else {
+        await _enterCtrl.reverse();
+        setState(() {
+          _round++;
+          _startRound();
+        });
       }
     } else {
-      await Future.delayed(_kPeekDuration);
+      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
       setState(() {
-        cardA.isFaceUp = false;
-        cardB.isFaceUp = false;
-        _peekedIds.clear();
+        _tappedIndex = index;
+        _wrongFlash = true;
       });
-      _flipCtrls[idxA].reverse();
-      _flipCtrls[idxB].reverse();
-      await Future.delayed(const Duration(milliseconds: 400));
-      _locked = false;
+      await Future.delayed(const Duration(milliseconds: 650));
+      if (mounted) {
+        setState(() {
+          _wrongFlash = false;
+          _tappedIndex = null;
+        });
+      }
     }
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -403,17 +351,17 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
   // ══════════════════════════════════════════════════════════════════════════
   // INTRO
   // ══════════════════════════════════════════════════════════════════════════
+
   Widget _buildIntroContent() {
     return Stack(
       children: [
         Positioned(top: 8, left: 12, child: JarBackButton()),
-
         Positioned.fill(
           top: 48,
           child: Row(
             children: [
               Expanded(flex: 4, child: _buildIntroRoxie()),
-              Expanded(flex: 6, child: _buildIntroDancingCards()),
+              Expanded(flex: 6, child: _buildIntroDancingShadows()),
             ],
           ),
         ),
@@ -429,7 +377,6 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );
-
         return ClipRect(
           child: Align(
             alignment: Alignment.bottomCenter,
@@ -459,50 +406,59 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
     );
   }
 
-  Widget _buildIntroDancingCards() {
-    // Show a preview of face-down cards dancing to hint at the memory game
+  Widget _buildIntroDancingShadows() {
+    const previewObjects = ['compass', 'lamp'];
     return AnimatedBuilder(
-      animation: _cardDanceCtrl,
+      animation: _shadowDanceCtrl,
       builder: (_, __) {
         return Center(
           child: Wrap(
             alignment: WrapAlignment.center,
             runAlignment: WrapAlignment.center,
-            spacing: 16,
-            runSpacing: 16,
-            children: List.generate(4, (i) {
-              final angle = _cardDance.value * ((i % 2 == 0) ? 1 : -1);
+            spacing: 14,
+            runSpacing: 14,
+            children: List.generate(previewObjects.length, (i) {
+              final isShadow = i % 2 == 0;
+              final angle = _shadowDance.value * ((i % 2 == 0) ? 1 : -1);
               return Transform.rotate(
                 angle: angle,
                 child: Container(
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: JarColorTheme.vandecane,
+                    color: isShadow
+                        ? JarColorTheme.vandecane
+                        : Colors.white.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: JarColorTheme.darkdesaturatedblue.withValues(
-                        alpha: 0.35,
+                        alpha: 0.30,
                       ),
                       width: 2.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
+                        color: Colors.black.withValues(alpha: 0.10),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: Center(
-                    child: Text(
-                      '?',
-                      style: TextStyle(
-                        fontFamily: JarAppTextStyles.fredoka,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: JarColorTheme.sunnyhue,
-                      ),
+                    child: Image.asset(
+                      'assets/images/objects/puzzle/${previewObjects[i]}.png',
+                      width: 44,
+                      height: 44,
+                      color: isShadow
+                          ? JarColorTheme.verydarkdesaturatedblue.withValues(
+                              alpha: 0.80,
+                            )
+                          : null,
+                      colorBlendMode: isShadow
+                          ? BlendMode.srcIn
+                          : BlendMode.modulate,
+                      errorBuilder: (_, __, ___) =>
+                          Text('🔍', style: TextStyle(fontSize: 28)),
                     ),
                   ),
                 ),
@@ -517,6 +473,7 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
   // ══════════════════════════════════════════════════════════════════════════
   // GAME
   // ══════════════════════════════════════════════════════════════════════════
+
   Widget _buildGameContent() {
     return FadeTransition(
       opacity: _enterAnim,
@@ -524,8 +481,8 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
         children: [
           const SizedBox(height: 10),
           _buildGameHeader(),
-          const SizedBox(height: 16),
-          Expanded(child: _buildCardGrid()),
+          const SizedBox(height: 12),
+          Expanded(child: _buildGameArea()),
           _buildProgressDots(),
           const SizedBox(height: 10),
         ],
@@ -557,7 +514,7 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
                 ],
               ),
               child: Text(
-                'Memory Match',
+                'Shadow Match',
                 style: TextStyle(
                   fontFamily: JarAppTextStyles.fredoka,
                   fontSize: 22,
@@ -572,127 +529,150 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
     );
   }
 
-  Widget _buildCardGrid() {
-    return Center(
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        alignment: WrapAlignment.center,
-        children: List.generate(_cards.length, (i) => _buildCard(i)),
-      ),
+  Widget _buildGameArea() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _buildSilhouetteCard(),
+        const SizedBox(width: 20),
+        _buildChoicesRow(),
+      ],
     );
   }
 
-  Widget _buildCard(int index) {
-    final card = _cards[index];
-    final anim = _flipAnims[index];
+  // ── Silhouette card ────────────────────────────────────────────────────────
 
-    return GestureDetector(
-      onTap: () => _onCardTap(index),
-      child: AnimatedBuilder(
-        animation: anim,
-        builder: (_, __) {
-          final showFront = anim.value >= 0.5;
-          final angle = showFront ? (anim.value - 1.0) * pi : anim.value * pi;
-
-          return Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.001)
-              ..rotateY(angle),
-            child: showFront ? _cardFront(card) : _cardBack(),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _cardBack() {
-    return _cardShell(
-      color: JarColorTheme.vandecane,
-      borderColor: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.35),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Image.asset(
-            _starImage,
-            width: 44,
-            height: 44,
-            color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.12),
-            colorBlendMode: BlendMode.modulate,
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-          ),
-          Text(
-            '?',
-            style: TextStyle(
-              fontFamily: JarAppTextStyles.fredoka,
-              fontSize: 34,
-              fontWeight: FontWeight.bold,
-              color: JarColorTheme.sunnyhue,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _cardFront(_CardModel card) {
-    return _cardShell(
-      color: card.isMatched
-          ? JarColorTheme.goldenyellow.withValues(alpha: 0.30)
-          : JarColorTheme.vandecane,
-      borderColor: card.isMatched
-          ? JarColorTheme.sunnyhue
-          : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Image.asset(
-            'assets/images/objects/puzzle/${card.object}.png',
-            width: 60,
-            height: 60,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
-                const Text('🖼️', style: TextStyle(fontSize: 36)),
-          ),
-          if (card.isMatched)
-            Positioned(
-              top: 6,
-              right: 6,
-              child: ScaleTransition(
-                scale: _celebAnim,
-                child: const Text('⭐', style: TextStyle(fontSize: 18)),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _cardShell({
-    required Color color,
-    required Color borderColor,
-    required Widget child,
-  }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      width: 96,
-      height: 96,
+  Widget _buildSilhouetteCard() {
+    return Container(
+      width: 148,
+      height: 148,
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor, width: 2.5),
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.35),
+          width: 2.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: child,
+      child: Center(child: _buildSilhouetteImage()),
     );
   }
+
+  Widget _buildSilhouetteImage() {
+    if (_roundComplete) {
+      return AnimatedBuilder(
+        animation: _revealAnim,
+        builder: (_, __) {
+          final tintValue = (_revealAnim.value * 255).round().clamp(0, 255);
+          final tint = Color.fromARGB(255, tintValue, tintValue, tintValue);
+          return Image.asset(
+            'assets/images/objects/puzzle/$_answerObject.png',
+            width: 110,
+            height: 110,
+            color: tint,
+            colorBlendMode: BlendMode.modulate,
+            errorBuilder: (_, __, ___) =>
+                Text('🖼️', style: TextStyle(fontSize: 60)),
+          );
+        },
+      );
+    }
+    return ScaleTransition(
+      scale: _pulseAnim,
+      child: Image.asset(
+        'assets/images/objects/puzzle/$_answerObject.png',
+        width: 110,
+        height: 110,
+        color: JarColorTheme.verydarkdesaturatedblue.withValues(alpha: 0.85),
+        colorBlendMode: BlendMode.srcIn,
+        errorBuilder: (_, __, ___) =>
+            Text('🔍', style: TextStyle(fontSize: 60)),
+      ),
+    );
+  }
+
+  // ── Choices ────────────────────────────────────────────────────────────────
+
+  Widget _buildChoicesRow() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(_kChoices, (i) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: _buildChoiceButton(i),
+        );
+      }),
+    );
+  }
+
+  Widget _buildChoiceButton(int index) {
+    final object = _choices[index];
+    final isAnswer = object == _answerObject;
+    final isWrong = _wrongFlash && _tappedIndex == index;
+    final isCorrect = _roundComplete && isAnswer;
+
+    Color borderColor = JarColorTheme.darkdesaturatedblue.withValues(
+      alpha: 0.28,
+    );
+    Color bgColor = Colors.white.withValues(alpha: 0.85);
+
+    if (isWrong) {
+      borderColor = const Color(0xFFE05A5A);
+      bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.10);
+    }
+    if (isCorrect) {
+      borderColor = JarColorTheme.sunnyhue;
+      bgColor = JarColorTheme.goldenyellow.withValues(alpha: 0.28);
+    }
+
+    Widget child = Image.asset(
+      'assets/images/objects/puzzle/$object.png',
+      width: 60,
+      height: 60,
+      fit: BoxFit.contain,
+      color: (_roundComplete && !isAnswer)
+          ? JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.25)
+          : null,
+      colorBlendMode: BlendMode.modulate,
+      errorBuilder: (_, __, ___) => Text('🖼️', style: TextStyle(fontSize: 36)),
+    );
+
+    if (isCorrect) {
+      child = ScaleTransition(scale: _bounceAnim, child: child);
+    }
+
+    return GestureDetector(
+      onTap: () => _onChoiceTapped(index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 96,
+        height: 96,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: borderColor, width: 2.5),
+          boxShadow: [
+            BoxShadow(
+              color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Center(child: child),
+      ),
+    );
+  }
+
+  // ── Progress dots ──────────────────────────────────────────────────────────
 
   Widget _buildProgressDots() {
     return Row(
@@ -719,18 +699,17 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
   }
 
   // ── Win overlay ────────────────────────────────────────────────────────────
+
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
       closeButtonColor: JarColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl4ShadowMatchScreen()),
-        );
+        // TODO: navigate to next screen
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl3JarMemoryMatchScreen()),
+          MaterialPageRoute(builder: (_) => const Lvl4ShadowMatchScreen()),
         );
       },
       onBack: () {
