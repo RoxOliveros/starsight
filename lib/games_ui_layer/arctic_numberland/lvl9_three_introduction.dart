@@ -192,13 +192,13 @@ class _NumberThreeIntroductionScreenState
     _domaSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
-    await _playAudio('assets/audio/arctic/level9/three_intro.wav');
+    await _playAudio('assets/audio/arctic_numberland/level9/three_intro.wav');
 
     _setIntroPhase(_IntroPhase.playingSayTwo);
     _numberPopCtrl.forward();
     _numberDanceCtrl.repeat(reverse: true);
     await Future.delayed(const Duration(milliseconds: 1500));
-    await _playAudio('assets/audio/arctic/level9/say_three.wav');
+    await _playAudio('assets/audio/arctic_numberland/level9/say_three.wav');
     await Future.delayed(const Duration(milliseconds: 300));
 
     _setIntroPhase(_IntroPhase.listening);
@@ -282,7 +282,7 @@ class _NumberThreeIntroductionScreenState
     _setIntroPhase(_IntroPhase.celebrating);
     _celebrateCtrl.forward(from: 0);
 
-    await _playAudio('assets/audio/arctic/magaling.wav');
+    await _playAudio('assets/audio/arctic_numberland/magaling.wav');
     await Future.delayed(const Duration(milliseconds: 500));
 
     // ── Transition to mini game ──────────────────────────────────────────
@@ -290,7 +290,7 @@ class _NumberThreeIntroductionScreenState
     _mgTransitionCtrl.forward();
     _randomiseObjectPosition();
     setState(() => _screenPhase = _ScreenPhase.miniGame);
-    await _playAudio('assets/audio/arctic/level9/write_three.wav');
+    await _playAudio('assets/audio/arctic_numberland/level9/write_three.wav');
   }
 
   // ── Mini-game logic ───────────────────────────────────────────────────────
@@ -611,11 +611,11 @@ class _NumberThreeIntroductionScreenState
                 NumberTracingWidget(
                   number: 3,
                   player: _player,
-                  successAudio: 'assets/audio/arctic/mahusay.wav',
+                  successAudio: 'assets/audio/arctic_numberland/mahusay.wav',
                   onComplete: () {
                     setState(() => _miniGamePhase = _MiniGamePhase.tapping);
                     _playAudio(
-                      'assets/audio/arctic/level9/count_three_tree.wav',
+                      'assets/audio/arctic_numberland/level9/count_three_tree.wav',
                     );
                   },
                 )

@@ -38,7 +38,7 @@ class _Number0to5MatchSnowglobesScreenState
     'assets/images/objects/arctic/ice_skates.png',
   ];
 
-  static const String _audioIntro = 'assets/audio/arctic/level20/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level20/intro.wav';
   static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────

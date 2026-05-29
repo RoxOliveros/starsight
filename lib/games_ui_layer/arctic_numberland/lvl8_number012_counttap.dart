@@ -179,7 +179,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
-    await _playAudio('assets/audio/arctic/level8/012_countandtap.wav');
+    await _playAudio('assets/audio/arctic_numberland/level8/012_countandtap.wav');
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
   }

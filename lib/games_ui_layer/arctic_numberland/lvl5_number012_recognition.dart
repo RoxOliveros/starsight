@@ -87,7 +87,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
-    await _playAudio('assets/audio/arctic/level5/012_recog.wav');
+    await _playAudio('assets/audio/arctic_numberland/level5/012_recog.wav');
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
   }

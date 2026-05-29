@@ -193,13 +193,13 @@ class _NumberTwoIntroductionScreenState
     _domaSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
-    await _playAudio('assets/audio/arctic/level3/two_intro.wav');
+    await _playAudio('assets/audio/arctic_numberland/level3/two_intro.wav');
 
     _setIntroPhase(_IntroPhase.playingSayTwo);
     _numberPopCtrl.forward();
     _numberDanceCtrl.repeat(reverse: true);
     await Future.delayed(const Duration(milliseconds: 1500));
-    await _playAudio('assets/audio/arctic/level3/say_two.wav');
+    await _playAudio('assets/audio/arctic_numberland/level3/say_two.wav');
     await Future.delayed(const Duration(milliseconds: 300));
 
     _setIntroPhase(_IntroPhase.listening);
@@ -279,7 +279,7 @@ class _NumberTwoIntroductionScreenState
     _setIntroPhase(_IntroPhase.celebrating);
     _celebrateCtrl.forward(from: 0);
 
-    await _playAudio('assets/audio/arctic/sobrang_galing.wav');
+    await _playAudio('assets/audio/arctic_numberland/sobrang_galing.wav');
     await Future.delayed(const Duration(milliseconds: 500));
 
     // ── Transition to mini game ──────────────────────────────────────────
@@ -287,7 +287,7 @@ class _NumberTwoIntroductionScreenState
     _mgTransitionCtrl.forward();
     _randomiseObjectPosition();
     setState(() => _screenPhase = _ScreenPhase.miniGame);
-    await _playAudio('assets/audio/arctic/level3/write_two.wav');
+    await _playAudio('assets/audio/arctic_numberland/level3/write_two.wav');
   }
 
   // ── Mini-game logic ───────────────────────────────────────────────────────
@@ -587,10 +587,10 @@ class _NumberTwoIntroductionScreenState
                 NumberTracingWidget(
                   number: 2,
                   player: _player,
-                  successAudio: 'assets/audio/arctic/mahusay.wav',
+                  successAudio: 'assets/audio/arctic_numberland/mahusay.wav',
                   onComplete: () {
                     setState(() => _miniGamePhase = _MiniGamePhase.tapping);
-                    _playAudio('assets/audio/arctic/level3/click_two_icecream.wav');
+                    _playAudio('assets/audio/arctic_numberland/level3/click_two_icecream.wav');
                   },
                 )
               else ...[

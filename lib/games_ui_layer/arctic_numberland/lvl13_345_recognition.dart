@@ -28,13 +28,13 @@ class _Number345RecognitionScreenState extends State<Number345RecognitionScreen>
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic/level13/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level13/intro.wav';
   static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
 
   static const Map<int, String> _tapAudio = {
-    3: 'assets/audio/arctic/level13/tap_three.wav',
-    4: 'assets/audio/arctic/level13/tap_four.wav',
-    5: 'assets/audio/arctic/level13/tap_five.wav',
+    3: 'assets/audio/arctic_numberland/level13/tap_three.wav',
+    4: 'assets/audio/arctic_numberland/level13/tap_four.wav',
+    5: 'assets/audio/arctic_numberland/level13/tap_five.wav',
   };
 
   static const Map<int, String> _numberWords = {

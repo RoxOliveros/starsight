@@ -28,12 +28,12 @@ class _Number0to5FillIglooScreenState
       'assets/images/characters/doma_the_penguin.png';
   static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
 
-  static const String _audioIntro = 'assets/audio/arctic/level19/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level19/intro.wav';
   static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
   static const String _audioBuild =
-      'assets/audio/arctic/level19/build.wav';
+      'assets/audio/arctic_numberland/level19/build.wav';
   static const String _audioComplete =
-      'assets/audio/arctic/level19/complete.wav';
+      'assets/audio/arctic_numberland/level19/shine.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;

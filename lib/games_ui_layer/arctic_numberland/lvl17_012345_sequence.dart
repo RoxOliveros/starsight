@@ -26,9 +26,9 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic/level17/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level17/intro.wav';
   static const String _audioSlotCorrect = 'assets/audio/bubble_pop.wav';
-  static const String _audioWin = 'assets/audio/arctic/mahusay.wav';
+  static const String _audioWin = 'assets/audio/arctic_numberland/mahusay.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;

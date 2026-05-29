@@ -185,13 +185,13 @@ class _NumberOneIntroductionScreenState
     _domaSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
-    await _playAudio('assets/audio/arctic/level2/one_intro.wav');
+    await _playAudio('assets/audio/arctic_numberland/level2/one_intro.wav');
 
     _setIntroPhase(_IntroPhase.playingSayOne);
     _numberPopCtrl.forward();
     _numberDanceCtrl.repeat(reverse: true);
     await Future.delayed(const Duration(milliseconds: 1500));
-    await _playAudio('assets/audio/arctic/level2/say_one.wav');
+    await _playAudio('assets/audio/arctic_numberland/level2/say_one.wav');
     await Future.delayed(const Duration(milliseconds: 300));
 
     _setIntroPhase(_IntroPhase.listening);
@@ -261,7 +261,7 @@ class _NumberOneIntroductionScreenState
     _setIntroPhase(_IntroPhase.celebrating);
     _celebrateCtrl.forward(from: 0);
 
-    await _playAudio('assets/audio/arctic/level2/tara_laro.wav');
+    await _playAudio('assets/audio/arctic_numberland/level2/tara_laro.wav');
     await Future.delayed(const Duration(milliseconds: 500));
 
     // ── Transition to mini game ──────────────────────────────────────────
@@ -269,7 +269,7 @@ class _NumberOneIntroductionScreenState
     _mgTransitionCtrl.forward();
     _randomiseObjectPosition();
     setState(() => _screenPhase = _ScreenPhase.miniGame);
-    await _playAudio('assets/audio/arctic/level2/write_one.wav');
+    await _playAudio('assets/audio/arctic_numberland/level2/write_one.wav');
   }
 
   // ── Mini-game logic ───────────────────────────────────────────────────────
@@ -540,10 +540,10 @@ class _NumberOneIntroductionScreenState
                 NumberTracingWidget(
                   number: 1,
                   player: _player,
-                  successAudio: 'assets/audio/arctic/mahusay.wav',
+                  successAudio: 'assets/audio/arctic_numberland/mahusay.wav',
                   onComplete: () {
                     setState(() => _miniGamePhase = _MiniGamePhase.tapping);
-                    _playAudio('assets/audio/arctic/level2/click_one_snowman.wav');
+                    _playAudio('assets/audio/arctic_numberland/level2/click_one_snowman.wav');
                   },
                 )
               else ...[

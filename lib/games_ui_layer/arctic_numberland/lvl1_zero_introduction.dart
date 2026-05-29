@@ -154,13 +154,13 @@ class _NumberZeroIntroductionScreenState
     _domaSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
-    await _playAudio('assets/audio/arctic/level1/zero_intro.wav');
+    await _playAudio('assets/audio/arctic_numberland/level1/zero_intro.wav');
 
     _setIntroPhase(_IntroPhase.playingSayZero);
     _numberPopCtrl.forward();
     _numberDanceCtrl.repeat(reverse: true);
     await Future.delayed(const Duration(milliseconds: 1500));
-    await _playAudio('assets/audio/arctic/level1/say_zero.wav');
+    await _playAudio('assets/audio/arctic_numberland/level1/say_zero.wav');
     await Future.delayed(const Duration(milliseconds: 300));
 
     _setIntroPhase(_IntroPhase.listening);
@@ -228,13 +228,13 @@ class _NumberZeroIntroductionScreenState
     _setIntroPhase(_IntroPhase.celebrating);
     _celebrateCtrl.forward(from: 0);
 
-    await _playAudio('assets/audio/arctic/level1/now_you_know_zero.wav');
+    await _playAudio('assets/audio/arctic_numberland/level1/now_you_know_zero.wav');
     await Future.delayed(const Duration(milliseconds: 500));
 
     _setIntroPhase(_IntroPhase.done);
     _mgTransitionCtrl.forward();
     setState(() => _screenPhase = _ScreenPhase.tracing);
-    await _playAudio('assets/audio/arctic/level1/write_zero.wav');
+    await _playAudio('assets/audio/arctic_numberland/level1/write_zero.wav');
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -464,7 +464,7 @@ class _NumberZeroIntroductionScreenState
           return NumberTracingWidget(
             number: 0,
             player: _player,
-            successAudio: 'assets/audio/arctic/mahusay.wav',
+            successAudio: 'assets/audio/arctic_numberland/mahusay.wav',
             onComplete: () => setState(() => _showWinDialog = true),
           );
         },

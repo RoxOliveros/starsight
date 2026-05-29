@@ -1,5 +1,5 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/ui_layer/jar/jar_level.dart';
+import 'package:StarSight/ui_layer/puzzle_glade/jar_level.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart' hide LottieCache;
 import '../business_layer/lottie_cache.dart';
@@ -70,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       imagePath: 'assets/animations/lagoon.json',
     ),
     _ActivityCard(
-      title: 'Puzzle Peaks',
+      title: 'Puzzle Glade',
       subtitle: '...',
       isActive: false,
       imagePath: 'assets/animations/puzzle.json',
@@ -549,9 +549,9 @@ class _IslandTileState extends State<_IslandTile>
                 MaterialPageRoute(builder: (_) => const LagoonLevelScreen()),
               );
               break;
-            case 'Puzzle Peaks':
+            case 'Puzzle Glade':
               navigator.push(
-                MaterialPageRoute(builder: (_) => const JarLevelScreen()),
+                MaterialPageRoute(builder: (_) => const PuzzleLevelScreen()),
               );
               break;
           }

@@ -64,15 +64,15 @@ class _NumberFiveIntroductionScreenState
 
   // Audio
   static const String _audioIntro =
-      'assets/audio/arctic/level11/five_intro.wav';
+      'assets/audio/arctic_numberland/level11/five_intro.wav';
   static const String _audioSayNumber =
-      'assets/audio/arctic/level11/say_five.wav';
+      'assets/audio/arctic_numberland/level11/say_five.wav';
   static const String _audioWrite =
-      'assets/audio/arctic/level11/write_five.wav';
+      'assets/audio/arctic_numberland/level11/write_five.wav';
   static const String _audioCount =
-      'assets/audio/arctic/level11/count_five.wav';
-  static const String _audioGoodJob = 'assets/audio/arctic/mahusay.wav';
-  static const String _audioVeryGood = 'assets/audio/arctic/magaling.wav';
+      'assets/audio/arctic_numberland/level11/count_five.wav';
+  static const String _audioGoodJob = 'assets/audio/arctic_numberland/mahusay.wav';
+  static const String _audioVeryGood = 'assets/audio/arctic_numberland/magaling.wav';
 
   // ── Top-level phase ────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;

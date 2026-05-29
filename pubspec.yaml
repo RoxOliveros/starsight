@@ -90,33 +90,38 @@ flutter:
     - assets/images/icons/
     - assets/images/objects/
     - assets/images/objects/arctic/
+    - assets/images/objects/puzzle/
     - assets/images/lumi/
     - assets/images/characters/
     - assets/fonts/game_letters/
     - assets/fonts/game_numbers/
     - assets/audio/
     - assets/audio/values1/
-    - assets/audio/arctic/
-    - assets/audio/arctic/level1/
-    - assets/audio/arctic/level2/
-    - assets/audio/arctic/level3/
-    - assets/audio/arctic/level4/
-    - assets/audio/arctic/level5/
-    - assets/audio/arctic/level6/
-    - assets/audio/arctic/level7/
-    - assets/audio/arctic/level8/
-    - assets/audio/arctic/level9/
-    - assets/audio/arctic/level10/
-    - assets/audio/arctic/level11/
-    - assets/audio/arctic/level12/
-    - assets/audio/arctic/level13/
-    - assets/audio/arctic/level14/
-    - assets/audio/arctic/level15/
-    - assets/audio/arctic/level16/
-    - assets/audio/arctic/level17/
-    - assets/audio/arctic/level18/
-    - assets/audio/arctic/level19/
-    - assets/audio/arctic/level20/
+    - assets/audio/arctic_numberland/
+    - assets/audio/arctic_numberland/level1/
+    - assets/audio/arctic_numberland/level2/
+    - assets/audio/arctic_numberland/level3/
+    - assets/audio/arctic_numberland/level4/
+    - assets/audio/arctic_numberland/level5/
+    - assets/audio/arctic_numberland/level6/
+    - assets/audio/arctic_numberland/level7/
+    - assets/audio/arctic_numberland/level8/
+    - assets/audio/arctic_numberland/level9/
+    - assets/audio/arctic_numberland/level10/
+    - assets/audio/arctic_numberland/level11/
+    - assets/audio/arctic_numberland/level12/
+    - assets/audio/arctic_numberland/level13/
+    - assets/audio/arctic_numberland/level14/
+    - assets/audio/arctic_numberland/level15/
+    - assets/audio/arctic_numberland/level16/
+    - assets/audio/arctic_numberland/level17/
+    - assets/audio/arctic_numberland/level18/
+    - assets/audio/arctic_numberland/level19/
+    - assets/audio/arctic_numberland/level20/
+    - assets/audio/puzzle_glade/
+    - assets/audio/puzzle_glade/level1/
+    - assets/audio/puzzle_glade/level2/
+    - assets/audio/puzzle_glade/level3/
     - assets/drafts/
     - assets/gifs/
     - assets/animations/
