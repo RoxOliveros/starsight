@@ -128,7 +128,7 @@ class _Number012CountingObjectsScreenState
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
-    await _playAudio('assets/audio/arctic/level6/012_counting.wav');
+    await _playAudio('assets/audio/arctic_numberland/level6/012_counting.wav');
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
   }

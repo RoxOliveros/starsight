@@ -29,10 +29,10 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic/level14/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level14/intro.wav';
   static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
 
-  // ── Objects pool (all arctic assets) ──────────────────────────────────────
+  // ── Objects pool (all arctic_numberland assets) ──────────────────────────────────────
   static const List<Map<String, String>> _objects = [
     {
       'name': 'Candy Cane',

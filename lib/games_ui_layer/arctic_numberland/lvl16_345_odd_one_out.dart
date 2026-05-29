@@ -27,13 +27,13 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic/level16/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level16/intro.wav';
   static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
 
   static const Map<int, String> _numberAudio = {
-    3: 'assets/audio/arctic/level16/odd_three.wav',
-    4: 'assets/audio/arctic/level16/odd_four.wav',
-    5: 'assets/audio/arctic/level16/odd_five.wav',
+    3: 'assets/audio/arctic_numberland/level16/odd_three.wav',
+    4: 'assets/audio/arctic_numberland/level16/odd_four.wav',
+    5: 'assets/audio/arctic_numberland/level16/odd_five.wav',
   };
 
   static const Map<int, String> _numberWords = {

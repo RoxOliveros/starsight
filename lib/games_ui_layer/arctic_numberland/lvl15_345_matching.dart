@@ -28,13 +28,13 @@ class _Number345MatchingScreenState extends State<Number345MatchingScreen>
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic/level15/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level15/intro.wav';
   static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
 
   static const Map<int, String> _numberAudio = {
-    3: 'assets/audio/arctic/level15/find_3.wav',
-    4: 'assets/audio/arctic/level15/find_4.wav',
-    5: 'assets/audio/arctic/level15/find_5.wav',
+    3: 'assets/audio/arctic_numberland/level15/find_3.wav',
+    4: 'assets/audio/arctic_numberland/level15/find_4.wav',
+    5: 'assets/audio/arctic_numberland/level15/find_5.wav',
   };
 
   static const Map<int, String> _numberWords = {

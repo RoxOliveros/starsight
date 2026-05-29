@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
-import '../../ui_layer/jar/jar_buttons.dart';
-import '../../ui_layer/jar/jar_theme.dart';
+import '../../ui_layer/puzzle_glade/jar_buttons.dart';
+import '../../ui_layer/puzzle_glade/jar_theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants

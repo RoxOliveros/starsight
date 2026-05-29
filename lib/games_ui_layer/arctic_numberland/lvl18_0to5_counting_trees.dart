@@ -28,10 +28,10 @@ class _Number0to5CountingTreesScreenState
   static const String _treeAsset =
       'assets/images/objects/arctic/snowy_tree.png';
 
-  static const String _audioIntro = 'assets/audio/arctic/level18/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level18/intro.wav';
   static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
   static const String _audioQuestion =
-      'assets/audio/arctic/level18/how_many.wav';
+      'assets/audio/arctic_numberland/level18/how_many.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;

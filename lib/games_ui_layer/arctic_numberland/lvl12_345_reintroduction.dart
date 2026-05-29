@@ -30,30 +30,30 @@ class _Number345ReintroductionScreenState
       label: 'THREE',
       objectAsset: 'assets/images/objects/arctic/snowball.png',
       objectEmoji: '⚪',
-      hereIsAudio: 'assets/audio/arctic/level12/here_is_three.wav',
+      hereIsAudio: 'assets/audio/arctic_numberland/level12/here_is_three.wav',
     ),
     _StageTheme(
       number: 4,
       label: 'FOUR',
       objectAsset: 'assets/images/objects/arctic/candy_cane.png',
       objectEmoji: '🍬',
-      hereIsAudio: 'assets/audio/arctic/level12/here_is_four.wav',
+      hereIsAudio: 'assets/audio/arctic_numberland/level12/here_is_four.wav',
     ),
     _StageTheme(
       number: 5,
       label: 'FIVE',
       objectAsset: 'assets/images/objects/arctic/snowglobe.png',
       objectEmoji: '🔮',
-      hereIsAudio: 'assets/audio/arctic/level12/here_is_five.wav',
+      hereIsAudio: 'assets/audio/arctic_numberland/level12/here_is_five.wav',
     ),
   ];
 
   static const List<String> _countAudio = [
-    'assets/audio/arctic/1.wav',
-    'assets/audio/arctic/2.wav',
-    'assets/audio/arctic/3.wav',
-    'assets/audio/arctic/4.wav',
-    'assets/audio/arctic/5.wav',
+    'assets/audio/arctic_numberland/1.wav',
+    'assets/audio/arctic_numberland/2.wav',
+    'assets/audio/arctic_numberland/3.wav',
+    'assets/audio/arctic_numberland/4.wav',
+    'assets/audio/arctic_numberland/5.wav',
   ];
 
   static const String _bgImage =
@@ -61,7 +61,7 @@ class _Number345ReintroductionScreenState
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
   static const String _audioIntro =
-      'assets/audio/arctic/level12/reintro_345.wav';
+      'assets/audio/arctic_numberland/level12/reintro_345.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   int _currentStage = 0;

@@ -132,7 +132,7 @@ class _Number012ReintroductionScreenState
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
-    await _playAudio('assets/audio/arctic/level4/012_reintro.wav');
+    await _playAudio('assets/audio/arctic_numberland/level4/012_reintro.wav');
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) {
       _setupRound();

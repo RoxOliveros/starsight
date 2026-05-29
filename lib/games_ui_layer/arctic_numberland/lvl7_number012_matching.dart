@@ -121,7 +121,7 @@ class _Number012MatchingScreenState extends State<Number012MatchingScreen>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
     await _playAudio(
-      'assets/audio/arctic/level7/012_matching.wav',
+      'assets/audio/arctic_numberland/level7/012_matching.wav',
     ); // update path
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);

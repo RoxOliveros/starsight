@@ -2,22 +2,22 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
-import '../../games_ui_layer/jar/jar1_color_sort.dart';
-import '../../games_ui_layer/jar/jar2_pattern_match.dart';
-import '../../games_ui_layer/jar/jar3_memory_match.dart';
-import '../../games_ui_layer/jar/jar4_shadow_match.dart';
-import '../../games_ui_layer/jar/jar5_jigsaw_puzzle.dart';
+import '../../games_ui_layer/puzzle_glade/lvl1_star_color_sort.dart';
+import '../../games_ui_layer/puzzle_glade/lvl2_pattern_match.dart';
+import '../../games_ui_layer/puzzle_glade/lvl3_memory_match.dart';
+import '../../games_ui_layer/puzzle_glade/lvl4_shadow_match.dart';
+import '../../games_ui_layer/puzzle_glade/jar5_jigsaw_puzzle.dart';
 import 'jar_buttons.dart';
 import 'jar_theme.dart';
 
-class JarLevelScreen extends StatefulWidget {
-  const JarLevelScreen({super.key});
+class PuzzleLevelScreen extends StatefulWidget {
+  const PuzzleLevelScreen({super.key});
 
   @override
-  State<JarLevelScreen> createState() => _JarLevelScreenState();
+  State<PuzzleLevelScreen> createState() => _PuzzleLevelScreenState();
 }
 
-class _JarLevelScreenState extends State<JarLevelScreen> {
+class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
   @override
   void initState() {
     super.initState();
@@ -38,7 +38,7 @@ class _JarLevelScreenState extends State<JarLevelScreen> {
           // 🌳 Background image
           Positioned.fill(
             child: Image.asset(
-              'assets/images/backgrounds/bg_jar.png',
+              'assets/images/backgrounds/bg_puzzle.png',
               fit: BoxFit.cover,
             ),
           ),
@@ -215,7 +215,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const JarColorSortScreen(),
+                builder: (context) => const Lvl1JarColorSortScreen(),
               ),
             );
             break;
@@ -223,7 +223,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const JarPatternMatchScreen(),
+                builder: (context) => const Lvl2PatternMatchScreen(),
               ),
             );
             break;
@@ -231,7 +231,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const JarMemoryMatchScreen(),
+                builder: (context) => const Lvl3JarMemoryMatchScreen(),
               ),
             );
             break;
@@ -239,7 +239,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const JarShadowMatchScreen(),
+                builder: (context) => const Lvl4ShadowMatchScreen(),
               ),
             );
             break;

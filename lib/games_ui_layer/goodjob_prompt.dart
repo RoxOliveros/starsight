@@ -5,12 +5,11 @@ import 'package:flutter/material.dart';
 // Widget _buildGoodJobOverlay() {
 //   return GoodJobOverlay(
 //     characterImage: 'CHARACTERPATH' <-- CHANGE THIS,
-//     closeButtonColor: ___ColorTheme.Blue(BUTTONCOLOR <-- CHANGE THIS),
-//     // or your arctic blue
+//     closeButtonColor: ___ColorTheme.(BUTTONCOLOR <-- CHANGE THIS),
 //     onNext: () {
-//       // Navigator.of(context).pushReplacement(
-//       //   MaterialPageRoute(builder: (_) => const NextLevelScreen() <-- CHANGE THIS),
-//       // );
+//       Navigator.of(context).pushReplacement(
+//          MaterialPageRoute(builder: (_) => const NextLevelScreen() <-- CHANGE THIS),
+//        );
 //     },
 //     onRestart: () {
 //         Navigator.of(context).pushReplacement(
@@ -130,7 +129,7 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
         child: Stack(
           children: [
             Positioned(
-              top: 70,
+              top: 50,
               left: 0,
               right: 0,
               child: Center(
@@ -145,7 +144,7 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
             ),
 
             Positioned(
-              top: 110,
+              top: 150,
               left: 0,
               right: 0,
               child: Center(
@@ -205,7 +204,7 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
   Widget _buildCharacter() {
     return Image.asset(
       widget.characterImage,
-      height: 400,
+      height: 350,
       fit: BoxFit.contain,
       errorBuilder: (_, __, ___) =>
           const Icon(Icons.pets, size: 120, color: Colors.white),
@@ -223,7 +222,7 @@ class _ArcedGoodJobBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Image.asset(
       'assets/images/goodjob.png',
-      width: 800,
+      width: 600,
       fit: BoxFit.contain,
     );
   }
