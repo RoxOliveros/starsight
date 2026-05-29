@@ -1,4 +1,5 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -56,6 +57,14 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
           PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/apple_bl.png'),
           PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/apple_br.png'),
         ];
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            // Notice how we specifically ask for 'A' here!
+            builder: (context) =>
+                const AlphabetTraceScreen(startingLetter: 'A'),
+          ),
+        );
         break;
       case 'B':
         _fullImagePath = 'assets/images/alphabets/ball_full.png';

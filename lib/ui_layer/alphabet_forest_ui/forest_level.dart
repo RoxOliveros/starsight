@@ -1,5 +1,6 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_memory_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
@@ -251,7 +252,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetPuzzleScreen(),
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'A'),
               ),
             );
             break;
