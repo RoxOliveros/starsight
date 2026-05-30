@@ -2,6 +2,9 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
+import '../../games_ui_layer/puzzle_glade/lvl10_memory_match2.dart';
+import '../../games_ui_layer/puzzle_glade/lvl11_shadow_match2.dart';
+import '../../games_ui_layer/puzzle_glade/lvl12_jigsaw_puzzle2.dart';
 import '../../games_ui_layer/puzzle_glade/lvl1_star_color_sort.dart';
 import '../../games_ui_layer/puzzle_glade/lvl2_pattern_match.dart';
 import '../../games_ui_layer/puzzle_glade/lvl3_memory_match.dart';
@@ -10,6 +13,7 @@ import '../../games_ui_layer/puzzle_glade/lvl5_jigsaw_puzzle.dart';
 import '../../games_ui_layer/puzzle_glade/lvl6_basket_sort.dart';
 import '../../games_ui_layer/puzzle_glade/lvl7_size_sort.dart';
 import '../../games_ui_layer/puzzle_glade/lvl8_whats_missing.dart';
+import '../../games_ui_layer/puzzle_glade/lvl9_pattern_match2.dart';
 import 'puzzle_buttons.dart';
 import 'Puzzle_theme.dart';
 
@@ -79,12 +83,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: List.generate(4, (i) {
                             final level = _page * 8 + i + 1;
-
-                            if (level <= 7) {
-                              return _LevelTile(level: level);
-                            }
-
-                            return const _LockedTile();
+                            return _LevelTile(level: level);
                           }),
                         ),
                         const SizedBox(height: 16),
@@ -92,12 +91,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: List.generate(4, (i) {
                             final level = _page * 8 + i + 5;
-
-                            if (level <= 7) {
-                              return _LevelTile(level: level);
-                            }
-
-                            return const _LockedTile();
+                            return _LevelTile(level: level);
                           }),
                         ),
                       ],
@@ -195,12 +189,12 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                     bottom: 0,
                     child: GestureDetector(
                       onTap: () {
-                        if (_page < 1) {
+                        if (_page < 2) {
                           setState(() => _page++);
                         }
                       },
                       child: Opacity(
-                        opacity: _page < 1 ? 1.0 : 0.3,
+                        opacity: _page < 2 ? 1.0 : 0.3,
                         child: Image.asset(
                           'assets/images/arrows/bttn_jar_arrow_right.png',
                           width: 70,
@@ -306,6 +300,36 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
+          case 9:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl9PatternMatch2Screen(),
+              ),
+            );
+          case 10:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl10JarMemoryMatch2Screen(),
+              ),
+            );
+          case 11:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl11ShadowMatch2Screen(),
+              ),
+            );
+            break;
+          case 12:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl12JigsawPuzzle2Screen(),
+              ),
+            );
+            break;
         }
       },
       child: Stack(
@@ -363,7 +387,7 @@ class _LockedTile extends StatelessWidget {
           ),
           child: Center(
             child: Image.asset(
-              'assets/images/lock.png',
+              'assets/images/icons/lock.png',
               width: 40,
               fit: BoxFit.contain,
             ),
