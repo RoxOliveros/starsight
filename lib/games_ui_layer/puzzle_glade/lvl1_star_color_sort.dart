@@ -3,9 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import '../../ui_layer/puzzle_glade/jar_buttons.dart';
-import '../../ui_layer/puzzle_glade/jar_level.dart';
-import '../../ui_layer/puzzle_glade/jar_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
+import '../../ui_layer/puzzle_glade/puzzle_level.dart';
+import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl2_pattern_match.dart';
 
@@ -354,7 +354,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   Widget _buildIntroContent() {
     return Stack(
       children: [
-        Positioned(top: 8, left: 12, child: JarBackButton()),
+        Positioned(top: 8, left: 12, child: PuzzleBackButton()),
 
         Positioned.fill(
           top: 48,
@@ -498,7 +498,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
           alignment: Alignment.center,
           children: [
             // LEFT
-            Align(alignment: Alignment.centerLeft, child: JarBackButton()),
+            Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
 
             // CENTER TITLE
             Container(

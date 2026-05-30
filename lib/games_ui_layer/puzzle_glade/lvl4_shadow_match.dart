@@ -3,10 +3,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import '../../ui_layer/puzzle_glade/jar_buttons.dart';
-import '../../ui_layer/puzzle_glade/jar_level.dart';
-import '../../ui_layer/puzzle_glade/jar_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
+import '../../ui_layer/puzzle_glade/puzzle_level.dart';
+import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
 import '../goodjob_prompt.dart';
+import 'lvl5_jigsaw_puzzle.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -21,7 +22,8 @@ const _kAllObjects = [
   'lamp',
   'magnifying_glass',
   'map',
-  'pen_and_notebook',
+  'pen',
+  'notebook',
   'puzzle_piece',
   'star',
   'telescope',
@@ -355,7 +357,7 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
   Widget _buildIntroContent() {
     return Stack(
       children: [
-        Positioned(top: 8, left: 12, child: JarBackButton()),
+        Positioned(top: 8, left: 12, child: PuzzleBackButton()),
         Positioned.fill(
           top: 48,
           child: Row(
@@ -498,7 +500,7 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Align(alignment: Alignment.centerLeft, child: JarBackButton()),
+            Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
@@ -705,7 +707,9 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
       characterImage: _characterImage,
       closeButtonColor: JarColorTheme.darkdesaturatedblue,
       onNext: () {
-        // TODO: navigate to next screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Lvl5JigsawPuzzleScreen()),
+        );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
