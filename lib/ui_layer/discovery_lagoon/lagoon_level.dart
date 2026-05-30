@@ -32,6 +32,11 @@ class LagoonLevelScreen extends StatefulWidget {
 }
 
 class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
+  // 0 is equal to levels 1-8
+  // 1 is equal to levels 9-16
+  int _currentPage = 0;
+  final int _maxPages = 1; // Increase this number as you add more pages!
+
   @override
   void initState() {
     super.initState();
@@ -94,7 +99,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                 clipBehavior: Clip.none,
                 alignment: Alignment.topCenter,
                 children: [
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   Container(
                     width: 650,
                     height: 280,
@@ -107,25 +112,52 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _LevelTile(level: 1),
-                            _LevelTile(level: 2),
-                            _LevelTile(level: 3),
-                            _LevelTile(level: 4),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _LevelTile(level: 5),
-                            _LockedTile(),
-                            _LockedTile(),
-                            _LockedTile(),
-                          ],
-                        ),
+                        // --- PAGE 0: LEVELS 1-8 ---
+                        if (_currentPage == 0) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LevelTile(level: 1),
+                              _LevelTile(level: 2),
+                              _LevelTile(level: 3),
+                              _LevelTile(level: 4),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LevelTile(level: 5),
+                              // Replace these LockedTiles with _LevelTile(level: 6, 7, 8) when ready!
+                              _LockedTile(),
+                              _LockedTile(),
+                              _LockedTile(),
+                            ],
+                          ),
+                        ],
+
+                        // --- PAGE 1: LEVELS 9-16 ---
+                        if (_currentPage == 1) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LockedTile(), // Level 9
+                              _LockedTile(), // Level 10
+                              _LockedTile(), // Level 11
+                              _LockedTile(), // Level 12
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LockedTile(), // Level 13
+                              _LockedTile(), // Level 14
+                              _LockedTile(), // Level 15
+                              _LockedTile(), // Level 16
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -194,26 +226,44 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                       ],
                     ),
                   ),
-                  // Left arrow
-                  Positioned(
-                    left: -35,
-                    top: 0,
-                    bottom: 0,
-                    child: Image.asset(
-                      'assets/images/arrows/bttn_lagoon_arrow_left.png',
-                      width: 70,
+
+                  // FUNCTIONAL Left arrow
+                  if (_currentPage > 0)
+                    Positioned(
+                      left: -35,
+                      top: 0,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _currentPage--;
+                          });
+                        },
+                        child: Image.asset(
+                          'assets/images/arrows/bttn_lagoon_arrow_left.png',
+                          width: 70,
+                        ),
+                      ),
                     ),
-                  ),
-                  // Right arrow
-                  Positioned(
-                    right: -35,
-                    top: 0,
-                    bottom: 0,
-                    child: Image.asset(
-                      'assets/images/arrows/bttn_lagoon_arrow_right.png',
-                      width: 70,
+
+                  // FUNCTIONAL Right arrow
+                  if (_currentPage < _maxPages)
+                    Positioned(
+                      right: -35,
+                      top: 0,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _currentPage++;
+                          });
+                        },
+                        child: Image.asset(
+                          'assets/images/arrows/bttn_lagoon_arrow_right.png',
+                          width: 70,
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -286,6 +336,12 @@ class _LevelTile extends StatelessWidget {
                 builder: (context) => const AnimalHabitatMatchScreen(),
               ),
             );
+            break;
+
+          // Add routing for levels 6+ here!
+
+          default:
+            print("Level $level is not linked up yet!");
             break;
         }
       },
