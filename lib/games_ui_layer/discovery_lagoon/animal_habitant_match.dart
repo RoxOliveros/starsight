@@ -76,17 +76,17 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
     _animals = [
       Animal(
         name: 'Penguin',
-        imagePath: 'assets/images/penguin.png',
+        imagePath: 'assets/images/characters/penguin.png',
         targetHabitatId: 'arctic',
       ),
       Animal(
         name: 'Dog',
-        imagePath: 'assets/images/dog.png',
+        imagePath: 'assets/images/characters/dog.png',
         targetHabitatId: 'town',
       ),
       Animal(
         name: 'Bear',
-        imagePath: 'assets/images/bear.png',
+        imagePath: 'assets/images/characters/bear.png',
         targetHabitatId: 'forest',
       ),
     ]..shuffle();

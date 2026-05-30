@@ -136,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // 4. Calculate fly target (center of where bunny will appear)
     final RenderBox? starBox =
-    _starKey.currentContext?.findRenderObject() as RenderBox?;
+        _starKey.currentContext?.findRenderObject() as RenderBox?;
     if (!mounted) return;
     final screenSize = MediaQuery.of(context).size;
 
@@ -145,7 +145,7 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 50)); // let it render
 
     final RenderBox? barBox =
-    _loadingBarKey.currentContext?.findRenderObject() as RenderBox?;
+        _loadingBarKey.currentContext?.findRenderObject() as RenderBox?;
     final barTarget = barBox != null
         ? barBox.localToGlobal(Offset(0, barBox.size.height / 2))
         : Offset(screenSize.width * 0.12, screenSize.height * 0.62); // fallback
@@ -177,10 +177,7 @@ class _SplashScreenState extends State<SplashScreen>
     setState(() => _showBunny = true);
     await _bunnyController.forward();
 
-    await Future.wait<void>([
-      _loadingController.forward(),
-      authFuture,
-    ]);
+    await Future.wait<void>([_loadingController.forward(), authFuture]);
 
     String loginStatus = await authFuture;
 
@@ -295,14 +292,14 @@ class _SplashScreenState extends State<SplashScreen>
                                     opacity: _starFade,
                                     child: Transform.translate(
                                       offset:
-                                      _flyController.isAnimating ||
-                                          _flyController.isCompleted
+                                          _flyController.isAnimating ||
+                                              _flyController.isCompleted
                                           ? _flyOffset.value
                                           : Offset.zero,
                                       child: Transform.rotate(
                                         angle:
-                                        _flyController.isAnimating ||
-                                            _flyController.isCompleted
+                                            _flyController.isAnimating ||
+                                                _flyController.isCompleted
                                             ? 0
                                             : _wiggle.value,
                                         child: ScaleTransition(
@@ -333,84 +330,84 @@ class _SplashScreenState extends State<SplashScreen>
                   opacity: _bunnyFade,
                   child: _showBunny
                       ? Column(
-                    children: [
-                      SizedBox(
-                        width: screenWidth * 0.80,
-                        height: screenHeight * 0.18 < 160
-                            ? 160
-                            : screenHeight * 0.18,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final barWidth = constraints.maxWidth;
-                            const double bunnyAspectRatio = 108 / 149;
-                            final double bunnyHeight =
-                                screenHeight * 0.20;
-                            final double bunnyWidth =
-                                bunnyHeight * bunnyAspectRatio;
+                          children: [
+                            SizedBox(
+                              width: screenWidth * 0.80,
+                              height: screenHeight * 0.18 < 160
+                                  ? 160
+                                  : screenHeight * 0.18,
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final barWidth = constraints.maxWidth;
+                                  const double bunnyAspectRatio = 108 / 149;
+                                  final double bunnyHeight =
+                                      screenHeight * 0.20;
+                                  final double bunnyWidth =
+                                      bunnyHeight * bunnyAspectRatio;
 
-                            return AnimatedBuilder(
-                              animation: _loadingAnimation,
-                              builder: (context, child) {
-                                return Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    // Background track
-                                    Align(
-                                      alignment: Alignment.bottomCenter,
-                                      child: Container(
-                                        key: _loadingBarKey,
-                                        height: 30,
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFE8DFC8),
-                                          borderRadius:
-                                          BorderRadius.circular(10),
-                                        ),
-                                      ),
-                                    ),
-                                    // Fill
-                                    Align(
-                                      alignment: Alignment.bottomLeft,
-                                      child: FractionallySizedBox(
-                                        widthFactor:
-                                        _loadingAnimation.value,
-                                        child: Container(
-                                          height: 30,
-                                          decoration: BoxDecoration(
-                                            color: const Color(
-                                              0xFFFFA726,
+                                  return AnimatedBuilder(
+                                    animation: _loadingAnimation,
+                                    builder: (context, child) {
+                                      return Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          // Background track
+                                          Align(
+                                            alignment: Alignment.bottomCenter,
+                                            child: Container(
+                                              key: _loadingBarKey,
+                                              height: 30,
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFE8DFC8),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
                                             ),
-                                            borderRadius:
-                                            BorderRadius.circular(10),
                                           ),
-                                        ),
-                                      ),
-                                    ),
-                                    // Bunny
-                                    Positioned(
-                                      //left: _loadingAnimation.value * (barWidth - bunnyWidth) - (bunnyWidth * 0.35),
-                                      left:
-                                      -bunnyWidth * 0.35 +
-                                          _loadingAnimation.value *
-                                              (barWidth -
-                                                  bunnyWidth +
-                                                  bunnyWidth * 0.35),
-                                      bottom: -bunnyHeight * 0.20,
-                                      child: Image.asset(
-                                        'assets/images/bunny_riding_star.png',
-                                        key: _bunnyKey,
-                                        height: screenHeight * 0.15,
-                                        fit: BoxFit.contain,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  )
+                                          // Fill
+                                          Align(
+                                            alignment: Alignment.bottomLeft,
+                                            child: FractionallySizedBox(
+                                              widthFactor:
+                                                  _loadingAnimation.value,
+                                              child: Container(
+                                                height: 30,
+                                                decoration: BoxDecoration(
+                                                  color: const Color(
+                                                    0xFFFFA726,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          // Bunny
+                                          Positioned(
+                                            //left: _loadingAnimation.value * (barWidth - bunnyWidth) - (bunnyWidth * 0.35),
+                                            left:
+                                                -bunnyWidth * 0.35 +
+                                                _loadingAnimation.value *
+                                                    (barWidth -
+                                                        bunnyWidth +
+                                                        bunnyWidth * 0.35),
+                                            bottom: -bunnyHeight * 0.20,
+                                            child: Image.asset(
+                                              'assets/images/characters/bunny_riding_star.png',
+                                              key: _bunnyKey,
+                                              height: screenHeight * 0.15,
+                                              fit: BoxFit.contain,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        )
                       : const SizedBox(width: 200, height: 200),
                 ),
               ],

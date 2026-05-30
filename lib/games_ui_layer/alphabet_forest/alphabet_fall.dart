@@ -198,7 +198,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
       builder: (_) => Material(
         type: MaterialType.transparency,
         child: GoodJobOverlay(
-          characterImage: 'assets/images/dog.png',
+          characterImage: 'assets/images/characters/dog.png',
           closeButtonColor: ForestColorTheme.seagreen,
 
           // 4. FALL is the last game. Return to the Map!

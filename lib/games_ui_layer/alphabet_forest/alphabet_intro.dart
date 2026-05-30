@@ -177,7 +177,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
               child: SlideTransition(
                 position: _charSlide,
                 child: Image.asset(
-                  'assets/images/dog.png',
+                  'assets/images/characters/dog.png',
                   height: screenSize.height * 0.5,
                   fit: BoxFit.contain,
                 ),
