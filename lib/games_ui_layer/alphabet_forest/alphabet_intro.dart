@@ -232,7 +232,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                 right: 24,
                 child: GestureDetector(
                   onTap: () {
-                    // 1. Goes from INTRO to PUZZLE (stays on the same letter)
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(

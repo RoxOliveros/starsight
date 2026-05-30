@@ -30,6 +30,11 @@ class ForestLevelScreen extends StatefulWidget {
 }
 
 class _ForestLevelScreenState extends State<ForestLevelScreen> {
+  // 0 is equal to levels 1-8
+  // 1 is equal to levels 9-16
+  // 2 is equal to levels 17-24
+  int _currentPage = 0;
+
   @override
   void initState() {
     super.initState();
@@ -55,7 +60,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
             ),
           ),
 
-          //back button
+          // back button
           Positioned(
             top: 16,
             left: 16,
@@ -105,27 +110,73 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // --- ROW 1: LEVELS 1-4 ---
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _LevelTile(level: 1),
-                            _LevelTile(level: 2),
-                            _LevelTile(level: 3),
-                            _LevelTile(level: 4),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // --- ROW 2: LEVELS 5-8 ---
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _LevelTile(level: 5),
-                            _LockedTile(),
-                            _LockedTile(),
-                            _LockedTile(),
-                          ],
-                        ),
+                        // --- PAGE 0: LEVELS 1-8 ---
+                        if (_currentPage == 0) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LevelTile(level: 1),
+                              _LevelTile(level: 2),
+                              _LevelTile(level: 3),
+                              _LevelTile(level: 4),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LevelTile(level: 5),
+                              _LevelTile(level: 6),
+                              _LevelTile(level: 7),
+                              _LevelTile(level: 8),
+                            ],
+                          ),
+                        ],
+
+                        // --- PAGE 1: LEVELS 9-16 ---
+                        if (_currentPage == 1) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LevelTile(level: 9),
+                              _LevelTile(level: 10),
+                              _LevelTile(level: 11),
+                              _LevelTile(level: 12),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LevelTile(level: 13),
+                              _LevelTile(level: 14),
+                              _LevelTile(level: 15),
+                              _LevelTile(level: 16),
+                            ],
+                          ),
+                        ],
+                        // --- PAGE 2: LEVELS 17-24 ---
+                        if (_currentPage == 2) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LevelTile(level: 17),
+                              _LevelTile(level: 18),
+                              _LevelTile(level: 19),
+                              _LevelTile(level: 20),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LevelTile(level: 21),
+                              _LevelTile(level: 22),
+                              _LevelTile(level: 23),
+                              _LevelTile(level: 24),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -194,26 +245,43 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                       ],
                     ),
                   ),
-                  // Left arrow
-                  Positioned(
-                    left: -35,
-                    top: 0,
-                    bottom: 0,
-                    child: Image.asset(
-                      'assets/images/arrows/bttn_forest_arrow_left.png',
-                      width: 70,
+
+                  if (_currentPage >
+                      0) // Only shows if it passes the first page
+                    Positioned(
+                      left: -35,
+                      top: 0,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _currentPage--;
+                          });
+                        },
+                        child: Image.asset(
+                          'assets/images/arrows/bttn_forest_arrow_left.png',
+                          width: 70,
+                        ),
+                      ),
                     ),
-                  ),
-                  // Right arrow
-                  Positioned(
-                    right: -35,
-                    top: 0,
-                    bottom: 0,
-                    child: Image.asset(
-                      'assets/images/arrows/bttn_forest_arrow_right.png',
-                      width: 70,
+
+                  if (_currentPage < 2) // Hides when hit the final page
+                    Positioned(
+                      right: -35,
+                      top: 0,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _currentPage++;
+                          });
+                        },
+                        child: Image.asset(
+                          'assets/images/arrows/bttn_forest_arrow_right.png',
+                          width: 70,
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -279,7 +347,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetFallScreen(),
+                builder: (context) =>
+                    const AlphabetPuzzleScreen(startingLetter: 'B'),
               ),
             );
             break;
@@ -287,9 +356,149 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetMemoryMatchScreen(),
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'C'),
               ),
             );
+            break;
+          case 6:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetPuzzleScreen(startingLetter: 'C'),
+              ),
+            );
+            break;
+          case 7:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'D'),
+              ),
+            );
+            break;
+          case 8:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetPuzzleScreen(startingLetter: 'D'),
+              ),
+            );
+            break;
+          case 9:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'E'),
+              ),
+            );
+            break;
+          case 10:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetPuzzleScreen(startingLetter: 'E'),
+              ),
+            );
+            break;
+          case 11:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'F'),
+              ),
+            );
+            break;
+          case 12:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetPuzzleScreen(startingLetter: 'F'),
+              ),
+            );
+            break;
+          case 13:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'G'),
+              ),
+            );
+            break;
+          case 14:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetPuzzleScreen(startingLetter: 'G'),
+              ),
+            );
+            break;
+          case 15:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'H'),
+              ),
+            );
+            break;
+          case 16:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetPuzzleScreen(startingLetter: 'H'),
+              ),
+            );
+            break;
+          case 17:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'I'),
+              ),
+            );
+            break;
+          case 18:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetPuzzleScreen(startingLetter: 'I'),
+              ),
+            );
+            break;
+          case 19:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'J'),
+              ),
+            );
+            break;
+          case 20:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetPuzzleScreen(startingLetter: 'J'),
+              ),
+            );
+            break;
+          // This stops the app from crashing
+          default:
+            print("Level $level is not linked up yet!");
             break;
         }
       },

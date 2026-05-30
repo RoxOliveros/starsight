@@ -94,6 +94,51 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
           PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/egg_br.png'),
         ];
         break;
+      case 'F':
+        _fullImagePath = 'assets/images/alphabets/feet_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/feet_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/feet_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/feet_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/feet_br.png'),
+        ];
+        break;
+      case 'G':
+        _fullImagePath = 'assets/images/alphabets/glass_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/glass_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/glass_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/glass_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/glass_br.png'),
+        ];
+        break;
+      case 'H':
+        _fullImagePath = 'assets/images/alphabets/hat_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/hat_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/hat_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/hat_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/hat_br.png'),
+        ];
+        break;
+      case 'I':
+        _fullImagePath = 'assets/images/alphabets/igloo_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/igloo_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/igloo_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/igloo_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/igloo_br.png'),
+        ];
+        break;
+      case 'J':
+        _fullImagePath = 'assets/images/alphabets/jar_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/jar_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/jar_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/jar_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/jar_br.png'),
+        ];
+        break;
       default:
         // Fallback just in case
         _fullImagePath = 'assets/images/alphabets/apple_full.png';

@@ -46,20 +46,48 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   void _loadLevel(String letter) {
     switch (letter.toUpperCase()) {
       case 'A':
-        _currentImagePath = 'assets/images/objects/apple.png';
+        _currentImagePath = 'assets/images/objects/forest/apple.png';
         _targetLetters = ['A', 'a'];
         break;
       case 'B':
-        _currentImagePath = 'assets/images/objects/ball.png';
+        _currentImagePath = 'assets/images/objects/forest/ball.png';
         _targetLetters = ['B', 'b'];
         break;
       case 'C':
-        _currentImagePath = 'assets/images/objects/car.png';
+        _currentImagePath = 'assets/images/objects/forest/car.png';
         _targetLetters = ['C', 'c'];
         break;
-      // Add 'D', 'E', etc. here later
+      case 'D':
+        _currentImagePath = 'assets/images/objects/forest/duck.png';
+        _targetLetters = ['D', 'd'];
+        break;
+      case 'E':
+        _currentImagePath = 'assets/images/objects/forest/egg.png';
+        _targetLetters = ['E', 'e'];
+        break;
+      case 'F':
+        _currentImagePath = 'assets/images/objects/forest/feet.png';
+        _targetLetters = ['F', 'f'];
+        break;
+      case 'G':
+        _currentImagePath = 'assets/images/objects/forest/glass.png';
+        _targetLetters = ['G', 'g'];
+        break;
+      case 'H':
+        _currentImagePath = 'assets/images/objects/forest/hat.png';
+        _targetLetters = ['H', 'h'];
+        break;
+      case 'I':
+        _currentImagePath = 'assets/images/objects/forest/igloo.png';
+        _targetLetters = ['I', 'i'];
+        break;
+      case 'J':
+        _currentImagePath = 'assets/images/objects/forest/jar.png';
+        _targetLetters = ['J', 'j'];
+        break;
+
       default:
-        _currentImagePath = 'assets/images/objects/apple.png';
+        _currentImagePath = 'assets/images/objects/forest/apple.png';
         _targetLetters = ['A', 'a'];
     }
   }
