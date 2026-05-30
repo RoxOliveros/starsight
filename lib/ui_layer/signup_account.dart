@@ -319,7 +319,7 @@ class _SignUpAccountState extends State<SignUpAccount>
                       GestureDetector(
                         onTap: _onGoogleSignUp,
                         child: Image.asset(
-                          'assets/images/google_signup.png',
+                          'assets/images/buttons/google_signup.png',
                           height: 52,
                         ),
                       ),

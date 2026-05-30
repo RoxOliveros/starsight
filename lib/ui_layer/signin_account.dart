@@ -325,7 +325,7 @@ class _SignInAccountState extends State<SignInAccount>
                       GestureDetector(
                         onTap: _onGoogleSignIn,
                         child: Image.asset(
-                          'assets/images/google_signin.png',
+                          'assets/images/buttons/google_signin.png',
                           height: 52,
                         ),
                       ),

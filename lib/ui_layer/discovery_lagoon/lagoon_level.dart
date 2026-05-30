@@ -397,7 +397,7 @@ class _LockedTile extends StatelessWidget {
           ),
           child: Center(
             child: Image.asset(
-              'assets/images/lock.png',
+              'assets/images/icons/lock.png',
               width: 40,
               fit: BoxFit.contain,
             ),

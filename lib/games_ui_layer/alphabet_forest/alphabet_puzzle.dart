@@ -175,7 +175,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
       builder: (_) => Material(
         type: MaterialType.transparency,
         child: GoodJobOverlay(
-          characterImage: 'assets/images/dog.png',
+          characterImage: 'assets/images/characters/dog.png',
           closeButtonColor: ForestColorTheme.mediumseagreen,
 
           //Wag po buburahin 1
