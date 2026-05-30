@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
 import 'package:flutter/material.dart';
-
-// Make sure these paths match your project!
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 
-// --- THE PHASES OF OUR SCREEN ---
 enum ScreenPhase { intro, tracing }
 
 enum IntroPhase { entering, playingIntro, showingLetter, listening, done }

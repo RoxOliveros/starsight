@@ -140,7 +140,7 @@ flutter:
     - assets/images/characters/
     - assets/images/icons/
     - assets/images/buttons/
-  
+    - assets/images/objects/lagoon/
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

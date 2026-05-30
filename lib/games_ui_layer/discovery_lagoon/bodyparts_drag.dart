@@ -1,12 +1,24 @@
+import 'dart:math' as math;
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_level.dart';
 import 'package:flutter/material.dart';
 
-abstract class ColorTheme {
-  static const Color background = Color(0xFFE8F4F8);
-  static const Color textDark = Color(0xFF5E463E);
-  static const Color primary = Color(0xFF75D5FF);
-  static const Color success = Color(0xFF82C84B);
-  static const Color accent = Color(0xFFEC8A20);
+// --- DISCOVERY LAGOON THEME ---
+abstract class LagoonTheme {
+  static const Color wasteland = Color(0xFF5F5630);
+  static const Color pastelorange = Color(0xFFFBEACA);
+  static const Color gunmetalgreen = Color(0xFF6B6A41);
+  static const Color ferngreen = Color(0xFF82AD61);
+  static const Color peach = Color(0xFFFBEBC6);
+  static const Color darkbrown = Color(0xFF4E360D);
+  static const Color sagegreen = Color(0xFF98BC62);
+
+  static const List<Color> canvaColors = [
+    Color(0xFF6FD3E3),
+    Color(0xFFEC8A20),
+    Color(0xFFFBD354),
+  ];
 }
 
 abstract class AppTextStyles {
@@ -22,7 +34,10 @@ class BodyPart {
 }
 
 class BodyPartsDragScreen extends StatefulWidget {
-  const BodyPartsDragScreen({super.key});
+  // 1. The screen now expects a specific body part!
+  final String bodyPart;
+
+  const BodyPartsDragScreen({super.key, required this.bodyPart});
 
   @override
   State<BodyPartsDragScreen> createState() => _BodyPartsDragScreenState();
@@ -30,29 +45,106 @@ class BodyPartsDragScreen extends StatefulWidget {
 
 class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
     with SingleTickerProviderStateMixin {
-  bool _isMatched = false;
-  int _currentIndex = 0;
+  late BodyPart _currentPart;
   late final AnimationController _floatingController;
 
-  // The list of levels to play through!
-  final List<BodyPart> _parts = [
-    BodyPart(word: 'Paa', imagePath: 'assets/images/objects/feet.png'),
-    BodyPart(word: 'Tuhod', imagePath: 'assets/images/objects/knee.png'),
-    BodyPart(word: 'Balikat', imagePath: 'assets/images/objects/shoulder.png'),
-    BodyPart(word: 'Ulo', imagePath: 'assets/images/objects/head.png'),
-  ];
+  List<bool> _filledTargets = [];
+  List<bool> _usedDraggables = [];
+  List<int> _shuffledDraggableIndices = [];
 
   @override
   void initState() {
     super.initState();
-
     OrientationService.setLandscape();
 
-    // This makes the word bob up and down continuously
+    // Set up the exact part based on what was passed to the screen
+    _setupBodyPart();
+    _initLevel();
+
     _floatingController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  // --- 2. THE DICTIONARY ---
+  // Translates the English identifier to the Tagalog word and correct image
+  void _setupBodyPart() {
+    switch (widget.bodyPart.toLowerCase()) {
+      case 'feet':
+        _currentPart = BodyPart(
+          word: 'Paa',
+          imagePath: 'assets/images/objects/forest/feet.png',
+        );
+        break;
+      case 'knee':
+        _currentPart = BodyPart(
+          word: 'Tuhod',
+          imagePath: 'assets/images/objects/lagoon/knee.png',
+        );
+        break;
+      case 'shoulder':
+        _currentPart = BodyPart(
+          word: 'Balikat',
+          imagePath: 'assets/images/objects/lagoon/shoulder.png',
+        );
+        break;
+      case 'head':
+        _currentPart = BodyPart(
+          word: 'Ulo',
+          imagePath: 'assets/images/objects/lagoon/head.png',
+        );
+        break;
+      case 'lips':
+        _currentPart = BodyPart(
+          word: 'Labi',
+          imagePath: 'assets/images/objects/lagoon/lips.png',
+        );
+        break;
+      case 'nose':
+        _currentPart = BodyPart(
+          word: 'Ilong',
+          imagePath: 'assets/images/objects/lagoon/nose.png',
+        );
+        break;
+      case 'eye':
+        _currentPart = BodyPart(
+          word: 'Mata',
+          imagePath: 'assets/images/objects/lagoon/eye.png',
+        );
+        break;
+      case 'ear':
+        _currentPart = BodyPart(
+          word: 'tenga',
+          imagePath: 'assets/images/objects/lagoon/ear.png',
+        );
+        break;
+      case 'eyebrows':
+        _currentPart = BodyPart(
+          word: 'Kilay',
+          imagePath: 'assets/images/objects/lagoon/eyebrows.png',
+        );
+        break;
+      case 'hair':
+        _currentPart = BodyPart(
+          word: 'Buhok',
+          imagePath: 'assets/images/objects/lagoon/hair.png',
+        );
+        break;
+      case 'hand':
+        _currentPart = BodyPart(
+          word: 'Kamay',
+          imagePath: 'assets/images/icons/hand.png',
+        );
+        break;
+    }
+  }
+
+  void _initLevel() {
+    int wordLength = _currentPart.word.length;
+    _filledTargets = List.filled(wordLength, false);
+    _usedDraggables = List.filled(wordLength, false);
+    _shuffledDraggableIndices = List.generate(wordLength, (i) => i)..shuffle();
   }
 
   @override
@@ -62,74 +154,61 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
     super.dispose();
   }
 
-  void _showSuccessDialog() {
-    bool isLast = _currentIndex == _parts.length - 1;
-    final Size screenSize = MediaQuery.of(context).size;
+  Color _getLetterColor(int index) {
+    return LagoonTheme.canvaColors[index % LagoonTheme.canvaColors.length];
+  }
 
+  // --- 3. THE GOOD JOB OVERLAY ---
+  void _showSuccessDialog() {
     showDialog(
       context: context,
+      useSafeArea: false,
+      barrierColor: Colors.black54,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text(
-          "Awesome!",
-          style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            color: ColorTheme.success,
-            fontSize: screenSize.width * 0.04, // Responsive font
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          "You matched the ${_parts[_currentIndex].word}!",
-          style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            fontSize: screenSize.width * 0.03, // Responsive font
-            color: ColorTheme.textDark,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _isMatched = false;
-                if (isLast) {
-                  _currentIndex = 0; // Restart if they finished all parts
-                } else {
-                  _currentIndex++; // Go to the next body part
-                }
-              });
-            },
-            child: Text(
-              isLast ? "Play Again" : "Next Part",
-              style: TextStyle(
-                color: ColorTheme.accent,
-                fontWeight: FontWeight.bold,
-                fontSize: screenSize.width * 0.025,
-              ),
-            ),
-          ),
-        ],
+      builder: (context) => GoodJobOverlay(
+        characterImage: 'assets/images/characters/cat_holding_fishbone.png',
+        closeButtonColor:
+            LagoonTheme.wasteland, // Fits the lagoon theme perfectly
+        onNext: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => LagoonLevelScreen()),
+          ); // Close the overlay
+        },
+        onRestart: () {
+          Navigator.pop(context); // Close the overlay
+          setState(() {
+            _initLevel(); // Resets the floating letters to try again!
+          });
+        },
+        onBack: () {
+          Navigator.pop(context); // Close the overlay
+          Navigator.pop(context); // Exit the game back to the map
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentPart = _parts[_currentIndex];
+    final String targetWord = _currentPart.word.toUpperCase();
     final Size screenSize = MediaQuery.of(context).size;
-    final double imageSize = screenSize.height * 0.40;
-    final double wordFontSize = screenSize.width * 0.06;
+
+    final double imageSize = screenSize.height * 0.25;
+    final double maxBoxWidth = (screenSize.width - 48) / targetWord.length - 8;
+    final double letterBoxSize = math
+        .min(maxBoxWidth, screenSize.height * 0.18)
+        .clamp(35.0, 70.0);
+    final double letterFontSize = letterBoxSize * 0.6;
 
     return Scaffold(
-      backgroundColor: ColorTheme.background,
+      backgroundColor: LagoonTheme.peach,
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 12),
-            // HEADER
+            const SizedBox(height: 8),
+
+            // --- HEADER ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Stack(
@@ -140,10 +219,11 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                     child: IconButton(
                       icon: const Icon(
                         Icons.arrow_back_ios_new_rounded,
-                        color: ColorTheme.textDark,
+                        color: LagoonTheme.wasteland,
                         size: 32,
                       ),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () =>
+                          Navigator.pop(context), // Safely exit back to map
                     ),
                   ),
                   const Text(
@@ -152,13 +232,14 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                       fontFamily: AppTextStyles.fredoka,
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
-                      color: ColorTheme.textDark,
+                      color: LagoonTheme.wasteland,
                     ),
                   ),
                 ],
               ),
             ),
 
+            // --- GAME AREA ---
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -166,136 +247,184 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                   vertical: 8.0,
                 ),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // --- 1. THE IMAGE TO IDENTIFY ---
+                    // 1. THE IMAGE TO IDENTIFY
                     Container(
                       height: imageSize,
                       width: imageSize,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
-                        border: Border.all(color: ColorTheme.primary, width: 6),
+                        border: Border.all(
+                          color: LagoonTheme.gunmetalgreen,
+                          width: 6,
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(20.0),
+                        padding: const EdgeInsets.all(16.0),
                         child: Image.asset(
-                          currentPart.imagePath,
+                          _currentPart.imagePath,
                           fit: BoxFit.contain,
                         ),
                       ),
                     ),
 
-                    // --- 2. THE DRAG AND TARGET ROW ---
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        // THE FLOATING DRAGGABLE WORD
-                        if (!_isMatched)
-                          AnimatedBuilder(
-                            animation: _floatingController,
-                            builder: (context, child) {
-                              return Transform.translate(
-                                offset: Offset(
-                                  0,
-                                  -10 * _floatingController.value,
-                                ),
-                                child: child,
-                              );
-                            },
-                            child: Draggable<String>(
-                              data: currentPart.word,
-                              feedback: _WordWidget(
-                                word: currentPart.word,
-                                color: ColorTheme.primary,
-                                isDragging: true,
-                                fontSize: wordFontSize, // Passes universal math
-                              ),
-                              childWhenDragging: Opacity(
-                                opacity: 0.0,
-                                child: _WordWidget(
-                                  word: currentPart.word,
-                                  color: ColorTheme.primary,
-                                  fontSize: wordFontSize,
-                                ),
-                              ),
-                              child: _WordWidget(
-                                word: currentPart.word,
-                                color: ColorTheme.primary,
-                                fontSize: wordFontSize,
-                              ),
-                            ),
-                          )
-                        else
-                          SizedBox(
-                            width: screenSize.width * 0.2,
-                          ), // Shrinks space universally when matched
-                        // THE TARGET BOX
-                        DragTarget<String>(
+                    SizedBox(height: screenSize.height * 0.05),
+
+                    // 2. THE TARGET BOXES (WITH GHOST LETTERS!)
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: List.generate(targetWord.length, (targetIndex) {
+                        String expectedLetter = targetWord[targetIndex];
+                        Color letterColor = _getLetterColor(targetIndex);
+
+                        return DragTarget<int>(
                           onWillAcceptWithDetails: (details) {
-                            return details.data ==
-                                currentPart.word; // Only accept the exact word
+                            int draggedIndex = details.data;
+                            String draggedLetter = targetWord[draggedIndex];
+                            return draggedLetter == expectedLetter &&
+                                !_filledTargets[targetIndex];
                           },
                           onAcceptWithDetails: (details) {
                             setState(() {
-                              _isMatched = true;
+                              _filledTargets[targetIndex] = true;
+                              _usedDraggables[details.data] = true;
                             });
-                            Future.delayed(
-                              const Duration(milliseconds: 400),
-                              () {
-                                _showSuccessDialog();
-                              },
-                            );
+
+                            if (_filledTargets.every((isFilled) => isFilled)) {
+                              Future.delayed(
+                                const Duration(milliseconds: 400),
+                                _showSuccessDialog,
+                              );
+                            }
                           },
                           builder: (context, candidateData, rejectedData) {
                             bool isHovering = candidateData.isNotEmpty;
 
                             return Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal:
-                                    screenSize.width *
-                                    0.03, // Responsive padding
-                                vertical: screenSize.height * 0.02,
-                              ),
+                              width: letterBoxSize,
+                              height: letterBoxSize,
                               decoration: BoxDecoration(
                                 color: isHovering
                                     ? Colors.white.withValues(alpha: 0.5)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(24),
+                                    : LagoonTheme.pastelorange,
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: ColorTheme.textDark.withValues(
-                                    alpha: 0.2,
-                                  ),
+                                  color: _filledTargets[targetIndex]
+                                      ? letterColor
+                                      : LagoonTheme.darkbrown.withValues(
+                                          alpha: 0.2,
+                                        ),
                                   width: 4,
-                                  style: BorderStyle.solid,
                                 ),
                               ),
                               child: Center(
-                                child: _isMatched
-                                    ? _WordWidget(
-                                        word: currentPart.word,
-                                        color: ColorTheme.success,
-                                        fontSize: wordFontSize,
+                                child: _filledTargets[targetIndex]
+                                    ? _LetterWidget(
+                                        letter: expectedLetter,
+                                        color: letterColor,
+                                        fontSize: letterFontSize,
                                       )
-                                    : _WordWidget(
-                                        word: currentPart.word,
-                                        color: ColorTheme.textDark.withValues(
-                                          alpha: 0.15,
+                                    : _LetterWidget(
+                                        letter: expectedLetter,
+                                        color: letterColor.withValues(
+                                          alpha: 0.35,
                                         ),
-                                        fontSize: wordFontSize,
+                                        fontSize: letterFontSize,
                                       ),
                               ),
                             );
                           },
-                        ),
-                      ],
+                        );
+                      }),
+                    ),
+
+                    SizedBox(height: screenSize.height * 0.05),
+
+                    // 3. THE FLOATING DRAGGABLE LETTERS
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: _shuffledDraggableIndices.map((dragIndex) {
+                        if (_usedDraggables[dragIndex]) {
+                          return SizedBox(
+                            width: letterBoxSize,
+                            height: letterBoxSize,
+                          );
+                        }
+
+                        String letterStr = targetWord[dragIndex];
+                        Color letterColor = _getLetterColor(dragIndex);
+
+                        return AnimatedBuilder(
+                          animation: _floatingController,
+                          builder: (context, child) {
+                            final double floatOffset =
+                                math.sin(
+                                  _floatingController.value * 2 * math.pi +
+                                      dragIndex,
+                                ) *
+                                8;
+                            return Transform.translate(
+                              offset: Offset(0, floatOffset),
+                              child: child,
+                            );
+                          },
+                          child: Draggable<int>(
+                            data: dragIndex,
+                            feedback: _LetterWidget(
+                              letter: letterStr,
+                              color: letterColor,
+                              fontSize: letterFontSize * 1.2,
+                              isDragging: true,
+                            ),
+                            childWhenDragging: Opacity(
+                              opacity: 0.0,
+                              child: Container(
+                                width: letterBoxSize,
+                                height: letterBoxSize,
+                              ),
+                            ),
+                            child: Container(
+                              width: letterBoxSize,
+                              height: letterBoxSize,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: letterColor,
+                                  width: 3,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: _LetterWidget(
+                                  letter: letterStr,
+                                  color: letterColor,
+                                  fontSize: letterFontSize,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ],
                 ),
@@ -308,14 +437,14 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
   }
 }
 
-class _WordWidget extends StatelessWidget {
-  final String word;
+class _LetterWidget extends StatelessWidget {
+  final String letter;
   final Color color;
   final bool isDragging;
   final double fontSize;
 
-  const _WordWidget({
-    required this.word,
+  const _LetterWidget({
+    required this.letter,
     required this.color,
     required this.fontSize,
     this.isDragging = false,
@@ -325,25 +454,22 @@ class _WordWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      child: Transform.scale(
-        scale: isDragging ? 1.1 : 1.0,
-        child: Text(
-          word,
-          style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            fontSize: fontSize, // No longer hardcoded to 60!
-            fontWeight: FontWeight.bold,
-            color: color,
-            height: 1.0,
-            shadows: [
-              if (isDragging)
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 10),
-                ),
-            ],
-          ),
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontFamily: AppTextStyles.fredoka,
+          fontSize: fontSize,
+          fontWeight: FontWeight.bold,
+          color: color,
+          height: 1.0,
+          shadows: [
+            if (isDragging)
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 10),
+              ),
+          ],
         ),
       ),
     );
