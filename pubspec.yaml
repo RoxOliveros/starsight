@@ -126,6 +126,8 @@ flutter:
     - assets/audio/puzzle_glade/level4/
     - assets/audio/puzzle_glade/level5/
     - assets/audio/puzzle_glade/level6/
+    - assets/audio/puzzle_glade/level7/
+    - assets/audio/puzzle_glade/level8/
     - assets/drafts/
     - assets/gifs/
     - assets/animations/

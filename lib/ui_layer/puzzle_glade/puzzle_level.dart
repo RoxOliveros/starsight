@@ -8,8 +8,10 @@ import '../../games_ui_layer/puzzle_glade/lvl3_memory_match.dart';
 import '../../games_ui_layer/puzzle_glade/lvl4_shadow_match.dart';
 import '../../games_ui_layer/puzzle_glade/lvl5_jigsaw_puzzle.dart';
 import '../../games_ui_layer/puzzle_glade/lvl6_basket_sort.dart';
-import 'jar_buttons.dart';
-import 'jar_theme.dart';
+import '../../games_ui_layer/puzzle_glade/lvl7_size_sort.dart';
+import '../../games_ui_layer/puzzle_glade/lvl8_whats_missing.dart';
+import 'puzzle_buttons.dart';
+import 'Puzzle_theme.dart';
 
 class PuzzleLevelScreen extends StatefulWidget {
   const PuzzleLevelScreen({super.key});
@@ -19,6 +21,8 @@ class PuzzleLevelScreen extends StatefulWidget {
 }
 
 class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
+  int _page = 0;
+
   @override
   void initState() {
     super.initState();
@@ -45,7 +49,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
           ),
 
           //back button
-          Positioned(top: 25, left: 25, child: JarBackButton()),
+          Positioned(top: 25, left: 25, child: PuzzleBackButton()),
 
           // 🌿 Content
           Center(
@@ -73,22 +77,28 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _LevelTile(level: 1),
-                            _LevelTile(level: 2),
-                            _LevelTile(level: 3),
-                            _LevelTile(level: 4),
-                          ],
+                          children: List.generate(4, (i) {
+                            final level = _page * 8 + i + 1;
+
+                            if (level <= 7) {
+                              return _LevelTile(level: level);
+                            }
+
+                            return const _LockedTile();
+                          }),
                         ),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _LevelTile(level: 5),
-                            _LockedTile(),
-                            _LockedTile(),
-                            _LockedTile(),
-                          ],
+                          children: List.generate(4, (i) {
+                            final level = _page * 8 + i + 5;
+
+                            if (level <= 7) {
+                              return _LevelTile(level: level);
+                            }
+
+                            return const _LockedTile();
+                          }),
                         ),
                       ],
                     ),
@@ -163,9 +173,19 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                     left: -35,
                     top: 0,
                     bottom: 0,
-                    child: Image.asset(
-                      'assets/images/arrows/bttn_jar_arrow_left.png',
-                      width: 70,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_page > 0) {
+                          setState(() => _page--);
+                        }
+                      },
+                      child: Opacity(
+                        opacity: _page > 0 ? 1.0 : 0.3,
+                        child: Image.asset(
+                          'assets/images/arrows/bttn_jar_arrow_left.png',
+                          width: 70,
+                        ),
+                      ),
                     ),
                   ),
                   // Right arrow
@@ -173,9 +193,19 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                     right: -35,
                     top: 0,
                     bottom: 0,
-                    child: Image.asset(
-                      'assets/images/arrows/bttn_jar_arrow_right.png',
-                      width: 70,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_page < 1) {
+                          setState(() => _page++);
+                        }
+                      },
+                      child: Opacity(
+                        opacity: _page < 1 ? 1.0 : 0.3,
+                        child: Image.asset(
+                          'assets/images/arrows/bttn_jar_arrow_right.png',
+                          width: 70,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -257,6 +287,22 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const Lvl6BasketSortScreen(),
+              ),
+            );
+            break;
+          case 7:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl7SizeSortScreen(),
+              ),
+            );
+            break;
+          case 8:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl8WhatsMissingScreen(),
               ),
             );
             break;

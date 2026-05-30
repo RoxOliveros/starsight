@@ -3,9 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import '../../ui_layer/puzzle_glade/jar_buttons.dart';
-import '../../ui_layer/puzzle_glade/jar_level.dart';
-import '../../ui_layer/puzzle_glade/jar_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
+import '../../ui_layer/puzzle_glade/puzzle_level.dart';
+import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl4_shadow_match.dart';
 
@@ -407,7 +407,7 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
   Widget _buildIntroContent() {
     return Stack(
       children: [
-        Positioned(top: 8, left: 12, child: JarBackButton()),
+        Positioned(top: 8, left: 12, child: PuzzleBackButton()),
 
         Positioned.fill(
           top: 48,
@@ -542,7 +542,7 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Align(alignment: Alignment.centerLeft, child: JarBackButton()),
+            Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(

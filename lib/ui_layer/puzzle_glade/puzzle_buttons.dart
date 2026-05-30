@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'jar_theme.dart';
+import 'Puzzle_theme.dart';
 
-class JarBackButton extends StatelessWidget {
-  const JarBackButton({super.key});
+class PuzzleBackButton extends StatelessWidget {
+  const PuzzleBackButton({super.key});
 
   @override
   Widget build(BuildContext context) {

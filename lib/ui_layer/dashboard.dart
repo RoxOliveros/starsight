@@ -1,5 +1,5 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/ui_layer/puzzle_glade/jar_level.dart';
+import 'package:StarSight/ui_layer/puzzle_glade/puzzle_level.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart' hide LottieCache;
 import '../business_layer/lottie_cache.dart';
