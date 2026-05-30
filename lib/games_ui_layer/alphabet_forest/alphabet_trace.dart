@@ -387,6 +387,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
           ),
         ];
         break;
+      /*
       case 'K':
         _levels = [
           TraceLevel(
@@ -418,6 +419,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
           ),
         ];
         break;
+        */
       default:
         // Fallback to A if something goes wrong
         _levels = [

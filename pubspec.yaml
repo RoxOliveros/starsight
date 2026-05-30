@@ -40,12 +40,12 @@ dependencies:
   app_links: ^7.0.0
   shared_preferences: ^2.5.5
   cloud_firestore: ^6.3.0
-  audioplayers: ^6.6.0
+  audioplayers: ^6.7.0
   just_audio: ^0.9.40
   gif: ^2.1.0
   lottie: ^3.0.0
   dotted_border: ^2.1.0
-  speech_to_text: ^7.0.0
+  speech_to_text: 7.3.0
   path_provider: ^2.1.4
 
 dev_dependencies:
@@ -139,7 +139,7 @@ flutter:
     - assets/images/icons/
     - assets/images/buttons/
     - assets/images/objects/lagoon/
-
+    - assets/audio/alphabet_forest/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

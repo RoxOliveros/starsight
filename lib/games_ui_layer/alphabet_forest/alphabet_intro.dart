@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
 
 enum ScreenPhase { intro, tracing }
 
@@ -23,6 +26,13 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
   ScreenPhase _screenPhase = ScreenPhase.intro;
   IntroPhase _introPhase = IntroPhase.entering;
 
+  // THE AUDIO PLAYER
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  final SpeechToText _speechToText = SpeechToText();
+  bool _speechEnabled = false;
+  String _wordsHeard = '';
+
   // --- ANIMATION CONTROLLERS ---
   late AnimationController _charSlideCtrl;
   late Animation<Offset> _charSlide;
@@ -38,11 +48,16 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
+    _initSpeech();
     _startIntroFlow(); // Start the magic!
   }
 
+  void _initSpeech() async {
+    _speechEnabled = await _speechToText.initialize();
+    setState(() {});
+  }
+
   void _initAnimations() {
-    // 1. Character sliding in from the bottom
     _charSlideCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -52,7 +67,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
           CurvedAnimation(parent: _charSlideCtrl, curve: Curves.elasticOut),
         );
 
-    // 2. The GIF popping up
     _letterPopCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -63,7 +77,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       TweenSequenceItem(tween: Tween(begin: 0.92, end: 1.0), weight: 20),
     ]).animate(CurvedAnimation(parent: _letterPopCtrl, curve: Curves.easeOut));
 
-    // 3. The GIF wiggling
     _letterDanceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -78,40 +91,79 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     _charSlideCtrl.dispose();
     _letterPopCtrl.dispose();
     _letterDanceCtrl.dispose();
+    _audioPlayer.dispose();
+
     OrientationService.setLandscape();
     super.dispose();
   }
 
-  // --- THE MASTER DIRECTOR ---
   Future<void> _startIntroFlow() async {
     await _charSlideCtrl.forward();
 
-    // Play the intro audio (e.g., "A is for Apple!")
     if (mounted) setState(() => _introPhase = IntroPhase.playingIntro);
 
-    // TODO (FUTURE): await _audioPlayer.play(AssetSource('audio/intro_a.wav'));
-    // For now, we just fake the wait time:
+    // 1. Set up a "listener" to know exactly when the audio finishes!
+    Completer<void> audioFinished = Completer<void>();
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (!audioFinished.isCompleted) audioFinished.complete();
+    });
+
+    // 2. Play the dynamic audio
+    String audioFile =
+        'audio/alphabet_forest/intro_${widget.startingLetter.toLowerCase()}.wav';
+    await _audioPlayer.play(AssetSource(audioFile));
+
     await Future.delayed(const Duration(seconds: 2));
 
-    // 3. Pop the custom GIF onto the screen and make it dance
     if (mounted) setState(() => _introPhase = IntroPhase.showingLetter);
     _letterPopCtrl.forward();
     _letterDanceCtrl.repeat(reverse: true);
 
-    // 4. Prompt the child to speak (e.g., "Can you say A?")
-    // TODO (FUTURE): await _audioPlayer.play(AssetSource('audio/say_a.wav'));
-    await Future.delayed(const Duration(seconds: 2));
+    await audioFinished.future;
 
-    // 5. Show the Microphone UI and "listen"
+    // Show the Microphone UI and "listen" exactly when the voice finishes!
     if (mounted) setState(() => _introPhase = IntroPhase.listening);
 
-    // TODO (FUTURE): Start actual speech recognition here!
-    // For now, we simulate listening for 3 seconds before succeeding
-    await Future.delayed(const Duration(seconds: 3));
+    if (_speechEnabled) {
+      _startListening();
+    }
+  }
 
-    // 6. Success! Show the Next button
-    if (mounted) setState(() => _introPhase = IntroPhase.done);
-    _letterDanceCtrl.stop(); // Stop the wiggle when they finish
+  void _startListening() async {
+    if (_speechToText.isListening) return;
+
+    await _speechToText.listen(
+      onResult: _checkChildsAnswer,
+      listenFor: const Duration(seconds: 15),
+      pauseFor: const Duration(seconds: 8),
+    );
+  }
+
+  void _checkChildsAnswer(SpeechRecognitionResult result) {
+    setState(() {
+      _wordsHeard = result.recognizedWords.toLowerCase();
+    });
+
+    // 1. Ask the dictionary for all acceptable words for this letter
+    List<String> acceptableWords = _getAcceptableWords(widget.startingLetter);
+
+    // 2. Check if the microphone heard ANY of those acceptable words
+    bool isCorrect = false;
+    for (String word in acceptableWords) {
+      if (_wordsHeard.contains(word)) {
+        isCorrect = true;
+        break;
+      }
+    }
+
+    // 3. If they got it right, trigger the win sequence!
+    if (isCorrect) {
+      _speechToText.stop(); // Turn off the mic
+
+      // Advance to the Next button!
+      setState(() => _introPhase = IntroPhase.done);
+      _letterDanceCtrl.stop();
+    }
   }
 
   Widget _buildAnimatedGif() {
@@ -119,7 +171,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       builder: (context, constraints) {
         final gifSize = (constraints.maxHeight * 0.45).clamp(100.0, 250.0);
 
-        // Hide it if we are still sliding the character in
         if (_introPhase == IntroPhase.entering ||
             _introPhase == IntroPhase.playingIntro) {
           return const SizedBox.shrink();
@@ -158,7 +209,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       body: SafeArea(
         child: Stack(
           children: [
-            // 1. BACK BUTTON
             const Padding(
               padding: EdgeInsets.all(16.0),
               child: Align(
@@ -167,7 +217,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
               ),
             ),
 
-            // 2. THE CHARACTER (Sliding in)
             Positioned(
               left: 40,
               bottom: 0,
@@ -181,12 +230,10 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
               ),
             ),
 
-            // 3. THE CENTER CONTENT (GIF & MIC)
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // The Animated Custom GIF
                   SizedBox(
                     height: screenSize.height * 0.45,
                     child: _buildAnimatedGif(),
@@ -194,7 +241,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
 
                   const SizedBox(height: 20),
 
-                  // Unfinished Voice recognition
                   if (_introPhase == IntroPhase.listening) ...[
                     const Text(
                       "Say the letter!",
@@ -206,16 +252,13 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.mic_rounded,
-                        color: Colors.redAccent,
-                        size: 48,
+                    GestureDetector(
+                      onTap: _startListening,
+                      child: Image.asset(
+                        'assets/images/icons/audio.png',
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.contain,
                       ),
                     ),
                   ],
@@ -229,6 +272,9 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                 right: 24,
                 child: GestureDetector(
                   onTap: () {
+                    // Stop any audio that might still be playing if they click Next really fast!
+                    _audioPlayer.stop();
+
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
@@ -275,4 +321,32 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       ),
     );
   }
-} // End of State class
+
+  List<String> _getAcceptableWords(String letter) {
+    switch (letter.toUpperCase()) {
+      case 'A':
+        return ['a', 'ay', 'eight', 'hey', 'eh'];
+      case 'B':
+        return ['b', 'bee', 'be', 'vee'];
+      case 'C':
+        return ['c', 'see', 'sea', 'si'];
+      case 'D':
+        return ['d', 'dee', 'de', 'di'];
+      case 'E':
+        return ['e', 'ee', 'ea', 'i'];
+      case 'F':
+        return ['f', 'ef', 'eff', 've'];
+      case 'G':
+        return ['g', 'gee', 'je', 'ji'];
+      case 'H':
+        return ['h', 'aitch', 'hech', 'ha'];
+      case 'I':
+        return ['i', 'eye', 'ai', 'ay'];
+      case 'J':
+        return ['j', 'jay', 'je', 'ji'];
+
+      default:
+        return [letter.toLowerCase()];
+    }
+  }
+}
