@@ -7,7 +7,7 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_level.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl9_pattern_match2.dart';
+import 'lvl16_copy_the_pattern.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -35,21 +35,21 @@ const _kAllObjects = [
 
 const int _kTotalRounds = 5;
 const int _kShowSeconds = 4;
-const int _kObjectCount = 1; // objects shown per round
+const int _kObjectCount = 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class Lvl8WhatsMissingScreen extends StatefulWidget {
-  const Lvl8WhatsMissingScreen({super.key});
+class Lvl15WhatsMissing2Screen extends StatefulWidget {
+  const Lvl15WhatsMissing2Screen({super.key});
 
   @override
-  State<Lvl8WhatsMissingScreen> createState() =>
-      _Lvl8WhatsMissingScreenState();
+  State<Lvl15WhatsMissing2Screen> createState() =>
+      _Lvl15WhatsMissing2ScreenState();
 }
 
-class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
+class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
     with TickerProviderStateMixin {
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
@@ -910,11 +910,11 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
       closeButtonColor: JarColorTheme.darkdesaturatedblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl9PatternMatch2Screen()),
+          MaterialPageRoute(builder: (_) => const Lvl16CopyPatternScreen()),
         );      },
       onRestart: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl8WhatsMissingScreen()),
+          MaterialPageRoute(builder: (_) => const Lvl15WhatsMissing2Screen()),
         );
       },
       onBack: () {

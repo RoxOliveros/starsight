@@ -5,7 +5,15 @@ import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/puzzle_glade/lvl10_memory_match2.dart';
 import '../../games_ui_layer/puzzle_glade/lvl11_shadow_match2.dart';
 import '../../games_ui_layer/puzzle_glade/lvl12_jigsaw_puzzle2.dart';
+import '../../games_ui_layer/puzzle_glade/lvl13_basket_sort2.dart';
+import '../../games_ui_layer/puzzle_glade/lvl14_size_sort2.dart';
+import '../../games_ui_layer/puzzle_glade/lvl15_whats_missing2.dart';
+import '../../games_ui_layer/puzzle_glade/lvl16_copy_the_pattern.dart';
+import '../../games_ui_layer/puzzle_glade/lvl17_spot_the_difference.dart';
+import '../../games_ui_layer/puzzle_glade/lvl18_star_color_sort2.dart';
+import '../../games_ui_layer/puzzle_glade/lvl19_memory_match3.dart';
 import '../../games_ui_layer/puzzle_glade/lvl1_star_color_sort.dart';
+import '../../games_ui_layer/puzzle_glade/lvl20_copy_the_pattern2.dart';
 import '../../games_ui_layer/puzzle_glade/lvl2_pattern_match.dart';
 import '../../games_ui_layer/puzzle_glade/lvl3_memory_match.dart';
 import '../../games_ui_layer/puzzle_glade/lvl4_shadow_match.dart';
@@ -327,6 +335,70 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const Lvl12JigsawPuzzle2Screen(),
+              ),
+            );
+            break;
+          case 13:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl13BasketSort2Screen(),
+              ),
+            );
+            break;
+          case 14:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl14SizeSort2Screen(),
+              ),
+            );
+            break;
+          case 15:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl15WhatsMissing2Screen(),
+              ),
+            );
+            break;
+          case 16:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl16CopyPatternScreen(),
+              ),
+            );
+            break;
+          case 17:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl17SpotDifferenceScreen(),
+              ),
+            );
+            break;
+          case 18:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl18JarColorSort2Screen(),
+              ),
+            );
+            break;
+          case 19:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl19JarMemoryMatch3Screen(),
+              ),
+            );
+            break;
+          case 20:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const Lvl20CopyPattern2Screen(),
               ),
             );
             break;

@@ -5,15 +5,13 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_level.dart';
-import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl9_pattern_match2.dart';
+import 'lvl15_whats_missing2.dart';
+import 'lvl8_whats_missing.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-// ── Game phases ────────────────────────────────────────────────────────────
-enum _GamePhase { showing, guessing, correct, wrong }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -34,65 +32,76 @@ const _kAllObjects = [
 ];
 
 const int _kTotalRounds = 5;
-const int _kShowSeconds = 4;
-const int _kObjectCount = 1; // objects shown per round
+
+// Size definitions: index 0 = small, 1 = medium, 2 = large
+const _kSizes = [36.0, 52.0, 68.0, 88.0];
+const _kSizeLabels = ['Tiny', 'Small', 'Medium', 'Large'];
+const _kSlotSizes = [120.0, 120.0, 120.0, 120.0];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Data model
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SizeItem {
+  final String objectName;
+  final int sizeIndex; // 0=small, 1=medium, 2=large
+  final double displaySize;
+
+  const _SizeItem({
+    required this.objectName,
+    required this.sizeIndex,
+    required this.displaySize,
+  });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class Lvl8WhatsMissingScreen extends StatefulWidget {
-  const Lvl8WhatsMissingScreen({super.key});
+class Lvl14SizeSort2Screen extends StatefulWidget {
+  const Lvl14SizeSort2Screen({super.key});
 
   @override
-  State<Lvl8WhatsMissingScreen> createState() =>
-      _Lvl8WhatsMissingScreenState();
+  State<Lvl14SizeSort2Screen> createState() => _Lvl14SizeSort2ScreenState();
 }
 
-class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
+class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
     with TickerProviderStateMixin {
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_puzzle.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
   static const String _audioIntro =
-      'assets/audio/puzzle_glade/level8/intro.wav';
+      'assets/audio/puzzle_glade/level7/intro.wav';
   static const String _audioWelcome =
-      'assets/audio/puzzle_glade/level8/welcome.wav';
+      'assets/audio/puzzle_glade/level7/welcome.wav';
   static const String _audioInstructions =
-      'assets/audio/puzzle_glade/level8/instruction.wav';
+      'assets/audio/puzzle_glade/level7/instruction.wav';
   static const String _audioComplete =
-      'assets/audio/puzzle_glade/level8/complete.wav';
+      'assets/audio/puzzle_glade/level7/complete.wav';
 
+  static const String _audioBubblePop = 'assets/audio/bubble_pop.wav';
   static const String _audioSuccess = 'assets/audio/shine.wav';
-  static const String _audioWrong = 'assets/audio/bubble_pop.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
-  _GamePhase _gamePhase = _GamePhase.showing;
 
   // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
 
-  /// The 3 objects shown this round
-  late List<String> _shownObjects;
+  /// The object used this round
+  late String _currentObject;
 
-  /// The object that was removed
-  late String _missingObject;
+  /// Slots: index 0=small slot, 1=medium slot, 2=large slot
+  /// null means empty
+  final List<_SizeItem?> _slots = [null, null, null, null];
 
-  /// 2 choices: one correct, one wrong
-  late List<String> _choices;
+  /// Flash state per slot (wrong drop)
+  final List<bool> _flashSlot = [false, false, false, false];
 
-  /// Countdown timer value
-  int _countdown = _kShowSeconds;
-  Timer? _countdownTimer;
-
+  bool _roundComplete = false;
   bool _showWinDialog = false;
-
-  /// Which choice was tapped (for feedback highlight)
-  String? _tappedChoice;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -118,16 +127,9 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
 
-  // Missing slot pulse
-  late AnimationController _missingPulseCtrl;
-  late Animation<double> _missingPulseAnim;
-
-  // Countdown ring
-  late AnimationController _countdownRingCtrl;
-
-  // Choice feedback bounce
-  late AnimationController _correctBounceCtrl;
-  late Animation<double> _correctBounceAnim;
+  // Slot bounce controllers (one per slot)
+  late List<AnimationController> _slotBounceCtrl;
+  late List<Animation<double>> _slotBounceAnim;
 
   // Round complete pulse
   late AnimationController _completePulseCtrl;
@@ -144,7 +146,6 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
 
   @override
   void dispose() {
-    _countdownTimer?.cancel();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -152,9 +153,9 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
     _itemDanceCtrl.dispose();
     _gameEnterCtrl.dispose();
     _enterCtrl.dispose();
-    _missingPulseCtrl.dispose();
-    _countdownRingCtrl.dispose();
-    _correctBounceCtrl.dispose();
+    for (final c in _slotBounceCtrl) {
+      c.dispose();
+    }
     _completePulseCtrl.dispose();
     OrientationService.setLandscape();
     super.dispose();
@@ -172,8 +173,8 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _roxieSlide =
-        Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero).animate(
+    _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
+        .animate(
           CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
         );
     _roxieFade = CurvedAnimation(
@@ -185,9 +186,10 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     )..repeat(reverse: true);
-    _itemDance = Tween<double>(begin: -0.06, end: 0.06).animate(
-      CurvedAnimation(parent: _itemDanceCtrl, curve: Curves.easeInOut),
-    );
+    _itemDance = Tween<double>(
+      begin: -0.06,
+      end: 0.06,
+    ).animate(CurvedAnimation(parent: _itemDanceCtrl, curve: Curves.easeInOut));
 
     _gameEnterCtrl = AnimationController(
       vsync: this,
@@ -201,26 +203,21 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
     );
     _enterAnim = CurvedAnimation(parent: _enterCtrl, curve: Curves.easeOut);
 
-    _missingPulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
+    _slotBounceCtrl = List.generate(
+      4,
+      (_) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 450),
+      ),
     );
-    _missingPulseAnim = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _missingPulseCtrl, curve: Curves.easeInOut),
-    );
-
-    _countdownRingCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: _kShowSeconds),
-    );
-
-    _correctBounceCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    );
-    _correctBounceAnim = Tween<double>(begin: 1.0, end: 1.18).animate(
-      CurvedAnimation(parent: _correctBounceCtrl, curve: Curves.elasticOut),
-    );
+    _slotBounceAnim = _slotBounceCtrl
+        .map(
+          (c) => Tween<double>(
+            begin: 1.0,
+            end: 1.15,
+          ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
+        )
+        .toList();
 
     _completePulseCtrl = AnimationController(
       vsync: this,
@@ -268,70 +265,59 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
   void _startRound() {
     final rng = Random();
     final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
+    _currentObject = shuffled[0];
 
-    // Pick 3 objects to show
-    _shownObjects = shuffled.sublist(0, _kObjectCount);
+    List<_SizeItem> items;
+    do {
+      items = List.generate(
+        4,
+            (i) => _SizeItem(
+          objectName: _currentObject,
+          sizeIndex: i,
+          displaySize: _kSizes[i],
+        ),
+      )..shuffle(rng);
+    } while (List.generate(4, (i) => items[i].sizeIndex == i).every((b) => b));
 
-    // Pick one to be missing
-    _missingObject = _shownObjects[rng.nextInt(_kObjectCount)];
+    for (int i = 0; i < 4; i++) {
+      _slots[i] = items[i];
+    }
+    for (int i = 0; i < 4; i++) {
+      _flashSlot[i] = false;
+    }
+    _roundComplete = false;
 
-    // 2 choices: correct + 1 wrong distractor from remaining objects
-    final distractors = shuffled.sublist(_kObjectCount);
-    final wrongChoice = distractors[rng.nextInt(distractors.length)];
-    _choices = [_missingObject, wrongChoice]..shuffle(rng);
-
-    _tappedChoice = null;
-    _countdown = _kShowSeconds;
-    _gamePhase = _GamePhase.showing;
-
-    _missingPulseCtrl.stop();
-    _missingPulseCtrl.reset();
-    _correctBounceCtrl.reset();
+    for (final c in _slotBounceCtrl) {
+      c.reset();
+    }
     _completePulseCtrl.stop();
     _completePulseCtrl.reset();
     _enterCtrl.forward(from: 0);
-
-    // Start countdown ring animation
-    _countdownRingCtrl.forward(from: 0);
-
-    // Start countdown timer
-    _countdownTimer?.cancel();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() => _countdown--);
-      if (_countdown <= 0) {
-        timer.cancel();
-        _revealMissing();
-      }
-    });
   }
 
-  void _revealMissing() {
-    if (!mounted) return;
-    setState(() => _gamePhase = _GamePhase.guessing);
-    _missingPulseCtrl.repeat(reverse: true);
-  }
+  // ── Swap logic ─────────────────────────────────────────────────────────────
 
-  // ── Guess logic ────────────────────────────────────────────────────────────
+  void _onDragAccepted(int toSlot, int fromSlot) async {
+    if (_roundComplete) return;
+    if (fromSlot == toSlot) return;
 
-  Future<void> _onChoiceTapped(String choice) async {
-    if (_gamePhase != _GamePhase.guessing) return;
-
-    final isCorrect = choice == _missingObject;
     setState(() {
-      _tappedChoice = choice;
-      _gamePhase = isCorrect ? _GamePhase.correct : _GamePhase.wrong;
+      final temp = _slots[fromSlot];
+      _slots[fromSlot] = _slots[toSlot];
+      _slots[toSlot] = temp;
+      _slotBounceCtrl[toSlot].forward(from: 0);
+      _slotBounceCtrl[fromSlot].forward(from: 0);
     });
 
-    if (isCorrect) {
-      _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
-      _correctBounceCtrl.forward(from: 0);
-      _missingPulseCtrl.stop();
+    _sfxPlayer.play(AssetSource(_audioBubblePop.replaceFirst('assets/', '')));
 
-      await Future.delayed(const Duration(milliseconds: 1000));
+    final sorted = List.generate(4, (i) => _slots[i]?.sizeIndex == i).every((b) => b);
+    if (sorted) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      setState(() => _roundComplete = true);
+      _completePulseCtrl.repeat(reverse: true);
+      _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
+      await Future.delayed(const Duration(milliseconds: 1400));
 
       if (_round >= _kTotalRounds) {
         await _sfxPlayer.stop();
@@ -339,27 +325,13 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
         final sub = _completePlayer.onPlayerComplete.listen((_) {
           if (!completer.isCompleted) completer.complete();
         });
-        await _completePlayer.play(
-          AssetSource(_audioComplete.replaceFirst('assets/', '')),
-        );
+        await _completePlayer.play(AssetSource(_audioComplete.replaceFirst('assets/', '')));
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
         if (mounted) setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
-        if (mounted) {
-          setState(() => _round++);
-          _startRound();
-        }
-      }
-    } else {
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
-      await Future.delayed(const Duration(milliseconds: 700));
-      if (mounted) {
-        setState(() {
-          _tappedChoice = null;
-          _gamePhase = _GamePhase.guessing;
-        });
+        if (mounted) setState(() { _round++; _startRound(); });
       }
     }
   }
@@ -388,9 +360,9 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
                 : FadeTransition(
-              opacity: _gameFade,
-              child: _buildGameContent(),
-            ),
+                    opacity: _gameFade,
+                    child: _buildGameContent(),
+                  ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
@@ -457,7 +429,8 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
   }
 
   Widget _buildIntroDancingItems() {
-    final sampleObjects = ['compass', 'star', 'telescope'];
+    // Show the same object in 3 different sizes dancing
+    const previewObject = 'star';
 
     return AnimatedBuilder(
       animation: _itemDanceCtrl,
@@ -465,28 +438,24 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
         return Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: List.generate(sampleObjects.length, (i) {
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(4, (i) {
               final angle = _itemDance.value * ((i % 2 == 0) ? 1 : -1);
-              // middle one shown as question mark to hint the game
-              final isMiddle = i == 1;
+              final size = _kSizes[i] + 10;
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Transform.rotate(
                   angle: angle,
                   child: Container(
-                    width: 76,
-                    height: 76,
+                    width: size,
+                    height: size,
                     decoration: BoxDecoration(
-                      color: isMiddle
-                          ? JarColorTheme.goldenyellow.withValues(alpha: 0.25)
-                          : Colors.white.withValues(alpha: 0.88),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.white.withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(size * 0.25),
                       border: Border.all(
-                        color: isMiddle
-                            ? JarColorTheme.sunnyhue
-                            : JarColorTheme.darkdesaturatedblue
-                            .withValues(alpha: 0.25),
+                        color: JarColorTheme.darkdesaturatedblue.withValues(
+                          alpha: 0.25,
+                        ),
                         width: 2.5,
                       ),
                       boxShadow: [
@@ -497,25 +466,12 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
                         ),
                       ],
                     ),
-                    padding: const EdgeInsets.all(10),
-                    child: isMiddle
-                        ? Center(
-                      child: Text(
-                        '?',
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: JarColorTheme.sunnyhue,
-                        ),
-                      ),
-                    )
-                        : Image.asset(
-                      'assets/images/objects/puzzle/${sampleObjects[i]}.png',
+                    padding: const EdgeInsets.all(8),
+                    child: Image.asset(
+                      'assets/images/objects/puzzle/$previewObject.png',
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text(
-                        '🔭',
-                        style: TextStyle(fontSize: 28),
-                      ),
+                      errorBuilder: (_, __, ___) =>
+                          Text('⭐', style: TextStyle(fontSize: size * 0.5)),
                     ),
                   ),
                 ),
@@ -557,8 +513,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
           children: [
             Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
             Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(20),
@@ -572,7 +527,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
                 ],
               ),
               child: Text(
-                'What\'s Missing?',
+                'Fix the Size',
                 style: TextStyle(
                   fontFamily: JarAppTextStyles.fredoka,
                   fontSize: 22,
@@ -588,291 +543,158 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
   }
 
   Widget _buildGameArea() {
-    return Row(
-      children: [
-        // LEFT: object display area
-        Expanded(
-          flex: 6,
-          child: Center(child: _buildObjectDisplay()),
-        ),
-        // RIGHT: choices or countdown
-        Expanded(
-          flex: 4,
-          child: Center(child: _buildRightPanel()),
-        ),
-      ],
-    );
+    return Center(child: _buildShelfRow());
   }
 
-  // ── Object display ─────────────────────────────────────────────────────────
+  // ── Shelf row ──────────────────────────────────────────────────────────────
 
-  Widget _buildObjectDisplay() {
+  Widget _buildShelfRow() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Phase label
-        Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-          decoration: BoxDecoration(
-            color: _gamePhase == _GamePhase.showing
-                ? JarColorTheme.sunnyhue.withValues(alpha: 0.90)
-                : Colors.white.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Text(
-            _gamePhase == _GamePhase.showing
-                ? 'Remember this!'
-                : 'What\'s missing?',
-            style: TextStyle(
-              fontFamily: JarAppTextStyles.fredoka,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: _gamePhase == _GamePhase.showing
-                  ? Colors.white
-                  : JarColorTheme.darkdesaturatedblue,
-            ),
-          ),
-        ),
-        // Object tiles row
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(_kObjectCount, (i) {
-            final obj = _shownObjects[i];
-            final isMissing =
-                _gamePhase != _GamePhase.showing && obj == _missingObject;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: isMissing
-                  ? _buildMissingSlot()
-                  : _buildObjectTile(obj),
-            );
-          }),
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: List.generate(4, (i) => _buildSlot(i)),
+        ),
+        Container(
+          width: 500,
+          height: 14,
+          decoration: BoxDecoration(
+            color: const Color(0xFFB5845A),
+            borderRadius: BorderRadius.circular(6),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildObjectTile(String objectName) {
-    return Container(
-      width: 96,
-      height: 96,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.90),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
-          width: 2.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+  Widget _buildSlot(int slotIndex) {
+    final slotSize = _kSlotSizes[slotIndex];
+    final label = _kSizeLabels[slotIndex];
+    final placedItem = _slots[slotIndex];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
+                width: 1.5,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: JarAppTextStyles.fredoka,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.75),
+              ),
+            ),
+          ),
+          ScaleTransition(
+            scale: slotIndex < _slotBounceAnim.length
+                ? _slotBounceAnim[slotIndex]
+                : const AlwaysStoppedAnimation(1.0),
+            child: DragTarget<int>(
+              onAcceptWithDetails: (details) => _onDragAccepted(slotIndex, details.data),
+              builder: (context, candidateData, rejectedData) {
+                final isHovered = candidateData.isNotEmpty;
+                return Draggable<int>(
+                  data: slotIndex,
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: Opacity(
+                      opacity: 0.85,
+                      child: Container(
+                        width: slotSize,
+                        height: slotSize,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: JarColorTheme.sunnyhue,
+                            width: 3,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(8),
+                        child: placedItem != null
+                            ? Center(
+                          child: Image.asset(
+                            'assets/images/objects/puzzle/${placedItem.objectName}.png',
+                            width: _kSizes[placedItem.sizeIndex],
+                            height: _kSizes[placedItem.sizeIndex],
+                            fit: BoxFit.contain,
+                          ),
+                        )
+                            : const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                  childWhenDragging: Container(
+                    width: slotSize,
+                    height: slotSize,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: slotSize,
+                    height: slotSize,
+                    decoration: BoxDecoration(
+                      color: isHovered
+                          ? JarColorTheme.sunnyhue.withValues(alpha: 0.25)
+                          : placedItem != null
+                          ? Colors.white.withValues(alpha: 0.90)
+                          : Colors.white.withValues(alpha: 0.40),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isHovered
+                            ? JarColorTheme.sunnyhue
+                            : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.30),
+                        width: isHovered ? 3 : 2,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: placedItem != null
+                        ? Center(
+                      child: Image.asset(
+                        'assets/images/objects/puzzle/${placedItem.objectName}.png',
+                        width: _kSizes[placedItem.sizeIndex],
+                        height: _kSizes[placedItem.sizeIndex],
+                        fit: BoxFit.contain,
+                      ),
+                    )
+                        : const SizedBox.shrink(),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(14),
-      child: Image.asset(
-        'assets/images/objects/puzzle/$objectName.png',
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) =>
-        const Text('📦', style: TextStyle(fontSize: 28)),
-      ),
     );
-  }
-
-  Widget _buildMissingSlot() {
-    return ScaleTransition(
-      scale: _missingPulseAnim,
-      child: Container(
-        width: 96,
-        height: 96,
-        decoration: BoxDecoration(
-          color: JarColorTheme.goldenyellow.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: JarColorTheme.sunnyhue,
-            width: 3,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: JarColorTheme.sunnyhue.withValues(alpha: 0.25),
-              blurRadius: 12,
-              spreadRadius: 2,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            '?',
-            style: TextStyle(
-              fontSize: 44,
-              fontWeight: FontWeight.bold,
-              color: JarColorTheme.sunnyhue,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── Right panel: countdown or choices ─────────────────────────────────────
-
-  Widget _buildRightPanel() {
-    if (_gamePhase == _GamePhase.showing) {
-      return _buildCountdown();
-    }
-    return _buildChoices();
-  }
-
-  Widget _buildCountdown() {
-    // Pick color based on urgency
-    final Color ringColor = _countdown <= 1
-        ? const Color(0xFFE05A5A)
-        : _countdown <= 2
-        ? JarColorTheme.sunnyhue
-        : JarColorTheme.darkdesaturatedblue;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 90,
-          height: 90,
-          child: AnimatedBuilder(
-            animation: _countdownRingCtrl,
-            builder: (_, __) {
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 90,
-                    height: 90,
-                    child: CircularProgressIndicator(
-                      value: 1.0 - _countdownRingCtrl.value,
-                      strokeWidth: 7,
-                      backgroundColor:
-                      JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.15),
-                      valueColor: AlwaysStoppedAnimation<Color>(ringColor),
-                    ),
-                  ),
-                  AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 200),
-                    style: TextStyle(
-                      fontFamily: JarAppTextStyles.fredoka,
-                      fontSize: _countdown <= 1 ? 42 : 36,
-                      fontWeight: FontWeight.bold,
-                      color: ringColor,
-                    ),
-                    child: Text('$_countdown'),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Get ready!',
-          style: TextStyle(
-            fontFamily: JarAppTextStyles.fredoka,
-            fontSize: 15,
-            color: Colors.white.withValues(alpha: 0.85),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildChoices() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Pick the missing one!',
-          style: TextStyle(
-            fontFamily: JarAppTextStyles.fredoka,
-            fontSize: 15,
-            color: Colors.white.withValues(alpha: 0.90),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 14),
-        ..._choices.map((choice) => _buildChoiceTile(choice)),
-      ],
-    );
-  }
-
-  Widget _buildChoiceTile(String objectName) {
-    final isCorrect = objectName == _missingObject;
-    final isTapped = _tappedChoice == objectName;
-    final isWrongTap = isTapped && !isCorrect;
-    final isCorrectTap = isTapped && isCorrect;
-
-    Color borderColor = JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.28);
-    Color bgColor = Colors.white.withValues(alpha: 0.90);
-
-    if (isWrongTap) {
-      borderColor = const Color(0xFFE05A5A);
-      bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.12);
-    } else if (isCorrectTap) {
-      borderColor = Colors.green;
-      bgColor = Colors.green.withValues(alpha: 0.12);
-    }
-
-    Widget tile = GestureDetector(
-      onTap: () => _onChoiceTapped(objectName),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        width: 130,
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: borderColor, width: 2.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.10),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 44,
-              height: 44,
-              child: Image.asset(
-                'assets/images/objects/puzzle/$objectName.png',
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) =>
-                const Text('📦', style: TextStyle(fontSize: 24)),
-              ),
-            ),
-            // Feedback icon
-            if (isWrongTap) ...[
-              const SizedBox(width: 6),
-              const Icon(Icons.close_rounded,
-                  color: Color(0xFFE05A5A), size: 22),
-            ] else if (isCorrectTap) ...[
-              const SizedBox(width: 6),
-              const Icon(Icons.check_rounded, color: Colors.green, size: 22),
-            ],
-          ],
-        ),
-      ),
-    );
-
-    if (isCorrectTap) {
-      return ScaleTransition(scale: _correctBounceAnim, child: tile);
-    }
-    return tile;
   }
 
   // ── Progress dots ──────────────────────────────────────────────────────────
@@ -893,8 +715,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
                 ? JarColorTheme.darkdesaturatedblue
                 : current
                 ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue
-                .withValues(alpha: 0.20),
+                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -910,11 +731,12 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
       closeButtonColor: JarColorTheme.darkdesaturatedblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl9PatternMatch2Screen()),
-        );      },
+          MaterialPageRoute(builder: (_) => const Lvl15WhatsMissing2Screen()),
+        );
+      },
       onRestart: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl8WhatsMissingScreen()),
+          MaterialPageRoute(builder: (_) => const Lvl14SizeSort2Screen()),
         );
       },
       onBack: () {

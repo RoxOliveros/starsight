@@ -305,7 +305,7 @@ class _SplashScreenState extends State<SplashScreen>
                                         child: ScaleTransition(
                                           scale: _starScale,
                                           child: Image.asset(
-                                            'assets/images/logo_star.png',
+                                            'assets/images/icons/logo_star.png',
                                             key: _starKey,
                                             width: 44,
                                             height: 39,
