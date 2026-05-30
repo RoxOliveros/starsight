@@ -170,10 +170,10 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: const [
-                              _LevelTile(level: 21),
-                              _LevelTile(level: 22),
-                              _LevelTile(level: 23),
-                              _LevelTile(level: 24),
+                              _LockedTile(), // Level 21 (locked)
+                              _LockedTile(), // Level 22 (locked)
+                              _LockedTile(), // Level 23 (locked)
+                              _LockedTile(), // Level 24 (locked)
                             ],
                           ),
                         ],

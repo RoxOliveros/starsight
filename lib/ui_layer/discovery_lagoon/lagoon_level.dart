@@ -1,5 +1,6 @@
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_drag.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_intro.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_line_match.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_match.dart';
 import 'package:dotted_border/dotted_border.dart';
@@ -34,8 +35,9 @@ class LagoonLevelScreen extends StatefulWidget {
 class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
   // 0 is equal to levels 1-8
   // 1 is equal to levels 9-16
+  // 2 is equal to levels 17-24
   int _currentPage = 0;
-  final int _maxPages = 1; // Increase this number as you add more pages!
+  final int _maxPages = 2; // Increase number when adding more pages!
 
   @override
   void initState() {
@@ -128,10 +130,9 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: const [
                               _LevelTile(level: 5),
-                              // Replace these LockedTiles with _LevelTile(level: 6, 7, 8) when ready!
-                              _LockedTile(),
-                              _LockedTile(),
-                              _LockedTile(),
+                              _LevelTile(level: 6),
+                              _LevelTile(level: 7),
+                              _LevelTile(level: 8),
                             ],
                           ),
                         ],
@@ -141,20 +142,41 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: const [
-                              _LockedTile(), // Level 9
-                              _LockedTile(), // Level 10
-                              _LockedTile(), // Level 11
-                              _LockedTile(), // Level 12
+                              _LevelTile(level: 9),
+                              _LevelTile(level: 10),
+                              _LevelTile(level: 11),
+                              _LevelTile(level: 12),
                             ],
                           ),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: const [
-                              _LockedTile(), // Level 13
-                              _LockedTile(), // Level 14
-                              _LockedTile(), // Level 15
-                              _LockedTile(), // Level 16
+                              _LevelTile(level: 13),
+                              _LevelTile(level: 14),
+                              _LevelTile(level: 15),
+                              _LevelTile(level: 16),
+                            ],
+                          ),
+                        ],
+                        if (_currentPage == 2) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LevelTile(level: 17),
+                              _LevelTile(level: 18),
+                              _LevelTile(level: 19),
+                              _LevelTile(level: 20),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: const [
+                              _LockedTile(), // Level 21 (locked)
+                              _LockedTile(), // Level 22 (locked)
+                              _LockedTile(), // Level 23 (locked)
+                              _LockedTile(), // Level 24 (locked)
                             ],
                           ),
                         ],
@@ -227,7 +249,6 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                     ),
                   ),
 
-                  // FUNCTIONAL Left arrow
                   if (_currentPage > 0)
                     Positioned(
                       left: -35,
@@ -246,7 +267,6 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                       ),
                     ),
 
-                  // FUNCTIONAL Right arrow
                   if (_currentPage < _maxPages)
                     Positioned(
                       right: -35,
@@ -302,14 +322,17 @@ class _LevelTile extends StatelessWidget {
           case 1:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const WeatherMatch()),
+              MaterialPageRoute(
+                builder: (context) => BodyPartsIntroScreen(bodyPart: 'feet'),
+              ),
             );
             break;
           case 2:
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const WeatherMatchScreen(),
+                builder: (context) =>
+                    const BodyPartsDragScreen(bodyPart: 'feet'),
               ),
             );
             break;
@@ -317,7 +340,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const BodyPartsDragScreen(),
+                builder: (context) => BodyPartsIntroScreen(bodyPart: 'knee'),
               ),
             );
             break;
@@ -325,7 +348,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const BodyPartsAssemblyScreen(),
+                builder: (context) =>
+                    const BodyPartsDragScreen(bodyPart: 'knee'),
               ),
             );
             break;
@@ -333,12 +357,142 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AnimalHabitatMatchScreen(),
+                builder: (context) =>
+                    BodyPartsIntroScreen(bodyPart: 'shoulder'),
               ),
             );
             break;
-
-          // Add routing for levels 6+ here!
+          case 6:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsDragScreen(bodyPart: 'shoulder'),
+              ),
+            );
+            break;
+          case 7:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BodyPartsIntroScreen(bodyPart: 'head'),
+              ),
+            );
+            break;
+          case 8:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsDragScreen(bodyPart: 'head'),
+              ),
+            );
+            break;
+          case 9:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BodyPartsIntroScreen(bodyPart: 'lips'),
+              ),
+            );
+            break;
+          case 10:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsDragScreen(bodyPart: 'lips'),
+              ),
+            );
+            break;
+          case 11:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BodyPartsIntroScreen(bodyPart: 'nose'),
+              ),
+            );
+            break;
+          case 12:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsDragScreen(bodyPart: 'nose'),
+              ),
+            );
+            break;
+          case 13:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BodyPartsIntroScreen(bodyPart: 'eye'),
+              ),
+            );
+            break;
+          case 14:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsDragScreen(bodyPart: 'eye'),
+              ),
+            );
+            break;
+          case 15:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsIntroScreen(bodyPart: 'ear'),
+              ),
+            );
+            break;
+          case 16:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsDragScreen(bodyPart: 'ear'),
+              ),
+            );
+            break;
+          case 17:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsIntroScreen(bodyPart: 'eyebrows'),
+              ),
+            );
+            break;
+          case 18:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsDragScreen(bodyPart: 'eyebrows'),
+              ),
+            );
+            break;
+          case 19:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsIntroScreen(bodyPart: 'hair'),
+              ),
+            );
+            break;
+          case 20:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsDragScreen(bodyPart: 'hair'),
+              ),
+            );
+            break;
 
           default:
             print("Level $level is not linked up yet!");

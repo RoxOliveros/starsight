@@ -110,7 +110,7 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
   Widget _buildAnimatedGif() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final gifSize = (constraints.maxHeight * 0.45).clamp(100.0, 250.0);
+        final gifSize = (constraints.maxHeight * 0.55).clamp(100.0, 250.0);
 
         if (_introPhase == IntroPhase.entering ||
             _introPhase == IntroPhase.playingIntro) {
@@ -127,7 +127,8 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
           // Make sure to create this folder in your project and update pubspec.yaml
           child: Image.asset(
             'assets/gifs/bodyparts/intro_${widget.bodyPart.toLowerCase()}.gif',
-            width: gifSize,
+            width: 500,
+            height: 500,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) => Text(
               widget.bodyPart,
@@ -168,7 +169,7 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
               child: SlideTransition(
                 position: _charSlide,
                 child: Image.asset(
-                  'assets/images/penguin.png',
+                  'assets/images/characters/cat_holding_fishbone.png',
                   height: screenSize.height * 0.5,
                   fit: BoxFit.contain,
                 ),
@@ -222,11 +223,13 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
                 right: 24,
                 child: GestureDetector(
                   onTap: () {
-                    // Links to your Body Parts Drag Screen!
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const BodyPartsDragScreen(),
+                        builder: (context) => BodyPartsDragScreen(
+                          bodyPart:
+                              widget.bodyPart, // Don't forget to pass it along!
+                        ),
                       ),
                     );
                   },
