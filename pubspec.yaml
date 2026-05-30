@@ -84,6 +84,7 @@ flutter:
     
     - assets/images/
     - assets/images/backgrounds/
+    - assets/images/backgrounds/values/level1/
     - assets/images/arrows/
     - assets/images/alphabets/
     - assets/images/buttons/
@@ -123,6 +124,8 @@ flutter:
     - assets/audio/puzzle_glade/level2/
     - assets/audio/puzzle_glade/level3/
     - assets/audio/puzzle_glade/level4/
+    - assets/audio/puzzle_glade/level5/
+    - assets/audio/puzzle_glade/level6/
     - assets/drafts/
     - assets/gifs/
     - assets/animations/

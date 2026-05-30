@@ -7,6 +7,7 @@ import '../../ui_layer/puzzle_glade/jar_buttons.dart';
 import '../../ui_layer/puzzle_glade/jar_level.dart';
 import '../../ui_layer/puzzle_glade/jar_theme.dart';
 import '../goodjob_prompt.dart';
+import 'lvl5_jigsaw_puzzle.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -21,7 +22,8 @@ const _kAllObjects = [
   'lamp',
   'magnifying_glass',
   'map',
-  'pen_and_notebook',
+  'pen',
+  'notebook',
   'puzzle_piece',
   'star',
   'telescope',
@@ -705,7 +707,9 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
       characterImage: _characterImage,
       closeButtonColor: JarColorTheme.darkdesaturatedblue,
       onNext: () {
-        // TODO: navigate to next screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Lvl5JigsawPuzzleScreen()),
+        );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
