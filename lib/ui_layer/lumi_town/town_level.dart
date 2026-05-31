@@ -4,17 +4,18 @@ import 'package:lottie/lottie.dart' hide LottieCache;
 import '../../business_layer/lottie_cache.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/lumi_town/1/wakeup1.dart';
+import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
 import 'lumi_buttons.dart';
 import 'lumi_theme.dart';
 
-class TownLevelScreen extends StatefulWidget {
-  const TownLevelScreen({super.key});
+class LumiLevelScreen extends StatefulWidget {
+  const LumiLevelScreen({super.key});
 
   @override
-  State<TownLevelScreen> createState() => _TownLevelScreenState();
+  State<LumiLevelScreen> createState() => _LumiLevelScreenState();
 }
 
-class _TownLevelScreenState extends State<TownLevelScreen> {
+class _LumiLevelScreenState extends State<LumiLevelScreen> {
   @override
   void initState() {
     super.initState();
@@ -72,7 +73,7 @@ class _TownLevelScreenState extends State<TownLevelScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: const [
                             _LevelTile(level: 1),
-                            _LockedTile(),
+                            _LevelTile(level: 2),
                             _LockedTile(),
                             _LockedTile(),
                           ],
@@ -213,6 +214,12 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => Lumi1ValuesWakeup()),
+            );
+            break;
+          case 2:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => Lvl2BathroomGameScreen()),
             );
             break;
         }

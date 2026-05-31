@@ -536,7 +536,7 @@ class _IslandTileState extends State<_IslandTile>
               break;
             case 'Lumi Town':
               navigator.push(
-                MaterialPageRoute(builder: (_) => const TownLevelScreen()),
+                MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
               );
               break;
             case 'Artic Numberland':

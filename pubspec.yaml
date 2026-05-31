@@ -84,7 +84,6 @@ flutter:
     
     - assets/images/
     - assets/images/backgrounds/
-    - assets/images/backgrounds/values/level1/
     - assets/images/arrows/
     - assets/images/alphabets/
     - assets/images/buttons/
@@ -92,12 +91,12 @@ flutter:
     - assets/images/objects/
     - assets/images/objects/arctic/
     - assets/images/objects/puzzle/
-    - assets/images/lumi/
+    - assets/images/objects/lumi/
     - assets/images/characters/
     - assets/fonts/game_letters/
     - assets/fonts/game_numbers/
     - assets/audio/
-    - assets/audio/values1/
+    - assets/audio/sound_effects/
     - assets/audio/arctic_numberland/
     - assets/audio/arctic_numberland/level1/
     - assets/audio/arctic_numberland/level2/
@@ -131,6 +130,9 @@ flutter:
     - assets/audio/puzzle_glade/level9/
     - assets/audio/puzzle_glade/level16/
     - assets/audio/puzzle_glade/level17/
+    - assets/audio/lumi_town/
+    - assets/audio/lumi_town/level1/
+    - assets/audio/lumi_town/level2/
     - assets/drafts/
     - assets/gifs/
     - assets/animations/

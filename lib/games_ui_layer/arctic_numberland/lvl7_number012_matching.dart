@@ -27,7 +27,7 @@ class _Number012MatchingScreenState extends State<Number012MatchingScreen>
   late List<int> _numberCardOrder;
   late List<int> _dotCardOrder;
 
-  // Tracks which values have been correctly matched
+  // Tracks which lumi_town have been correctly matched
   final Set<int> _matchedNumbers = {};
 
   // Wrong-flash state
