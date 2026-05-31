@@ -1,6 +1,8 @@
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
@@ -26,6 +28,8 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   final Random _random = Random();
   late Timer _spawnTimer;
   late Timer _gameTimer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   int _correctCount = 0;
   final int _winCondition = 5; // How many they need to catch to win
@@ -142,24 +146,15 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     });
   }
 
-  void _updateObjectPositions() {
-    if (!mounted) return;
-    setState(() {
-      for (var obj in _activeObjects) {
-        obj.yPos += obj.speed;
-      }
-      _activeObjects.removeWhere((obj) => obj.yPos > 1.1);
-    });
-  }
-
-  void _onObjectTap(FallingObject obj) {
-    // Check if the tapped letter is in our target list (e.g., 'A' or 'a')
+  void _onObjectTap(FallingObject obj) async {
     if (_targetLetters.contains(obj.letter)) {
+      String audioFile =
+          'audio/alphabet_forest/sound_effects/sound_${widget.startingLetter.toLowerCase()}.wav';
+      await _audioPlayer.play(AssetSource(audioFile));
+
       setState(() {
         _correctCount++;
         _activeObjects.remove(obj);
-
-        // TODO: Play "A" sound here in the future!
 
         if (_correctCount >= _winCondition) {
           _spawnTimer.cancel();
@@ -189,6 +184,16 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     }
   }
 
+  void _updateObjectPositions() {
+    if (!mounted) return;
+    setState(() {
+      for (var obj in _activeObjects) {
+        obj.yPos += obj.speed;
+      }
+      _activeObjects.removeWhere((obj) => obj.yPos > 1.1);
+    });
+  }
+
   void _showApplause() {
     showDialog(
       context: context,
@@ -201,10 +206,9 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
           characterImage: 'assets/images/characters/dog.png',
           closeButtonColor: ForestColorTheme.seagreen,
 
-          // 4. FALL is the last game. Return to the Map!
           onNext: () {
-            Navigator.pop(context); // 1st: Close the Good Job prompt
-            Navigator.pop(context); // 2nd: Exit the game and return to Map
+            Navigator.pop(context);
+            Navigator.pop(context);
           },
 
           onRestart: () {
@@ -229,6 +233,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   void dispose() {
     if (_spawnTimer.isActive) _spawnTimer.cancel();
     if (_gameTimer.isActive) _gameTimer.cancel();
+    _audioPlayer.dispose(); // ALWAYS dispose audio!
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -236,126 +241,127 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ForestColorTheme.lightgrayishgreen,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // 1. TARGET DISPLAY
-            Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Column(
-                  children: [
-                    const Text(
-                      "Catch the letters:",
-                      style: TextStyle(
-                        fontFamily: ForestAppTextStyles.fredoka,
-                        fontSize: 24,
-                        color: ForestColorTheme.darkseagreen,
+      body: ForestBackground(
+        child: SafeArea(
+          child: Stack(
+            children: [
+              // 1. TARGET DISPLAY
+              Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "Catch the letters:",
+                        style: TextStyle(
+                          fontFamily: ForestAppTextStyles.fredoka,
+                          fontSize: 24,
+                          color: Color.fromARGB(255, 71, 70, 70),
+                        ),
                       ),
-                    ),
-                    Text(
-                      "${_targetLetters[0]} & ${_targetLetters[1]}", // Displays "A & a"
-                      style: const TextStyle(
-                        fontFamily: ForestAppTextStyles.fredoka,
-                        fontSize: 50,
-                        fontWeight: FontWeight.bold,
-                        color: ForestColorTheme.seagreen,
+                      Text(
+                        "${_targetLetters[0]} & ${_targetLetters[1]}", // Displays "A & a"
+                        style: const TextStyle(
+                          fontFamily: ForestAppTextStyles.fredoka,
+                          fontSize: 50,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 71, 70, 70),
+                        ),
                       ),
-                    ),
-                    // Score Tracker
-                    Text(
-                      "$_correctCount / $_winCondition",
-                      style: const TextStyle(
-                        fontFamily: ForestAppTextStyles.fredoka,
-                        fontSize: 24,
-                        color: ForestColorTheme.darkseagreen,
-                        fontWeight: FontWeight.bold,
+                      // Score Tracker
+                      Text(
+                        "$_correctCount / $_winCondition",
+                        style: const TextStyle(
+                          fontFamily: ForestAppTextStyles.fredoka,
+                          fontSize: 24,
+                          color: Color.fromARGB(255, 71, 70, 70),
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            // 2. FALLING OBJECTS AND EFFECTS
-            LayoutBuilder(
-              builder: (context, constraints) {
-                double objSize = constraints.maxWidth * 0.12;
+              // 2. FALLING OBJECTS AND EFFECTS
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  double objSize = constraints.maxWidth * 0.12;
 
-                return Stack(
-                  children: [
-                    ..._activeObjects.map((obj) {
-                      return Positioned(
-                        left: obj.xPos * (constraints.maxWidth - objSize),
-                        top: obj.yPos * constraints.maxHeight,
-                        child: GestureDetector(
-                          onTap: () => _onObjectTap(obj),
+                  return Stack(
+                    children: [
+                      ..._activeObjects.map((obj) {
+                        return Positioned(
+                          left: obj.xPos * (constraints.maxWidth - objSize),
+                          top: obj.yPos * constraints.maxHeight,
+                          child: GestureDetector(
+                            onTap: () => _onObjectTap(obj),
+                            child: SizedBox(
+                              width: objSize,
+                              height: objSize,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  // Uses the dynamic image path!
+                                  Image.asset(
+                                    _currentImagePath,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  Text(
+                                    obj.letter,
+                                    style: TextStyle(
+                                      fontFamily: ForestAppTextStyles.fredoka,
+                                      fontSize: objSize * 0.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      shadows: const [
+                                        Shadow(
+                                          blurRadius: 6,
+                                          color: Colors.black87,
+                                          offset: Offset(2, 2),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                      ..._wrongEffects.map((effect) {
+                        return Positioned(
+                          left: effect['x']! * (constraints.maxWidth - objSize),
+                          top: effect['y']! * constraints.maxHeight,
                           child: SizedBox(
                             width: objSize,
                             height: objSize,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Uses the dynamic image path!
-                                Image.asset(
-                                  _currentImagePath,
-                                  fit: BoxFit.contain,
-                                ),
-                                Text(
-                                  obj.letter,
-                                  style: TextStyle(
-                                    fontFamily: ForestAppTextStyles.fredoka,
-                                    fontSize: objSize * 0.5,
-                                    fontWeight: FontWeight.w900,
+                            child: Center(
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: Colors.redAccent,
+                                size: objSize * 0.8,
+                                shadows: const [
+                                  Shadow(
                                     color: Colors.white,
-                                    shadows: const [
-                                      Shadow(
-                                        blurRadius: 6,
-                                        color: Colors.black87,
-                                        offset: Offset(2, 2),
-                                      ),
-                                    ],
+                                    blurRadius: 12,
+                                    offset: Offset(0, 0),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }),
-                    ..._wrongEffects.map((effect) {
-                      return Positioned(
-                        left: effect['x']! * (constraints.maxWidth - objSize),
-                        top: effect['y']! * constraints.maxHeight,
-                        child: SizedBox(
-                          width: objSize,
-                          height: objSize,
-                          child: Center(
-                            child: Icon(
-                              Icons.close_rounded,
-                              color: Colors.redAccent,
-                              size: objSize * 0.8,
-                              shadows: const [
-                                Shadow(
-                                  color: Colors.white,
-                                  blurRadius: 12,
-                                  offset: Offset(0, 0),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                );
-              },
-            ),
+                        );
+                      }),
+                    ],
+                  );
+                },
+              ),
 
-            const Positioned(top: 10, left: 10, child: ForestBackButton()),
-          ],
+              const Positioned(top: 10, left: 10, child: ForestBackButton()),
+            ],
+          ),
         ),
       ),
     );

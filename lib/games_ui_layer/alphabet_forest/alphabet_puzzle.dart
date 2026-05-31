@@ -1,6 +1,7 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
@@ -222,105 +223,102 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
     final double pieceSize = boardSize / 2;
 
     return Scaffold(
-      backgroundColor: ForestColorTheme.lightgrayishgreen,
-      body: SafeArea(
-        child: Row(
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: ForestBackButton(),
-              ),
-            ),
-
-            Expanded(
-              flex: 3,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Complete the Picture!',
-                      style: TextStyle(
-                        fontFamily: ForestAppTextStyles.fredoka,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: ForestColorTheme.darkseagreen,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // The 2x2 Grid Board
-                    Container(
-                      width: boardSize,
-                      height: boardSize,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        border: Border.all(
-                          color: ForestColorTheme.lightgreen,
-                          width: 4,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        // --- 2. THE LOW OPACITY BACKGROUND HINT ---
-                        image: DecorationImage(
-                          image: AssetImage(_fullImagePath),
-                          fit: BoxFit.cover,
-                          opacity: 0.25, // 25% opacity so it's a faded hint
-                        ),
-                      ),
-                      child: GridView.builder(
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                            ),
-                        itemCount: 4,
-                        itemBuilder: (context, index) {
-                          return _buildTargetSlot(index, pieceSize);
-                        },
-                      ),
-                    ),
-                  ],
+      body: ForestBackground(
+        child: SafeArea(
+          child: Row(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: ForestBackButton(),
                 ),
               ),
-            ),
-
-            Container(
-              width: screenSize.width * 0.25,
-              color: Colors.white.withValues(alpha: 0.4),
-              child: Center(
-                child: SingleChildScrollView(
-                  child: Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    alignment: WrapAlignment.center,
-                    children: _availablePieces.map((piece) {
-                      return Draggable<PuzzlePiece>(
-                        data: piece,
-                        feedback: _PuzzlePieceWidget(
-                          imagePath: piece.imagePath,
-                          size: pieceSize,
-                          isDragging: true,
+              Expanded(
+                flex: 3,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Complete the Picture!',
+                        style: TextStyle(
+                          fontFamily: ForestAppTextStyles.fredoka,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: ForestColorTheme.darkseagreen,
                         ),
-                        childWhenDragging: Opacity(
-                          opacity: 0.2,
+                      ),
+                      const SizedBox(height: 20),
+
+                      Container(
+                        width: boardSize,
+                        height: boardSize,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          border: Border.all(
+                            color: ForestColorTheme.lightgreen,
+                            width: 4,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          image: DecorationImage(
+                            image: AssetImage(_fullImagePath),
+                            fit: BoxFit.cover,
+                            opacity: 0.65,
+                          ),
+                        ),
+                        child: GridView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                              ),
+                          itemCount: 4,
+                          itemBuilder: (context, index) {
+                            return _buildTargetSlot(index, pieceSize);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Container(
+                width: screenSize.width * 0.25,
+                color: Colors.white.withValues(alpha: 0.4),
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      alignment: WrapAlignment.center,
+                      children: _availablePieces.map((piece) {
+                        return Draggable<PuzzlePiece>(
+                          data: piece,
+                          feedback: _PuzzlePieceWidget(
+                            imagePath: piece.imagePath,
+                            size: pieceSize,
+                            isDragging: true,
+                          ),
+                          childWhenDragging: Opacity(
+                            opacity: 0.2,
+                            child: _PuzzlePieceWidget(
+                              imagePath: piece.imagePath,
+                              size: pieceSize,
+                            ),
+                          ),
                           child: _PuzzlePieceWidget(
                             imagePath: piece.imagePath,
                             size: pieceSize,
                           ),
-                        ),
-                        child: _PuzzlePieceWidget(
-                          imagePath: piece.imagePath,
-                          size: pieceSize,
-                        ),
-                      );
-                    }).toList(),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

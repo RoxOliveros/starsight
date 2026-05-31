@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -23,6 +24,8 @@ class AlphabetIntroScreen extends StatefulWidget {
 
 class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     with TickerProviderStateMixin {
+  late AnimationController _floatCtrl;
+  late Animation<double> _float;
   ScreenPhase _screenPhase = ScreenPhase.intro;
   IntroPhase _introPhase = IntroPhase.entering;
 
@@ -84,6 +87,15 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     _letterDance = Tween<double>(begin: -0.05, end: 0.05).animate(
       CurvedAnimation(parent: _letterDanceCtrl, curve: Curves.easeInOut),
     );
+    _floatCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _float = Tween<double>(
+      begin: -8.0,
+      end: 8.0,
+    ).animate(CurvedAnimation(parent: _floatCtrl, curve: Curves.easeInOut));
+    _floatCtrl.repeat(reverse: true);
   }
 
   @override
@@ -92,6 +104,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     _letterPopCtrl.dispose();
     _letterDanceCtrl.dispose();
     _audioPlayer.dispose();
+    _floatCtrl.dispose();
 
     OrientationService.setLandscape();
     super.dispose();
@@ -169,7 +182,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
   Widget _buildAnimatedGif() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final gifSize = (constraints.maxHeight * 0.45).clamp(100.0, 250.0);
+        final gifSize = (constraints.maxHeight * 0.65).clamp(100.0, 350.0);
 
         if (_introPhase == IntroPhase.entering ||
             _introPhase == IntroPhase.playingIntro) {
@@ -184,8 +197,8 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
           ),
           child: Image.asset(
             'assets/gifs/letters/intro_${widget.startingLetter.toLowerCase()}.gif',
-            width: 500,
-            height: 500,
+            width: 1000,
+            height: 1000,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) => Text(
               widget.startingLetter,
@@ -205,8 +218,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     final Size screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: ForestColorTheme.lightgrayishgreen,
-      body: SafeArea(
+      body: ForestBackground(
         child: Stack(
           children: [
             const Padding(
@@ -230,41 +242,86 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
               ),
             ),
 
+            // GIF - centered
+            // GIF + floating object - centered
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(
-                    height: screenSize.height * 0.45,
+                    height: screenSize.height * 0.65,
                     child: _buildAnimatedGif(),
                   ),
 
-                  const SizedBox(height: 20),
-
-                  if (_introPhase == IntroPhase.listening) ...[
-                    const Text(
-                      "Say the letter!",
-                      style: TextStyle(
-                        fontFamily: ForestAppTextStyles.fredoka,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: ForestColorTheme.darkseagreen,
-                      ),
+                  // Floating object below GIF
+                  AnimatedBuilder(
+                    animation: _float,
+                    builder: (context, child) => Transform.translate(
+                      offset: Offset(0, _float.value),
+                      child: child,
                     ),
-                    const SizedBox(height: 12),
+                    child:
+                        (_introPhase == IntroPhase.entering ||
+                            _introPhase == IntroPhase.playingIntro)
+                        ? const SizedBox.shrink() // 👈 hidden during intro
+                        : Image.asset(
+                            _getObjectImage(widget.startingLetter),
+                            height: 80,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Mic - bottom right
+            if (_introPhase == IntroPhase.listening)
+              Positioned(
+                bottom: 24,
+                right: 24,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Stack(
+                      children: [
+                        Text(
+                          "Say the letter!",
+                          style: TextStyle(
+                            fontFamily: ForestAppTextStyles.fredoka,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            foreground: Paint()
+                              ..style = PaintingStyle.stroke
+                              ..strokeWidth = 5
+                              ..color = Colors.black,
+                          ),
+                        ),
+                        const Text(
+                          "Say the letter!",
+                          style: TextStyle(
+                            fontFamily: ForestAppTextStyles.fredoka,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                     GestureDetector(
                       onTap: _startListening,
                       child: Image.asset(
                         'assets/images/icons/audio.png',
-                        width: 100,
-                        height: 100,
+                        width: 80,
+                        height: 80,
                         fit: BoxFit.contain,
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
 
             if (_introPhase == IntroPhase.done)
               Positioned(
@@ -348,5 +405,22 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       default:
         return [letter.toLowerCase()];
     }
+  }
+
+  String _getObjectImage(String letter) {
+    const Map<String, String> objectMap = {
+      'A': 'apple',
+      'B': 'ball',
+      'C': 'car',
+      'D': 'duck',
+      'E': 'egg',
+      'F': 'feet',
+      'G': 'glass',
+      'H': 'hat',
+      'I': 'igloo',
+      'J': 'jar',
+    };
+    final name = objectMap[letter.toUpperCase()] ?? letter.toLowerCase();
+    return 'assets/images/objects/forest/$name.png';
   }
 }

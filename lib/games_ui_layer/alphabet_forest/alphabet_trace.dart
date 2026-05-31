@@ -1,5 +1,6 @@
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
@@ -596,81 +597,82 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ForestColorTheme.lightgrayishgreen,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: ForestBackButton(),
-                  ),
-                  Text(
-                    'Trace ${_levels[_currentLevelIndex].letterName}',
-                    style: const TextStyle(
-                      fontFamily: ForestAppTextStyles.fredoka,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: ForestColorTheme.darkseagreen,
+      body: ForestBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: ForestBackButton(),
                     ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.refresh_rounded,
-                        color: ForestColorTheme.seagreen,
-                        size: 32,
+                    Text(
+                      'Trace ${_levels[_currentLevelIndex].letterName}',
+                      style: const TextStyle(
+                        fontFamily: ForestAppTextStyles.fredoka,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        color: ForestColorTheme.darkseagreen,
                       ),
-                      onPressed: _resetBoard,
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: 1.0,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Container(
-                      key: _canvasKey,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: ForestColorTheme.lightgreen,
-                          width: 4,
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                          color: ForestColorTheme.seagreen,
+                          size: 32,
                         ),
+                        onPressed: _resetBoard,
                       ),
-                      child: Stack(
-                        children: [
-                          GestureDetector(
-                            onPanUpdate: _onPanUpdate,
-                            child: CustomPaint(
-                              painter: GuidedTracePainter(
-                                denseStrokes: _denseStrokes,
-                                currentStrokeIndex: _currentStrokeIndex,
-                                currentPointIndex: _currentPointIndex,
-                              ),
-                              size: Size.infinite,
-                            ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: 1.0,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Container(
+                        key: _canvasKey,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: ForestColorTheme.lightgreen,
+                            width: 4,
                           ),
-                        ],
+                        ),
+                        child: Stack(
+                          children: [
+                            GestureDetector(
+                              onPanUpdate: _onPanUpdate,
+                              child: CustomPaint(
+                                painter: GuidedTracePainter(
+                                  denseStrokes: _denseStrokes,
+                                  currentStrokeIndex: _currentStrokeIndex,
+                                  currentPointIndex: _currentPointIndex,
+                                ),
+                                size: Size.infinite,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
