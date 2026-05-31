@@ -142,6 +142,7 @@ flutter:
     - assets/images/buttons/
     - assets/images/objects/lagoon/
     - assets/audio/alphabet_forest/
+    - assets/audio/discovery_lagoon/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

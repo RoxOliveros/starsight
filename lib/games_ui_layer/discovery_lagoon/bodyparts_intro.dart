@@ -4,11 +4,13 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_drag.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
 
 enum IntroPhase { entering, playingIntro, showingPart, listening, done }
 
 class BodyPartsIntroScreen extends StatefulWidget {
-  // Instead of a letter, we pass in the body part name (e.g., 'Head', 'Arm', 'Leg')
   final String bodyPart;
 
   const BodyPartsIntroScreen({super.key, required this.bodyPart});
@@ -20,6 +22,13 @@ class BodyPartsIntroScreen extends StatefulWidget {
 class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
     with TickerProviderStateMixin {
   IntroPhase _introPhase = IntroPhase.entering;
+
+  // --- AUDIO & SPEECH VARIABLES ---
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final SpeechToText _speechToText = SpeechToText();
+  bool _speechEnabled = false;
+  String _wordsHeard = '';
+  String _tagalogLocaleId = '';
 
   // --- ANIMATION CONTROLLERS ---
   late AnimationController _charSlideCtrl;
@@ -36,11 +45,27 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
+    _initSpeech();
     _startIntroFlow();
   }
 
+  void _initSpeech() async {
+    _speechEnabled = await _speechToText.initialize();
+
+    if (_speechEnabled) {
+      var systemLocales = await _speechToText.locales();
+      for (var locale in systemLocales) {
+        if (locale.localeId.startsWith('fil') ||
+            locale.localeId.startsWith('tl')) {
+          _tagalogLocaleId = locale.localeId;
+          break;
+        }
+      }
+    }
+    setState(() {});
+  }
+
   void _initAnimations() {
-    // 1. Character sliding in
     _charSlideCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -50,7 +75,6 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
           CurvedAnimation(parent: _charSlideCtrl, curve: Curves.elasticOut),
         );
 
-    // 2. The Body Part GIF popping up
     _partPopCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -61,7 +85,6 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
       TweenSequenceItem(tween: Tween(begin: 0.92, end: 1.0), weight: 20),
     ]).animate(CurvedAnimation(parent: _partPopCtrl, curve: Curves.easeOut));
 
-    // 3. The Body Part GIF wiggling
     _partDanceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -77,34 +100,77 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
     _charSlideCtrl.dispose();
     _partPopCtrl.dispose();
     _partDanceCtrl.dispose();
+    _audioPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
 
-  // --- THE MASTER DIRECTOR ---
   Future<void> _startIntroFlow() async {
-    // 1. Slide character in
     await _charSlideCtrl.forward();
-
-    // 2. Play intro audio (e.g., "This is an Arm!")
     if (mounted) setState(() => _introPhase = IntroPhase.playingIntro);
+
+    // 1. Set up the Listener to wait for the audio to finish!
+    Completer<void> audioFinished = Completer<void>();
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (!audioFinished.isCompleted) audioFinished.complete();
+    });
+
+    String audioFile =
+        'audio/discovery_lagoon/intro_${widget.bodyPart.toLowerCase()}.wav';
+    await _audioPlayer.play(AssetSource(audioFile));
+
+    // 3. Pop the custom GIF onto the screen after 2 seconds
     await Future.delayed(const Duration(seconds: 2));
 
-    // 3. Pop the custom GIF onto the screen and make it dance
     if (mounted) setState(() => _introPhase = IntroPhase.showingPart);
     _partPopCtrl.forward();
     _partDanceCtrl.repeat(reverse: true);
 
-    // 4. Prompt the child to speak (e.g., "Can you say Arm?")
-    await Future.delayed(const Duration(seconds: 2));
+    // 4. FREEZE! Wait for the cat to finish talking
+    await audioFinished.future;
 
-    // 5. Show the Microphone UI and "listen"
+    // 5. Show the Microphone UI and start listening
     if (mounted) setState(() => _introPhase = IntroPhase.listening);
-    await Future.delayed(const Duration(seconds: 3));
 
-    // 6. Success! Show the Next button
-    if (mounted) setState(() => _introPhase = IntroPhase.done);
-    _partDanceCtrl.stop();
+    if (_speechEnabled) {
+      _startListening();
+    }
+  }
+
+  // --- THE MICROPHONE STARTER ---
+  void _startListening() async {
+    if (_speechToText.isListening) return;
+
+    await _speechToText.listen(
+      onResult: _checkChildsAnswer,
+      listenFor: const Duration(seconds: 15),
+      pauseFor: const Duration(seconds: 8),
+      // THIS IS THE MAGIC! Forces the mic to listen for Tagalog!
+      localeId: _tagalogLocaleId.isNotEmpty ? _tagalogLocaleId : null,
+    );
+  }
+
+  // --- THE ANSWER CHECKER ---
+  void _checkChildsAnswer(SpeechRecognitionResult result) {
+    setState(() {
+      _wordsHeard = result.recognizedWords.toLowerCase();
+    });
+
+    List<String> acceptableWords = _getAcceptableWords(widget.bodyPart);
+
+    bool isCorrect = false;
+    for (String word in acceptableWords) {
+      if (_wordsHeard.contains(word)) {
+        isCorrect = true;
+        break;
+      }
+    }
+
+    if (isCorrect) {
+      _speechToText.stop();
+      setState(() => _introPhase = IntroPhase.done);
+      // Notice: _partDanceCtrl.stop() is completely removed so it wiggles forever!
+    }
   }
 
   Widget _buildAnimatedGif() {
@@ -123,8 +189,6 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
             angle: _partDance.value,
             child: ScaleTransition(scale: _partPop, child: child),
           ),
-          // LOOKS FOR YOUR LAGOON GIFS!
-          // Make sure to create this folder in your project and update pubspec.yaml
           child: Image.asset(
             'assets/gifs/bodyparts/intro_${widget.bodyPart.toLowerCase()}.gif',
             width: 500,
@@ -149,20 +213,18 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
     final Size screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: LagoonColorTheme.peach, // Uses your Lagoon Theme!
+      backgroundColor: LagoonColorTheme.peach,
       body: SafeArea(
         child: Stack(
           children: [
-            // 1. LAGOON BACK BUTTON
             const Padding(
               padding: EdgeInsets.all(16.0),
               child: Align(
                 alignment: Alignment.topLeft,
-                child: LagoonBackButton(), // Uses your new reusable button!
+                child: LagoonBackButton(),
               ),
             ),
 
-            // 2. THE CHARACTER (Sliding in)
             Positioned(
               left: 40,
               bottom: 0,
@@ -176,7 +238,6 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
               ),
             ),
 
-            // 3. THE CENTER CONTENT (GIF & MIC)
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -199,16 +260,14 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.mic_rounded,
-                        color: Colors.redAccent,
-                        size: 48,
+
+                    GestureDetector(
+                      onTap: _startListening,
+                      child: Image.asset(
+                        'assets/images/icons/audio.png',
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.contain,
                       ),
                     ),
                   ],
@@ -216,20 +275,18 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
               ),
             ),
 
-            // 4. "LET'S PLAY" BUTTON
             if (_introPhase == IntroPhase.done)
               Positioned(
                 bottom: 24,
                 right: 24,
                 child: GestureDetector(
                   onTap: () {
+                    _audioPlayer.stop(); // Stop audio if they tap early
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => BodyPartsDragScreen(
-                          bodyPart:
-                              widget.bodyPart, // Don't forget to pass it along!
-                        ),
+                        builder: (context) =>
+                            BodyPartsDragScreen(bodyPart: widget.bodyPart),
                       ),
                     );
                   },
@@ -239,7 +296,7 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: LagoonColorTheme.ferngreen, // Uses Lagoon Green!
+                      color: LagoonColorTheme.ferngreen,
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(
                         color: LagoonColorTheme.gunmetalgreen,
@@ -273,5 +330,34 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
         ),
       ),
     );
+  }
+
+  List<String> _getAcceptableWords(String part) {
+    switch (part.toLowerCase()) {
+      case 'feet':
+        return ['paa'];
+      case 'knee':
+        return ['tuhod'];
+      case 'shoulder':
+        return ['balikat'];
+      case 'head':
+        return ['ulo', 'olo'];
+      case 'lips':
+        return ['labi', 'labe'];
+      case 'nose':
+        return ['ilong'];
+      case 'eye':
+        return ['mata'];
+      case 'ear':
+        return ['tainga', 'tenga'];
+      case 'eyebrows':
+        return ['kilay', 'kilai'];
+      case 'hair':
+        return ['buhok', 'bukok'];
+      case 'hand':
+        return ['kamay', 'kamai'];
+      default:
+        return [part.toLowerCase()];
+    }
   }
 }

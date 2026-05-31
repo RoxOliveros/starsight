@@ -173,8 +173,8 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: const [
-                              _LockedTile(), // Level 21 (locked)
-                              _LockedTile(), // Level 22 (locked)
+                              _LevelTile(level: 21), // Level 21 (locked)
+                              _LevelTile(level: 22), // Level 22 (locked)
                               _LockedTile(), // Level 23 (locked)
                               _LockedTile(), // Level 24 (locked)
                             ],
@@ -490,6 +490,24 @@ class _LevelTile extends StatelessWidget {
               MaterialPageRoute(
                 builder: (context) =>
                     const BodyPartsDragScreen(bodyPart: 'hair'),
+              ),
+            );
+            break;
+          case 21:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsIntroScreen(bodyPart: 'hand'),
+              ),
+            );
+            break;
+          case 22:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const BodyPartsDragScreen(bodyPart: 'hand'),
               ),
             );
             break;
