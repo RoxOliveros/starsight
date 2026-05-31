@@ -26,7 +26,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: LagoonLevelScreen(),
+      home: SplashScreen(),
     );
   }
 }
