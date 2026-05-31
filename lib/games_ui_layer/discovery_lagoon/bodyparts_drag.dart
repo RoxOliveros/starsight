@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_background.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_level.dart';
 import 'package:flutter/material.dart';
 
@@ -202,235 +203,242 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
     final double letterFontSize = letterBoxSize * 0.6;
 
     return Scaffold(
-      backgroundColor: LagoonTheme.peach,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
+      body: LagoonBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
 
-            // --- HEADER ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: LagoonTheme.wasteland,
-                        size: 32,
-                      ),
-                      onPressed: () =>
-                          Navigator.pop(context), // Safely exit back to map
-                    ),
-                  ),
-                  const Text(
-                    'Body Parts',
-                    style: TextStyle(
-                      fontFamily: AppTextStyles.fredoka,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: LagoonTheme.wasteland,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // --- GAME AREA ---
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24.0,
-                  vertical: 8.0,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              // --- HEADER ---
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Stack(
+                  alignment: Alignment.center,
                   children: [
-                    // 1. THE IMAGE TO IDENTIFY
-                    Container(
-                      height: imageSize,
-                      width: imageSize,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: LagoonTheme.gunmetalgreen,
-                          width: 6,
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: LagoonTheme.wasteland,
+                          size: 32,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Image.asset(
-                          _currentPart.imagePath,
-                          fit: BoxFit.contain,
-                        ),
+                        onPressed: () =>
+                            Navigator.pop(context), // Safely exit back to map
                       ),
                     ),
-
-                    SizedBox(height: screenSize.height * 0.05),
-
-                    // 2. THE TARGET BOXES (WITH GHOST LETTERS!)
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: List.generate(targetWord.length, (targetIndex) {
-                        String expectedLetter = targetWord[targetIndex];
-                        Color letterColor = _getLetterColor(targetIndex);
-
-                        return DragTarget<int>(
-                          onWillAcceptWithDetails: (details) {
-                            int draggedIndex = details.data;
-                            String draggedLetter = targetWord[draggedIndex];
-                            return draggedLetter == expectedLetter &&
-                                !_filledTargets[targetIndex];
-                          },
-                          onAcceptWithDetails: (details) {
-                            setState(() {
-                              _filledTargets[targetIndex] = true;
-                              _usedDraggables[details.data] = true;
-                            });
-
-                            if (_filledTargets.every((isFilled) => isFilled)) {
-                              Future.delayed(
-                                const Duration(milliseconds: 400),
-                                _showSuccessDialog,
-                              );
-                            }
-                          },
-                          builder: (context, candidateData, rejectedData) {
-                            bool isHovering = candidateData.isNotEmpty;
-
-                            return Container(
-                              width: letterBoxSize,
-                              height: letterBoxSize,
-                              decoration: BoxDecoration(
-                                color: isHovering
-                                    ? Colors.white.withValues(alpha: 0.5)
-                                    : LagoonTheme.pastelorange,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _filledTargets[targetIndex]
-                                      ? letterColor
-                                      : LagoonTheme.darkbrown.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                  width: 4,
-                                ),
-                              ),
-                              child: Center(
-                                child: _filledTargets[targetIndex]
-                                    ? _LetterWidget(
-                                        letter: expectedLetter,
-                                        color: letterColor,
-                                        fontSize: letterFontSize,
-                                      )
-                                    : _LetterWidget(
-                                        letter: expectedLetter,
-                                        color: letterColor.withValues(
-                                          alpha: 0.35,
-                                        ),
-                                        fontSize: letterFontSize,
-                                      ),
-                              ),
-                            );
-                          },
-                        );
-                      }),
-                    ),
-
-                    SizedBox(height: screenSize.height * 0.05),
-
-                    // 3. THE FLOATING DRAGGABLE LETTERS
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: _shuffledDraggableIndices.map((dragIndex) {
-                        if (_usedDraggables[dragIndex]) {
-                          return SizedBox(
-                            width: letterBoxSize,
-                            height: letterBoxSize,
-                          );
-                        }
-
-                        String letterStr = targetWord[dragIndex];
-                        Color letterColor = _getLetterColor(dragIndex);
-
-                        return AnimatedBuilder(
-                          animation: _floatingController,
-                          builder: (context, child) {
-                            final double floatOffset =
-                                math.sin(
-                                  _floatingController.value * 2 * math.pi +
-                                      dragIndex,
-                                ) *
-                                8;
-                            return Transform.translate(
-                              offset: Offset(0, floatOffset),
-                              child: child,
-                            );
-                          },
-                          child: Draggable<int>(
-                            data: dragIndex,
-                            feedback: _LetterWidget(
-                              letter: letterStr,
-                              color: letterColor,
-                              fontSize: letterFontSize * 1.2,
-                              isDragging: true,
-                            ),
-                            childWhenDragging: Opacity(
-                              opacity: 0.0,
-                              child: Container(
-                                width: letterBoxSize,
-                                height: letterBoxSize,
-                              ),
-                            ),
-                            child: Container(
-                              width: letterBoxSize,
-                              height: letterBoxSize,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: letterColor,
-                                  width: 3,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.1),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: _LetterWidget(
-                                  letter: letterStr,
-                                  color: letterColor,
-                                  fontSize: letterFontSize,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                    const Text(
+                      'Body Parts',
+                      style: TextStyle(
+                        fontFamily: AppTextStyles.fredoka,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        color: LagoonTheme.wasteland,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+
+              // --- GAME AREA ---
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 8.0,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 1. THE IMAGE TO IDENTIFY
+                      Container(
+                        height: imageSize,
+                        width: imageSize,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: LagoonTheme.gunmetalgreen,
+                            width: 6,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Image.asset(
+                            _currentPart.imagePath,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: screenSize.height * 0.05),
+
+                      // 2. THE TARGET BOXES (WITH GHOST LETTERS!)
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: List.generate(targetWord.length, (
+                          targetIndex,
+                        ) {
+                          String expectedLetter = targetWord[targetIndex];
+                          Color letterColor = _getLetterColor(targetIndex);
+
+                          return DragTarget<int>(
+                            onWillAcceptWithDetails: (details) {
+                              int draggedIndex = details.data;
+                              String draggedLetter = targetWord[draggedIndex];
+                              return draggedLetter == expectedLetter &&
+                                  !_filledTargets[targetIndex];
+                            },
+                            onAcceptWithDetails: (details) {
+                              setState(() {
+                                _filledTargets[targetIndex] = true;
+                                _usedDraggables[details.data] = true;
+                              });
+
+                              if (_filledTargets.every(
+                                (isFilled) => isFilled,
+                              )) {
+                                Future.delayed(
+                                  const Duration(milliseconds: 400),
+                                  _showSuccessDialog,
+                                );
+                              }
+                            },
+                            builder: (context, candidateData, rejectedData) {
+                              bool isHovering = candidateData.isNotEmpty;
+
+                              return Container(
+                                width: letterBoxSize,
+                                height: letterBoxSize,
+                                decoration: BoxDecoration(
+                                  color: isHovering
+                                      ? Colors.white.withValues(alpha: 0.5)
+                                      : LagoonTheme.pastelorange,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _filledTargets[targetIndex]
+                                        ? letterColor
+                                        : LagoonTheme.darkbrown.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                    width: 4,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: _filledTargets[targetIndex]
+                                      ? _LetterWidget(
+                                          letter: expectedLetter,
+                                          color: letterColor,
+                                          fontSize: letterFontSize,
+                                        )
+                                      : _LetterWidget(
+                                          letter: expectedLetter,
+                                          color: letterColor.withValues(
+                                            alpha: 0.35,
+                                          ),
+                                          fontSize: letterFontSize,
+                                        ),
+                                ),
+                              );
+                            },
+                          );
+                        }),
+                      ),
+
+                      SizedBox(height: screenSize.height * 0.05),
+
+                      // 3. THE FLOATING DRAGGABLE LETTERS
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: _shuffledDraggableIndices.map((dragIndex) {
+                          if (_usedDraggables[dragIndex]) {
+                            return SizedBox(
+                              width: letterBoxSize,
+                              height: letterBoxSize,
+                            );
+                          }
+
+                          String letterStr = targetWord[dragIndex];
+                          Color letterColor = _getLetterColor(dragIndex);
+
+                          return AnimatedBuilder(
+                            animation: _floatingController,
+                            builder: (context, child) {
+                              final double floatOffset =
+                                  math.sin(
+                                    _floatingController.value * 2 * math.pi +
+                                        dragIndex,
+                                  ) *
+                                  8;
+                              return Transform.translate(
+                                offset: Offset(0, floatOffset),
+                                child: child,
+                              );
+                            },
+                            child: Draggable<int>(
+                              data: dragIndex,
+                              feedback: _LetterWidget(
+                                letter: letterStr,
+                                color: letterColor,
+                                fontSize: letterFontSize * 1.2,
+                                isDragging: true,
+                              ),
+                              childWhenDragging: Opacity(
+                                opacity: 0.0,
+                                child: Container(
+                                  width: letterBoxSize,
+                                  height: letterBoxSize,
+                                ),
+                              ),
+                              child: Container(
+                                width: letterBoxSize,
+                                height: letterBoxSize,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: letterColor,
+                                    width: 3,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: _LetterWidget(
+                                    letter: letterStr,
+                                    color: letterColor,
+                                    fontSize: letterFontSize,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

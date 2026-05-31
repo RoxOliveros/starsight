@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_background.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'package:flutter/material.dart';
@@ -213,120 +214,121 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
     final Size screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: LagoonColorTheme.peach,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: LagoonBackButton(),
-              ),
-            ),
-
-            Positioned(
-              left: 40,
-              bottom: 0,
-              child: SlideTransition(
-                position: _charSlide,
-                child: Image.asset(
-                  'assets/images/characters/cat_holding_fishbone.png',
-                  height: screenSize.height * 0.5,
-                  fit: BoxFit.contain,
+      body: LagoonBackground(
+        child: SafeArea(
+          child: Stack(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: LagoonBackButton(),
                 ),
               ),
-            ),
 
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    height: screenSize.height * 0.45,
-                    child: _buildAnimatedGif(),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  if (_introPhase == IntroPhase.listening) ...[
-                    const Text(
-                      "Say the word!",
-                      style: TextStyle(
-                        fontFamily: LagoonAppTextStyles.fredoka,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: LagoonColorTheme.darkbrown,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    GestureDetector(
-                      onTap: _startListening,
-                      child: Image.asset(
-                        'assets/images/icons/audio.png',
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            if (_introPhase == IntroPhase.done)
               Positioned(
-                bottom: 24,
-                right: 24,
-                child: GestureDetector(
-                  onTap: () {
-                    _audioPlayer.stop(); // Stop audio if they tap early
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            BodyPartsDragScreen(bodyPart: widget.bodyPart),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: LagoonColorTheme.ferngreen,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: LagoonColorTheme.gunmetalgreen,
-                        width: 4,
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          "Let's Play!",
-                          style: TextStyle(
-                            fontFamily: LagoonAppTextStyles.fredoka,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Icon(
-                          Icons.arrow_forward_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ],
-                    ),
+                left: 40,
+                bottom: 0,
+                child: SlideTransition(
+                  position: _charSlide,
+                  child: Image.asset(
+                    'assets/images/characters/cat_holding_fishbone.png',
+                    height: screenSize.height * 0.5,
+                    fit: BoxFit.contain,
                   ),
                 ),
               ),
-          ],
+
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      height: screenSize.height * 0.45,
+                      child: _buildAnimatedGif(),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    if (_introPhase == IntroPhase.listening) ...[
+                      const Text(
+                        "Say the word!",
+                        style: TextStyle(
+                          fontFamily: LagoonAppTextStyles.fredoka,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: LagoonColorTheme.darkbrown,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      GestureDetector(
+                        onTap: _startListening,
+                        child: Image.asset(
+                          'assets/images/icons/audio.png',
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              if (_introPhase == IntroPhase.done)
+                Positioned(
+                  bottom: 24,
+                  right: 24,
+                  child: GestureDetector(
+                    onTap: () {
+                      _audioPlayer.stop(); // Stop audio if they tap early
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              BodyPartsDragScreen(bodyPart: widget.bodyPart),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: LagoonColorTheme.ferngreen,
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: LagoonColorTheme.gunmetalgreen,
+                          width: 4,
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "Let's Play!",
+                            style: TextStyle(
+                              fontFamily: LagoonAppTextStyles.fredoka,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

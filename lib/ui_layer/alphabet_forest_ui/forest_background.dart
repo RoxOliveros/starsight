@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 
 class ForestBackground extends StatelessWidget {
-  // The 'child' is whatever screen or game you are placing ON TOP of the background
   final Widget child;
 
   const ForestBackground({super.key, required this.child});
