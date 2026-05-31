@@ -387,6 +387,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
           ),
         ];
         break;
+      /*
       case 'K':
         _levels = [
           TraceLevel(
@@ -418,6 +419,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
           ),
         ];
         break;
+        */
       default:
         // Fallback to A if something goes wrong
         _levels = [
@@ -549,7 +551,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
       builder: (_) => Material(
         type: MaterialType.transparency,
         child: GoodJobOverlay(
-          characterImage: 'assets/images/dog.png',
+          characterImage: 'assets/images/characters/dog.png',
           closeButtonColor: ForestColorTheme.mediumseagreen,
 
           // 3. Goes from TRACE to FALL (stays on the same letter)
