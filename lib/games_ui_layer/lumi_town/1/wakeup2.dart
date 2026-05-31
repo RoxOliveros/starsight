@@ -46,9 +46,9 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
   }
 
   Future<void> _playAlarm() =>
-      _playAudio('assets/audio/values1/alarmclock.wav');
+      _playAudio('assets/audio/lumi_town/alarmclock.wav');
 
-  Future<void> _playNext() => _playAudio('assets/audio/values1/salamat.mp3');
+  Future<void> _playNext() => _playAudio('assets/audio/lumi_town/salamat.mp3');
 
   @override
   void dispose() {
@@ -91,7 +91,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/images/wakeup_BG.png', fit: BoxFit.cover),
+          Image.asset('assets/images/bg_lumi_bed.png', fit: BoxFit.cover),
           Positioned(
             left: 160,
             bottom: -80,

@@ -41,7 +41,7 @@ class LumiXButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap ?? () => Navigator.pop(context),
-      child: Image.asset('assets/images/lumi/bttn_x.png', width: 50)
+      child: Image.asset('assets/images/buttons/x_yellow.png', width: 50)
     );
   }
 }
