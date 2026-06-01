@@ -67,8 +67,8 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
       'assets/audio/puzzle_glade/level2/welcome.wav';
   static const String _audioInstructions =
       'assets/audio/puzzle_glade/level2/instruction.wav';
-  static const String _audioSuccess = 'assets/audio/shine.wav';
-  static const String _audioWrong = 'assets/audio/bubble_pop.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
+  static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioComplete =
       'assets/audio/puzzle_glade/level2/complete.wav';
 

@@ -81,8 +81,8 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
   static const String _audioComplete =
       'assets/audio/puzzle_glade/level7/complete.wav';
 
-  static const String _audioSuccess = 'assets/audio/shine.wav';
-  static const String _audioWrong = 'assets/audio/bubble_pop.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
+  static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;

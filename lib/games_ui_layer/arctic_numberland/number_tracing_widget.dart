@@ -41,7 +41,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
   Widget _buildTracingLayer(double w, double h) {
     final caneSize = h * 0.14;
     final numberSize = h * 0.85;
-    final traceW = numberSize * 0.5;
+    final traceW = widget.number == 1 ? numberSize * 0.35 : numberSize * 0.5;
     final traceH = numberSize;
     final traceLeft = w / 2 - traceW / 2;
     final traceTop = h / 2 - traceH / 2 + 15;
@@ -59,14 +59,18 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 
         // Instruction banner
         Positioned(
-          top: 0, left: 0, right: 0,
+          top: 0,
+          left: 0,
+          right: 0,
           child: Center(child: _buildBanner(h)),
         ),
 
         // Tracing image
         Positioned(
-          left: traceLeft, top: traceTop,
-          width: traceW, height: traceH,
+          left: traceLeft,
+          top: traceTop,
+          width: traceW,
+          height: traceH,
           child: Image.asset(
             'assets/fonts/game_numbers/${widget.number}_tracing.png',
             fit: BoxFit.contain,
@@ -75,8 +79,10 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 
         // Gesture + paint layer
         Positioned(
-          left: traceLeft, top: traceTop,
-          width: traceW, height: traceH,
+          left: traceLeft,
+          top: traceTop,
+          width: traceW,
+          height: traceH,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onPanUpdate: (details) {
@@ -126,7 +132,8 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         // Cane resting
         if (_canePosition == null && !_tracingComplete)
           Positioned(
-            bottom: h * 0.08, left: w * 0.06,
+            bottom: h * 0.08,
+            left: w * 0.06,
             child: IgnorePointer(
               child: Image.asset(
                 'assets/images/objects/arctic/candy_cane.png',
@@ -150,7 +157,10 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.25),
           borderRadius: BorderRadius.circular(50),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.5),
+            width: 1.5,
+          ),
         ),
         child: Stack(
           children: [
@@ -162,13 +172,18 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
                   gradient: LinearGradient(
                     colors: _tracingComplete
                         ? [Colors.greenAccent, Colors.green]
-                        : [ArcticColorTheme.pictonblue, ArcticColorTheme.slateblue],
+                        : [
+                            ArcticColorTheme.pictonblue,
+                            ArcticColorTheme.slateblue,
+                          ],
                   ),
                 ),
               ),
             ),
             Positioned(
-              top: 2, left: 6, right: 6,
+              top: 2,
+              left: 6,
+              right: 6,
               child: Container(
                 height: 5,
                 decoration: BoxDecoration(
@@ -189,7 +204,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
       decoration: BoxDecoration(
         color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(30),
         border: Border.all(color: Colors.white, width: 3),
       ),
       child: Row(
@@ -217,7 +232,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         .where((p) => p != const Offset(-1, -1))
         .toList();
 
-    if (valid.length < 12) return;
+    if (valid.length < 8) return;
 
     // Skip top/bottom start-end checks for closed-loop numbers
     final isClosedLoop = widget.number == 0 || widget.number == 8;
@@ -234,7 +249,12 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
       if (firstY > traceH * 0.75) return;
 
       if (widget.number != 4 && widget.number != 5) {
-        final lastY = valid.skip(valid.length - 5).map((p) => p.dy).reduce((a, b) => a + b) / 5;
+        final lastY =
+            valid
+                .skip(valid.length - 5)
+                .map((p) => p.dy)
+                .reduce((a, b) => a + b) /
+            5;
         if (lastY < traceH * 0.60) return;
       }
     }
@@ -247,32 +267,45 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
   bool _numberSpecificCheck(List<Offset> valid, double traceW, double traceH) {
     switch (widget.number) {
       case 0:
-      // Require more points per quadrant for a confident oval
-        final tl = valid.where((p) => p.dy < traceH * 0.5 && p.dx < traceW * 0.5).length;
-        final tr = valid.where((p) => p.dy < traceH * 0.5 && p.dx >= traceW * 0.5).length;
-        final bl = valid.where((p) => p.dy >= traceH * 0.5 && p.dx < traceW * 0.5).length;
-        final br = valid.where((p) => p.dy >= traceH * 0.5 && p.dx >= traceW * 0.5).length;
+        // Require more points per quadrant for a confident oval
+        final tl = valid
+            .where((p) => p.dy < traceH * 0.5 && p.dx < traceW * 0.5)
+            .length;
+        final tr = valid
+            .where((p) => p.dy < traceH * 0.5 && p.dx >= traceW * 0.5)
+            .length;
+        final bl = valid
+            .where((p) => p.dy >= traceH * 0.5 && p.dx < traceW * 0.5)
+            .length;
+        final br = valid
+            .where((p) => p.dy >= traceH * 0.5 && p.dx >= traceW * 0.5)
+            .length;
         // Also require vertical coverage
         final ys = valid.map((p) => p.dy).toList();
         final xs2 = valid.map((p) => p.dx).toList();
         final ySpan = ys.reduce(max) - ys.reduce(min);
         final xSpan = xs2.reduce(max) - xs2.reduce(min);
-        return tl >= 3 && tr >= 3 && bl >= 3 && br >= 3
-            && ySpan > traceH * 0.55
-            && xSpan > traceW * 0.40;
+        return tl >= 2 &&
+            tr >= 2 &&
+            bl >= 2 &&
+            br >= 2 &&
+            ySpan > traceH * 0.45 &&
+            xSpan > traceW * 0.30;
 
       case 1:
-      // Was 0.40 — too strict due to the top serif/hook
+        // Was 0.40 — too strict due to the top serif/hook
         final xs = valid.map((p) => p.dx).toList();
         final xRange = xs.reduce(max) - xs.reduce(min);
         return xRange < traceW * 0.65; // loosened
 
       case 2:
-      // Top curve: needs horizontal spread in upper half
+        // Top curve: needs horizontal spread in upper half
         final topPts = valid.where((p) => p.dy < traceH * 0.50).toList();
         if (topPts.length < 3) return false;
         final topXs = topPts.map((p) => p.dx).toList();
-        if ((topXs.reduce(max) - topXs.reduce(min)) < traceW * 0.30) return false;
+        if ((topXs.reduce(max) - topXs.reduce(min)) < traceW * 0.30) {
+          return false;
+        }
 
         // Bottom sweep: must be wide
         final bottomPts = valid.where((p) => p.dy > traceH * 0.60).toList();
@@ -285,31 +318,55 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         return lastPt.dx > traceW * 0.50;
 
       case 3:
-      // Two bumps on the right side — x range biased right (most points > 30% x)
+        // Two bumps on the right side — x range biased right (most points > 30% x)
         final rightPts = valid.where((p) => p.dx > traceW * 0.30).length;
         if (rightPts / valid.length < 0.65) return false;
         // Must have a middle notch — points near vertical center left of midpoint
-        final middlePts = valid.where((p) =>
-        p.dy > traceH * 0.40 && p.dy < traceH * 0.60 && p.dx < traceW * 0.55).length;
+        final middlePts = valid
+            .where(
+              (p) =>
+                  p.dy > traceH * 0.40 &&
+                  p.dy < traceH * 0.60 &&
+                  p.dx < traceW * 0.55,
+            )
+            .length;
         return middlePts >= 2;
 
       case 4:
-        final rightStem = valid.where((p) => p.dx > traceW * 0.40).toList();
-        if (rightStem.length < 4) return false;
-        final stemYs = rightStem.map((p) => p.dy).toList();
-        final stemRange = stemYs.reduce(max) - stemYs.reduce(min);
-        if (stemRange < traceH * 0.30) return false;
-        final crossPts = valid.where((p) => p.dy > traceH * 0.20 && p.dy < traceH * 0.80).toList();
-        if (crossPts.length < 3) return false;
+        // 1) Left diagonal: points in upper-left area
+        final leftDiag = valid
+            .where((p) => p.dx < traceW * 0.55 && p.dy < traceH * 0.70)
+            .toList();
+        if (leftDiag.length < 3) return false;
+
+        // 2) Crossbar: spans across middle zone
+        final crossPts = valid
+            .where((p) => p.dy > traceH * 0.30 && p.dy < traceH * 0.75)
+            .toList();
+        if (crossPts.length < 4) return false;
         final crossXs = crossPts.map((p) => p.dx).toList();
-        return (crossXs.reduce(max) - crossXs.reduce(min)) >= traceW * 0.25;
+        if ((crossXs.reduce(max) - crossXs.reduce(min)) < traceW * 0.38) {
+          return false;
+        }
+
+        // 3) Vertical stem: right side, goes reasonably far down
+        final stem = valid
+            .where((p) => p.dx > traceW * 0.40 && p.dy > traceH * 0.45)
+            .toList();
+        if (stem.length < 4) return false;
+        final stemYs = stem.map((p) => p.dy).toList();
+        if (stemYs.reduce(max) < traceH * 0.72) return false;
+
+        return true;
 
       case 5:
-      // Top horizontal bar
+        // Top horizontal bar
         final topPts = valid.where((p) => p.dy < traceH * 0.40).toList();
         if (topPts.length < 2) return false;
         final topXs = topPts.map((p) => p.dx).toList();
-        if ((topXs.reduce(max) - topXs.reduce(min)) < traceW * 0.20) return false;
+        if ((topXs.reduce(max) - topXs.reduce(min)) < traceW * 0.20) {
+          return false;
+        }
 
         // Bottom curve — right side coverage
         final bottomPts = valid.where((p) => p.dy > traceH * 0.40).toList();
@@ -323,43 +380,66 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 
         // Overall vertical span
         final ys = valid.map((p) => p.dy).toList();
-        return (ys.reduce(max) - ys.reduce(min)) > traceH * 0.35; // loosened from 0.45
+        return (ys.reduce(max) - ys.reduce(min)) >
+            traceH * 0.35; // loosened from 0.45
 
       case 6:
-      // Top curves left, then closes into a loop at bottom
-      // Bottom half must have points in all quadrants (the closed loop)
-        final bl = valid.where((p) => p.dy > traceH * 0.50 && p.dx < traceW * 0.50).length;
-        final br = valid.where((p) => p.dy > traceH * 0.50 && p.dx >= traceW * 0.50).length;
+        // Top curves left, then closes into a loop at bottom
+        // Bottom half must have points in all quadrants (the closed loop)
+        final bl = valid
+            .where((p) => p.dy > traceH * 0.50 && p.dx < traceW * 0.50)
+            .length;
+        final br = valid
+            .where((p) => p.dy > traceH * 0.50 && p.dx >= traceW * 0.50)
+            .length;
         if (bl < 3 || br < 3) return false;
         // Top must curve — has points left of center in upper half
-        final topLeft = valid.where((p) => p.dy < traceH * 0.50 && p.dx < traceW * 0.55).length;
+        final topLeft = valid
+            .where((p) => p.dy < traceH * 0.50 && p.dx < traceW * 0.55)
+            .length;
         return topLeft >= 3;
 
       case 7:
-      // Top horizontal sweep, then diagonal down-left
+        // Top horizontal sweep, then diagonal down-left
         final topPts = valid.where((p) => p.dy < traceH * 0.25).toList();
         if (topPts.length < 3) return false;
         final topXs = topPts.map((p) => p.dx).toList();
-        if ((topXs.reduce(max) - topXs.reduce(min)) < traceW * 0.50) return false;
+        if ((topXs.reduce(max) - topXs.reduce(min)) < traceW * 0.50) {
+          return false;
+        }
         // End point should be lower-left area
         final lastPt = valid.last;
         return lastPt.dy > traceH * 0.70 && lastPt.dx < traceW * 0.60;
 
       case 8:
-      // Points in all 4 quadrants (two loops)
-        final tl = valid.where((p) => p.dy < traceH * 0.5 && p.dx < traceW * 0.5).length;
-        final tr = valid.where((p) => p.dy < traceH * 0.5 && p.dx >= traceW * 0.5).length;
-        final bl = valid.where((p) => p.dy >= traceH * 0.5 && p.dx < traceW * 0.5).length;
-        final br = valid.where((p) => p.dy >= traceH * 0.5 && p.dx >= traceW * 0.5).length;
+        // Points in all 4 quadrants (two loops)
+        final tl = valid
+            .where((p) => p.dy < traceH * 0.5 && p.dx < traceW * 0.5)
+            .length;
+        final tr = valid
+            .where((p) => p.dy < traceH * 0.5 && p.dx >= traceW * 0.5)
+            .length;
+        final bl = valid
+            .where((p) => p.dy >= traceH * 0.5 && p.dx < traceW * 0.5)
+            .length;
+        final br = valid
+            .where((p) => p.dy >= traceH * 0.5 && p.dx >= traceW * 0.5)
+            .length;
         return tl >= 3 && tr >= 3 && bl >= 3 && br >= 3;
 
       case 9:
-      // Top loop — all 4 quadrants in upper half
-        final tl = valid.where((p) => p.dy < traceH * 0.55 && p.dx < traceW * 0.5).length;
-        final tr = valid.where((p) => p.dy < traceH * 0.55 && p.dx >= traceW * 0.5).length;
+        // Top loop — all 4 quadrants in upper half
+        final tl = valid
+            .where((p) => p.dy < traceH * 0.55 && p.dx < traceW * 0.5)
+            .length;
+        final tr = valid
+            .where((p) => p.dy < traceH * 0.55 && p.dx >= traceW * 0.5)
+            .length;
         if (tl < 3 || tr < 3) return false;
         // Tail goes down on right side
-        final tail = valid.where((p) => p.dy > traceH * 0.50 && p.dx > traceW * 0.40).length;
+        final tail = valid
+            .where((p) => p.dy > traceH * 0.50 && p.dx > traceW * 0.40)
+            .length;
         return tail >= 5;
 
       default:
@@ -391,7 +471,7 @@ class _TracePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (tracedPoints.length < 2) return;
     final paint = Paint()
-      ..color = isComplete ? Colors.greenAccent : Colors.yellowAccent
+      ..color = isComplete ? Colors.greenAccent : Colors.blueAccent
       ..strokeWidth = size.width * 0.10
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round

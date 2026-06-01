@@ -7,7 +7,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl19_0to5_building_igloo.dart';
+import 'lvl16_0to5_building_igloo.dart';
 
 class Number0to5CountingTreesScreen extends StatefulWidget {
   const Number0to5CountingTreesScreen({super.key});
@@ -28,8 +28,10 @@ class _Number0to5CountingTreesScreenState
   static const String _treeAsset =
       'assets/images/objects/arctic/snowy_tree.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level18/intro.wav';
-  static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level18/intro.wav';
+  static const String _audioCorrect =
+      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioQuestion =
       'assets/audio/arctic_numberland/level18/how_many.wav';
 
@@ -77,7 +79,7 @@ class _Number0to5CountingTreesScreenState
     super.initState();
     OrientationService.setLandscape();
 
-    _roundPool = [0,1,2,3,4,5]..shuffle();
+    _roundPool = [0, 1, 2, 3, 4, 5]..shuffle();
 
     _initAnimations();
     _startIntroFlow();
@@ -155,7 +157,7 @@ class _Number0to5CountingTreesScreenState
     final rng = Random();
 
     if (_roundPool.isEmpty) {
-      _roundPool = [0,1,2,3,4,5]..shuffle();
+      _roundPool = [0, 1, 2, 3, 4, 5]..shuffle();
     }
 
     _treeCount = _roundPool.removeLast();
@@ -235,7 +237,7 @@ class _Number0to5CountingTreesScreenState
 
     if (isCorrect) {
       _correctPulseCtrl.forward(from: 0);
-      await _playAudio(_audioCorrect);
+      await _playAudio('assets/audio/arctic_numberland/$_treeCount.wav');
     }
 
     await Future.delayed(const Duration(milliseconds: 900));
@@ -258,11 +260,10 @@ class _Number0to5CountingTreesScreenState
 
       _tappedTreeCount++;
 
-      _treeTapOrder[treeIndex] =
-          _tappedTreeCount;
+      _treeTapOrder[treeIndex] = _tappedTreeCount;
     });
 
-    _playAudio(_audioCorrect);
+    _playAudio('assets/audio/arctic_numberland/$_tappedTreeCount.wav');
   }
 
   // ── Audio ──────────────────────────────────────────────────────────────────
@@ -278,13 +279,9 @@ class _Number0to5CountingTreesScreenState
         }
       });
 
-      await _player.play(
-        AssetSource(asset.replaceFirst('assets/', '')),
-      );
+      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
 
-      await completer.future.timeout(
-        const Duration(seconds: 10),
-      );
+      await completer.future.timeout(const Duration(seconds: 10));
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
     } finally {
@@ -396,8 +393,7 @@ class _Number0to5CountingTreesScreenState
                                       ),
                                     ),
 
-                                  if (i != 0)
-                                    const SizedBox(height: 6),
+                                  if (i != 0) const SizedBox(height: 6),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 8,
@@ -735,10 +731,7 @@ class _Number0to5CountingTreesScreenState
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: GestureDetector(
-            onTap:
-            _tappedIndex == null
-                ? () => _onChoiceTap(index)
-                : null,
+            onTap: _tappedIndex == null ? () => _onChoiceTap(index) : null,
             child: ScaleTransition(
               scale: isTappedCorrect
                   ? _correctPulse
@@ -818,8 +811,7 @@ class _Number0to5CountingTreesScreenState
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(_totalRounds, (i) {
         final done = i < _currentRound;
-        final current =
-            !_showWinDialog && i == _currentRound;
+        final current = !_showWinDialog && i == _currentRound;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           margin: const EdgeInsets.symmetric(horizontal: 3),

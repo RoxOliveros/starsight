@@ -8,7 +8,7 @@ import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
-import 'lvl11_five_introduction.dart';
+import 'lvl10_five_introduction.dart';
 import 'number_tracing_widget.dart';
 
 enum _ScreenPhase { intro, miniGame }
@@ -43,8 +43,6 @@ class _NumberFourIntroductionScreenState
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-
-  static const String _audioBubblePop = 'assets/audio/bubble_pop.wav';
 
   // Correct tap targets
   static const String _objectAsset =
@@ -273,23 +271,30 @@ class _NumberFourIntroductionScreenState
       return;
     }
 
-    if (!mounted || _introPhase != _IntroPhase.listening) return;
+    if (!mounted || _introPhase != _IntroPhase.listening || _recognized) return;
+
+    // Stop any existing session before starting a new one
+    if (_speech.isListening) {
+      _speech.stop();
+      _listenRestartTimer?.cancel();
+      _listenRestartTimer = Timer(
+        const Duration(milliseconds: 800),
+        _startListening,
+      );
+      return;
+    }
 
     _speech.statusListener = (status) {
-      if (!mounted) return;
+      if (!mounted || _recognized) return;
       if ((status == 'done' || status == 'notListening') &&
-          _introPhase == _IntroPhase.listening &&
-          !_recognized) {
-        // Cancel any pending restart, schedule a new one
+          _introPhase == _IntroPhase.listening) {
         _listenRestartTimer?.cancel();
         _listenRestartTimer = Timer(
-          const Duration(milliseconds: 100),
+          const Duration(milliseconds: 1500),
           _startListening,
-        ); // shorter gap
+        );
       }
     };
-
-    if (_speech.isListening) return; // already listening, don't double-start
 
     setState(() => _isListening = true);
     _speech.listen(
@@ -368,9 +373,8 @@ class _NumberFourIntroductionScreenState
       _objectTapped[index] = true;
     });
     _objectTapCtrl.forward(from: 0);
-    _player.play(AssetSource(_audioBubblePop.replaceFirst('assets/', '')));
+    await _playAudio('assets/audio/arctic_numberland/$_objectsTapped.wav');
     if (_objectsTapped >= _targetCount) {
-      await Future.delayed(const Duration(milliseconds: 200));
       setState(() => _showWinDialog = true);
     }
   }

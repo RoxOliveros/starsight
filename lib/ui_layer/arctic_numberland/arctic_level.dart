@@ -3,26 +3,22 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
-import '../../games_ui_layer/arctic_numberland/lvl10_four_introduction.dart';
-import '../../games_ui_layer/arctic_numberland/lvl11_five_introduction.dart';
-import '../../games_ui_layer/arctic_numberland/lvl12_345_reintroduction.dart';
-import '../../games_ui_layer/arctic_numberland/lvl13_345_recognition.dart';
-import '../../games_ui_layer/arctic_numberland/lvl14_345_counting.dart';
-import '../../games_ui_layer/arctic_numberland/lvl15_345_matching.dart';
-import '../../games_ui_layer/arctic_numberland/lvl16_345_odd_one_out.dart';
-import '../../games_ui_layer/arctic_numberland/lvl17_012345_sequence.dart';
-import '../../games_ui_layer/arctic_numberland/lvl18_0to5_counting_trees.dart';
-import '../../games_ui_layer/arctic_numberland/lvl19_0to5_building_igloo.dart';
-import '../../games_ui_layer/arctic_numberland/lvl20_0to5_match_snowglobe.dart';
+import '../../games_ui_layer/arctic_numberland/lvl9_four_introduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl10_five_introduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl11_345_reintroduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl12_345_counting.dart';
+import '../../games_ui_layer/arctic_numberland/lvl13_345_odd_one_out.dart';
+import '../../games_ui_layer/arctic_numberland/lvl14_012345_sequence.dart';
+import '../../games_ui_layer/arctic_numberland/lvl15_0to5_counting_trees.dart';
+import '../../games_ui_layer/arctic_numberland/lvl16_0to5_building_igloo.dart';
+import '../../games_ui_layer/arctic_numberland/lvl17_0to5_match_snowglobe.dart';
 import '../../games_ui_layer/arctic_numberland/lvl4_number012_reintroduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl5_number012_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/lvl1_zero_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl3_two_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl6_number012_counting.dart';
-import '../../games_ui_layer/arctic_numberland/lvl7_number012_matching.dart';
-import '../../games_ui_layer/arctic_numberland/lvl8_number012_counttap.dart';
-import '../../games_ui_layer/arctic_numberland/lvl9_three_introduction.dart';
+import '../../games_ui_layer/arctic_numberland/lvl7_number012_counttap.dart';
 import 'arctic_theme.dart';
 
 class ArcticLevelScreen extends StatefulWidget {
@@ -292,7 +288,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const Number012MatchingScreen(),
+                builder: (context) => const Number012TapCountScreen(),
               ),
             );
             break;
@@ -308,7 +304,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const NumberThreeIntroductionScreen(),
+                builder: (context) => const NumberFourIntroductionScreen(),
               ),
             );
             break;
@@ -316,7 +312,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const NumberFourIntroductionScreen(),
+                builder: (context) => const NumberFiveIntroductionScreen(),
               ),
             );
             break;
@@ -324,7 +320,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const NumberFiveIntroductionScreen(),
+                builder: (context) => const Number345ReintroductionScreen(),
               ),
             );
             break;
@@ -332,7 +328,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const Number345ReintroductionScreen(),
+                builder: (context) => const Number345CountingScreen(),
               ),
             );
             break;
@@ -340,7 +336,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const Number345RecognitionScreen(),
+                builder: (context) => const Number345OddOneOutScreen(),
               ),
             );
             break;
@@ -348,7 +344,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const Number345CountingScreen(),
+                builder: (context) => const Number012345SequenceScreen(),
               ),
             );
             break;
@@ -356,7 +352,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const Number345MatchingScreen(),
+                builder: (context) => const Number0to5CountingTreesScreen(),
               ),
             );
             break;
@@ -364,35 +360,11 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const Number345OddOneOutScreen(),
-              ),
-            );
-            break;
-          case 17:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number012345SequenceScreen(),
-              ),
-            );
-            break;
-          case 18:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number0to5CountingTreesScreen(),
-              ),
-            );
-            break;
-          case 19:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
                 builder: (context) => const Number0to5FillIglooScreen(),
               ),
             );
             break;
-          case 20:
+          case 17:
             Navigator.push(
               context,
               MaterialPageRoute(

@@ -5,6 +5,7 @@ import '../../business_layer/lottie_cache.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/lumi_town/1/wakeup1.dart';
 import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
+import '../../games_ui_layer/lumi_town/lvl3/clean_bedroom_game_screen.dart';
 import 'lumi_buttons.dart';
 import 'lumi_theme.dart';
 
@@ -74,7 +75,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                           children: const [
                             _LevelTile(level: 1),
                             _LevelTile(level: 2),
-                            _LockedTile(),
+                            _LevelTile(level: 3),
                             _LockedTile(),
                           ],
                         ),
@@ -220,6 +221,12 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => Lvl2BathroomGameScreen()),
+            );
+            break;
+          case 3:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => CleanBedroomGameScreen()),
             );
             break;
         }

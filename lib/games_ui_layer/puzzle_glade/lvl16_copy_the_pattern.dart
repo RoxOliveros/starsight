@@ -53,8 +53,8 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
       'assets/audio/puzzle_glade/level16/instruction.wav';
   static const String _audioComplete =
       'assets/audio/puzzle_glade/level16/complete.wav';
-  static const String _audioSuccess = 'assets/audio/shine.wav';
-  static const String _audioBubblePop = 'assets/audio/bubble_pop.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
+  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   _ScreenPhase _phase = _ScreenPhase.intro;

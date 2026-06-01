@@ -8,6 +8,7 @@ import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
+import 'lvl11_345_reintroduction.dart';
 import 'number_tracing_widget.dart';
 
 enum _ScreenPhase { intro, miniGame }
@@ -43,8 +44,6 @@ class _NumberFiveIntroductionScreenState
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-
-  static const String _audioBubblePop = 'assets/audio/bubble_pop.wav';
 
   // Correct tap targets
   static const String _objectAsset =
@@ -313,8 +312,8 @@ class _NumberFiveIntroductionScreenState
         }
       },
       onSoundLevelChange: null,
-      listenFor: const Duration(seconds: 60),
-      pauseFor: const Duration(seconds: 8),
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 15),
       localeId: 'en_US',
       cancelOnError: false,
     );
@@ -411,9 +410,8 @@ class _NumberFiveIntroductionScreenState
       _objectTapped[index] = true;
     });
     _objectTapCtrl.forward(from: 0);
-    _player.play(AssetSource(_audioBubblePop.replaceFirst('assets/', '')));
+    await _playAudio('assets/audio/arctic_numberland/$_objectsTapped.wav');
     if (_objectsTapped >= _targetCount) {
-      await Future.delayed(const Duration(milliseconds: 200));
       setState(() => _showWinDialog = true);
     }
   }
@@ -1016,10 +1014,9 @@ class _NumberFiveIntroductionScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        //TODO: @Tin navigate to next
-        // Navigator.of(context).pushReplacement(
-        //   MaterialPageRoute(builder: (_) => const ()),
-        // );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Number345ReintroductionScreen()),
+        );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(

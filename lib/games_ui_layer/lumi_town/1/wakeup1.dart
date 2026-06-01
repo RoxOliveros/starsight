@@ -20,7 +20,7 @@ class Lumi1ValuesWakeup extends StatefulWidget {
   const Lumi1ValuesWakeup({
     super.key,
     this.imagePath = 'assets/animations/sleeping.json',
-    this.audioBinPath2 = 'assets/audio/lumi_town/gising.wav',
+    this.audioBinPath2 = 'assets/audio/lumi_town/level1/gising.wav',
     this.loopAudio = false,
     this.volume = 1.0,
   });

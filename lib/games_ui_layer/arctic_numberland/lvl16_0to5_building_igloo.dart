@@ -7,7 +7,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl20_0to5_match_snowglobe.dart';
+import 'lvl17_0to5_match_snowglobe.dart';
 
 class Number0to5FillIglooScreen extends StatefulWidget {
   const Number0to5FillIglooScreen({super.key});
@@ -29,11 +29,10 @@ class _Number0to5FillIglooScreenState
   static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
 
   static const String _audioIntro = 'assets/audio/arctic_numberland/level19/intro.wav';
-  static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
   static const String _audioBuild =
       'assets/audio/arctic_numberland/level19/build.wav';
   static const String _audioComplete =
-      'assets/audio/arctic_numberland/level19/shine.wav';
+      'assets/audio/sound_effects/shine.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
@@ -88,8 +87,8 @@ class _Number0to5FillIglooScreenState
     _SlotLayout(rowFracX: 0.70, rowFracY: 0.66),
 
     // top row
-    _SlotLayout(rowFracX: 0.40, rowFracY: 0.48),
-    _SlotLayout(rowFracX: 0.60, rowFracY: 0.48),
+    _SlotLayout(rowFracX: 0.40, rowFracY: 0.38),
+    _SlotLayout(rowFracX: 0.60, rowFracY: 0.38),
   ];
 
   // ── Global keys for hit-testing slots ─────────────────────────────────────
@@ -263,7 +262,7 @@ class _Number0to5FillIglooScreenState
       });
 
       _slotFillCtrls[hitSlot].forward(from: 0);
-      await _playAudio(_audioCorrect);
+      await _playAudio('assets/audio/arctic_numberland/$_placedCount.wav');
 
       if (_placedCount == _targetCount) {
         await Future.delayed(const Duration(milliseconds: 300));
@@ -553,6 +552,22 @@ class _Number0to5FillIglooScreenState
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Text(
+                'Put  ',
+                style: TextStyle(
+                  fontFamily: ArcticAppTextStyles.fredoka,
+                  fontSize: (h * 0.072).clamp(13.0, 21.0),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  shadows: const [
+                    Shadow(
+                      color: Color(0x55003366),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
               // Show the target number prominently
               Container(
                 padding:
@@ -727,7 +742,8 @@ class _Number0to5FillIglooScreenState
                 // Slots inside igloo
                 ...List.generate(_targetCount, (i) {
                   final layout = _slotLayouts[i];
-                  final slotSize = (areaH * 0.16).clamp(38.0, 68.0);                  final left = areaW * layout.rowFracX - slotSize / 2;
+                  final slotSize = (areaH * 0.22).clamp(52.0, 90.0);
+                  final left = areaW * layout.rowFracX - slotSize / 2;
                   final top = areaH * layout.rowFracY - slotSize / 2;
 
                   final isFilled = _slotContents[i] != null;
@@ -751,7 +767,7 @@ class _Number0to5FillIglooScreenState
                                 ? Colors.transparent
                                 : Colors.blue.withValues(alpha: 0.85),
 
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(15),
 
                             border: Border.all(
                               color: isFilled
@@ -833,17 +849,17 @@ class _Number0to5FillIglooScreenState
   Widget _buildIglooOutline(double w, double h) {
     final bool built = _roundComplete;
 
-    return Center(
+    return OverflowBox(
+      maxWidth: w * 1.4,
+      maxHeight: h * 1.4,
       child: Image.asset(
         built
             ? 'assets/images/objects/arctic/igloo.png'
             : 'assets/images/objects/arctic/broken_igloo.png',
         fit: BoxFit.contain,
-        width: w * 1,
-        height: h * 1,
-        errorBuilder: (_, __, ___) {
-          return const SizedBox();
-        },
+        width: w * 1.4,
+        height: h * 1.4,
+        errorBuilder: (_, __, ___) => const SizedBox(),
       ),
     );
   }

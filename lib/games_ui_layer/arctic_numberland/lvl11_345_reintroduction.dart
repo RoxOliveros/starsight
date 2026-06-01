@@ -7,7 +7,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl13_345_recognition.dart';
+import 'lvl12_345_counting.dart';
 
 class Number345ReintroductionScreen extends StatefulWidget {
   const Number345ReintroductionScreen({super.key});
@@ -693,7 +693,7 @@ class _Number345ReintroductionScreenState
       onNext: () {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => const Number345RecognitionScreen(),
+            builder: (_) => const Number345CountingScreen(),
           ),
         );
       },

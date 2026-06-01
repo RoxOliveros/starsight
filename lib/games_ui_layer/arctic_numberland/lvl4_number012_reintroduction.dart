@@ -178,7 +178,9 @@ class _Number012ReintroductionScreenState
     if (_dotsTapped[index] || _transitioning) return;
     setState(() => _dotsTapped[index] = true);
     _bounceController.forward(from: 0);
-    _playAudio('assets/audio/bubble_pop.wav');
+
+    final countSoFar = index + 1;
+    _playAudio('assets/audio/arctic_numberland/$countSoFar.wav');
 
     final allDone = _dotsTapped.every((t) => t);
     if (allDone && !_allTapped) {

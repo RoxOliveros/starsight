@@ -53,8 +53,8 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
   static const String _audioInstructions = 'assets/audio/puzzle_glade/level9/instruction.wav';
   static const String _audioComplete = 'assets/audio/puzzle_glade/level9/complete.wav';
 
-  static const String _audioSuccess = 'assets/audio/shine.wav';
-  static const String _audioWrong = 'assets/audio/bubble_pop.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
+  static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;

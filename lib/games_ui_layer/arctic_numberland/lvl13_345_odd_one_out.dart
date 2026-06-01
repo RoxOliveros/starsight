@@ -7,7 +7,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl17_012345_sequence.dart';
+import 'lvl14_012345_sequence.dart';
 
 class Number345OddOneOutScreen extends StatefulWidget {
   const Number345OddOneOutScreen({super.key});
@@ -27,8 +27,8 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level16/intro.wav';
-  static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level16/intro.wav';
 
   static const Map<int, String> _numberAudio = {
     3: 'assets/audio/arctic_numberland/level16/odd_three.wav',
@@ -213,7 +213,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         _roundComplete = true;
       });
       _correctCtrl.forward(from: 0);
-      await _playAudio(_audioCorrect);
+      await _playAudio('assets/audio/arctic_numberland/$_oddCount.wav');
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 

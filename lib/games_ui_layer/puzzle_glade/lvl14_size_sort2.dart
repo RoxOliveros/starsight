@@ -81,8 +81,8 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
   static const String _audioComplete =
       'assets/audio/puzzle_glade/level7/complete.wav';
 
-  static const String _audioBubblePop = 'assets/audio/bubble_pop.wav';
-  static const String _audioSuccess = 'assets/audio/shine.wav';
+  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
