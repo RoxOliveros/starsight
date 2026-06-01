@@ -1,6 +1,4 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
-import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_level.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:StarSight/ui_layer/splash_screen.dart';
