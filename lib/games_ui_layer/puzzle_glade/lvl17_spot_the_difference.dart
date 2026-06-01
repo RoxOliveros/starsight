@@ -82,8 +82,8 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
   static const String _audioComplete =
       'assets/audio/puzzle_glade/level17/complete.wav';
 
-  static const String _audioSuccess = 'assets/audio/shine.wav';
-  static const String _audioBubblePop = 'assets/audio/bubble_pop.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
+  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   _ScreenPhase _phase = _ScreenPhase.intro;

@@ -137,6 +137,7 @@ flutter:
     - assets/drafts/
     - assets/gifs/
     - assets/animations/
+    - assets/animations/characters/
     - assets/gifs/letters/
     - assets/images/objects/forest/
     - assets/gifs/bodyparts/

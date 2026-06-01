@@ -48,7 +48,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
   Future<void> _playAlarm() =>
       _playAudio('assets/audio/lumi_town/alarmclock.wav');
 
-  Future<void> _playNext() => _playAudio('assets/audio/lumi_town/salamat.mp3');
+  Future<void> _playNext() => _playAudio('assets/audio/lumi_town/level1/salamat.wav');
 
   @override
   void dispose() {

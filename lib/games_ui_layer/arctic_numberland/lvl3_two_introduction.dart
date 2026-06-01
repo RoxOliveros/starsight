@@ -200,11 +200,15 @@ class _NumberTwoIntroductionScreenState
     _numberDanceCtrl.repeat(reverse: true);
     await Future.delayed(const Duration(milliseconds: 1500));
     await _playAudio('assets/audio/arctic_numberland/level3/say_two.wav');
-    await Future.delayed(const Duration(milliseconds: 300));
+
+    // Fully release the audio player before STT starts
+    await _player.stop();
+    await _player.release();
+    await Future.delayed(const Duration(milliseconds: 1500));
 
     _setIntroPhase(_IntroPhase.listening);
-    _startListening();
     _numberDanceCtrl.stop();
+    _startListening();
   }
 
   Future<void> _playAudio(String asset) async {
@@ -213,6 +217,14 @@ class _NumberTwoIntroductionScreenState
       final sub = _player.onPlayerComplete.listen((_) {
         if (!completer.isCompleted) completer.complete();
       });
+      await _player.setAudioContext(AudioContext(
+        android: AudioContextAndroid(
+          audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+          usageType: AndroidUsageType.assistanceSonification,
+          contentType: AndroidContentType.sonification,
+        ),
+      ));
+      await _player.setReleaseMode(ReleaseMode.release);
       await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
       await completer.future;
       await sub.cancel();
@@ -234,41 +246,41 @@ class _NumberTwoIntroductionScreenState
       return;
     }
 
-    if (!mounted || _introPhase != _IntroPhase.listening) return;
-
     _speech.statusListener = (status) {
       if (!mounted) return;
       if ((status == 'done' || status == 'notListening') &&
           _introPhase == _IntroPhase.listening &&
           !_recognized) {
-        // Cancel any pending restart, schedule a new one
-        _listenRestartTimer?.cancel();
-        _listenRestartTimer = Timer(const Duration(milliseconds: 100), _startListening); // shorter gap
+        Future.delayed(const Duration(milliseconds: 500), _startListening);
       }
     };
 
-    if (_speech.isListening) return; // already listening, don't double-start
+    if (_speech.isListening) return;
 
     setState(() => _isListening = true);
     _speech.listen(
       onResult: (result) {
-        if (!result.finalResult) return; // only act on final results
+        if (_recognized) return;
         final words = result.recognizedWords.toLowerCase();
+        debugPrint('STT result: "$words"');
         if (words.contains('two') ||
+            words.contains('to') ||
             words.contains('too') ||
-            words.contains('tu') ||
             words.contains('tow') ||
-            words.contains('to')) {
-          _listenRestartTimer?.cancel();
+            words.contains('tu') ||
+            words.contains('do') ||
+            words.contains('doo') ||
+            words == '2' ||
+            words.startsWith('2')) {
           _speech.stop();
           setState(() => _isListening = false);
           _onWordRecognized();
         }
       },
-      listenFor: const Duration(seconds: 10),
-      pauseFor: const Duration(seconds: 4),
+      onSoundLevelChange: (_) {},
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 15),
       localeId: 'en_US',
-      cancelOnError: false,
     );
   }
 

@@ -7,7 +7,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl15_345_matching.dart';
+import 'lvl13_345_odd_one_out.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
@@ -30,7 +30,6 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
       'assets/images/characters/doma_the_penguin.png';
 
   static const String _audioIntro = 'assets/audio/arctic_numberland/level14/intro.wav';
-  static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
 
   // ── Objects pool (all arctic_numberland assets) ──────────────────────────────────────
   static const List<Map<String, String>> _objects = [
@@ -161,20 +160,13 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
   void _generateRound() {
     final rng = Random();
 
-    // Pick correct count from 3, 4, 5
     _correctCount = _numbers[rng.nextInt(_numbers.length)];
 
-    // Build 3 wrong choices from the remaining numbers (no duplicates)
     final others = _numbers.where((n) => n != _correctCount).toList()
       ..shuffle(rng);
-    // We only have 2 other numbers (3,4,5 → 2 others), so pad with neighbor
     final wrongChoices = [...others];
-    // Add one more distractor: +1 or -1 from correct, clamped to 3-6
-    final extra = (_correctCount + (rng.nextBool() ? 1 : -1)).clamp(3, 6);
-    if (!wrongChoices.contains(extra)) wrongChoices.add(extra);
 
-    // Build choices: 3 wrong + 1 correct, shuffled, capped at 4
-    _choices = [...wrongChoices.take(3), _correctCount]..shuffle(rng);
+    _choices = [...wrongChoices.take(2), _correctCount]..shuffle(rng);
 
     // Pick a random object
     final obj = List.from(_objects)..shuffle(rng);
@@ -207,8 +199,7 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
 
     if (isCorrect) {
       _correctPulseCtrl.forward(from: 0);
-      await _playAudio(_audioCorrect);
-    }
+      await _playAudio('assets/audio/arctic_numberland/$_correctCount.wav');    }
 
     await Future.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
@@ -624,7 +615,7 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Number345MatchingScreen()),
+          MaterialPageRoute(builder: (_) => const Number345OddOneOutScreen()),
         );
       },
       onRestart: () {

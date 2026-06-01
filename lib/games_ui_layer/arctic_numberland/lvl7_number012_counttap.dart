@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
+import 'lvl8_three_introduction.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
@@ -168,13 +169,17 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   }
 
   int get _selectedCount => _selected.where((s) => s).length;
-
   void _onObjectTap(int index) {
     if (_locked) return;
     setState(() {
       _selected[index] = !_selected[index];
     });
     _objScaleCtrls[index].forward(from: 0);
+
+    final count = _selected.where((s) => s).length;
+    if (_selected[index]) {
+      _playAudio('assets/audio/arctic_numberland/$count.wav');
+    }
   }
 
   Future<void> _startIntroFlow() async {
@@ -205,7 +210,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
     if (_selectedCount == _targetNumber) {
       // ✅ Correct
-      _playAudio('assets/audio/bubble_pop.wav');
+      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
       setState(() => _submitFlashCorrect = true);
       _celebrationCtrl.forward(from: 0);
       _numberBounce.forward(from: 0);
@@ -570,7 +575,9 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: next screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const NumberThreeIntroductionScreen()),
+        );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(

@@ -8,7 +8,7 @@ import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
-import 'lvl10_four_introduction.dart';
+import 'lvl9_four_introduction.dart';
 import 'number_tracing_widget.dart';
 
 enum _ScreenPhase { intro, miniGame }
@@ -243,7 +243,7 @@ class _NumberThreeIntroductionScreenState
         // Cancel any pending restart, schedule a new one
         _listenRestartTimer?.cancel();
         _listenRestartTimer = Timer(
-          const Duration(milliseconds: 100),
+          const Duration(milliseconds: 500),
           _startListening,
         ); // shorter gap
       }
@@ -308,12 +308,9 @@ class _NumberThreeIntroductionScreenState
     final useSled = Random().nextBool();
     _decoyAsset = useSled
         ? 'assets/images/objects/arctic/sled.png'
-        : 'assets/images/objects/arctic/snowy_tree.png';
-    _decoyEmoji = useSled ? '🛷' : '🌲';
+        : 'assets/images/objects/arctic/icecream.png';
+    _decoyEmoji = useSled ? '🛷' : '🍦';
   }
-
-  // Add parameter: isFirst, isSecond, isThird — or use an index instead
-  // Simplest: switch to an index-based approach:
 
   final List<bool> _iceCreamTapped = [false, false, false];
 
@@ -326,6 +323,7 @@ class _NumberThreeIntroductionScreenState
       _iceCreamTapped[index] = true;
     });
     _objectTapCtrl.forward(from: 0);
+    _playAudio('assets/audio/arctic_numberland/$_iceCreamsTapped.wav');
     if (_iceCreamsTapped >= _targetCount) {
       await Future.delayed(const Duration(milliseconds: 200));
       setState(() => _showWinDialog = true);
@@ -751,7 +749,7 @@ class _NumberThreeIntroductionScreenState
                         child: _buildObjectCircle(
                           objSize,
                           'assets/images/objects/arctic/snowy_tree.png',
-                          '🍦',
+                          '🌲',
                           false,
                         ),
                       ),

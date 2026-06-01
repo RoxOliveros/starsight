@@ -76,8 +76,8 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
       'assets/audio/puzzle_glade/level3/welcome.wav';
   static const String _audioInstructions =
       'assets/audio/puzzle_glade/level3/instruction.wav';
-  static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
-  static const String _audioSuccess = 'assets/audio/shine.wav';
+  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioComplete =
       'assets/audio/puzzle_glade/level3/complete.wav';
 

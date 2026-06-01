@@ -71,7 +71,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
     setState(() => _tappedIndex = index);
 
     if (_choices[index] == _correctNumber) {
-      _playAudio('assets/audio/bubble_pop.wav');
+      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
     }
 
     await Future.delayed(const Duration(milliseconds: 900));

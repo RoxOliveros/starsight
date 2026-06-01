@@ -32,7 +32,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
       'assets/audio/puzzle_glade/level1/welcome.wav';
   static const String _audioInstructions =
       'assets/audio/puzzle_glade/level1/instruction.wav';
-  static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
+  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 

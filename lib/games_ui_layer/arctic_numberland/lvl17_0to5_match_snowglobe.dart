@@ -38,8 +38,8 @@ class _Number0to5MatchSnowglobesScreenState
     'assets/images/objects/arctic/ice_skates.png',
   ];
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level20/intro.wav';
-  static const String _audioCorrect = 'assets/audio/bubble_pop.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level20/intro.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
@@ -219,7 +219,9 @@ class _Number0to5MatchSnowglobesScreenState
     if (isCorrect) {
       setState(() => _tappedIndex = index);
       _correctPulseCtrl.forward(from: 0);
-      await _playAudio(_audioCorrect);
+      await _playAudio(
+        'assets/audio/arctic_numberland/$_targetNumber.wav',
+      );
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:StarSight/games_ui_layer/arctic_numberland/lvl18_0to5_counting_trees.dart';
+import 'package:StarSight/games_ui_layer/arctic_numberland/lvl15_0to5_counting_trees.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -27,8 +27,8 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
       'assets/images/characters/doma_the_penguin.png';
 
   static const String _audioIntro = 'assets/audio/arctic_numberland/level17/intro.wav';
-  static const String _audioSlotCorrect = 'assets/audio/bubble_pop.wav';
-  static const String _audioWin = 'assets/audio/arctic_numberland/mahusay.wav';
+  static const String _audioSlotCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioWin = 'assets/audio/sound_effects/shine.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;

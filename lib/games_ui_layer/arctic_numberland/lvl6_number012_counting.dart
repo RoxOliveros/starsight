@@ -6,7 +6,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
-import 'lvl7_number012_matching.dart';
+import 'lvl7_number012_counttap.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
@@ -112,7 +112,7 @@ class _Number012CountingObjectsScreenState
     setState(() => _tappedIndex = index);
 
     if (_choices[index] == _correctCount) {
-      _playAudio('assets/audio/bubble_pop.wav');
+      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
     }
 
     await Future.delayed(const Duration(milliseconds: 900));
@@ -378,7 +378,7 @@ class _Number012CountingObjectsScreenState
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Number012MatchingScreen()),
+          MaterialPageRoute(builder: (_) => const Number012TapCountScreen()),
         );
       },
       onRestart: () {
