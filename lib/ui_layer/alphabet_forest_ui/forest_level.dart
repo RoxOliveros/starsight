@@ -1,6 +1,7 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
@@ -146,10 +147,10 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: const [
-                              _LockedTile(),
-                              _LockedTile(),
-                              _LockedTile(),
-                              _LockedTile(),
+                              _LevelTile(level: 13),
+                              _LevelTile(level: 14),
+                              _LevelTile(level: 15),
+                              _LevelTile(level: 16),
                             ],
                           ),
                         ],
@@ -346,7 +347,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetTraceScreen(startingLetter: 'A'),
+                    const AlphabetIntroScreen(startingLetter: 'D'),
               ),
             );
             break;
@@ -355,7 +356,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'D'),
+                    const AlphabetIntroScreen(startingLetter: 'E'),
               ),
             );
             break;
@@ -364,7 +365,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'E'),
+                    const AlphabetIntroScreen(startingLetter: 'F'),
               ),
             );
             break;
@@ -373,7 +374,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'F'),
+                    const AlphabetIntroScreen(startingLetter: 'G'),
               ),
             );
             break;
@@ -381,8 +382,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetPuzzleScreen(startingLetter: 'D'),
+                builder: (context) => const AlphabetMatchScreen(),
               ),
             );
             break;
@@ -391,7 +391,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'G'),
+                    const AlphabetIntroScreen(startingLetter: 'H'),
               ),
             );
             break;
@@ -400,7 +400,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'H'),
+                    const AlphabetIntroScreen(startingLetter: 'I'),
               ),
             );
             break;
@@ -409,7 +409,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'I'),
+                    const AlphabetIntroScreen(startingLetter: 'J'),
               ),
             );
             break;
@@ -418,7 +418,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetFallScreen(startingLetter: 'G'),
+                    const AlphabetIntroScreen(startingLetter: 'K'),
               ),
             );
             break;
@@ -427,7 +427,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'G'),
+                    const AlphabetIntroScreen(startingLetter: 'L'),
               ),
             );
             break;
@@ -436,7 +436,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetPuzzleScreen(startingLetter: 'G'),
+                    const AlphabetIntroScreen(startingLetter: 'M'),
               ),
             );
             break;
@@ -445,7 +445,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'H'),
+                    const AlphabetIntroScreen(startingLetter: 'N'),
               ),
             );
             break;
@@ -453,48 +453,10 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetPuzzleScreen(startingLetter: 'H'),
+                builder: (context) => const AlphabetFallScreen(isBigGame: true),
               ),
             );
             break;
-          case 17:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'I'),
-              ),
-            );
-            break;
-          case 18:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetPuzzleScreen(startingLetter: 'I'),
-              ),
-            );
-            break;
-          case 19:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'J'),
-              ),
-            );
-            break;
-          case 20:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetPuzzleScreen(startingLetter: 'J'),
-              ),
-            );
-            break;
-          // This stops the app from crashing
           default:
             print("Level $level is not linked up yet!");
             break;

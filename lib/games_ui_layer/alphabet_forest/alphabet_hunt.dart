@@ -1,5 +1,8 @@
 import 'dart:math';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -173,7 +176,42 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
 
           onNext: () {
             Navigator.pop(context); // Close the prompt
-            Navigator.pop(context); // Return to Level Map!
+
+            String current = widget.targetLetter.toUpperCase();
+
+            if (current == 'G') {
+              // If they just finished G, send them to Level 8 (Match Game!)
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AlphabetMatchScreen(),
+                ),
+              );
+            } else if (current == 'N') {
+              // If they just finished N, send them to Level 16 (Fall Game!)
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      const AlphabetFallScreen(startingLetter: 'H'),
+                ),
+              );
+            } else {
+              // Otherwise, just go to the next normal Intro screen!
+              int charCode = current.codeUnitAt(0);
+              if (charCode >= 65 && charCode < 90) {
+                String nextLetter = String.fromCharCode(charCode + 1);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AlphabetIntroScreen(startingLetter: nextLetter),
+                  ),
+                );
+              } else {
+                Navigator.pop(context); // Return to Map
+              }
+            }
           },
           onRestart: () {
             Navigator.pop(context);

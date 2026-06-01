@@ -1,4 +1,7 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
@@ -140,6 +143,16 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
           PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/jar_br.png'),
         ];
         break;
+      case 'N':
+        _fullImagePath =
+            'assets/images/alphabets/nose_full.png'; // Make sure this matches your image name!
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/nose_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/nose_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/nose_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/nose_br.png'),
+        ];
+        break;
       default:
         // Fallback just in case
         _fullImagePath = 'assets/images/alphabets/apple_full.png';
@@ -191,30 +204,44 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
 
           // 2. Goes from PUZZLE to PUZZLE continuously (D -> E -> F)
           onNext: () {
-            Navigator.pop(context); // Close the Good Job prompt
+            Navigator.pop(context); // Close the prompt
 
-            if (widget.startingLetter.toUpperCase() == 'D') {
+            String current = widget.startingLetter.toUpperCase();
+
+            if (current == 'G') {
+              // If they just finished G, send them to Level 8 (Match Game!)
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      const AlphabetPuzzleScreen(startingLetter: 'E'),
+                  builder: (context) => const AlphabetMatchScreen(),
                 ),
               );
-            } else if (widget.startingLetter.toUpperCase() == 'E') {
+            } else if (current == 'N') {
+              // If they just finished N, send them to Level 16 (Fall Game!)
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      const AlphabetPuzzleScreen(startingLetter: 'F'),
+                      const AlphabetFallScreen(startingLetter: 'H'),
                 ),
               );
             } else {
-              // If they finished 'F' (or any other letter), exit back to the Level Map!
-              Navigator.pop(context);
+              // Otherwise, just go to the next normal Intro screen!
+              int charCode = current.codeUnitAt(0);
+              if (charCode >= 65 && charCode < 90) {
+                String nextLetter = String.fromCharCode(charCode + 1);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AlphabetIntroScreen(startingLetter: nextLetter),
+                  ),
+                );
+              } else {
+                Navigator.pop(context); // Return to Map
+              }
             }
           },
-
           onRestart: () {
             Navigator.pop(context);
             _resetGame();

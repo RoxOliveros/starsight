@@ -151,6 +151,8 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       onResult: _checkChildsAnswer,
       listenFor: const Duration(seconds: 15),
       pauseFor: const Duration(seconds: 8),
+      partialResults: true,
+      cancelOnError: false,
     );
   }
 
@@ -331,87 +333,15 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                 right: 24,
                 child: GestureDetector(
                   onTap: () {
-                    // Stop any residual audio
                     _audioPlayer.stop();
-
-                    String currentLetter = widget.startingLetter.toUpperCase();
-
-                    if (currentLetter == 'A') {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AlphabetIntroScreen(startingLetter: 'B'),
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AlphabetTraceScreen(
+                          startingLetter: widget.startingLetter,
                         ),
-                      );
-                    } else if (currentLetter == 'B') {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AlphabetIntroScreen(startingLetter: 'C'),
-                        ),
-                      );
-                    } else if (currentLetter == 'C') {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AlphabetTraceScreen(startingLetter: 'A'),
-                        ),
-                      );
-                    } else if (currentLetter == 'D') {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AlphabetIntroScreen(startingLetter: 'E'),
-                        ),
-                      );
-                    } else if (currentLetter == 'E') {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AlphabetIntroScreen(startingLetter: 'F'),
-                        ),
-                      );
-                    } else if (currentLetter == 'F') {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AlphabetPuzzleScreen(startingLetter: 'D'),
-                        ),
-                      );
-                    } else if (currentLetter == 'G') {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AlphabetIntroScreen(startingLetter: 'H'),
-                        ),
-                      );
-                    } else if (currentLetter == 'H') {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AlphabetIntroScreen(startingLetter: 'I'),
-                        ),
-                      );
-                    } else if (currentLetter == 'I') {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const AlphabetFallScreen(startingLetter: 'G'),
-                        ),
-                      );
-                    } else {
-                      // Fallback safety net
-                      Navigator.pop(context);
-                    }
+                      ),
+                    );
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -454,26 +384,33 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
   List<String> _getAcceptableWords(String letter) {
     switch (letter.toUpperCase()) {
       case 'A':
-        return ['a', 'ay', 'eight', 'hey', 'eh'];
+        return ['a', 'ay', 'eight', 'hey', 'eh', 'apple'];
       case 'B':
-        return ['b', 'bee', 'be', 'vee'];
+        return ['b', 'bee', 'be', 'vee', 'me', 'ball'];
       case 'C':
-        return ['c', 'see', 'sea', 'si'];
+        return ['c', 'see', 'sea', 'si', 'she', 'car'];
       case 'D':
-        return ['d', 'dee', 'de', 'di'];
+        return ['d', 'dee', 'de', 'di', 'the', 'duck'];
       case 'E':
-        return ['e', 'ee', 'ea', 'i'];
+        return ['e', 'ee', 'ea', 'i', 'he', 'egg'];
       case 'F':
-        return ['f', 'ef', 'eff', 've'];
+        return ['f', 'ef', 'eff', 've', 'half', 'feet'];
       case 'G':
-        return ['g', 'gee', 'je', 'ji'];
+        return ['g', 'gee', 'je', 'ji', 'she', 'glass'];
       case 'H':
-        return ['h', 'aitch', 'hech', 'ha'];
+        return ['h', 'aitch', 'hech', 'ha', 'eight', 'age', 'hat'];
       case 'I':
-        return ['i', 'eye', 'ai', 'ay'];
+        return ['i', 'eye', 'ai', 'ay', 'hi', 'igloo'];
       case 'J':
-        return ['j', 'jay', 'je', 'ji'];
-
+        return ['j', 'jay', 'je', 'ji', 'chey', 'jar'];
+      case 'K':
+        return ['k', 'kay', 'okay', 'cay', 'hey', 'key'];
+      case 'L':
+        return ['l', 'el', 'ell', 'al', 'hell', 'lamp', 'owl'];
+      case 'M':
+        return ['m', 'em', 'am', 'them', 'gem', 'milk', 'ham'];
+      case 'N':
+        return ['n', 'en', 'an', 'and', 'in', 'end', 'nose', 'no'];
       default:
         return [letter.toLowerCase()];
     }
@@ -491,6 +428,10 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       'H': 'hat',
       'I': 'igloo',
       'J': 'jar',
+      'K': 'key',
+      'L': 'lamp',
+      'M': 'milk',
+      'N': 'nose',
     };
     final name = objectMap[letter.toUpperCase()] ?? letter.toLowerCase();
     return 'assets/images/objects/forest/$name.png';

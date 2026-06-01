@@ -1,4 +1,5 @@
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_paint.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_pop.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -7,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 import '../../business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_hunt.dart';
 
 class TraceLevel {
   final String letterName;
@@ -388,39 +391,112 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
           ),
         ];
         break;
-      /*
       case 'K':
         _levels = [
           TraceLevel(
             letterName: "Big K",
             imagePath: '',
             strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
-              [const Offset(0.7, 0.2), const Offset(0.3, 0.5)], // Top diagonal
-              [
-                const Offset(0.3, 0.5),
-                const Offset(0.7, 0.8),
-              ], // Bottom diagonal
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)],
+              [const Offset(0.7, 0.2), const Offset(0.3, 0.5)],
+              [const Offset(0.3, 0.5), const Offset(0.7, 0.8)],
             ],
           ),
           TraceLevel(
             letterName: "Small k",
             imagePath: '',
             strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Tall vertical
-              [
-                const Offset(0.6, 0.45),
-                const Offset(0.3, 0.6),
-              ], // Top diagonal (smaller)
-              [
-                const Offset(0.3, 0.6),
-                const Offset(0.6, 0.8),
-              ], // Bottom diagonal
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)],
+              [const Offset(0.6, 0.45), const Offset(0.3, 0.6)],
+              [const Offset(0.3, 0.6), const Offset(0.6, 0.8)],
             ],
           ),
         ];
         break;
-        */
+      case 'L':
+        _levels = [
+          TraceLevel(
+            letterName: "Big L",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.3, 0.2),
+                const Offset(0.3, 0.8),
+                const Offset(0.7, 0.8),
+              ],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small l",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.5, 0.2), const Offset(0.5, 0.8)],
+            ],
+          ),
+        ];
+        break;
+      case 'M':
+        _levels = [
+          TraceLevel(
+            letterName: "Big M",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.2, 0.8),
+                const Offset(0.2, 0.2),
+                const Offset(0.5, 0.5),
+                const Offset(0.8, 0.2),
+                const Offset(0.8, 0.8),
+              ],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small m",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.25, 0.4), const Offset(0.25, 0.8)],
+              [
+                const Offset(0.25, 0.5),
+                const Offset(0.5, 0.4),
+                const Offset(0.5, 0.8),
+              ],
+              [
+                const Offset(0.5, 0.5),
+                const Offset(0.75, 0.4),
+                const Offset(0.75, 0.8),
+              ],
+            ],
+          ),
+        ];
+        break;
+      case 'N':
+        _levels = [
+          TraceLevel(
+            letterName: "Big N",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.3, 0.8),
+                const Offset(0.3, 0.2),
+                const Offset(0.7, 0.8),
+                const Offset(0.7, 0.2),
+              ],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small n",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.35, 0.4), const Offset(0.35, 0.8)],
+              [
+                const Offset(0.35, 0.5),
+                const Offset(0.65, 0.4),
+                const Offset(0.65, 0.8),
+              ],
+            ],
+          ),
+        ];
+        break;
       default:
         // Fallback to A if something goes wrong
         _levels = [
@@ -557,37 +633,62 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
 
           onNext: () {
             Navigator.pop(context); // Close the dialog
+
             if (!isLastSubLevel) {
-              // Move from uppercase to lowercase trace
               setState(() {
                 _resetBoard();
                 _currentLevelIndex++;
                 _generateDensePaths();
               });
             } else {
-              if (widget.startingLetter.toUpperCase() == 'A') {
+              // --- SMART MINI-GAME ROUTER ---
+              String letter = widget.startingLetter.toUpperCase();
+
+              // 1. Water Color: A, E, H, L
+              if (['A', 'E', 'H', 'L'].contains(letter)) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AlphabetPaintScreen(letter: letter),
+                  ),
+                );
+              }
+              // 2. Pop: B, F, I, M
+              else if (['B', 'F', 'I', 'M'].contains(letter)) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        const AlphabetTraceScreen(startingLetter: 'B'),
+                        AlphabetPopScreen(targetLetter: letter),
                   ),
                 );
-              } else if (widget.startingLetter.toUpperCase() == 'B') {
+              }
+              // 3. Puzzle: C, G, J, N
+              else if (['C', 'G', 'J', 'N'].contains(letter)) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        const AlphabetTraceScreen(startingLetter: 'C'),
+                        AlphabetPuzzleScreen(startingLetter: letter),
                   ),
                 );
-              } else {
-                // If they finished 'C' (or any other letter), exit back to the Map!
+              }
+              // 4. Hunt: D, K
+              else if (['D', 'K'].contains(letter)) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AlphabetHuntScreen(targetLetter: letter),
+                  ),
+                );
+              }
+              // Fallback
+              else {
                 Navigator.pop(context);
               }
             }
           },
-
           onRestart: () {
             Navigator.pop(context);
             setState(() {
