@@ -189,17 +189,30 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
           // },
           //Wag po buburahin 2
 
-          // 2. Goes from PUZZLE to TRACE (stays on the same letter)
+          // 2. Goes from PUZZLE to PUZZLE continuously (D -> E -> F)
           onNext: () {
             Navigator.pop(context); // Close the Good Job prompt
 
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    AlphabetTraceScreen(startingLetter: widget.startingLetter),
-              ),
-            );
+            if (widget.startingLetter.toUpperCase() == 'D') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      const AlphabetPuzzleScreen(startingLetter: 'E'),
+                ),
+              );
+            } else if (widget.startingLetter.toUpperCase() == 'E') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      const AlphabetPuzzleScreen(startingLetter: 'F'),
+                ),
+              );
+            } else {
+              // If they finished 'F' (or any other letter), exit back to the Level Map!
+              Navigator.pop(context);
+            }
           },
 
           onRestart: () {

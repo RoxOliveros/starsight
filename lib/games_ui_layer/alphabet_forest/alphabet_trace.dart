@@ -555,10 +555,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
           characterImage: 'assets/images/characters/dog.png',
           closeButtonColor: ForestColorTheme.mediumseagreen,
 
-          // 3. Goes from TRACE to FALL (stays on the same letter)
           onNext: () {
             Navigator.pop(context); // Close the dialog
-
             if (!isLastSubLevel) {
               // Move from uppercase to lowercase trace
               setState(() {
@@ -567,14 +565,26 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
                 _generateDensePaths();
               });
             } else {
-              // When Trace is completely done, go to the FALL game!
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      AlphabetFallScreen(startingLetter: widget.startingLetter),
-                ),
-              );
+              if (widget.startingLetter.toUpperCase() == 'A') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const AlphabetTraceScreen(startingLetter: 'B'),
+                  ),
+                );
+              } else if (widget.startingLetter.toUpperCase() == 'B') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const AlphabetTraceScreen(startingLetter: 'C'),
+                  ),
+                );
+              } else {
+                // If they finished 'C' (or any other letter), exit back to the Map!
+                Navigator.pop(context);
+              }
             }
           },
 

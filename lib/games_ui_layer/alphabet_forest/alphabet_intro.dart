@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -236,41 +238,41 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                 position: _charSlide,
                 child: Image.asset(
                   'assets/images/characters/dog.png',
-                  height: screenSize.height * 0.5,
+                  height: screenSize.height * 0.4,
                   fit: BoxFit.contain,
                 ),
               ),
             ),
 
-            // GIF - centered
-            // GIF + floating object - centered
             Center(
-              child: Column(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  SizedBox(
-                    height: screenSize.height * 0.65,
-                    child: _buildAnimatedGif(),
-                  ),
-
-                  // Floating object below GIF
-                  AnimatedBuilder(
-                    animation: _float,
-                    builder: (context, child) => Transform.translate(
-                      offset: Offset(0, _float.value),
-                      child: child,
+                  // LEFT: Floating object
+                  if (_introPhase != IntroPhase.entering &&
+                      _introPhase != IntroPhase.playingIntro)
+                    AnimatedBuilder(
+                      animation: _float,
+                      builder: (context, child) => Transform.translate(
+                        offset: Offset(0, _float.value),
+                        child: child,
+                      ),
+                      child: Image.asset(
+                        _getObjectImage(widget.startingLetter),
+                        height: 150,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      ),
                     ),
-                    child:
-                        (_introPhase == IntroPhase.entering ||
-                            _introPhase == IntroPhase.playingIntro)
-                        ? const SizedBox.shrink() // 👈 hidden during intro
-                        : Image.asset(
-                            _getObjectImage(widget.startingLetter),
-                            height: 80,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
-                                const SizedBox.shrink(),
-                          ),
+
+                  const SizedBox(width: 16),
+
+                  // RIGHT: GIF (bigger)
+                  SizedBox(
+                    height: screenSize.height * 0.80,
+                    width: screenSize.width * 0.50,
+                    child: _buildAnimatedGif(),
                   ),
                 ],
               ),
@@ -329,17 +331,87 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                 right: 24,
                 child: GestureDetector(
                   onTap: () {
-                    // Stop any audio that might still be playing if they click Next really fast!
+                    // Stop any residual audio
                     _audioPlayer.stop();
 
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AlphabetPuzzleScreen(
-                          startingLetter: widget.startingLetter,
+                    String currentLetter = widget.startingLetter.toUpperCase();
+
+                    if (currentLetter == 'A') {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AlphabetIntroScreen(startingLetter: 'B'),
                         ),
-                      ),
-                    );
+                      );
+                    } else if (currentLetter == 'B') {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AlphabetIntroScreen(startingLetter: 'C'),
+                        ),
+                      );
+                    } else if (currentLetter == 'C') {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AlphabetTraceScreen(startingLetter: 'A'),
+                        ),
+                      );
+                    } else if (currentLetter == 'D') {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AlphabetIntroScreen(startingLetter: 'E'),
+                        ),
+                      );
+                    } else if (currentLetter == 'E') {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AlphabetIntroScreen(startingLetter: 'F'),
+                        ),
+                      );
+                    } else if (currentLetter == 'F') {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AlphabetPuzzleScreen(startingLetter: 'D'),
+                        ),
+                      );
+                    } else if (currentLetter == 'G') {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AlphabetIntroScreen(startingLetter: 'H'),
+                        ),
+                      );
+                    } else if (currentLetter == 'H') {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AlphabetIntroScreen(startingLetter: 'I'),
+                        ),
+                      );
+                    } else if (currentLetter == 'I') {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AlphabetFallScreen(startingLetter: 'G'),
+                        ),
+                      );
+                    } else {
+                      // Fallback safety net
+                      Navigator.pop(context);
+                    }
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -354,7 +426,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          "Let's Play!",
+                          "Next Level!",
                           style: TextStyle(
                             fontFamily: ForestAppTextStyles.fredoka,
                             fontSize: 24,

@@ -1,8 +1,6 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_memory_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
@@ -148,10 +146,10 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: const [
-                              _LevelTile(level: 13),
-                              _LevelTile(level: 14),
-                              _LevelTile(level: 15),
-                              _LevelTile(level: 16),
+                              _LockedTile(),
+                              _LockedTile(),
+                              _LockedTile(),
+                              _LockedTile(),
                             ],
                           ),
                         ],
@@ -160,10 +158,10 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: const [
-                              _LevelTile(level: 17),
-                              _LevelTile(level: 18),
-                              _LevelTile(level: 19),
-                              _LevelTile(level: 20),
+                              _LockedTile(),
+                              _LockedTile(),
+                              _LockedTile(),
+                              _LockedTile(),
                             ],
                           ),
                           const SizedBox(height: 16),
@@ -330,7 +328,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetPuzzleScreen(startingLetter: 'A'),
+                    const AlphabetIntroScreen(startingLetter: 'B'),
               ),
             );
             break;
@@ -339,7 +337,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'B'),
+                    const AlphabetIntroScreen(startingLetter: 'C'),
               ),
             );
             break;
@@ -348,7 +346,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetPuzzleScreen(startingLetter: 'B'),
+                    const AlphabetTraceScreen(startingLetter: 'A'),
               ),
             );
             break;
@@ -357,7 +355,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'C'),
+                    const AlphabetIntroScreen(startingLetter: 'D'),
               ),
             );
             break;
@@ -366,7 +364,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetPuzzleScreen(startingLetter: 'C'),
+                    const AlphabetIntroScreen(startingLetter: 'E'),
               ),
             );
             break;
@@ -375,7 +373,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'D'),
+                    const AlphabetIntroScreen(startingLetter: 'F'),
               ),
             );
             break;
@@ -393,7 +391,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'E'),
+                    const AlphabetIntroScreen(startingLetter: 'G'),
               ),
             );
             break;
@@ -402,7 +400,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetPuzzleScreen(startingLetter: 'E'),
+                    const AlphabetIntroScreen(startingLetter: 'H'),
               ),
             );
             break;
@@ -411,7 +409,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'F'),
+                    const AlphabetIntroScreen(startingLetter: 'I'),
               ),
             );
             break;
@@ -420,7 +418,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetPuzzleScreen(startingLetter: 'F'),
+                    const AlphabetFallScreen(startingLetter: 'G'),
               ),
             );
             break;

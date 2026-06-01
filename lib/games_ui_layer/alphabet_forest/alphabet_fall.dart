@@ -207,10 +207,28 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
           closeButtonColor: ForestColorTheme.seagreen,
 
           onNext: () {
-            Navigator.pop(context);
-            Navigator.pop(context);
+            Navigator.pop(context); // Close the Good Job prompt
+            if (widget.startingLetter.toUpperCase() == 'G') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      const AlphabetFallScreen(startingLetter: 'H'),
+                ),
+              );
+            } else if (widget.startingLetter.toUpperCase() == 'H') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      const AlphabetFallScreen(startingLetter: 'I'),
+                ),
+              );
+            } else {
+              // If they finished 'I', exit the game completely and return to Map
+              Navigator.pop(context);
+            }
           },
-
           onRestart: () {
             Navigator.pop(context);
             setState(() {
