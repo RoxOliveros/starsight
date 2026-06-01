@@ -32,7 +32,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   int _correctCount = 0;
-  final int _winCondition = 5; // How many they need to catch to win
+  final int _winCondition = 4; // How many they need to catch to win
   final List<Map<String, double>> _wrongEffects = [];
 
   @override
@@ -117,8 +117,8 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   void _spawnObject() {
     if (!mounted) return;
 
-    // 40% chance to spawn a correct letter, 60% chance for a random wrong letter
-    bool isTarget = _random.nextDouble() < 0.4;
+    // 70% chance to spawn a correct letter, 30% chance for a random wrong letter
+    bool isTarget = _random.nextDouble() < 0.7;
     String letterToDrop;
 
     if (isTarget) {
