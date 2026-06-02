@@ -267,7 +267,9 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
   bool _numberSpecificCheck(List<Offset> valid, double traceW, double traceH) {
     switch (widget.number) {
       case 0:
-        // Require more points per quadrant for a confident oval
+      // Need substantially more points to confirm a real oval trace
+        if (valid.length < 20) return false;
+
         final tl = valid
             .where((p) => p.dy < traceH * 0.5 && p.dx < traceW * 0.5)
             .length;
@@ -280,23 +282,38 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         final br = valid
             .where((p) => p.dy >= traceH * 0.5 && p.dx >= traceW * 0.5)
             .length;
-        // Also require vertical coverage
+
         final ys = valid.map((p) => p.dy).toList();
         final xs2 = valid.map((p) => p.dx).toList();
         final ySpan = ys.reduce(max) - ys.reduce(min);
         final xSpan = xs2.reduce(max) - xs2.reduce(min);
-        return tl >= 2 &&
-            tr >= 2 &&
-            bl >= 2 &&
-            br >= 2 &&
-            ySpan > traceH * 0.45 &&
-            xSpan > traceW * 0.30;
+
+        // All 4 quadrants need meaningful coverage
+        if (tl < 5 || tr < 5 || bl < 5 || br < 5) return false;
+        if (ySpan < traceH * 0.50) return false;
+        if (xSpan < traceW * 0.35) return false;
+
+        // Loop closure: start and end must be near each other
+        final firstPt = valid.first;
+        final lastPt = valid.last;
+        final closeDx = (firstPt.dx - lastPt.dx).abs();
+        final closeDy = (firstPt.dy - lastPt.dy).abs();
+        return closeDx < traceW * 0.30 && closeDy < traceH * 0.30;
 
       case 1:
-        // Was 0.40 — too strict due to the top serif/hook
-        final xs = valid.map((p) => p.dx).toList();
-        final xRange = xs.reduce(max) - xs.reduce(min);
-        return xRange < traceW * 0.65; // loosened
+        final xs = valid.map((p) => p.dx).toList()..sort();
+
+        // Drop the outermost 20% on each side to ignore hook/foot outliers
+        final trimCount = (xs.length * 0.20).round();
+        final trimmedXs = xs.sublist(trimCount, xs.length - trimCount);
+        final trimmedRange = trimmedXs.last - trimmedXs.first;
+        if (trimmedRange > traceW * 0.50) return false;
+
+        // Must be taller than it is wide (a 1 is always a tall stroke)
+        final ys = valid.map((p) => p.dy).toList();
+        final yRange = ys.reduce(max) - ys.reduce(min);
+        final xRange = xs.last - xs.first;
+        return yRange > xRange * 1.2;
 
       case 2:
         // Top curve: needs horizontal spread in upper half

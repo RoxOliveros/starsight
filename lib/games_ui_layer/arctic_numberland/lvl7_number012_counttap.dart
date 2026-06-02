@@ -34,9 +34,21 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   late Animation<double> _numberDance;
 
   static const _themes = [
-    _RoundTheme(asset: 'assets/images/objects/arctic/snowball.png', label: 'Snowball', color: Color(0xFF4FC3F7)),  // index 0
-    _RoundTheme(asset: 'assets/images/objects/arctic/candy_cane.png', label: 'Candy Cane', color: Color(0xFFFFC857)), // index 1
-    _RoundTheme(asset: 'assets/images/objects/arctic/igloo.png', label: 'Igloo', color: Color(0xFF81C784)), // index 2
+    _RoundTheme(
+      asset: 'assets/images/objects/arctic/snowball.png',
+      label: 'Snowball',
+      color: Color(0xFF4FC3F7),
+    ), // index 0
+    _RoundTheme(
+      asset: 'assets/images/objects/arctic/candy_cane.png',
+      label: 'Candy Cane',
+      color: Color(0xFFFFC857),
+    ), // index 1
+    _RoundTheme(
+      asset: 'assets/images/objects/arctic/igloo.png',
+      label: 'Igloo',
+      color: Color(0xFF81C784),
+    ), // index 2
   ];
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -66,7 +78,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   late AnimationController _celebrationCtrl;
 
   late AnimationController _wrongShakeCtrl;
-  late Animation<double> _wrongShakeAnim;
 
   // Object scale animations (one per object)
   late List<AnimationController> _objScaleCtrls;
@@ -119,7 +130,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _wrongShakeAnim = Tween<double>(begin: 0, end: 1).animate(_wrongShakeCtrl);
 
     _initObjectAnimations();
     _startRound();
@@ -169,6 +179,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   }
 
   int get _selectedCount => _selected.where((s) => s).length;
+
   void _onObjectTap(int index) {
     if (_locked) return;
     setState(() {
@@ -184,7 +195,9 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
-    await _playAudio('assets/audio/arctic_numberland/level8/012_countandtap.wav');
+    await _playAudio(
+      'assets/audio/arctic_numberland/level8/012_countandtap.wav',
+    );
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
   }
@@ -210,7 +223,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
     if (_selectedCount == _targetNumber) {
       // ✅ Correct
-      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      _playAudio('assets/audio/arctic_numberland/$_targetNumber.wav');
       setState(() => _submitFlashCorrect = true);
       _celebrationCtrl.forward(from: 0);
       _numberBounce.forward(from: 0);
@@ -228,6 +241,8 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       }
     } else {
       // ❌ Wrong
+      //TODO: replace wrong wav with doma vo
+      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
       setState(() => _submitFlashWrong = true);
       _wrongShakeCtrl.forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 2000));
@@ -271,44 +286,37 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
                           alignment: Alignment.centerLeft,
                           child: ArcticBackButton(),
                         ),
-                        const Text(
-                          'Tap & Count',
-                          style: TextStyle(
-                            fontFamily: ArcticAppTextStyles.fredoka,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: ArcticColorTheme.cadetblue,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
+
+                          decoration: BoxDecoration(
+                            color: ArcticColorTheme.pictonblue.withValues(
+                              alpha: 0.8,
+                            ),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(color: Colors.white, width: 3),
+                          ),
+                          child: Text(
+                            'Tap and count the number of object/s needed',
+                            style: TextStyle(
+                              fontFamily: ArcticAppTextStyles.fredoka,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              shadows: const [
+                                Shadow(
+                                  color: Colors.black38,
+                                  blurRadius: 6,
+                                  offset: Offset(0, 3),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // ── Prompt ──────────────────────────────────────────────────────
-                  AnimatedBuilder(
-                    animation: _wrongShakeAnim,
-                    builder: (_, child) {
-                      final shake = sin(_wrongShakeAnim.value * pi * 5) * 6;
-                      return Transform.translate(
-                        offset: Offset(shake, 0),
-                        child: child,
-                      );
-                    },
-                    child: Text(
-                      _submitFlashWrong
-                          ? 'So close! Give it another try 🌟'
-                          : _submitFlashCorrect
-                          ? '🎉 Great job!'
-                          : 'Tap $_targetNumber ${_theme.label}${_targetNumber > 1 ? 's' : ''}!',
-                      style: TextStyle(
-                        fontFamily: ArcticAppTextStyles.fredoka,
-                        fontSize: 20,
-                        color: _submitFlashWrong
-                            ? const Color(0xFFFFB347)
-                            : ArcticColorTheme.cadetblue,
-                      ),
                     ),
                   ),
 
@@ -321,26 +329,25 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const SizedBox(width: 20),
 
+                          const Spacer(),
                           // LEFT — Number card
                           _buildNumberCard(),
 
                           const SizedBox(width: 24),
 
-                          // Arrow
+                          //Arrow
                           const Icon(
                             Icons.arrow_forward_rounded,
                             color: ArcticColorTheme.slateblue,
-                            size: 32,
+                            size: 28,
                           ),
 
-                          const SizedBox(width: 24),
+                          const SizedBox(width: 12),
 
-                          // RIGHT — Object grid + submit
-                          Expanded(child: _buildObjectArea()),
+                          _buildObjectArea(),
 
-                          const SizedBox(width: 20),
+                          const Spacer(),
                         ],
                       ),
                     ),
@@ -360,12 +367,14 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   // ── Number card (left) ─────────────────────────────────────────────────────
 
   Widget _buildNumberCard() {
+    final s = MediaQuery.of(context).size;
+    final cardSize = (s.height * 0.32).clamp(80.0, 130.0);
     return ScaleTransition(
       scale: _numberBounceAnim,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        width: 110,
-        height: 110,
+        width: cardSize,
+        height: cardSize,
         decoration: BoxDecoration(
           color: _submitFlashWrong
               ? const Color(0xFFFFB347)
@@ -383,13 +392,13 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         child: Center(
           child: Image.asset(
             'assets/fonts/game_numbers/$_targetNumber.png',
-            width: 70,
+            width: cardSize * 0.6,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => Text(
               '$_targetNumber',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 64,
+                fontSize: cardSize * 0.6,
                 fontWeight: FontWeight.bold,
                 color: ArcticColorTheme.cotton,
               ),
@@ -474,18 +483,19 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   }
 
   Widget _buildObjectTile(int index) {
+    final tileSize = (MediaQuery.of(context).size.height * 0.18).clamp(52.0, 80.0);
     final isSelected = _selected[index];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: EdgeInsets.symmetric(horizontal: tileSize * 0.08),
       child: GestureDetector(
         onTap: () => _onObjectTap(index),
         child: ScaleTransition(
           scale: _objScaleAnims[index],
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
-            width: 68,
-            height: 68,
+            width: tileSize,
+            height: tileSize,
             decoration: BoxDecoration(
               color: isSelected ? _theme.color : ArcticColorTheme.cotton,
               borderRadius: BorderRadius.circular(18),
@@ -507,14 +517,14 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
               alignment: Alignment.center,
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: EdgeInsets.all(tileSize * 0.13),
                   child: Image.asset(
                     _theme.asset,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => Icon(
                       Icons.star_rounded,
                       color: isSelected ? Colors.white : _theme.color,
-                      size: 36,
+                      size: tileSize * 0.5,
                     ),
                   ),
                 ),
@@ -523,15 +533,15 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
                     top: 4,
                     right: 4,
                     child: Container(
-                      width: 18,
-                      height: 18,
+                      width: tileSize * 0.26,
+                      height: tileSize * 0.26,
                       decoration: const BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.check_rounded,
-                        size: 13,
+                        size: tileSize * 0.18,
                         color: Colors.green,
                       ),
                     ),
@@ -576,7 +586,9 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const NumberThreeIntroductionScreen()),
+          MaterialPageRoute(
+            builder: (_) => const NumberThreeIntroductionScreen(),
+          ),
         );
       },
       onRestart: () {

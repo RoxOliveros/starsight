@@ -38,7 +38,7 @@ class _NumberFiveIntroductionScreenState
   // ── Asset config ────────────────────────────────
   static const int _targetCount = 5;
   static const String _numberWord = 'FIVE';
-  static const String _instructions = 'Tap FIVE Hats!';
+  static const String _instructions = ' 👆 Tap FIVE Hats!';
   static const int _numberInt = 5;
   static const String _numberImagePath = 'assets/fonts/game_numbers/5.png';
   static const String _characterImage =
@@ -70,8 +70,10 @@ class _NumberFiveIntroductionScreenState
       'assets/audio/arctic_numberland/level11/write_five.wav';
   static const String _audioCount =
       'assets/audio/arctic_numberland/level11/count_five.wav';
-  static const String _audioGoodJob = 'assets/audio/arctic_numberland/mahusay.wav';
-  static const String _audioVeryGood = 'assets/audio/arctic_numberland/magaling.wav';
+  static const String _audioGoodJob =
+      'assets/audio/arctic_numberland/mahusay.wav';
+  static const String _audioVeryGood =
+      'assets/audio/arctic_numberland/magaling.wav';
 
   // ── Top-level phase ────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -293,15 +295,27 @@ class _NumberFiveIntroductionScreenState
         final cleaned = words.replaceAll(RegExp(r'[^a-z\s]'), '').trim();
 
         final matched =
-            cleaned.split(RegExp(r'\s+')).any((word) =>
-            word == 'five' ||
-                word == 'fi' ||
-                word == 'fife' ||
-                word == 'hive' ||
-                word == 'fine' ||
-                word == 'fyve' ||
-                word == 'fiev') ||
-                cleaned.contains('five');
+            cleaned
+                .split(RegExp(r'\s+'))
+                .any(
+                  (word) =>
+                      word == 'five' ||
+                      word == 'fi' ||
+                      word == 'fife' ||
+                      word == 'hive' ||
+                      word == 'fyve' ||
+                      word == 'fiev' ||
+                      word == 'fine' ||
+                      word == 'fife' ||
+                      word == 'fiv' ||
+                      word == 'faiv' ||
+                      word == 'fibe' ||
+                      word == 'fav' ||
+                      word == 'feiv' ||
+                      word == 'fai',
+                ) ||
+            cleaned.contains('five') ||
+            cleaned.contains('fiv');
 
         if (matched) {
           debugPrint('STT matched: "$words"');
@@ -324,14 +338,11 @@ class _NumberFiveIntroductionScreenState
       debugPrint('STT status: $status');
       if (status == 'done' || status == 'notListening') {
         _listenRestartTimer?.cancel();
-        _listenRestartTimer = Timer(
-          const Duration(milliseconds: 800),
-              () {
-            if (!mounted || _recognized) return;
-            setState(() => _isListening = false);
-            _startListening();
-          },
-        );
+        _listenRestartTimer = Timer(const Duration(milliseconds: 800), () {
+          if (!mounted || _recognized) return;
+          setState(() => _isListening = false);
+          _startListening();
+        });
       }
     };
   }
@@ -358,16 +369,15 @@ class _NumberFiveIntroductionScreenState
   void _randomiseObjectPosition() {
     final rng = Random();
 
-    // 8 well-spaced slots on the RIGHT half only (x: 0.52–0.92)
     final allSlots = [
-      const Offset(0.55, 0.30),
-      const Offset(0.70, 0.30),
-      const Offset(0.85, 0.30),
-      const Offset(0.55, 0.58),
-      const Offset(0.70, 0.58),
-      const Offset(0.85, 0.58),
-      const Offset(0.62, 0.85),
-      const Offset(0.78, 0.85),
+      const Offset(0.55, 0.32),
+      const Offset(0.67, 0.32),
+      const Offset(0.79, 0.32),
+      const Offset(0.91, 0.32),
+      const Offset(0.55, 0.72),
+      const Offset(0.67, 0.72),
+      const Offset(0.79, 0.72),
+      const Offset(0.91, 0.72),
     ]..shuffle(rng);
 
     _objectPos  = allSlots[0];
@@ -380,26 +390,14 @@ class _NumberFiveIntroductionScreenState
     _decoyPos3  = allSlots[7];
 
     _decoyAsset = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
-    _decoyEmoji = (_decoyAsset == _decoyOptionAsset1)
-        ? _decoyOptionEmoji1
-        : _decoyOptionEmoji2;
+    _decoyEmoji = (_decoyAsset == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji2;
     _decoyAsset2 = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
-    _decoyEmoji2 = (_decoyAsset2 == _decoyOptionAsset1)
-        ? _decoyOptionEmoji1
-        : _decoyOptionEmoji2;
+    _decoyEmoji2 = (_decoyAsset2 == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji2;
     _decoyAsset3 = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset3;
-    _decoyEmoji3 = (_decoyAsset3 == _decoyOptionAsset1)
-        ? _decoyOptionEmoji1
-        : _decoyOptionEmoji3;
+    _decoyEmoji3 = (_decoyAsset3 == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji3;
   }
 
-  final List<bool> _objectTapped = [
-    false,
-    false,
-    false,
-    false,
-    false,
-  ];
+  final List<bool> _objectTapped = [false, false, false, false, false];
 
   void _onObjectTapped(Offset tappedPos, {required int index}) async {
     if (_objectsTapped >= _targetCount) return;
@@ -546,7 +544,7 @@ class _NumberFiveIntroductionScreenState
             Positioned(
               bottom: 20,
               right: 20,
-              child: _buildSkipButton(),
+              child: ArcticSkipButton(onTap: _onWordRecognized),
             ),
         ],
       ),
@@ -716,40 +714,32 @@ class _NumberFiveIntroductionScreenState
                   right: 0,
                   child: Center(
                     child: Container(
-                      margin: const EdgeInsets.only(top: 8),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 10,
+                        horizontal: 20,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: ArcticColorTheme.pictonblue.withValues(
                           alpha: 0.8,
                         ),
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(30),
                         border: Border.all(color: Colors.white, width: 3),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('👆', style: TextStyle(fontSize: 22)),
-                          const SizedBox(width: 8),
-                          Text(
-                            _instructions,
-                            style: TextStyle(
-                              fontFamily: ArcticAppTextStyles.fredoka,
-                              fontSize: (h * 0.09).clamp(16.0, 26.0),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: const [
-                                Shadow(
-                                  color: Color(0x55003366),
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
+                      child: Text(
+                        _instructions,
+                        style: TextStyle(
+                          fontFamily: ArcticAppTextStyles.fredoka,
+                          fontSize: (h * 0.09).clamp(16.0, 26.0),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: const [
+                            Shadow(
+                              color: Color(0x55003366),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -981,20 +971,34 @@ class _NumberFiveIntroductionScreenState
                 if (_objectsTapped < _targetCount)
                   Positioned(
                     left: _decoyPos3.dx * w - objSize / 2,
-                    top:  _decoyPos3.dy * h - objSize / 2,
+                    top: _decoyPos3.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
-                        offset: Offset(0, (_objectWiggleCtrl.value - 0.5) * -10),
+                        offset: Offset(
+                          0,
+                          (_objectWiggleCtrl.value - 0.5) * -10,
+                        ),
                         child: child,
                       ),
                       child: GestureDetector(
                         onTap: () {
                           setState(() => _wrongTapped3 = true);
-                          Future.delayed(const Duration(milliseconds: 1000),
-                                  () { if (mounted) setState(() => _wrongTapped3 = false); });
+                          Future.delayed(
+                            const Duration(milliseconds: 1000),
+                            () {
+                              if (mounted) {
+                                setState(() => _wrongTapped3 = false);
+                              }
+                            },
+                          );
                         },
-                        child: _buildObjectCircle(objSize, _decoyAsset3, _decoyEmoji3, _wrongTapped3),
+                        child: _buildObjectCircle(
+                          objSize,
+                          _decoyAsset3,
+                          _decoyEmoji3,
+                          _wrongTapped3,
+                        ),
                       ),
                     ),
                   ),
@@ -1015,7 +1019,9 @@ class _NumberFiveIntroductionScreenState
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Number345ReintroductionScreen()),
+          MaterialPageRoute(
+            builder: (_) => const Number345ReintroductionScreen(),
+          ),
         );
       },
       onRestart: () {
@@ -1031,17 +1037,6 @@ class _NumberFiveIntroductionScreenState
           (route) => route.isFirst,
         );
       },
-    );
-  }
-
-  Widget _buildSkipButton() {
-    return GestureDetector(
-      onTap: _onWordRecognized,
-      child: Image.asset(
-        'assets/images/buttons/skip.png',
-        width: 72,
-        fit: BoxFit.contain,
-      ),
     );
   }
 }

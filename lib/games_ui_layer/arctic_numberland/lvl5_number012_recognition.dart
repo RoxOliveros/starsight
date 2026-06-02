@@ -68,20 +68,25 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   void _onChoiceTap(int index) async {
     if (_tappedIndex != null) return;
-    setState(() => _tappedIndex = index);
 
     if (_choices[index] == _correctNumber) {
-      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
-    }
-
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (_round >= _totalRounds) {
-      setState(() => _showWinDialog = true);
+      setState(() => _tappedIndex = index);
+      _playAudio('assets/audio/arctic_numberland/$_correctNumber.wav');
+      await Future.delayed(const Duration(milliseconds: 900));
+      if (_round >= _totalRounds) {
+        setState(() => _showWinDialog = true);
+      } else {
+        setState(() {
+          _round++;
+          _generateRound();
+        });
+      }
     } else {
-      setState(() {
-        _round++;
-        _generateRound();
-      });
+      setState(() => _tappedIndex = index);
+      //TODO: @Tin if ever you wanna change wrong wav to doma vo
+      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await Future.delayed(const Duration(milliseconds: 600));
+      setState(() => _tappedIndex = null);
     }
   }
 
@@ -152,37 +157,38 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                           alignment: Alignment.centerLeft,
                           child: ArcticBackButton(),
                         ),
-                        const Text(
-                          'Number Recognition',
-                          style: TextStyle(
-                            fontFamily: ArcticAppTextStyles.fredoka,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2)),
-                            ],
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: ArcticColorTheme.pictonblue.withValues(
+                              alpha: 0.8,
+                            ),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(color: Colors.white, width: 3),
+                          ),
+                          child: Text(
+                            'Tap the number you see!',
+                            style: TextStyle(
+                              fontFamily: ArcticAppTextStyles.fredoka,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black54,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                  // --- PROMPT ---
-                  const Text(
-                    'Tap the number you see!',
-                    style: TextStyle(
-                      fontFamily: ArcticAppTextStyles.fredoka,
-                      fontSize: 20,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      shadows: [
-                        Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2)),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
 
                   // --- MAIN CONTENT ---
                   Expanded(
@@ -339,7 +345,9 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Number012CountingObjectsScreen()),
+          MaterialPageRoute(
+            builder: (_) => const Number012CountingObjectsScreen(),
+          ),
         );
       },
       onRestart: () {
@@ -444,7 +452,11 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
             color: Colors.white,
             letterSpacing: 2,
             shadows: const [
-              Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2)),
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
             ],
           ),
         ),

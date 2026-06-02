@@ -29,7 +29,8 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level14/intro.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level14/intro.wav';
 
   // ── Objects pool (all arctic_numberland assets) ──────────────────────────────────────
   static const List<Map<String, String>> _objects = [
@@ -199,19 +200,24 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
 
     if (isCorrect) {
       _correctPulseCtrl.forward(from: 0);
-      await _playAudio('assets/audio/arctic_numberland/$_correctCount.wav');    }
+      await _playAudio('assets/audio/arctic_numberland/$_correctCount.wav');
+      await Future.delayed(const Duration(milliseconds: 900));
+      if (!mounted) return;
 
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-
-    if (_round >= _totalRounds) {
-      setState(() => _showWinDialog = true);
+      if (_round >= _totalRounds) {
+        setState(() => _showWinDialog = true);
+      } else {
+        setState(() {
+          _round++;
+          _generateRound();
+        });
+        _animateRoundIn();
+      }
     } else {
-      setState(() {
-        _round++;
-        _generateRound();
-      });
-      _animateRoundIn();
+      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
+      setState(() => _tappedIndex = null);
     }
   }
 
@@ -396,53 +402,35 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
             alignment: Alignment.center,
             children: [
               Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
-              const Text(
-                'Counting Objects',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black54,
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+
+                decoration: BoxDecoration(
+                  color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white, width: 3),
+                ),
+                child: Text(
+                  'How many are there?',
+                  style: TextStyle(
+                    fontFamily: ArcticAppTextStyles.fredoka,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black54,
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
-          ),
-        ),
-
-        // Subtitle — tappable to replay audio
-        GestureDetector(
-          onTap: () {},
-          child: Container(
-            margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-            decoration: BoxDecoration(
-              color: ArcticColorTheme.pictonblue.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            child: const Text(
-              'How many are there?',
-              style: TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 20,
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                shadows: [
-                  Shadow(
-                    color: Colors.black45,
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
 
@@ -454,16 +442,17 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Objects display box
-              ScaleTransition(scale: _objectsEnter, child: _buildObjectsBox()),
-
-              // Choices grid
-              ScaleTransition(scale: _choicesEnter, child: _buildChoicesGrid()),
+              Expanded(
+                flex: 5,
+                child: ScaleTransition(scale: _objectsEnter, child: _buildObjectsBox()),
+              ),
+              Expanded(
+                flex: 3,
+                child: ScaleTransition(scale: _choicesEnter, child: _buildChoicesGrid()),
+              ),
             ],
           ),
         ),
-
-        const SizedBox(height: 10),
 
         // ── PROGRESS DOTS ───────────────────────
         Padding(
@@ -476,9 +465,8 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
 
   Widget _buildObjectsBox() {
     return Container(
-      width: 300,
       height: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 16, left: 12),
       decoration: BoxDecoration(
         color: ArcticColorTheme.cotton,
         borderRadius: BorderRadius.circular(24),
@@ -492,44 +480,47 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: _buildObjectGrid(),
       ),
     );
   }
 
   Widget _buildObjectGrid() {
-    // Layout: up to 5 objects in a wrap
-    // For 3 → 3 items, 4 → 4 items, 5 → 5 items
-    return Wrap(
-      alignment: WrapAlignment.center,
-      runAlignment: WrapAlignment.center,
-      spacing: 10,
-      runSpacing: 10,
-      children: List.generate(_correctCount, (i) {
-        return Image.asset(
-          _currentObjectAsset,
-          width: 68,
-          height: 68,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) =>
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final objSize = (constraints.maxHeight * 0.38).clamp(50.0, 105.0);
+        return Wrap(
+          alignment: WrapAlignment.center,
+          runAlignment: WrapAlignment.center,
+          spacing: 12,
+          runSpacing: 12,
+          children: List.generate(_correctCount, (i) {
+            return Image.asset(
+              _currentObjectAsset,
+              width: objSize,
+              height: objSize,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) =>
               const Text('❄️', style: TextStyle(fontSize: 48)),
+            );
+          }),
         );
-      }),
+      },
     );
   }
 
   Widget _buildChoicesGrid() {
-    return SizedBox(
-      width: 250,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16, left: 12, right: 12),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.3,
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+          childAspectRatio: 1.4,   // ← changed from 1.3
         ),
         itemCount: _choices.length,
         itemBuilder: (context, index) {

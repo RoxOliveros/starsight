@@ -28,3 +28,21 @@ class ArcticBackButton extends StatelessWidget {
     );
   }
 }
+
+class ArcticSkipButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const ArcticSkipButton({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Image.asset(
+        'assets/images/buttons/skip.png',
+        width: 72,
+        fit: BoxFit.contain,
+      ),
+    );
+  }
+}

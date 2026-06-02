@@ -316,6 +316,7 @@ class _NumberZeroIntroductionScreenState
               ),
             ],
           ),
+          // Listening prompt
           if (_introPhase == _IntroPhase.listening)
             Align(
               alignment: Alignment.bottomCenter,
@@ -323,6 +324,12 @@ class _NumberZeroIntroductionScreenState
                 padding: const EdgeInsets.only(bottom: 30),
                 child: _buildBottomListeningPrompt(),
               ),
+            ),
+          if (_introPhase == _IntroPhase.listening)
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: ArcticSkipButton(onTap: _onWordRecognized),
             ),
         ],
       ),

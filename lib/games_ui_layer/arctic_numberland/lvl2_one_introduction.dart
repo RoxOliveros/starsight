@@ -240,14 +240,22 @@ class _NumberOneIntroductionScreenState
     _speech.listen(
       onResult: (result) {
         final words = result.recognizedWords.toLowerCase();
-        if (words.contains('one') || words.contains('won')) {
+        if (words.contains('one') ||
+            words.contains('won') ||
+            words.contains('wan') ||
+            words.contains(' on') ||
+            words.contains('run') ||
+            words.contains('hun') ||
+            words.contains('gun') ||
+            words.contains('fun') ||
+            words.contains('sun') ||
+            words.contains('1')) {
           _speech.stop();
           setState(() => _isListening = false);
           _onWordRecognized();
         }
       },
       onSoundLevelChange: (_) {},
-      // keeps session alive on some devices
       listenFor: const Duration(seconds: 30),
       pauseFor: const Duration(seconds: 15),
       localeId: 'en_US',
@@ -296,6 +304,7 @@ class _NumberOneIntroductionScreenState
     if (_objectTapped) return;
     setState(() => _objectTapped = true);
     await _objectTapCtrl.forward(from: 0);
+    await _playAudio('assets/audio/arctic_numberland/1.wav');
     await Future.delayed(const Duration(milliseconds: 200));
     setState(() => _showWinDialog = true);
   }
@@ -391,6 +400,12 @@ class _NumberOneIntroductionScreenState
                 padding: const EdgeInsets.only(bottom: 30),
                 child: _buildBottomListeningPrompt(),
               ),
+            ),
+          if (_introPhase == _IntroPhase.listening)
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: ArcticSkipButton(onTap: _onWordRecognized),
             ),
         ],
       ),
@@ -550,7 +565,7 @@ class _NumberOneIntroductionScreenState
                 // Instruction banner — anchored top center
                 Positioned(
                   top: 0,
-                  left: w * 0.35,
+                  left: 0,
                   right: 0,
                   child: Center(
                     child: Container(
@@ -560,10 +575,8 @@ class _NumberOneIntroductionScreenState
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: ArcticColorTheme.pictonblue.withValues(
-                          alpha: 0.8,
-                        ),
-                        borderRadius: BorderRadius.circular(24),
+                        color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(30),
                         border: Border.all(color: Colors.white, width: 3),
                       ),
                       child: Row(

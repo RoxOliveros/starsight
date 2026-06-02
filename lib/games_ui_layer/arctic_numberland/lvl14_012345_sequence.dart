@@ -235,6 +235,8 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         _slotWrong[slotIndex] = true;
       });
 
+      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+
       await Future.delayed(const Duration(milliseconds: 600));
 
       if (!mounted) return;

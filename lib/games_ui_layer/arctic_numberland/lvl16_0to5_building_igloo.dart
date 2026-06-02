@@ -47,6 +47,7 @@ class _Number0to5FillIglooScreenState
 
   int _placedCount = 0;
   bool _roundComplete = false;
+  bool _roundAdvancing = false;
   bool _showWinDialog = false;
   late List<int> _roundPool;
 
@@ -195,6 +196,7 @@ class _Number0to5FillIglooScreenState
     _slotHighlighted = List.filled(_targetCount, false);
     _placedCount = 0;
     _roundComplete = false;
+    _roundAdvancing = false;
     _draggingBlockIndex = null;
 
     // Reset slot fill animations
@@ -251,7 +253,8 @@ class _Number0to5FillIglooScreenState
     }
 
     if (hitSlot != null) {
-      // Snap into slot
+      if (_roundAdvancing) return;
+
       final blockId = _draggingBlockIndex!;
       setState(() {
         _slotContents[hitSlot!] = blockId;
@@ -264,28 +267,16 @@ class _Number0to5FillIglooScreenState
       _slotFillCtrls[hitSlot].forward(from: 0);
       await _playAudio('assets/audio/arctic_numberland/$_placedCount.wav');
 
-      if (_placedCount == _targetCount) {
+      if (_placedCount == _targetCount && !_roundAdvancing) {
+        _roundAdvancing = true;
         await Future.delayed(const Duration(milliseconds: 300));
-
-        // Keep broken igloo visible while build sound plays
         await _playAudio(_audioBuild);
-
         if (!mounted) return;
-
-        // NOW switch to completed igloo
-        setState(() {
-          _roundComplete = true;
-        });
-
+        setState(() => _roundComplete = true);
         _correctPulseCtrl.forward(from: 0);
-
-        // play completion voice after igloo appears
         await _playAudio(_audioComplete);
-
         await Future.delayed(const Duration(milliseconds: 700));
-
         if (!mounted) return;
-
         if (_currentRound + 1 >= _totalRounds) {
           setState(() => _showWinDialog = true);
         } else {

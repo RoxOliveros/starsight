@@ -323,7 +323,7 @@ class _NumberThreeIntroductionScreenState
       _iceCreamTapped[index] = true;
     });
     _objectTapCtrl.forward(from: 0);
-    _playAudio('assets/audio/arctic_numberland/$_iceCreamsTapped.wav');
+    await _playAudio('assets/audio/arctic_numberland/$_iceCreamsTapped.wav');
     if (_iceCreamsTapped >= _targetCount) {
       await Future.delayed(const Duration(milliseconds: 200));
       setState(() => _showWinDialog = true);
@@ -460,6 +460,12 @@ class _NumberThreeIntroductionScreenState
                 padding: const EdgeInsets.only(bottom: 30),
                 child: _buildBottomListeningPrompt(),
               ),
+            ),
+          if (_introPhase == _IntroPhase.listening)
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: ArcticSkipButton(onTap: _onWordRecognized),
             ),
         ],
       ),
@@ -620,47 +626,40 @@ class _NumberThreeIntroductionScreenState
               else ...[
                 // Instruction banner — anchored top center
                 Positioned(
-                  top: 0,
-                  left: w * 0.35,
+                  top: 10,
+                  left:  0,
                   right: 0,
                   child: Center(
                     child: Container(
-                      margin: const EdgeInsets.only(top: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: ArcticColorTheme.pictonblue.withValues(
-                          alpha: 0.8,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
                         ),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white, width: 3),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('👆', style: TextStyle(fontSize: 22)),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Tap THREE Tree!',
-                            style: TextStyle(
-                              fontFamily: ArcticAppTextStyles.fredoka,
-                              fontSize: (h * 0.09).clamp(16.0, 26.0),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: const [
-                                Shadow(
-                                  color: Color(0x55003366),
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
+                        decoration: BoxDecoration(
+                          color: ArcticColorTheme.pictonblue.withValues(
+                            alpha: 0.8,
                           ),
-                        ],
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(color: Colors.white, width: 3),
+                        ),
+                        child: Text(
+                          ' 👆 Tap THREE Tree!',
+                          style: TextStyle(
+                            fontFamily: ArcticAppTextStyles.fredoka,
+                            fontSize: (h * 0.09).clamp(16.0, 26.0),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            shadows: const [
+                              Shadow(
+                                color: Color(0x55003366),
+                                blurRadius: 6,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+
                   ),
                 ),
 
@@ -840,7 +839,9 @@ class _NumberThreeIntroductionScreenState
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const NumberFourIntroductionScreen()),
+          MaterialPageRoute(
+            builder: (_) => const NumberFourIntroductionScreen(),
+          ),
         );
       },
       onRestart: () {

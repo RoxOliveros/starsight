@@ -201,9 +201,6 @@ class _NumberTwoIntroductionScreenState
     await Future.delayed(const Duration(milliseconds: 1500));
     await _playAudio('assets/audio/arctic_numberland/level3/say_two.wav');
 
-    // Fully release the audio player before STT starts
-    await _player.stop();
-    await _player.release();
     await Future.delayed(const Duration(milliseconds: 1500));
 
     _setIntroPhase(_IntroPhase.listening);
@@ -217,14 +214,6 @@ class _NumberTwoIntroductionScreenState
       final sub = _player.onPlayerComplete.listen((_) {
         if (!completer.isCompleted) completer.complete();
       });
-      await _player.setAudioContext(AudioContext(
-        android: AudioContextAndroid(
-          audioFocus: AndroidAudioFocus.gainTransientMayDuck,
-          usageType: AndroidUsageType.assistanceSonification,
-          contentType: AndroidContentType.sonification,
-        ),
-      ));
-      await _player.setReleaseMode(ReleaseMode.release);
       await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
       await completer.future;
       await sub.cancel();
@@ -241,35 +230,43 @@ class _NumberTwoIntroductionScreenState
 
   // ── Speech ────────────────────────────────────────────────────────────────
   void _startListening() {
-    if (!_speechAvailable) {
-      Future.delayed(const Duration(seconds: 6), _onWordRecognized);
-      return;
-    }
+    if (!_speechAvailable || _recognized) return;
 
     _speech.statusListener = (status) {
-      if (!mounted) return;
-      if ((status == 'done' || status == 'notListening') &&
-          _introPhase == _IntroPhase.listening &&
-          !_recognized) {
-        Future.delayed(const Duration(milliseconds: 500), _startListening);
+      if (!mounted || _recognized) return;
+      if (status == 'done' || status == 'notListening') {
+        if (_introPhase == _IntroPhase.listening) {
+          Future.delayed(const Duration(milliseconds: 400), _startListening);
+        }
       }
     };
 
-    if (_speech.isListening) return;
+    // ← KEY FIX: restart on ANY error, including permanent ones
+    _speech.errorListener = (error) {
+      if (!mounted || _recognized) return;
+      debugPrint('STT error: $error');
+      if (_introPhase == _IntroPhase.listening) {
+        Future.delayed(const Duration(milliseconds: 400), _startListening);
+      }
+    };
 
     setState(() => _isListening = true);
     _speech.listen(
       onResult: (result) {
         if (_recognized) return;
-        final words = result.recognizedWords.toLowerCase();
+        final words = result.recognizedWords.toLowerCase().trim();
         debugPrint('STT result: "$words"');
         if (words.contains('two') ||
-            words.contains('to') ||
             words.contains('too') ||
             words.contains('tow') ||
+            words.contains('tew') ||
+            words.contains('tue') ||
             words.contains('tu') ||
-            words.contains('do') ||
-            words.contains('doo') ||
+            words.contains('true') ||
+            words.contains('through') ||
+            words.contains('drew') ||
+            words.contains('dew') ||
+            words.contains('due') ||
             words == '2' ||
             words.startsWith('2')) {
           _speech.stop();
@@ -278,8 +275,8 @@ class _NumberTwoIntroductionScreenState
         }
       },
       onSoundLevelChange: (_) {},
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 15),
+      listenFor: const Duration(seconds: 10), // ← shorter: forces faster restart cycle
+      pauseFor: const Duration(seconds: 5),   // ← shorter: don't wait 15s on silence
       localeId: 'en_US',
     );
   }
@@ -335,6 +332,9 @@ class _NumberTwoIntroductionScreenState
       }
     });
     _objectTapCtrl.forward(from: 0);
+
+    await _playAudio('assets/audio/arctic_numberland/$_iceCreamsTapped.wav');
+
     if (_iceCreamsTapped >= _targetCount) {
       await Future.delayed(const Duration(milliseconds: 200));
       setState(() => _showWinDialog = true);
@@ -450,6 +450,12 @@ class _NumberTwoIntroductionScreenState
                 padding: const EdgeInsets.only(bottom: 30),
                 child: _buildBottomListeningPrompt(),
               ),
+            ),
+          if (_introPhase == _IntroPhase.listening)
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: ArcticSkipButton(onTap: _onWordRecognized),
             ),
         ],
       ),
@@ -609,7 +615,7 @@ class _NumberTwoIntroductionScreenState
                 // Instruction banner — anchored top center
                 Positioned(
                   top: 0,
-                  left: w * 0.35,
+                  left: 0,
                   right: 0,
                   child: Center(
                     child: Container(
@@ -619,10 +625,8 @@ class _NumberTwoIntroductionScreenState
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: ArcticColorTheme.pictonblue.withValues(
-                          alpha: 0.8,
-                        ),
-                        borderRadius: BorderRadius.circular(24),
+                        color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(30),
                         border: Border.all(color: Colors.white, width: 3),
                       ),
                       child: Row(

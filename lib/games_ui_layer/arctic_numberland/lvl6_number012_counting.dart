@@ -109,20 +109,26 @@ class _Number012CountingObjectsScreenState
 
   void _onChoiceTap(int index) async {
     if (_tappedIndex != null) return;
-    setState(() => _tappedIndex = index);
 
     if (_choices[index] == _correctCount) {
-      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
-    }
-
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (_round >= _totalRounds) {
-      setState(() => _showWinDialog = true);
+      setState(() => _tappedIndex = index);
+      _playAudio('assets/audio/arctic_numberland/$_correctCount.wav');
+      await Future.delayed(const Duration(milliseconds: 900));
+      if (_round >= _totalRounds) {
+        setState(() => _showWinDialog = true);
+      } else {
+        setState(() {
+          _round++;
+          _generateRound();
+        });
+      }
     } else {
-      setState(() {
-        _round++;
-        _generateRound();
-      });
+      setState(() => _tappedIndex = index);
+
+      //TODO: @Tin change wrong wav to doma vo
+      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await Future.delayed(const Duration(milliseconds: 600));
+      setState(() => _tappedIndex = null);
     }
   }
 
@@ -193,28 +199,36 @@ class _Number012CountingObjectsScreenState
                           alignment: Alignment.centerLeft,
                           child: ArcticBackButton(),
                         ),
-                        const Text(
-                          'Counting Objects',
-                          style: TextStyle(
-                            fontFamily: ArcticAppTextStyles.fredoka,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: ArcticColorTheme.pictonblue.withValues(
+                              alpha: 0.8,
+                            ),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(color: Colors.white, width: 3),
+                          ),
+                          child: Text(
+                            'How many are there?',
+                            style: TextStyle(
+                              fontFamily: ArcticAppTextStyles.fredoka,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black54,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
-                    ),
-                  ),
-
-                  const Text(
-                    'How many are there?',
-                    style: TextStyle(
-                      fontFamily: ArcticAppTextStyles.fredoka,
-                      fontSize: 22,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
                     ),
                   ),
 
@@ -227,97 +241,105 @@ class _Number012CountingObjectsScreenState
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // OBJECTS DISPLAY BOX
-                        Container(
-                          width: 340,
-                          height: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: ArcticColorTheme.cotton,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: ArcticColorTheme.pictonblue,
-                              width: 4,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ArcticColorTheme.pictonblue.withValues(
-                                  alpha: 0.3,
-                                ),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
+                        Expanded(
+                          flex: 4,
+                          child: Container(
+                            height: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 16, left: 12),
+                            decoration: BoxDecoration(
+                              color: ArcticColorTheme.cotton,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: ArcticColorTheme.pictonblue,
+                                width: 4,
                               ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: _buildObjectGrid(),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: ArcticColorTheme.pictonblue.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: _buildObjectGrid(),
+                            ),
                           ),
                         ),
 
                         // CHOICES
-                        SizedBox(
-                          width: 300,
-                          child: GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 14,
-                                  mainAxisSpacing: 14,
-                                  childAspectRatio: 1.4,
-                                ),
-                            itemCount: _choices.length,
-                            itemBuilder: (context, index) {
-                              return GestureDetector(
-                                onTap: () => _onChoiceTap(index),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  decoration: BoxDecoration(
-                                    color: _choiceColor(index),
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
-                                      color: _choiceBorderColor(index),
-                                      width: 3,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: _choiceColor(
-                                          index,
-                                        ).withValues(alpha: 0.35),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
+                        Expanded(
+                          flex: 3,
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: 16,
+                              left: 12,
+                              right: 12,
+                            ),
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    crossAxisSpacing: 14,
+                                    mainAxisSpacing: 14,
+                                    childAspectRatio: 1.4,
                                   ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(10),
-                                    child: Image.asset(
-                                      'assets/fonts/game_numbers/${_choices[index]}.png',
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) => Center(
-                                        child: Text(
-                                          '${_choices[index]}',
-                                          style: const TextStyle(
-                                            fontFamily:
-                                                ArcticAppTextStyles.fredoka,
-                                            fontSize: 36,
-                                            fontWeight: FontWeight.bold,
-                                            color: ArcticColorTheme.cotton,
+                              itemCount: _choices.length,
+                              itemBuilder: (context, index) {
+                                return GestureDetector(
+                                  onTap: () => _onChoiceTap(index),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    decoration: BoxDecoration(
+                                      color: _choiceColor(index),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: _choiceBorderColor(index),
+                                        width: 3,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: _choiceColor(
+                                            index,
+                                          ).withValues(alpha: 0.35),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Image.asset(
+                                        'assets/fonts/game_numbers/${_choices[index]}.png',
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) => Center(
+                                          child: Text(
+                                            '${_choices[index]}',
+                                            style: const TextStyle(
+                                              fontFamily:
+                                                  ArcticAppTextStyles.fredoka,
+                                              fontSize: 36,
+                                              fontWeight: FontWeight.bold,
+                                              color: ArcticColorTheme.cotton,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
 
                   _buildProgressDots(),
                 ],
@@ -330,21 +352,26 @@ class _Number012CountingObjectsScreenState
   }
 
   Widget _buildObjectGrid() {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      runAlignment: WrapAlignment.center,
-      spacing: 12,
-      runSpacing: 12,
-      children: List.generate(_correctCount, (i) {
-        return Image.asset(
-          _currentObject,
-          width: 60,
-          height: 60,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) =>
-              const Text('🍎', style: TextStyle(fontSize: 48)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final objSize = (constraints.maxHeight * 0.28).clamp(40.0, 80.0);
+        return Wrap(
+          alignment: WrapAlignment.center,
+          runAlignment: WrapAlignment.center,
+          spacing: 12,
+          runSpacing: 12,
+          children: List.generate(_correctCount, (i) {
+            return Image.asset(
+              _currentObject,
+              width: objSize,
+              height: objSize,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) =>
+                  const Text('🍎', style: TextStyle(fontSize: 48)),
+            );
+          }),
         );
-      }),
+      },
     );
   }
 
@@ -383,13 +410,15 @@ class _Number012CountingObjectsScreenState
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Number012CountingObjectsScreen()),
+          MaterialPageRoute(
+            builder: (_) => const Number012CountingObjectsScreen(),
+          ),
         );
       },
       onBack: () {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-              (route) => route.isFirst,
+          (route) => route.isFirst,
         );
       },
     );
@@ -411,7 +440,7 @@ class _Number012CountingObjectsScreenState
                       height: MediaQuery.of(context).size.height * 0.65,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>
-                      const Text('🐧', style: TextStyle(fontSize: 60)),
+                          const Text('🐧', style: TextStyle(fontSize: 60)),
                     ),
                   ),
                 ),
@@ -426,7 +455,9 @@ class _Number012CountingObjectsScreenState
                             final angle =
                                 _numberDance.value * ((i % 2 == 0) ? 1 : -1);
                             return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               child: Transform.rotate(
                                 angle: angle,
                                 child: _buildIntroNumberCard(i),
@@ -480,7 +511,13 @@ class _Number012CountingObjectsScreenState
             fontWeight: FontWeight.bold,
             color: Colors.white,
             letterSpacing: 2,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+            shadows: [
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
         ),
       ],

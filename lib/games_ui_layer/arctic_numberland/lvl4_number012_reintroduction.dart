@@ -126,7 +126,9 @@ class _Number012ReintroductionScreenState
     _bounceController.forward(from: 0);
 
     if (_currentNumber == 0) {
-      Future.delayed(const Duration(milliseconds: 1800), _nextNumber);
+      _playAudio('assets/audio/arctic_numberland/0.wav').then((_) {
+        Future.delayed(const Duration(milliseconds: 600), _nextNumber);
+      });
     }
   }
 
@@ -272,20 +274,28 @@ class _Number012ReintroductionScreenState
         children: [
           ArcticBackButton(),
           const Spacer(),
-          Text(
-            'Number Introduction',
-            style: TextStyle(
-              fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              shadows: const [
-                Shadow(
-                  color: Colors.black54,
-                  blurRadius: 8,
-                  offset: Offset(0, 2),
-                ),
-              ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            decoration: BoxDecoration(
+              color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            child: Text(
+              ' 👆 Let\'s Count! Tap the Objects',
+              style: TextStyle(
+                fontFamily: ArcticAppTextStyles.fredoka,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                shadows: const [
+                  Shadow(
+                    color: Colors.black54,
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
             ),
           ),
           const Spacer(),
@@ -368,58 +378,15 @@ class _Number012ReintroductionScreenState
   }
 
   Widget _buildDotArea() {
-    final tappedCount = _dotsTapped.where((t) => t).length;
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
         final dotSize = (h * 0.28).clamp(52.0, 80.0);
         final dotImageSize = (dotSize * 0.6).clamp(28.0, 50.0);
-        final labelFontSize = (h * 0.07).clamp(13.0, 18.0);
 
         return Column(
           children: [
             SizedBox(height: h * 0.03),
-            Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              decoration: BoxDecoration(
-                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('👆', style: TextStyle(fontSize: 22)),
-                  const SizedBox(width: 8),
-                  Text(
-                    _allTapped
-                        ? 'Great job!'
-                        : 'Tap all the ${_theme.label}!  $tappedCount / $_currentNumber',
-                    style: TextStyle(
-                      fontFamily: ArcticAppTextStyles.fredoka,
-                      fontSize: labelFontSize,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: const [
-                        Shadow(
-                          color: Color(0x55003366),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
             Expanded(
               child: Stack(
                 children: List.generate(_currentNumber, (i) {
@@ -496,8 +463,8 @@ class _Number012ReintroductionScreenState
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(_totalNumbers, (i) {
-        final done = i + 1 < _currentNumber;
-        final current = i + 1 == _currentNumber;
+        final done = i < _currentNumber;
+        final current = i == _currentNumber;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           margin: const EdgeInsets.symmetric(horizontal: 5),
@@ -631,6 +598,13 @@ class _Number012ReintroductionScreenState
             fontWeight: FontWeight.bold,
             color: Colors.white,
             letterSpacing: 2,
+            shadows: const [
+              Shadow(
+                color: Colors.black38,
+                blurRadius: 6,
+                offset: Offset(0, 3),
+              ),
+            ],
           ),
         ),
       ],

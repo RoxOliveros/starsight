@@ -66,8 +66,10 @@ class _NumberFourIntroductionScreenState
       'assets/audio/arctic_numberland/level10/write_four.wav';
   static const String _audioCount =
       'assets/audio/arctic_numberland/level10/count_four.wav';
-  static const String _audioGoodJob = 'assets/audio/arctic_numberland/magaling.wav';
-  static const String _audioVeryGood = 'assets/audio/arctic_numberland/sobrang_husay.wav';
+  static const String _audioGoodJob =
+      'assets/audio/arctic_numberland/magaling.wav';
+  static const String _audioVeryGood =
+      'assets/audio/arctic_numberland/sobrang_husay.wav';
 
   // ── Top-level phase ────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -301,11 +303,15 @@ class _NumberFourIntroductionScreenState
       onResult: (result) {
         final words = result.recognizedWords.toLowerCase();
         final cleaned = words.replaceAll(RegExp(r'[^a-z]'), '');
-        if (RegExp(r'\b(four|for|fore|fur|por|pore|phor|foor|fo|faw|foh|forr|foru|fawr|fower|foar)\b').hasMatch(words) ||
+        if (RegExp(
+              r'\b(four|for|fore|fur|por|pore|phor|foor|fo|faw|foh|forr|foru|fawr|fower|foar)\b',
+            ).hasMatch(words) ||
             cleaned.contains('four') ||
             cleaned.contains('for') ||
             cleaned.length >= 2 && cleaned.startsWith('f') ||
-            cleaned.length >= 2 && cleaned.startsWith('p') && cleaned.contains('o')) {
+            cleaned.length >= 2 &&
+                cleaned.startsWith('p') &&
+                cleaned.contains('o')) {
           _listenRestartTimer?.cancel();
           _speech.stop();
           setState(() => _isListening = false);
@@ -349,17 +355,21 @@ class _NumberFourIntroductionScreenState
       const Offset(0.86, 0.82),
     ]..shuffle(rng);
 
-    _objectPos  = slots[0];
+    _objectPos = slots[0];
     _objectPos2 = slots[1];
     _objectPos3 = slots[2];
     _objectPos4 = slots[3];
-    _decoyPos   = slots[4];
-    _decoyPos2  = slots[5];
+    _decoyPos = slots[4];
+    _decoyPos2 = slots[5];
 
-    _decoyAsset  = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
-    _decoyEmoji  = (_decoyAsset == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji2;
+    _decoyAsset = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
+    _decoyEmoji = (_decoyAsset == _decoyOptionAsset1)
+        ? _decoyOptionEmoji1
+        : _decoyOptionEmoji2;
     _decoyAsset2 = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
-    _decoyEmoji2 = (_decoyAsset2 == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji2;
+    _decoyEmoji2 = (_decoyAsset2 == _decoyOptionAsset1)
+        ? _decoyOptionEmoji1
+        : _decoyOptionEmoji2;
   }
 
   final List<bool> _objectTapped = [false, false, false, false];
@@ -504,6 +514,12 @@ class _NumberFourIntroductionScreenState
                 padding: const EdgeInsets.only(bottom: 30),
                 child: _buildBottomListeningPrompt(),
               ),
+            ),
+          if (_introPhase == _IntroPhase.listening)
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: ArcticSkipButton(onTap: _onWordRecognized),
             ),
         ],
       ),
@@ -668,45 +684,37 @@ class _NumberFourIntroductionScreenState
               else ...[
                 // Instruction banner — anchored top center
                 Positioned(
-                  top: 0,
+                  top: 10,
                   left: 0,
                   right: 0,
                   child: Center(
                     child: Container(
-                      margin: const EdgeInsets.only(top: 8),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 10,
+                        horizontal: 20,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: ArcticColorTheme.pictonblue.withValues(
                           alpha: 0.8,
                         ),
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(30),
                         border: Border.all(color: Colors.white, width: 3),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('👆', style: TextStyle(fontSize: 22)),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Tap FOUR Snowball!',
-                            style: TextStyle(
-                              fontFamily: ArcticAppTextStyles.fredoka,
-                              fontSize: (h * 0.09).clamp(16.0, 26.0),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: const [
-                                Shadow(
-                                  color: Color(0x55003366),
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
+                      child: Text(
+                        ' 👆 Tap FOUR Snowball!',
+                        style: TextStyle(
+                          fontFamily: ArcticAppTextStyles.fredoka,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: const [
+                            Shadow(
+                              color: Color(0x55003366),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -715,7 +723,7 @@ class _NumberFourIntroductionScreenState
                 // Number card — left side
                 Positioned(
                   left: 0,
-                  top: 0,
+                  top: 30,
                   bottom: 0,
                   width: w * 0.40,
                   child: Center(
@@ -732,7 +740,7 @@ class _NumberFourIntroductionScreenState
                 if (!_objectTapped[0])
                   Positioned(
                     left: _objectPos.dx * w - objSize / 2,
-                    top:  _objectPos.dy * h - objSize / 2,
+                    top: _objectPos.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -754,7 +762,7 @@ class _NumberFourIntroductionScreenState
                 if (!_objectTapped[1])
                   Positioned(
                     left: _objectPos2.dx * w - objSize / 2,
-                    top:  _objectPos2.dy * h - objSize / 2,
+                    top: _objectPos2.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -776,7 +784,7 @@ class _NumberFourIntroductionScreenState
                 if (!_objectTapped[2])
                   Positioned(
                     left: _objectPos3.dx * w - objSize / 2,
-                    top:  _objectPos3.dy * h - objSize / 2,
+                    top: _objectPos3.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -798,7 +806,7 @@ class _NumberFourIntroductionScreenState
                 if (!_objectTapped[3])
                   Positioned(
                     left: _objectPos4.dx * w - objSize / 2,
-                    top:  _objectPos4.dy * h - objSize / 2,
+                    top: _objectPos4.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -849,7 +857,7 @@ class _NumberFourIntroductionScreenState
                 if (_objectsTapped < _targetCount)
                   Positioned(
                     left: _decoyPos.dx * w - objSize / 2,
-                    top:  _decoyPos.dy * h - objSize / 2,
+                    top: _decoyPos.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -881,7 +889,7 @@ class _NumberFourIntroductionScreenState
                 if (_objectsTapped < _targetCount)
                   Positioned(
                     left: _decoyPos2.dx * w - objSize / 2,
-                    top:  _decoyPos2.dy * h - objSize / 2,
+                    top: _decoyPos2.dy * h - objSize / 2,
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -929,7 +937,9 @@ class _NumberFourIntroductionScreenState
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const NumberFiveIntroductionScreen()),
+          MaterialPageRoute(
+            builder: (_) => const NumberFiveIntroductionScreen(),
+          ),
         );
       },
       onRestart: () {
