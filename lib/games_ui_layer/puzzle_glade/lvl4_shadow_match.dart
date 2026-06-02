@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -45,7 +46,10 @@ class Lvl4ShadowMatchScreen extends StatefulWidget {
 }
 
 class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin<Lvl4ShadowMatchScreen> {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
@@ -275,6 +279,7 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
       _bounceCtrl.forward(from: 0);
       _revealCtrl.forward(from: 0);
       _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
+      unawaited(showRoxieReaction(RoxieState.correct));
 
       await Future.delayed(const Duration(milliseconds: 1200));
 
@@ -302,6 +307,7 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
       }
     } else {
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+      unawaited(showRoxieReaction(RoxieState.wrong));
       setState(() {
         _tappedIndex = index;
         _wrongFlash = true;
@@ -339,9 +345,15 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-                    opacity: _gameFade,
-                    child: _buildGameContent(),
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+
+                      buildRoxie(context),
+                    ],
                   ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
@@ -425,8 +437,8 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
               return Transform.rotate(
                 angle: angle,
                 child: Container(
-                  width: 72,
-                  height: 72,
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
                     color: isShadow
                         ? JarColorTheme.vandecane
@@ -449,8 +461,8 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
                   child: Center(
                     child: Image.asset(
                       'assets/images/objects/puzzle/${previewObjects[i]}.png',
-                      width: 44,
-                      height: 44,
+                      width: 60,
+                      height: 60,
                       color: isShadow
                           ? JarColorTheme.verydarkdesaturatedblue.withValues(
                               alpha: 0.80,

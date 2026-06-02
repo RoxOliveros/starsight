@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -55,15 +56,23 @@ class Lvl5JigsawPuzzleScreen extends StatefulWidget {
 }
 
 class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin<Lvl5JigsawPuzzleScreen> {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level5/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level5/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level5/instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level5/complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/level5/intro.wav';
+  static const String _audioWelcome =
+      'assets/audio/puzzle_glade/level5/welcome.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/level5/instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/level5/complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -153,8 +162,8 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-    );
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -291,9 +300,14 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
       _bounceCtrl.forward(from: 0);
 
+      unawaited(showRoxieReaction(RoxieState.correct));
+
       if (_slotContents.every((s) => s != -1)) {
         await Future.delayed(const Duration(milliseconds: 300));
         setState(() => _roundComplete = true);
+
+        unawaited(showRoxieReaction(RoxieState.correct));
+
         _completePulseCtrl.repeat(reverse: true);
 
         _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
@@ -328,6 +342,7 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
     } else {
       // ❌ Wrong slot
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+      unawaited(showRoxieReaction(RoxieState.wrong));
       setState(() {
         _slotHighlight[slotIndex] = true;
         _heldPieceId = -1;
@@ -360,9 +375,15 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-              opacity: _gameFade,
-              child: _buildGameContent(),
+                : Stack(
+              children: [
+                FadeTransition(
+                  opacity: _gameFade,
+                  child: _buildGameContent(),
+                ),
+
+                buildRoxie(context),
+              ],
             ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
@@ -676,8 +697,8 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
   Widget _buildPlacedPieceTile(int slotIndex) {
     final isLastPlaced =
         _slotContents.where((s) => s != -1).length == 1 ||
-            (_slotContents[slotIndex] != -1 &&
-                _slotContents.lastIndexWhere((s) => s != -1) == slotIndex);
+        (_slotContents[slotIndex] != -1 &&
+            _slotContents.lastIndexWhere((s) => s != -1) == slotIndex);
 
     Widget tile = LayoutBuilder(
       builder: (context, constraints) {
@@ -767,7 +788,7 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
               crossAxisSpacing: 8,
               children: List.generate(4, (id) {
                 final piece = _trayPieces.cast<_Piece?>().firstWhere(
-                      (p) => p!.id == id,
+                  (p) => p!.id == id,
                   orElse: () => null,
                 );
                 // Already placed — ghost slot
@@ -839,21 +860,21 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
         ),
         boxShadow: isHeld
             ? [
-          BoxShadow(
-            color: JarColorTheme.sunnyhue.withValues(alpha: 0.35),
-            blurRadius: 10,
-            spreadRadius: 1,
-          ),
-        ]
+                BoxShadow(
+                  color: JarColorTheme.sunnyhue.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ]
             : [
-          BoxShadow(
-            color: JarColorTheme.darkdesaturatedblue.withValues(
-              alpha: 0.09,
-            ),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+                BoxShadow(
+                  color: JarColorTheme.darkdesaturatedblue.withValues(
+                    alpha: 0.09,
+                  ),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: _buildPieceContent(piece.id),
     );

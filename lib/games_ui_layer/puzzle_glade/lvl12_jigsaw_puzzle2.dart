@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -51,19 +52,28 @@ class Lvl12JigsawPuzzle2Screen extends StatefulWidget {
   const Lvl12JigsawPuzzle2Screen({super.key});
 
   @override
-  State<Lvl12JigsawPuzzle2Screen> createState() => _Lvl12JigsawPuzzle2ScreenState();
+  State<Lvl12JigsawPuzzle2Screen> createState() =>
+      _Lvl12JigsawPuzzle2ScreenState();
 }
 
 class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level5/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level5/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level5/instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level5/complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/level5/intro.wav';
+  static const String _audioWelcome =
+      'assets/audio/puzzle_glade/level5/welcome.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/level5/instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/level5/complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -153,8 +163,8 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-    );
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -291,6 +301,8 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
       _bounceCtrl.forward(from: 0);
 
+      showRoxieReaction(RoxieState.correct);
+
       if (_slotContents.every((s) => s != -1)) {
         await Future.delayed(const Duration(milliseconds: 300));
         setState(() => _roundComplete = true);
@@ -328,6 +340,9 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
     } else {
       // ❌ Wrong slot
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+
+      showRoxieReaction(RoxieState.wrong);
+
       setState(() {
         _slotHighlight[slotIndex] = true;
         _heldPieceId = -1;
@@ -360,10 +375,15 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-              opacity: _gameFade,
-              child: _buildGameContent(),
-            ),
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
@@ -435,9 +455,15 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
     const previewObject = 'puzzle_piece';
     // Quadrant labels matching the 2×2 board layout
     final quadrants = [
-      {'col': 0, 'row': 0}, {'col': 1, 'row': 0}, {'col': 2, 'row': 0},
-      {'col': 0, 'row': 1}, {'col': 1, 'row': 1}, {'col': 2, 'row': 1},
-      {'col': 0, 'row': 2}, {'col': 1, 'row': 2}, {'col': 2, 'row': 2},
+      {'col': 0, 'row': 0},
+      {'col': 1, 'row': 0},
+      {'col': 2, 'row': 0},
+      {'col': 0, 'row': 1},
+      {'col': 1, 'row': 1},
+      {'col': 2, 'row': 1},
+      {'col': 0, 'row': 2},
+      {'col': 1, 'row': 2},
+      {'col': 2, 'row': 2},
     ];
 
     return AnimatedBuilder(
@@ -481,8 +507,16 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
                       maxWidth: 68 * 3,
                       maxHeight: 68 * 3,
                       alignment: Alignment(
-                        col == 0 ? -1.0 : col == 1 ? 0.0 : 1.0,
-                        row == 0 ? -1.0 : row == 1 ? 0.0 : 1.0,
+                        col == 0
+                            ? -1.0
+                            : col == 1
+                            ? 0.0
+                            : 1.0,
+                        row == 0
+                            ? -1.0
+                            : row == 1
+                            ? 0.0
+                            : 1.0,
                       ),
                       child: Image.asset(
                         'assets/images/objects/puzzle/$previewObject.png',
@@ -610,8 +644,7 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
           // 3×3 drop slots
           Padding(
             padding: const EdgeInsets.all(10),
-            child:
-            GridView.builder(
+            child: GridView.builder(
               physics: const NeverScrollableScrollPhysics(),
               itemCount: 9,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -676,8 +709,8 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
   Widget _buildPlacedPieceTile(int slotIndex) {
     final isLastPlaced =
         _slotContents.where((s) => s != -1).length == 1 ||
-            (_slotContents[slotIndex] != -1 &&
-                _slotContents.lastIndexWhere((s) => s != -1) == slotIndex);
+        (_slotContents[slotIndex] != -1 &&
+            _slotContents.lastIndexWhere((s) => s != -1) == slotIndex);
 
     Widget tile = LayoutBuilder(
       builder: (context, constraints) {
@@ -690,8 +723,16 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
             maxWidth: size * 3,
             maxHeight: size * 3,
             alignment: Alignment(
-              col == 0 ? -1.0 : col == 1 ? 0.0 : 1.0,
-              row == 0 ? -1.0 : row == 1 ? 0.0 : 1.0,
+              col == 0
+                  ? -1.0
+                  : col == 1
+                  ? 0.0
+                  : 1.0,
+              row == 0
+                  ? -1.0
+                  : row == 1
+                  ? 0.0
+                  : 1.0,
             ),
             child: Image.asset(
               'assets/images/objects/puzzle/$_currentObject.png',
@@ -770,7 +811,7 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
               crossAxisSpacing: 0,
               children: List.generate(9, (id) {
                 final piece = _trayPieces.cast<_Piece?>().firstWhere(
-                      (p) => p!.id == id,
+                  (p) => p!.id == id,
                   orElse: () => null,
                 );
                 // Already placed — ghost slot
@@ -808,8 +849,16 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
         maxWidth: size * 3,
         maxHeight: size * 3,
         alignment: Alignment(
-          col == 0 ? -1.0 : col == 1 ? 0.0 : 1.0,
-          row == 0 ? -1.0 : row == 1 ? 0.0 : 1.0,
+          col == 0
+              ? -1.0
+              : col == 1
+              ? 0.0
+              : 1.0,
+          row == 0
+              ? -1.0
+              : row == 1
+              ? 0.0
+              : 1.0,
         ),
         child: Image.asset(
           'assets/images/objects/puzzle/$_currentObject.png',
@@ -843,21 +892,21 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
         ),
         boxShadow: isHeld
             ? [
-          BoxShadow(
-            color: JarColorTheme.sunnyhue.withValues(alpha: 0.35),
-            blurRadius: 10,
-            spreadRadius: 1,
-          ),
-        ]
+                BoxShadow(
+                  color: JarColorTheme.sunnyhue.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ]
             : [
-          BoxShadow(
-            color: JarColorTheme.darkdesaturatedblue.withValues(
-              alpha: 0.09,
-            ),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+                BoxShadow(
+                  color: JarColorTheme.darkdesaturatedblue.withValues(
+                    alpha: 0.09,
+                  ),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: _buildPieceContent(piece.id),
     );

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -22,7 +23,12 @@ class Lvl1JarColorSortScreen extends StatefulWidget {
 }
 
 class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin {
+
+  // Required by the mixin — point it to your existing _player
+  @override
+  AudioPlayer get roxiePlayer => _player;
+
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
@@ -39,7 +45,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
   static const String _jarImage = 'assets/images/objects/puzzle/jar_bnw.png';
 
-  static const String _audioSuccess = 'assets/audio/shine.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioGameComplete =
       'assets/audio/puzzle_glade/level1/complete.wav';
 
@@ -264,6 +270,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
         }
       });
       _player.play(AssetSource(_audioCorrect.replaceFirst('assets/', '')));
+      showRoxieReaction(RoxieState.correct);
 
       if (_jarABalls.length == _ballsPerColor &&
           _jarBBalls.length == _ballsPerColor) {
@@ -303,6 +310,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
           _wrongFlashB = true;
         }
       });
+      showRoxieReaction(RoxieState.wrong);
       await Future.delayed(const Duration(milliseconds: 700));
       if (mounted) {
         setState(() {
@@ -470,21 +478,26 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   // GAME
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildGameContent() {
-    return Column(
+    return Stack(           // ← wrap in Stack
       children: [
-        const SizedBox(height: 10),
-        _buildGameHeader(),
-        const SizedBox(height: 10),
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(flex: 4, child: _buildBallPool()),
-              Expanded(flex: 5, child: _buildJarsRow()),
-            ],
-          ),
+        Column(
+          children: [
+            const SizedBox(height: 10),
+            _buildGameHeader(),
+            const SizedBox(height: 10),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(flex: 4, child: _buildBallPool()),
+                  Expanded(flex: 5, child: _buildJarsRow()),
+                ],
+              ),
+            ),
+            _buildProgressDots(),
+            const SizedBox(height: 10),
+          ],
         ),
-        _buildProgressDots(),
-        const SizedBox(height: 10),
+        buildRoxie(context),
       ],
     );
   }

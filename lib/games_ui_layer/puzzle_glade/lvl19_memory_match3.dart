@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -63,7 +64,10 @@ class Lvl19JarMemoryMatch3Screen extends StatefulWidget {
 }
 
 class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
@@ -76,7 +80,8 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
       'assets/audio/puzzle_glade/level3/welcome.wav';
   static const String _audioInstructions =
       'assets/audio/puzzle_glade/level3/instruction.wav';
-  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioCorrect =
+      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioComplete =
       'assets/audio/puzzle_glade/level3/complete.wav';
@@ -166,8 +171,8 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-    );
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -269,7 +274,7 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
     }
     _flipCtrls = List.generate(
       _cards.length,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 380),
       ),
@@ -277,10 +282,10 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
     _flipAnims = _flipCtrls
         .map(
           (ctrl) => Tween<double>(
-        begin: 0.0,
-        end: 1.0,
-      ).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeInOut)),
-    )
+            begin: 0.0,
+            end: 1.0,
+          ).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeInOut)),
+        )
         .toList();
 
     _peekedIds.clear();
@@ -313,7 +318,8 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
     final cardB = _cards[idxB];
 
     if (cardA.pairId == cardB.pairId) {
-      _sfxPlayer.play(AssetSource(_audioCorrect.replaceFirst('assets/', '')));
+      showRoxieReaction(RoxieState.correct);
+
       await Future.delayed(const Duration(milliseconds: 500));
       setState(() {
         cardA.isMatched = true;
@@ -355,6 +361,8 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
         }
       }
     } else {
+      showRoxieReaction(RoxieState.wrong);
+
       await Future.delayed(_kPeekDuration);
       setState(() {
         cardA.isFaceUp = false;
@@ -390,10 +398,15 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-              opacity: _gameFade,
-              child: _buildGameContent(),
-            ),
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
@@ -654,7 +667,7 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
             height: 50,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) =>
-            const Text('🖼️', style: TextStyle(fontSize: 36)),
+                const Text('🖼️', style: TextStyle(fontSize: 36)),
           ),
           if (card.isMatched)
             Positioned(

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -67,7 +68,10 @@ class Lvl17SpotDifferenceScreen extends StatefulWidget {
 }
 
 class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
@@ -83,7 +87,8 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
       'assets/audio/puzzle_glade/level17/complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioBubblePop =
+      'assets/audio/sound_effects/bubble_pop.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   _ScreenPhase _phase = _ScreenPhase.intro;
@@ -285,6 +290,8 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
       // Play success sound
       _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
 
+      showRoxieReaction(RoxieState.correct);
+
       setState(() => _highlightedCorrectIndex = cellIndex);
       _correctGlowCtrl.repeat(reverse: true);
 
@@ -320,6 +327,8 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
       // Wrong tap — shake that specific cell
       _sfxPlayer.play(AssetSource(_audioBubblePop.replaceFirst('assets/', '')));
 
+      showRoxieReaction(RoxieState.wrong);
+
       // shakeIndex: panel 0 → indices 0–3, panel 1 → indices 4–7
       final shakeIndex = panel * _kGridSize + cellIndex;
       setState(() => _wrongTappedIndex = cellIndex);
@@ -353,9 +362,14 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
           SafeArea(
             child: _phase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-                    opacity: _gameFade,
-                    child: _buildGameContent(),
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
                   ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
@@ -535,7 +549,6 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
           Expanded(
             child: Row(
               children: [
-                _buildRoxieSide(),
                 Expanded(child: _buildMainArea()),
               ],
             ),
@@ -597,30 +610,6 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildRoxieSide() {
-    return SizedBox(
-      width: 90,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final floatY = Tween<double>(begin: -6, end: 6).evaluate(
-            CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
-          );
-          return AnimatedBuilder(
-            animation: _roxieFloatCtrl,
-            builder: (_, child) =>
-                Transform.translate(offset: Offset(0, floatY), child: child),
-            child: Image.asset(
-              _characterImage,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) =>
-                  const Text('🐰', style: TextStyle(fontSize: 48)),
-            ),
-          );
-        },
       ),
     );
   }

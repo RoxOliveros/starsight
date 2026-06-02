@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -65,12 +66,14 @@ class Lvl7SizeSortScreen extends StatefulWidget {
 }
 
 class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin<Lvl7SizeSortScreen> {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_puzzle.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
   static const String _audioIntro =
       'assets/audio/puzzle_glade/level7/intro.wav';
@@ -177,8 +180,8 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _roxieSlide =
-        Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero).animate(
+    _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
+        .animate(
           CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
         );
     _roxieFade = CurvedAnimation(
@@ -190,9 +193,10 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     )..repeat(reverse: true);
-    _itemDance = Tween<double>(begin: -0.06, end: 0.06).animate(
-      CurvedAnimation(parent: _itemDanceCtrl, curve: Curves.easeInOut),
-    );
+    _itemDance = Tween<double>(
+      begin: -0.06,
+      end: 0.06,
+    ).animate(CurvedAnimation(parent: _itemDanceCtrl, curve: Curves.easeInOut));
 
     _gameEnterCtrl = AnimationController(
       vsync: this,
@@ -208,17 +212,18 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
 
     _slotBounceCtrl = List.generate(
       3,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 450),
       ),
     );
     _slotBounceAnim = _slotBounceCtrl
         .map(
-          (c) => Tween<double>(begin: 1.0, end: 1.15).animate(
-        CurvedAnimation(parent: c, curve: Curves.elasticOut),
-      ),
-    )
+          (c) => Tween<double>(
+            begin: 1.0,
+            end: 1.15,
+          ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
+        )
         .toList();
 
     _completePulseCtrl = AnimationController(
@@ -275,7 +280,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
     // Create 3 size items (small=0, medium=1, large=2)
     _poolItems = List.generate(
       3,
-          (i) => _SizeItem(
+      (i) => _SizeItem(
         objectName: _currentObject,
         sizeIndex: i,
         displaySize: _kSizes[i],
@@ -319,13 +324,14 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
       });
       _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
 
+      showRoxieReaction(RoxieState.correct);
+
       // Check round complete — all 3 slots filled correctly
       if (_slots[0] != null && _slots[1] != null && _slots[2] != null) {
         await Future.delayed(const Duration(milliseconds: 300));
         setState(() => _roundComplete = true);
         _completePulseCtrl.repeat(reverse: true);
-        _sfxPlayer
-            .play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
+        _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
         await Future.delayed(const Duration(milliseconds: 1400));
 
         if (_round >= _kTotalRounds) {
@@ -362,6 +368,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
           _flashSlot[2] = false;
         });
       }
+      showRoxieReaction(RoxieState.wrong);
     }
   }
 
@@ -399,10 +406,15 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-              opacity: _gameFade,
-              child: _buildGameContent(),
-            ),
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
@@ -493,8 +505,9 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
                       color: Colors.white.withValues(alpha: 0.88),
                       borderRadius: BorderRadius.circular(size * 0.25),
                       border: Border.all(
-                        color: JarColorTheme.darkdesaturatedblue
-                            .withValues(alpha: 0.25),
+                        color: JarColorTheme.darkdesaturatedblue.withValues(
+                          alpha: 0.25,
+                        ),
                         width: 2.5,
                       ),
                       boxShadow: [
@@ -509,10 +522,8 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
                     child: Image.asset(
                       'assets/images/objects/puzzle/$previewObject.png',
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Text(
-                        '⭐',
-                        style: TextStyle(fontSize: size * 0.5),
-                      ),
+                      errorBuilder: (_, __, ___) =>
+                          Text('⭐', style: TextStyle(fontSize: size * 0.5)),
                     ),
                   ),
                 ),
@@ -554,8 +565,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
           children: [
             Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
             Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(20),
@@ -590,16 +600,10 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
         return Row(
           children: [
             // LEFT: choices
-            Expanded(
-              flex: 4,
-              child: Center(child: _buildItemPool()),
-            ),
+            Expanded(flex: 4, child: Center(child: _buildItemPool())),
 
             // RIGHT: shelf
-            Expanded(
-              flex: 6,
-              child: Center(child: _buildShelfColumn()),
-            ),
+            Expanded(flex: 6, child: Center(child: _buildShelfColumn())),
           ],
         );
       },
@@ -618,10 +622,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(3, (i) {
-                return SizedBox(
-                  width: slotWidth,
-                  child: _buildSlot(i),
-                );
+                return SizedBox(width: slotWidth, child: _buildSlot(i));
               }),
             ),
 
@@ -642,9 +643,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
   Widget _buildShelfColumn() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildShelfRow(),
-      ],
+      children: [_buildShelfRow()],
     );
   }
 
@@ -662,14 +661,14 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
           // Size hint label
           Container(
             margin: const EdgeInsets.only(bottom: 6),
-            padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: JarColorTheme.darkdesaturatedblue
-                    .withValues(alpha: 0.25),
+                color: JarColorTheme.darkdesaturatedblue.withValues(
+                  alpha: 0.25,
+                ),
                 width: 1.5,
               ),
             ),
@@ -679,8 +678,9 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
                 fontFamily: JarAppTextStyles.fredoka,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: JarColorTheme.darkdesaturatedblue
-                    .withValues(alpha: 0.75),
+                color: JarColorTheme.darkdesaturatedblue.withValues(
+                  alpha: 0.75,
+                ),
               ),
             ),
           ),
@@ -704,14 +704,11 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
                     height: slotSize,
                     decoration: BoxDecoration(
                       color: isFlashing
-                          ? const Color(0xFFE05A5A)
-                          .withValues(alpha: 0.18)
+                          ? const Color(0xFFE05A5A).withValues(alpha: 0.18)
                           : placedItem != null
-                          ? JarColorTheme.goldenyellow
-                          .withValues(alpha: 0.20)
+                          ? JarColorTheme.goldenyellow.withValues(alpha: 0.20)
                           : isDragOver
-                          ? JarColorTheme.goldenyellow
-                          .withValues(alpha: 0.25)
+                          ? JarColorTheme.goldenyellow.withValues(alpha: 0.25)
                           : Colors.white.withValues(alpha: 0.40),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
@@ -721,8 +718,9 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
                             ? JarColorTheme.sunnyhue
                             : isDragOver
                             ? JarColorTheme.sunnyhue
-                            : JarColorTheme.darkdesaturatedblue
-                            .withValues(alpha: 0.30),
+                            : JarColorTheme.darkdesaturatedblue.withValues(
+                                alpha: 0.30,
+                              ),
                         width: isFlashing || isDragOver || placedItem != null
                             ? 2.5
                             : 2,
@@ -732,37 +730,39 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
                       ),
                       boxShadow: placedItem != null
                           ? [
-                        BoxShadow(
-                          color: JarColorTheme.sunnyhue
-                              .withValues(alpha: 0.20),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ]
+                              BoxShadow(
+                                color: JarColorTheme.sunnyhue.withValues(
+                                  alpha: 0.20,
+                                ),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ]
                           : [],
                     ),
                     padding: const EdgeInsets.all(8),
                     child: placedItem != null
                         ? Image.asset(
-                      'assets/images/objects/puzzle/${placedItem.objectName}.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text(
-                        '📦',
-                        style: TextStyle(fontSize: 24),
-                      ),
-                    )
+                            'assets/images/objects/puzzle/${placedItem.objectName}.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Text(
+                              '📦',
+                              style: TextStyle(fontSize: 24),
+                            ),
+                          )
                         : isDragOver
                         ? Icon(
-                      Icons.arrow_downward_rounded,
-                      color: JarColorTheme.sunnyhue,
-                      size: slotSize * 0.4,
-                    )
+                            Icons.arrow_downward_rounded,
+                            color: JarColorTheme.sunnyhue,
+                            size: slotSize * 0.4,
+                          )
                         : Icon(
-                      Icons.add_rounded,
-                      color: JarColorTheme.darkdesaturatedblue
-                          .withValues(alpha: 0.20),
-                      size: slotSize * 0.4,
-                    ),
+                            Icons.add_rounded,
+                            color: JarColorTheme.darkdesaturatedblue.withValues(
+                              alpha: 0.20,
+                            ),
+                            size: slotSize * 0.4,
+                          ),
                   ),
                 );
               },
@@ -802,26 +802,26 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
       ),
       child: _poolItems.isEmpty
           ? _roundComplete
-          ? ScaleTransition(
-        scale: _completePulseAnim,
-        child: const Center(
-          child: Text('⭐', style: TextStyle(fontSize: 44)),
-        ),
-      )
-          : Center(
-        child: Icon(
-          Icons.check_circle_rounded,
-          size: 44,
-          color: JarColorTheme.sunnyhue,
-        ),
-      )
+                ? ScaleTransition(
+                    scale: _completePulseAnim,
+                    child: const Center(
+                      child: Text('⭐', style: TextStyle(fontSize: 44)),
+                    ),
+                  )
+                : Center(
+                    child: Icon(
+                      Icons.check_circle_rounded,
+                      size: 44,
+                      color: JarColorTheme.sunnyhue,
+                    ),
+                  )
           : Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: _poolItems
-            .map((item) => _buildDraggableItem(item))
-            .toList(),
-      ),
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: _poolItems
+                  .map((item) => _buildDraggableItem(item))
+                  .toList(),
+            ),
     );
   }
 
@@ -869,7 +869,10 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
 
     return Draggable<_SizeItem>(
       data: item,
-      feedback: Material(color: Colors.transparent, child: tile(isDragging: true)),
+      feedback: Material(
+        color: Colors.transparent,
+        child: tile(isDragging: true),
+      ),
       childWhenDragging: Opacity(opacity: 0.25, child: tile()),
       child: tile(),
     );
@@ -893,8 +896,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
                 ? JarColorTheme.darkdesaturatedblue
                 : current
                 ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue
-                .withValues(alpha: 0.20),
+                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );

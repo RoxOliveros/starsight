@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -55,7 +56,12 @@ class Lvl2PatternMatchScreen extends StatefulWidget {
 }
 
 class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin {
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
+  @override
+  AudioPlayer get roxiePlayer => _roxiePlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
@@ -68,7 +74,6 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
   static const String _audioInstructions =
       'assets/audio/puzzle_glade/level2/instruction.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioComplete =
       'assets/audio/puzzle_glade/level2/complete.wav';
 
@@ -126,6 +131,7 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
 
   @override
   void dispose() {
+    _roxiePlayer.dispose();
     _bgPlayer.dispose();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
@@ -290,6 +296,9 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
         _rightFlash = true;
         _roundComplete = true;
       });
+
+      unawaited(showRoxieReaction(RoxieState.correct));
+
       _bounceCtrl.forward(from: 0);
       _celebCtrl.forward(from: 0);
       _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
@@ -319,8 +328,10 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
         });
       }
     } else {
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
       setState(() => _wrongFlash = true);
+
+      unawaited(showRoxieReaction(RoxieState.wrong));
+
       await Future.delayed(const Duration(milliseconds: 700));
       if (mounted) setState(() => _wrongFlash = false);
     }
@@ -355,6 +366,10 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
                     child: _buildGameContent(),
                   ),
           ),
+
+          if (_screenPhase == _ScreenPhase.game)
+            buildRoxie(context),
+
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
       ),

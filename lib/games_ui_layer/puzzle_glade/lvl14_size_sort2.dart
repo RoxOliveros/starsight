@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -8,7 +9,6 @@ import '../../ui_layer/puzzle_glade/puzzle_level.dart';
 import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl15_whats_missing2.dart';
-import 'lvl8_whats_missing.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -66,7 +66,10 @@ class Lvl14SizeSort2Screen extends StatefulWidget {
 }
 
 class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
@@ -81,7 +84,8 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
   static const String _audioComplete =
       'assets/audio/puzzle_glade/level7/complete.wav';
 
-  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioBubblePop =
+      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
@@ -271,7 +275,7 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
     do {
       items = List.generate(
         4,
-            (i) => _SizeItem(
+        (i) => _SizeItem(
           objectName: _currentObject,
           sizeIndex: i,
           displaySize: _kSizes[i],
@@ -311,12 +315,18 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
 
     _sfxPlayer.play(AssetSource(_audioBubblePop.replaceFirst('assets/', '')));
 
-    final sorted = List.generate(4, (i) => _slots[i]?.sizeIndex == i).every((b) => b);
+    final sorted = List.generate(
+      4,
+      (i) => _slots[i]?.sizeIndex == i,
+    ).every((b) => b);
     if (sorted) {
       await Future.delayed(const Duration(milliseconds: 300));
       setState(() => _roundComplete = true);
       _completePulseCtrl.repeat(reverse: true);
       _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
+
+      showRoxieReaction(RoxieState.correct);
+
       await Future.delayed(const Duration(milliseconds: 1400));
 
       if (_round >= _kTotalRounds) {
@@ -325,13 +335,20 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
         final sub = _completePlayer.onPlayerComplete.listen((_) {
           if (!completer.isCompleted) completer.complete();
         });
-        await _completePlayer.play(AssetSource(_audioComplete.replaceFirst('assets/', '')));
+        await _completePlayer.play(
+          AssetSource(_audioComplete.replaceFirst('assets/', '')),
+        );
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
         if (mounted) setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
-        if (mounted) setState(() { _round++; _startRound(); });
+        if (mounted) {
+          setState(() {
+            _round++;
+            _startRound();
+          });
+        }
       }
     }
   }
@@ -359,9 +376,14 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-                    opacity: _gameFade,
-                    child: _buildGameContent(),
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
                   ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
@@ -586,7 +608,9 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
               color: Colors.white.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
+                color: JarColorTheme.darkdesaturatedblue.withValues(
+                  alpha: 0.25,
+                ),
                 width: 1.5,
               ),
             ),
@@ -596,7 +620,9 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
                 fontFamily: JarAppTextStyles.fredoka,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.75),
+                color: JarColorTheme.darkdesaturatedblue.withValues(
+                  alpha: 0.75,
+                ),
               ),
             ),
           ),
@@ -605,7 +631,8 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
                 ? _slotBounceAnim[slotIndex]
                 : const AlwaysStoppedAnimation(1.0),
             child: DragTarget<int>(
-              onAcceptWithDetails: (details) => _onDragAccepted(slotIndex, details.data),
+              onAcceptWithDetails: (details) =>
+                  _onDragAccepted(slotIndex, details.data),
               builder: (context, candidateData, rejectedData) {
                 final isHovered = candidateData.isNotEmpty;
                 return Draggable<int>(
@@ -635,13 +662,13 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
                         padding: const EdgeInsets.all(8),
                         child: placedItem != null
                             ? Center(
-                          child: Image.asset(
-                            'assets/images/objects/puzzle/${placedItem.objectName}.png',
-                            width: _kSizes[placedItem.sizeIndex],
-                            height: _kSizes[placedItem.sizeIndex],
-                            fit: BoxFit.contain,
-                          ),
-                        )
+                                child: Image.asset(
+                                  'assets/images/objects/puzzle/${placedItem.objectName}.png',
+                                  width: _kSizes[placedItem.sizeIndex],
+                                  height: _kSizes[placedItem.sizeIndex],
+                                  fit: BoxFit.contain,
+                                ),
+                              )
                             : const SizedBox.shrink(),
                       ),
                     ),
@@ -653,7 +680,9 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
                       color: Colors.white.withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                        color: JarColorTheme.darkdesaturatedblue.withValues(
+                          alpha: 0.20,
+                        ),
                         width: 2,
                       ),
                     ),
@@ -672,20 +701,22 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
                       border: Border.all(
                         color: isHovered
                             ? JarColorTheme.sunnyhue
-                            : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.30),
+                            : JarColorTheme.darkdesaturatedblue.withValues(
+                                alpha: 0.30,
+                              ),
                         width: isHovered ? 3 : 2,
                       ),
                     ),
                     padding: const EdgeInsets.all(8),
                     child: placedItem != null
                         ? Center(
-                      child: Image.asset(
-                        'assets/images/objects/puzzle/${placedItem.objectName}.png',
-                        width: _kSizes[placedItem.sizeIndex],
-                        height: _kSizes[placedItem.sizeIndex],
-                        fit: BoxFit.contain,
-                      ),
-                    )
+                            child: Image.asset(
+                              'assets/images/objects/puzzle/${placedItem.objectName}.png',
+                              width: _kSizes[placedItem.sizeIndex],
+                              height: _kSizes[placedItem.sizeIndex],
+                              fit: BoxFit.contain,
+                            ),
+                          )
                         : const SizedBox.shrink(),
                   ),
                 );

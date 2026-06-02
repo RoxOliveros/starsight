@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -23,7 +24,10 @@ class Lvl18JarColorSort2Screen extends StatefulWidget {
 }
 
 class _Lvl18JarColorSort2ScreenState extends State<Lvl18JarColorSort2Screen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
@@ -33,7 +37,6 @@ class _Lvl18JarColorSort2ScreenState extends State<Lvl18JarColorSort2Screen>
       'assets/audio/puzzle_glade/level1/welcome.wav';
   static const String _audioInstructions =
       'assets/audio/puzzle_glade/level1/instruction.wav';
-  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
@@ -43,6 +46,8 @@ class _Lvl18JarColorSort2ScreenState extends State<Lvl18JarColorSort2Screen>
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioGameComplete =
       'assets/audio/puzzle_glade/level1/complete.wav';
+
+  final AudioPlayer _sfxPlayer = AudioPlayer();
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -276,7 +281,8 @@ class _Lvl18JarColorSort2ScreenState extends State<Lvl18JarColorSort2Screen>
           _jarCBalls.add(ball);
         }
       });
-      _player.play(AssetSource(_audioCorrect.replaceFirst('assets/', '')));
+
+      showRoxieReaction(RoxieState.correct);
 
       if (_jarABalls.length == _ballsPerColor &&
           _jarBBalls.length == _ballsPerColor &&
@@ -310,6 +316,7 @@ class _Lvl18JarColorSort2ScreenState extends State<Lvl18JarColorSort2Screen>
         }
       }
     } else {
+      showRoxieReaction(RoxieState.wrong);
       setState(() {
         if (jarIndex == 0) {
           _wrongFlashA = true;
@@ -354,9 +361,14 @@ class _Lvl18JarColorSort2ScreenState extends State<Lvl18JarColorSort2Screen>
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-                    opacity: _gameFade,
-                    child: _buildGameContent(),
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
                   ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),

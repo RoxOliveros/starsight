@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -17,8 +18,17 @@ enum _ScreenPhase { intro, memorize, recall, result }
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _kAllObjects = [
-  'compass', 'jar', 'lamp', 'magnifying_glass', 'map',
-  'pen', 'notebook', 'puzzle_piece', 'star', 'telescope', 'water_bottle',
+  'compass',
+  'jar',
+  'lamp',
+  'magnifying_glass',
+  'map',
+  'pen',
+  'notebook',
+  'puzzle_piece',
+  'star',
+  'telescope',
+  'water_bottle',
 ];
 
 const int _kTotalRounds = 5;
@@ -37,13 +47,14 @@ class Lvl16CopyPatternScreen extends StatefulWidget {
 }
 
 class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
 
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_puzzle.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
   static const String _audioIntro =
       'assets/audio/puzzle_glade/level16/intro.wav';
@@ -54,7 +65,8 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
   static const String _audioComplete =
       'assets/audio/puzzle_glade/level16/complete.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioBubblePop =
+      'assets/audio/sound_effects/bubble_pop.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   _ScreenPhase _phase = _ScreenPhase.intro;
@@ -133,56 +145,76 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 2200),
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
     )..repeat(reverse: true);
 
     _roxieSlideCtrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 900),
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
     );
-    _roxieSlide = Tween<Offset>(
-      begin: const Offset(0, 1.6), end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut));
+    _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
     _roxieFade = CurvedAnimation(
-      parent: _roxieSlideCtrl, curve: const Interval(0, 0.4),
+      parent: _roxieSlideCtrl,
+      curve: const Interval(0, 0.4),
     );
 
     _gameEnterCtrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 600),
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
     );
     _gameFade = CurvedAnimation(parent: _gameEnterCtrl, curve: Curves.easeIn);
 
     _phaseCtrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 400),
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
     );
     _phaseAnim = CurvedAnimation(parent: _phaseCtrl, curve: Curves.easeOut);
 
     _countdownCtrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 500),
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
     );
 
     _correctPulseCtrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 600),
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
     );
 
     _slotShakeCtrl = List.generate(
       _kGridSize,
-          (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 400)),
+      (_) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 400),
+      ),
     );
-    _slotShakeAnim = _slotShakeCtrl.map((c) =>
-        Tween<double>(begin: 0, end: 1).animate(
-          CurvedAnimation(parent: c, curve: Curves.elasticOut),
-        ),
-    ).toList();
+    _slotShakeAnim = _slotShakeCtrl
+        .map(
+          (c) => Tween<double>(
+            begin: 0,
+            end: 1,
+          ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
+        )
+        .toList();
 
     _slotBounceCtrl = List.generate(
       _kGridSize,
-          (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 450)),
+      (_) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 450),
+      ),
     );
-    _slotBounceAnim = _slotBounceCtrl.map((c) =>
-        Tween<double>(begin: 1.0, end: 1.18).animate(
-          CurvedAnimation(parent: c, curve: Curves.elasticOut),
-        ),
-    ).toList();
+    _slotBounceAnim = _slotBounceCtrl
+        .map(
+          (c) => Tween<double>(
+            begin: 1.0,
+            end: 1.18,
+          ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
+        )
+        .toList();
   }
 
   // ── Intro flow ─────────────────────────────────────────────────────────────
@@ -254,7 +286,10 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
   void _startMemorizeTimer() {
     _memorizeTimer?.cancel();
     _memorizeTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) { t.cancel(); return; }
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
       setState(() => _memorizeCountdown--);
       if (_memorizeCountdown <= 0) {
         t.cancel();
@@ -311,9 +346,15 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
     }
 
     if (correct) {
-      setState(() { _roundCorrect = true; _phase = _ScreenPhase.result; });
+      setState(() {
+        _roundCorrect = true;
+        _phase = _ScreenPhase.result;
+      });
       _correctPulseCtrl.repeat(reverse: true);
       _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
+
+      showRoxieReaction(RoxieState.correct);
+
       await Future.delayed(const Duration(milliseconds: 1600));
 
       if (_round >= _kTotalRounds) {
@@ -322,16 +363,25 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
         final sub = _completePlayer.onPlayerComplete.listen((_) {
           if (!completer.isCompleted) completer.complete();
         });
-        await _completePlayer.play(AssetSource(_audioComplete.replaceFirst('assets/', '')));
+        await _completePlayer.play(
+          AssetSource(_audioComplete.replaceFirst('assets/', '')),
+        );
         await completer.future.timeout(const Duration(seconds: 15));
         await sub.cancel();
         if (mounted) setState(() => _showWinDialog = true);
       } else {
         await _phaseCtrl.reverse();
-        if (mounted) setState(() { _round++; _startRound(); });
+        if (mounted) {
+          setState(() {
+            _round++;
+            _startRound();
+          });
+        }
       }
     } else {
       // Wrong — shake wrong slots and clear
+      showRoxieReaction(RoxieState.wrong);
+
       for (int i = 0; i < _kGridSize; i++) {
         if (_answerSlots[i] != _patternObjects[i]) {
           _slotShakeCtrl[i].forward(from: 0);
@@ -352,7 +402,8 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
           Positioned.fill(
             child: Stack(
               children: [
-                Image.asset(_bgImage,
+                Image.asset(
+                  _bgImage,
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: double.infinity,
@@ -364,10 +415,15 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
           SafeArea(
             child: _phase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-              opacity: _gameFade,
-              child: _buildGameContent(),
-            ),
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
@@ -397,36 +453,40 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
   }
 
   Widget _buildIntroRoxie() {
-    return LayoutBuilder(builder: (context, constraints) {
-      final h = constraints.maxHeight;
-      final roxieH = h * 1.05;
-      final floatY = Tween<double>(begin: -8, end: 8).evaluate(
-        CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
-      );
-      return ClipRect(
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: SlideTransition(
-            position: _roxieSlide,
-            child: FadeTransition(
-              opacity: _roxieFade,
-              child: AnimatedBuilder(
-                animation: _roxieFloatCtrl,
-                builder: (_, child) => Transform.translate(
-                  offset: Offset(0, floatY), child: child,
-                ),
-                child: Image.asset(_characterImage,
-                  height: roxieH,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
-                      Text('🐰', style: TextStyle(fontSize: roxieH * 0.5)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final h = constraints.maxHeight;
+        final roxieH = h * 1.05;
+        final floatY = Tween<double>(begin: -8, end: 8).evaluate(
+          CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
+        );
+        return ClipRect(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: SlideTransition(
+              position: _roxieSlide,
+              child: FadeTransition(
+                opacity: _roxieFade,
+                child: AnimatedBuilder(
+                  animation: _roxieFloatCtrl,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(0, floatY),
+                    child: child,
+                  ),
+                  child: Image.asset(
+                    _characterImage,
+                    height: roxieH,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        Text('🐰', style: TextStyle(fontSize: roxieH * 0.5)),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 
   Widget _buildIntroPreview() {
@@ -439,8 +499,11 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
           _buildPreviewGrid(revealed: true),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Icon(Icons.arrow_forward_rounded,
-                size: 36, color: Colors.white.withValues(alpha: 0.8)),
+            child: Icon(
+              Icons.arrow_forward_rounded,
+              size: 36,
+              color: Colors.white.withValues(alpha: 0.8),
+            ),
           ),
           // Recall side
           _buildPreviewGrid(revealed: false),
@@ -480,21 +543,27 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
                 color: Colors.white.withValues(alpha: revealed ? 0.9 : 0.4),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.3),
+                  color: JarColorTheme.darkdesaturatedblue.withValues(
+                    alpha: 0.3,
+                  ),
                   width: 2,
                 ),
               ),
               padding: const EdgeInsets.all(10),
               child: revealed
                   ? Image.asset(
-                'assets/images/objects/puzzle/star.png',
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) =>
-                const Icon(Icons.star, color: Colors.amber),
-              )
-                  : Icon(Icons.question_mark_rounded,
-                  color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.4),
-                  size: 28),
+                      'assets/images/objects/puzzle/star.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.star, color: Colors.amber),
+                    )
+                  : Icon(
+                      Icons.question_mark_rounded,
+                      color: JarColorTheme.darkdesaturatedblue.withValues(
+                        alpha: 0.4,
+                      ),
+                      size: 28,
+                    ),
             );
           }),
         ),
@@ -517,7 +586,6 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
           Expanded(
             child: Row(
               children: [
-                _buildRoxieSide(),
                 Expanded(child: _buildMainArea()),
               ],
             ),
@@ -533,7 +601,9 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
     final phaseLabel = _phase == _ScreenPhase.memorize
         ? 'Remember!'
         : _phase == _ScreenPhase.result
-        ? _roundCorrect ? 'Tama!' : 'Subukan ulit!'
+        ? _roundCorrect
+              ? 'Tama!'
+              : 'Subukan ulit!'
         : 'Ano ang pattern?';
 
     return Padding(
@@ -552,7 +622,7 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
                 border: Border.all(color: Colors.black12, width: 2),
               ),
               child: Text(
-                'Copy the Pattern',
+                'Remember the Pattern',
                 style: TextStyle(
                   fontFamily: JarAppTextStyles.fredoka,
                   fontSize: 20,
@@ -564,7 +634,10 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
             Align(
               alignment: Alignment.centerRight,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _phase == _ScreenPhase.memorize
                       ? JarColorTheme.sunnyhue.withValues(alpha: 0.9)
@@ -589,29 +662,6 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildRoxieSide() {
-    return SizedBox(
-      width: 90,
-      child: LayoutBuilder(builder: (context, constraints) {
-        final floatY = Tween<double>(begin: -6, end: 6).evaluate(
-          CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
-        );
-        return AnimatedBuilder(
-          animation: _roxieFloatCtrl,
-          builder: (_, child) => Transform.translate(
-            offset: Offset(0, floatY), child: child,
-          ),
-          child: Image.asset(
-            _characterImage,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
-            const Text('🐰', style: TextStyle(fontSize: 48)),
-          ),
-        );
-      }),
     );
   }
 
@@ -645,7 +695,8 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
               builder: (_, child) {
                 final nudge = sin(_roxieFloatCtrl.value * pi * 2 + i) * 3.0;
                 return Transform.translate(
-                  offset: Offset(0, nudge), child: child,
+                  offset: Offset(0, nudge),
+                  child: child,
                 );
               },
               child: Container(
@@ -722,7 +773,8 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
   // ── Recall view ────────────────────────────────────────────────────────────
 
   Widget _buildRecallView() {
-    if (_patternObjects.length < _kGridSize || _answerSlots.length < _kGridSize) {
+    if (_patternObjects.length < _kGridSize ||
+        _answerSlots.length < _kGridSize) {
       return const SizedBox.shrink();
     }
     return Column(
@@ -754,14 +806,19 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
 
   Widget _buildAnswerSlot(int index) {
     final item = _answerSlots[index];
-    final isCorrect = _phase == _ScreenPhase.result &&
+    final isCorrect =
+        _phase == _ScreenPhase.result &&
         _answerSlots[index] == _patternObjects[index];
-    final isWrong = _phase == _ScreenPhase.result &&
+    final isWrong =
+        _phase == _ScreenPhase.result &&
         _answerSlots[index] != null &&
         _answerSlots[index] != _patternObjects[index];
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_slotShakeAnim[index], _slotBounceAnim[index]]),
+      animation: Listenable.merge([
+        _slotShakeAnim[index],
+        _slotBounceAnim[index],
+      ]),
       builder: (_, child) {
         final shake = sin(_slotShakeAnim[index].value * pi * 6) * 6;
         final scale = _slotBounceAnim[index].value;
@@ -799,20 +856,22 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
           padding: const EdgeInsets.all(12),
           child: item != null
               ? Image.asset(
-            'assets/images/objects/puzzle/$item.png',
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const SizedBox(),
-          )
+                  'assets/images/objects/puzzle/$item.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const SizedBox(),
+                )
               : Center(
-            child: Text(
-              '${index + 1}',
-              style: TextStyle(
-                fontFamily: JarAppTextStyles.fredoka,
-                fontSize: 28,
-                color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.3),
-              ),
-            ),
-          ),
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      fontFamily: JarAppTextStyles.fredoka,
+                      fontSize: 28,
+                      color: JarColorTheme.darkdesaturatedblue.withValues(
+                        alpha: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
         ),
       ),
     );
@@ -836,7 +895,9 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
                 color: Colors.white.withValues(alpha: isUsed ? 0.4 : 0.92),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.3),
+                  color: JarColorTheme.darkdesaturatedblue.withValues(
+                    alpha: 0.3,
+                  ),
                   width: 2,
                 ),
               ),

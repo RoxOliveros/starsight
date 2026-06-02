@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -43,7 +44,11 @@ class Lvl9PatternMatch2Screen extends StatefulWidget {
 }
 
 class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin {
+
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
@@ -257,6 +262,8 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
     if (_roundComplete || _wrongFlash || _rightFlash) return;
 
     if (tapped == _answerObject) {
+      showRoxieReaction(RoxieState.correct);
+
       setState(() {
         _rightFlash = true;
         _roundComplete = true;
@@ -291,6 +298,7 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
       }
     } else {
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+      showRoxieReaction(RoxieState.wrong);
       setState(() => _wrongFlash = true);
       await Future.delayed(const Duration(milliseconds: 700));
       if (mounted) setState(() => _wrongFlash = false);
@@ -321,9 +329,14 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-              opacity: _gameFade,
-              child: _buildGameContent(),
+                : Stack(
+              children: [
+                FadeTransition(
+                  opacity: _gameFade,
+                  child: _buildGameContent(),
+                ),
+                buildRoxie(context),
+              ],
             ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),

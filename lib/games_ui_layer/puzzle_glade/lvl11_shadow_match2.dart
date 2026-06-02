@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -7,6 +8,7 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_level.dart';
 import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
 import '../goodjob_prompt.dart';
+import 'lvl12_jigsaw_puzzle2.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -44,7 +46,11 @@ class Lvl11ShadowMatch2Screen extends StatefulWidget {
 }
 
 class _Lvl11ShadowMatch2ScreenState extends State<Lvl11ShadowMatch2Screen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin {
+
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
@@ -266,6 +272,9 @@ class _Lvl11ShadowMatch2ScreenState extends State<Lvl11ShadowMatch2Screen>
     final tapped = _choices[index];
 
     if (tapped == _answerObject) {
+
+      showRoxieReaction(RoxieState.correct);
+
       _pulseCtrl.stop();
       setState(() {
         _tappedIndex = index;
@@ -301,6 +310,9 @@ class _Lvl11ShadowMatch2ScreenState extends State<Lvl11ShadowMatch2Screen>
       }
     } else {
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+
+      showRoxieReaction(RoxieState.wrong);
+
       setState(() {
         _tappedIndex = index;
         _wrongFlash = true;
@@ -338,9 +350,14 @@ class _Lvl11ShadowMatch2ScreenState extends State<Lvl11ShadowMatch2Screen>
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-              opacity: _gameFade,
-              child: _buildGameContent(),
+                : Stack(
+              children: [
+                FadeTransition(
+                  opacity: _gameFade,
+                  child: _buildGameContent(),
+                ),
+                buildRoxie(context),
+              ],
             ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
@@ -704,10 +721,9 @@ class _Lvl11ShadowMatch2ScreenState extends State<Lvl11ShadowMatch2Screen>
       characterImage: _characterImage,
       closeButtonColor: JarColorTheme.darkdesaturatedblue,
       onNext: () {
-        // TODO
-        // Navigator.of(context).pushReplacement(
-        //   MaterialPageRoute(builder: (_) => const ()),
-        // );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const Lvl12JigsawPuzzle2Screen()),
+        );
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(

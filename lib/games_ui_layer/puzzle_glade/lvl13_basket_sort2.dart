@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -44,7 +45,10 @@ class Lvl13BasketSort2Screen extends StatefulWidget {
 }
 
 class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
@@ -299,9 +303,15 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
 
     // 3 of each, shuffled
     _itemQueue = [
-      _basketObjectA, _basketObjectA, _basketObjectA,
-      _basketObjectB, _basketObjectB, _basketObjectB,
-      _basketObjectC, _basketObjectC, _basketObjectC,
+      _basketObjectA,
+      _basketObjectA,
+      _basketObjectA,
+      _basketObjectB,
+      _basketObjectB,
+      _basketObjectB,
+      _basketObjectC,
+      _basketObjectC,
+      _basketObjectC,
     ]..shuffle(rng);
 
     _currentItemIndex = 0;
@@ -340,13 +350,18 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
     if (isCorrect) {
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
 
+      showRoxieReaction(RoxieState.correct);
+
       setState(() {
         if (basketObject == _basketObjectA) {
-          _placedA++; _bounceACtrl.forward(from: 0);
+          _placedA++;
+          _bounceACtrl.forward(from: 0);
         } else if (basketObject == _basketObjectB) {
-          _placedB++; _bounceBCtrl.forward(from: 0);
+          _placedB++;
+          _bounceBCtrl.forward(from: 0);
         } else {
-          _placedC++; _bounceCCtrl.forward(from: 0);
+          _placedC++;
+          _bounceCCtrl.forward(from: 0);
         }
         _currentItemIndex++;
         _itemHeld = false;
@@ -390,6 +405,9 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
     } else {
       // Wrong basket
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+
+      showRoxieReaction(RoxieState.wrong);
+
       setState(() {
         _itemHeld = false;
         if (basketObject == _basketObjectA) {
@@ -434,9 +452,14 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-                    opacity: _gameFade,
-                    child: _buildGameContent(),
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
                   ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
@@ -622,8 +645,6 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            _buildCenterItem(),
-            const SizedBox(width: 24),
             // Basket A
             _buildBasket(
               objectName: _basketObjectA,
@@ -632,6 +653,10 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
               bounceAnim: _bounceAAnim,
               bounceCtrl: _bounceACtrl,
             ),
+
+            const SizedBox(width: 24),
+
+            _buildCenterItem(),
 
             const SizedBox(width: 24),
             // Basket B

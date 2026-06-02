@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -44,15 +45,23 @@ class Lvl6BasketSortScreen extends StatefulWidget {
 }
 
 class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin<Lvl6BasketSortScreen> {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level6/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level6/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level6/instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level6/complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/level6/intro.wav';
+  static const String _audioWelcome =
+      'assets/audio/puzzle_glade/level6/welcome.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/level6/instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/level6/complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -165,8 +174,8 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-    );
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -176,9 +185,10 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     )..repeat(reverse: true);
-    _itemDance = Tween<double>(begin: -0.06, end: 0.06).animate(
-      CurvedAnimation(parent: _itemDanceCtrl, curve: Curves.easeInOut),
-    );
+    _itemDance = Tween<double>(
+      begin: -0.06,
+      end: 0.06,
+    ).animate(CurvedAnimation(parent: _itemDanceCtrl, curve: Curves.easeInOut));
 
     _gameEnterCtrl = AnimationController(
       vsync: this,
@@ -208,17 +218,19 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
       vsync: this,
       duration: const Duration(milliseconds: 450),
     );
-    _bounceAAnim = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(parent: _bounceACtrl, curve: Curves.elasticOut),
-    );
+    _bounceAAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.15,
+    ).animate(CurvedAnimation(parent: _bounceACtrl, curve: Curves.elasticOut));
 
     _bounceBCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 450),
     );
-    _bounceBAnim = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(parent: _bounceBCtrl, curve: Curves.elasticOut),
-    );
+    _bounceBAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.15,
+    ).animate(CurvedAnimation(parent: _bounceBCtrl, curve: Curves.elasticOut));
 
     _completePulseCtrl = AnimationController(
       vsync: this,
@@ -308,6 +320,7 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
     final isCorrect = currentItem == basketObject;
 
     if (isCorrect) {
+
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
 
       setState(() {
@@ -321,6 +334,8 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
         _currentItemIndex++;
         _itemHeld = false;
       });
+
+      await showRoxieReaction(RoxieState.correct);
 
       // Check round complete
       if (_currentItemIndex >= _itemQueue.length) {
@@ -359,6 +374,8 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
       }
     } else {
       // Wrong basket
+
+
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
       setState(() {
         _itemHeld = false;
@@ -369,7 +386,15 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
         }
       });
       await Future.delayed(const Duration(milliseconds: 600));
-      if (mounted) setState(() { _flashA = false; _flashB = false; });
+      if (mounted) {
+        setState(() {
+          _flashA = false;
+          _flashB = false;
+        });
+      }
+
+      await showRoxieReaction(RoxieState.wrong);
+
     }
   }
 
@@ -393,14 +418,21 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
               ],
             ),
           ),
+
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-              opacity: _gameFade,
-              child: _buildGameContent(),
-            ),
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
           ),
+
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
       ),
@@ -507,7 +539,7 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
                     'assets/images/objects/puzzle/${sampleObjects[i]}.png',
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
-                    const Text('🧺', style: TextStyle(fontSize: 28)),
+                        const Text('🧺', style: TextStyle(fontSize: 28)),
                   ),
                 ),
               );
@@ -624,14 +656,13 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
             shape: BoxShape.circle,
             border: Border.all(color: JarColorTheme.sunnyhue, width: 3),
           ),
-          child: const Center(
-            child: Text('⭐', style: TextStyle(fontSize: 40)),
-          ),
+          child: const Center(child: Text('⭐', style: TextStyle(fontSize: 40))),
         ),
       );
     }
 
-    if (_currentItemIndex >= _itemQueue.length) return const SizedBox(width: 90);
+    if (_currentItemIndex >= _itemQueue.length)
+      return const SizedBox(width: 90);
 
     final currentObject = _itemQueue[_currentItemIndex];
     final remaining = _itemQueue.length - _currentItemIndex;
@@ -663,11 +694,7 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
         child: GestureDetector(
           // Tap to select, then tap a basket to place
           onTap: () => setState(() => _itemHeld = !_itemHeld),
-          child: _buildItemTile(
-            currentObject,
-            size: 80,
-            isHeld: _itemHeld,
-          ),
+          child: _buildItemTile(currentObject, size: 80, isHeld: _itemHeld),
         ),
       ),
     );
@@ -698,11 +725,11 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
   }
 
   Widget _buildItemTile(
-      String objectName, {
-        double size = 80,
-        bool isHeld = false,
-        bool isDragging = false,
-      }) {
+    String objectName, {
+    double size = 80,
+    bool isHeld = false,
+    bool isDragging = false,
+  }) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       width: size,
@@ -734,7 +761,7 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
         'assets/images/objects/puzzle/$objectName.png',
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) =>
-        const Text('🧺', style: TextStyle(fontSize: 28)),
+            const Text('🧺', style: TextStyle(fontSize: 28)),
       ),
     );
   }
@@ -759,8 +786,8 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
           child: ScaleTransition(
             scale: bounceAnim,
             child: SizedBox(
-                width: 220,
-                child: Column(
+              width: 220,
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Object label image
@@ -772,19 +799,20 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
                         width: 180,
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) =>
-                        const Text('🧺', style: TextStyle(fontSize: 40)),
+                            const Text('🧺', style: TextStyle(fontSize: 40)),
                       ),
                       // Small label badge at top
                       Positioned(
                         top: 0,
                         child: Container(
-                          width: 32,
-                          height: 32,
+                          width: 45,
+                          height: 45,
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.92),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
+                              color: JarColorTheme.darkdesaturatedblue
+                                  .withValues(alpha: 0.25),
                               width: 2,
                             ),
                           ),
@@ -793,7 +821,7 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
                             'assets/images/objects/puzzle/$objectName.png',
                             fit: BoxFit.contain,
                             errorBuilder: (_, __, ___) =>
-                            const Text('?', style: TextStyle(fontSize: 14)),
+                                const Text('?', style: TextStyle(fontSize: 14)),
                           ),
                         ),
                       ),
@@ -804,13 +832,14 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
                           child: Wrap(
                             alignment: WrapAlignment.center,
                             spacing: 2,
-                            children: List.generate(placedCount, (_) =>
-                                Image.asset(
-                                  'assets/images/objects/puzzle/$objectName.png',
-                                  width: 80,
-                                  height: 80,
-                                  fit: BoxFit.contain,
-                                ),
+                            children: List.generate(
+                              placedCount,
+                              (_) => Image.asset(
+                                'assets/images/objects/puzzle/$objectName.png',
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
                         ),
@@ -839,7 +868,11 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
                               color: Colors.green,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.check, color: Colors.white, size: 16),
+                            child: const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                           ),
                         ),
                     ],

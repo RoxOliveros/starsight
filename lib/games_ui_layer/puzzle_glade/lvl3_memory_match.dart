@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -63,7 +64,9 @@ class Lvl3JarMemoryMatchScreen extends StatefulWidget {
 }
 
 class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin<Lvl3JarMemoryMatchScreen> {
+  @override
+  AudioPlayer get roxiePlayer => _sfxPlayer;
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
@@ -314,6 +317,7 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
 
     if (cardA.pairId == cardB.pairId) {
       _sfxPlayer.play(AssetSource(_audioCorrect.replaceFirst('assets/', '')));
+      unawaited(showRoxieReaction(RoxieState.correct));
       await Future.delayed(const Duration(milliseconds: 500));
       setState(() {
         cardA.isMatched = true;
@@ -355,6 +359,7 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
         }
       }
     } else {
+      unawaited(showRoxieReaction(RoxieState.wrong));
       await Future.delayed(_kPeekDuration);
       setState(() {
         cardA.isFaceUp = false;
@@ -390,10 +395,16 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
           SafeArea(
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
-                : FadeTransition(
-                    opacity: _gameFade,
-                    child: _buildGameContent(),
-                  ),
+                : Stack(
+              children: [
+                FadeTransition(
+                  opacity: _gameFade,
+                  child: _buildGameContent(),
+                ),
+
+                buildRoxie(context),
+              ],
+            ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
