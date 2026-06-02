@@ -1,8 +1,7 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/puzzle_glade/puzzle_level.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart' hide LottieCache;
-import '../business_layer/lottie_cache.dart';
+import 'package:lottie/lottie.dart';
 import 'arctic_numberland/arctic_level.dart';
 import 'alphabet_forest_ui/forest_level.dart';
 import 'discovery_lagoon/lagoon_level.dart';
@@ -43,6 +42,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   late AnimationController _floatController;
   late Animation<double> _floatAnimation;
 
+  bool _animationsReady = false;
+
   // Activity/island cards
   final List<_ActivityCard> _activities = const [
     _ActivityCard(
@@ -81,19 +82,38 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
     _floatController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
-    )..repeat(reverse: true);
+    );
     _floatAnimation = Tween<double>(begin: -6, end: 6).animate(
       CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
     );
+
+    _loadAnimations();
   }
 
   @override
   void dispose() {
     _floatController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAnimations() async {
+    await Future.wait([
+      AssetLottie('assets/animations/white_clouds_mirrored.json').load(),
+      AssetLottie('assets/animations/white_cloud.json').load(),
+      AssetLottie('assets/animations/forest.json').load(),
+      AssetLottie('assets/animations/town.json').load(),
+      AssetLottie('assets/animations/arctic.json').load(),
+      AssetLottie('assets/animations/lagoon.json').load(),
+      AssetLottie('assets/animations/puzzle.json').load(),
+    ]);
+    if (mounted) {
+      setState(() => _animationsReady = true);
+      _floatController.repeat(reverse: true); // start float AFTER ready
+    }
   }
 
   @override
@@ -105,86 +125,94 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: ProfileDayDialog(name: widget.nickname),
       ),
       body: SafeArea(
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // ── Full-screen cloud background ──────────────────────────
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    // Left cloud
-                    Positioned(
-                      left: -60,
-                      top: -50,
-                      bottom: 0,
-                      child: Center(
-                        child: Lottie.asset(
-                          'assets/animations/white_clouds_mirrored.json',
-                          width: 350,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) =>
-                              const SizedBox(width: 200),
-                        ),
+        child: _animationsReady
+            ? Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // ── Full-screen cloud background ──────────────────────────
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Left cloud
+                          Positioned(
+                            left: -60,
+                            top: 0,
+                            bottom: 0,
+                            child: Center(
+                              child: Lottie.asset(
+                                'assets/animations/white_clouds_mirrored.json',
+                                width: 550,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox(width: 200),
+                              ),
+                            ),
+                          ),
+                          // Center cloud
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            top: -150,
+                            bottom: 0,
+                            child: Center(
+                              child: Lottie.asset(
+                                'assets/animations/white_cloud.json',
+                                width: 80,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox(width: 80),
+                              ),
+                            ),
+                          ),
+                          // Right cloud
+                          Positioned(
+                            right: -200,
+                            top: -50,
+                            bottom: 0,
+                            child: Center(
+                              child: Lottie.asset(
+                                'assets/animations/white_clouds_mirrored.json',
+                                width: 550,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox(width: 200),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    // Center cloud
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      top: -120,
-                      bottom: 0,
-                      child: Center(
-                        child: Lottie.asset(
-                          'assets/animations/white_cloud.json',
-                          width: 80,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) =>
-                              const SizedBox(width: 80),
-                        ),
-                      ),
-                    ),
-                    // Right cloud
-                    Positioned(
-                      right: -70,
-                      top: -200,
-                      bottom: 0,
-                      child: Center(
-                        child: Lottie.asset(
-                          'assets/animations/white_clouds_mirrored.json',
-                          width: 350,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) =>
-                              const SizedBox(width: 200),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // ── All UI on top ─────────────────────────────────────────
-            Column(
-              children: [
-                _TopBar(nickname: widget.nickname),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _MainIslandCard(
-                      activities: _activities,
-                      floatAnimation: _floatAnimation,
-                      selectedTab: _selectedTab,
-                      onTabChanged: (i) => setState(() => _selectedTab = i),
                     ),
                   ),
+
+                  // ── All UI on top ─────────────────────────────────────────
+                  Column(
+                    children: [
+                      _TopBar(nickname: widget.nickname),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _MainIslandCard(
+                            activities: _activities,
+                            floatAnimation: _floatAnimation,
+                            selectedTab: _selectedTab,
+                            onTabChanged: (i) =>
+                                setState(() => _selectedTab = i),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            : Center(
+                child: Image.asset(
+                  'assets/images/characters/doma_writing_on_board.png',
+                  width: 150,
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
       ),
     );
   }
@@ -381,8 +409,8 @@ class _MainIslandCard extends StatelessWidget {
               bottom: 12,
               child: GestureDetector(
                 onTap: () {}, //TODO: @Tin Navigate to storymode
-                child: Lottie.asset(
-                  'assets/animations/movie_clapperboard.json',
+                child: Image.asset(
+                  'assets/animations/movie_clapperboard.webp',
                   width: 56,
                   height: 56,
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
@@ -579,8 +607,6 @@ class _IslandTileState extends State<_IslandTile>
 
   @override
   Widget build(BuildContext context) {
-    final composition = LottieCache.instance.get(widget.activity.imagePath);
-
     return GestureDetector(
       onTap: () => _navigate(context),
       child: AnimatedBuilder(
@@ -606,14 +632,13 @@ class _IslandTileState extends State<_IslandTile>
                       ]
                     : [],
               ),
-              child: composition != null
-                  ? Lottie(
-                      composition: composition,
-                      width: widget.size,
-                      height: widget.size * 0.85,
-                      fit: BoxFit.contain,
-                    )
-                  : _IslandPlaceholder(large: true),
+              child: Lottie.asset(
+                widget.activity.imagePath,
+                width: widget.size,
+                height: widget.size * 0.85,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => _IslandPlaceholder(large: true),
+              ),
             ),
             Text(
               widget.activity.title,

@@ -84,10 +84,10 @@ class _ChildNickname extends State<ChildNickname> {
           // Mid-right cloud
           Positioned(
             top: screenHeight * 0.65,
-            right: -30,
+            right: -130,
             child: Lottie.asset(
               'assets/animations/night_cloud_fluffy.json',
-              width: screenWidth * 0.65,
+              width: screenWidth * 0.80,
               delegates: LottieDelegates(
                 values: [
                   ValueDelegate.opacity(const ['**'], value: 85),

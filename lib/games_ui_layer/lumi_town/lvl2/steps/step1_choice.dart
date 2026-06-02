@@ -86,7 +86,7 @@ class _Step1ChoiceScreenState extends State<Step1ChoiceScreen>
             right: 0,
             child: Center(
               child: Image.asset(
-                'assets/images/characters/bear.png',
+                'assets/images/characters/little_bear.png',
                 height: 300,
                 fit: BoxFit.contain,
               ),

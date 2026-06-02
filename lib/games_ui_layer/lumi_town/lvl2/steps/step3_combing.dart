@@ -73,7 +73,7 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
                 alignment: Alignment.topCenter,
                 children: [
                   Image.asset(
-                    'assets/images/characters/bear.png',
+                    'assets/images/characters/little_bear.png',
                     height: 300,
                     fit: BoxFit.contain,
                   ),

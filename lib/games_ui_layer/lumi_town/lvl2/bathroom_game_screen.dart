@@ -88,7 +88,7 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
               left: 0,
               right: 0,
               child: Center(
-                child: Image.asset('assets/images/characters/bear.png', height: 320, fit: BoxFit.contain),
+                child: Image.asset('assets/images/characters/little_bear.png', height: 320, fit: BoxFit.contain),
               ),
             ),
 

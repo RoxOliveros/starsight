@@ -209,7 +209,7 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
             right: -100,
             child: Lottie.asset(
               'assets/animations/night_cloud_fluffy.json',
-              width: screenWidth * 0.65,
+              width: screenWidth * 0.80,
               delegates: LottieDelegates(
                 values: [
                   ValueDelegate.opacity(const ['**'], value: 85),
@@ -219,11 +219,11 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
           ),
           // Bottom-left cloud
           Positioned(
-            bottom: screenHeight * -0.09,
+            bottom: screenHeight * -0.1,
             left: -130,
             child: Lottie.asset(
               'assets/animations/night_cloud.json',
-              width: screenWidth * 0.65,
+              width: screenWidth * 0.80,
               delegates: LottieDelegates(
                 values: [
                   ValueDelegate.opacity(const ['**'], value: 85),

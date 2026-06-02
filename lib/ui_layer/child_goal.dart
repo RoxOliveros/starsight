@@ -81,10 +81,10 @@ class _ChildGoalState extends State<ChildGoal> {
           // Cloud decoration bottom left
           Positioned(
             bottom: screenHeight * 0.12,
-            left: -40,
+            left: -80,
             child: Lottie.asset(
               'assets/animations/night_cloud.json',
-              width: screenWidth * 0.55,
+              width: screenWidth * 0.65,
               delegates: LottieDelegates(
                 values: [
                   ValueDelegate.opacity(const ['**'], value: 85),

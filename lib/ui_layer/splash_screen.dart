@@ -4,8 +4,6 @@ import 'package:StarSight/Business_Layer/auth_service.dart';
 import 'package:StarSight/UI_Layer/consent_screen.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
 
-import '../business_layer/lottie_cache.dart';
-
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -51,12 +49,6 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
-    LottieCache.instance.preload([
-      //Sign in and Sign up
-      'assets/animations/peeking_penguin.json',
-      'assets/animations/white_clouds.json',
-    ]);
 
     _logoController = AnimationController(
       vsync: this,

@@ -90,7 +90,7 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
                 alignment: Alignment.center,
                 children: [
                   Image.asset(
-                    'assets/images/characters/bear.png',
+                    'assets/images/characters/little_bear.png',
                     height: 300,
                     fit: BoxFit.contain,
                   ),

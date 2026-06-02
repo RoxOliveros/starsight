@@ -102,7 +102,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
                 alignment: Alignment.center,
                 children: [
                   Image.asset(
-                    'assets/images/characters/bear.png',
+                    'assets/images/characters/little_bear.png',
                     height: 300,
                     fit: BoxFit.contain,
                   ),

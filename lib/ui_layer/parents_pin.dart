@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/orientation_service.dart';
 import 'app_dialog.dart';
@@ -27,6 +26,8 @@ class ParentPin extends StatefulWidget {
 class ParentPinState extends State<ParentPin> {
   final List<String> _digits = [];
   static const int _maxDigits = 4;
+
+  bool _animationsReady = false;
 
   void _onDigitTap(String digit) {
     if (_digits.length < _maxDigits) {
@@ -73,15 +74,25 @@ class ParentPinState extends State<ParentPin> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    OrientationService.setLandscape();
+    _loadAnimations();
+  }
+
+  @override
   void dispose() {
     OrientationService.setLandscape();
     super.dispose();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    OrientationService.setLandscape();
+  Future<void> _loadAnimations() async {
+    await Future.wait([
+      AssetLottie('assets/animations/doma_writing_onboard.json').load(),
+    ]);
+    if (mounted) {
+      setState(() => _animationsReady = true);
+    }
   }
 
   Widget _buildSlot(int index) {
@@ -188,80 +199,87 @@ class ParentPinState extends State<ParentPin> {
       backgroundColor: ColorTheme.cream,
 
       body: SafeArea(
-        child: Row(
-          children: [
-            // ───────── LEFT SIDE ─────────
-            Expanded(
-              flex: 2,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min, // ✅ key fix
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // 🐧 Penguin
-                      Lottie.asset(
-                        'assets/animations/penguin_writing_onboard.json',
-                        width: 140,
-                      ),
+        child: _animationsReady
+            ? Row(
+                children: [
+                  // ───────── LEFT SIDE ─────────
+                  Expanded(
+                    flex: 2,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min, // ✅ key fix
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // 🐧 Penguin
+                            Lottie.asset(
+                              'assets/animations/doma_writing_onboard.json',
+                              width: 140,
+                            ),
 
-                      const SizedBox(height: 10),
+                            const SizedBox(height: 10),
 
-                      const Text(
-                        "PARENTS ONLY",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontFamily: Fonts.fredoka,
-                          fontWeight: FontWeight.bold,
-                          color: ColorTheme.orange,
+                            const Text(
+                              "PARENTS ONLY",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 30,
+                                fontFamily: Fonts.fredoka,
+                                fontWeight: FontWeight.bold,
+                                color: ColorTheme.orange,
+                              ),
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            const Text(
+                              "ENTER YOUR BIRTHYEAR TO CONTINUE",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontFamily: Fonts.fredoka,
+                                fontWeight: FontWeight.bold,
+                                color: ColorTheme.warmBrown,
+                              ),
+                            ),
+
+                            const SizedBox(height: 25),
+
+                            // Input display
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
+                              decoration: BoxDecoration(
+                                color: ColorTheme.cream.withValues(alpha: 0.25),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize
+                                    .min, // ✅ keeps input centered tight
+                                children: List.generate(
+                                  _maxDigits,
+                                  (i) => _buildSlot(i),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-
-                      const SizedBox(height: 10),
-
-                      const Text(
-                        "ENTER YOUR BIRTHYEAR TO CONTINUE",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontFamily: Fonts.fredoka,
-                          fontWeight: FontWeight.bold,
-                          color: ColorTheme.warmBrown,
-                        ),
-                      ),
-
-                      const SizedBox(height: 25),
-
-                      // Input display
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          color: ColorTheme.cream.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Row(
-                          mainAxisSize:
-                              MainAxisSize.min, // ✅ keeps input centered tight
-                          children: List.generate(
-                            _maxDigits,
-                            (i) => _buildSlot(i),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
+                  // ───────── RIGHT SIDE ─────────
+                  Expanded(flex: 3, child: Center(child: _buildNumpad())),
+                ],
+              )
+            : Center(
+                child: Image.asset(
+                  'assets/images/characters/doma_writing_on_board.png',
+                  width: 120,
                 ),
               ),
-            ),
-            // ───────── RIGHT SIDE ─────────
-            Expanded(flex: 3, child: Center(child: _buildNumpad())),
-          ],
-        ),
       ),
     );
   }

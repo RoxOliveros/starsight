@@ -1,7 +1,6 @@
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart' hide LottieCache;
-import '../../business_layer/lottie_cache.dart';
+import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/lumi_town/1/wakeup1.dart';
 import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
@@ -21,7 +20,6 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-    LottieCache.instance.preload(['assets/animations/sleeping.json']);
   }
 
   @override

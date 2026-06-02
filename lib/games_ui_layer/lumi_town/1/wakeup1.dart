@@ -4,10 +4,9 @@ import 'package:StarSight/games_ui_layer/lumi_town/1/wakeup2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:lottie/lottie.dart' hide LottieCache;
+import 'package:lottie/lottie.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import '../../../business_layer/lottie_cache.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
@@ -48,20 +47,15 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
+  bool _animationReady = false;
+
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
-
-    // 1. Lock to landscape.
     OrientationService.setLandscape();
-
-    LottieCache.instance.preload(['assets/animations/awake.json']);
-
-    // 2. Hide system UI for a truly immersive full-screen experience.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    // 3. Fade-in animation.
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -70,9 +64,18 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
       parent: _fadeController,
       curve: Curves.easeIn,
     );
-    _fadeController.forward();
 
-    // 4. Prepare & play the .bin audio file.
+    _loadAnimation();
+  }
+
+  Future<void> _loadAnimation() async {
+    await Future.wait([
+      AssetLottie(widget.imagePath).load(),
+      AssetLottie('assets/animations/awake.json').load(),
+    ]);
+    if (!mounted) return;
+    setState(() => _animationReady = true);
+    _fadeController.forward();
     _initAudio();
   }
 
@@ -227,40 +230,41 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // ── Full-screen landscape image ──────────────────────────────────
-            Lottie.asset(
-              widget.imagePath,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              frameRate: FrameRate(30),
-              errorBuilder: (context, error, stack) => _buildImageError(),
-            ),
-
-            // ── Audio status overlay (debug / error only) ────────────────────
-            if (_audioError != null) _buildAudioErrorBadge(),
-
-            _buildMeter(),
-
-            //X button
-            Positioned(
-              top: 25,
-              left: 25,
-              child: LumiXButton(
-                onTap: () {
-                  _speech.stop();
-                  Navigator.pop(context);
-                },
+      body: _animationReady
+          ? FadeTransition(
+              opacity: _fadeAnimation,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Lottie.asset(
+                    widget.imagePath,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    frameRate: FrameRate(30),
+                    errorBuilder: (context, error, stack) => _buildImageError(),
+                  ),
+                  if (_audioError != null) _buildAudioErrorBadge(),
+                  _buildMeter(),
+                  Positioned(
+                    top: 25,
+                    left: 25,
+                    child: LumiXButton(
+                      onTap: () {
+                        _speech.stop();
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Center(
+              child: Image.asset(
+                'assets/images/characters/dr.woo_the_owl.png',
+                width: 120,
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 
