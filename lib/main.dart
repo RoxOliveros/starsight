@@ -1,5 +1,4 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/ui_layer/puzzle_glade/puzzle_level.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:StarSight/ui_layer/splash_screen.dart';
@@ -25,8 +24,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      //home: SplashScreen(),
-      home: PuzzleLevelScreen(),
+      home: SplashScreen(),
     );
   }
 }
