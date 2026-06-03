@@ -1,5 +1,6 @@
 import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:StarSight/ui_layer/parents_pin.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 abstract class ColorTheme {
@@ -22,9 +23,7 @@ class ProfileDayDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFE9C679),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFFE9C679)),
       child: SizedBox(
         width: double.infinity,
         height: double.infinity,
@@ -149,14 +148,22 @@ class ProfileDayDialog extends StatelessWidget {
                 _ProfileOption(
                   icon: Icons.logout,
                   label: "Log out",
-                  onTap: () {
-                    //TODO: @Ron paayos nalang ng backend etc here for log out like literal na ninavigate ko lang to sa sign in sign up
+                  onTap: () async {
+                    // 1. Close the drawer menu
                     Navigator.pop(context);
-                    Navigator.push(
+
+                    // 2. Erase the Firebase login token
+                    await FirebaseAuth.instance.signOut();
+
+                    // 3. Send them to the Start Screen AND clear the back-button history
+                    if (!context.mounted) return;
+                    Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const SignUpSignInScreen(),
                       ),
+                      (route) =>
+                          false, // This destroys the old Dashboard screen
                     );
                   },
                 ),

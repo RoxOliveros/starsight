@@ -1,4 +1,5 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/business_layer/otp_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/auth_service.dart';
@@ -50,7 +51,7 @@ class SignUpAccount extends StatefulWidget {
 
 class _SignUpAccountState extends State<SignUpAccount>
     with SingleTickerProviderStateMixin {
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   late final AnimationController _fadeController;
   late final Animation<double> _fadeIn;
 
@@ -70,84 +71,80 @@ class _SignUpAccountState extends State<SignUpAccount>
   @override
   void dispose() {
     _fadeController.dispose();
-    _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
+  // DON'T FORGET TO RENAME YOUR CONTROLLER!
+  // Change _emailController to _phoneController at the top of your state class!
+
   void _onSignUp() async {
-    String email = _emailController.text.trim();
+    String phone = _phoneController.text.trim();
 
-    if (email.isEmpty) {
-      AppDialog.showError(context, message: "Email should not be empty");
-      return;
-    }
-
-    if (!email.contains('@') || !email.contains('.')) {
-      AppDialog.showError(context, message: "Please enter a valid email");
-      return;
-    }
-
-    // email checker
-    bool emailExists = await DatabaseService().doesEmailExist(email);
-
-    if (emailExists) {
-      if (!mounted) return;
+    if (phone.isEmpty || phone.length < 10) {
       AppDialog.showError(
         context,
-        message:
-            "This email is already registered! Please go back and select 'Sign In'.",
+        message: "Please enter a valid phone number (e.g., +639123456789)",
       );
       return;
     }
 
-    // Calls the AuthService to send the magic link.
-    bool isSent = await AuthService().sendMagicLink(
-      email: email,
-      nickname: widget.nickname,
-      goals: widget.goals,
-      parentBirthYear: widget.parentBirthYear,
+    // Show a loading indicator (optional, but good UX)
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
-    // --- NEW BACKPACK CODE ENDS HERE ---
 
-    if (isSent) {
-      if (!mounted) return;
+    // Call your new AuthService to send the SMS
+    await AuthService().verifyPhoneNumber(
+      phoneNumber: phone,
+      onCodeSent: (String verificationId) {
+        Navigator.pop(context); // Remove loading circle
 
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text(
-            "Check your email!",
-            style: TextStyle(
-              fontFamily: AppTextStyles.fredoka,
-              color: ColorTheme.deepNavyBlue,
-              fontWeight: FontWeight.bold,
+        // Navigate to the beautiful new Penguin OTP screen!
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtpScreen(
+              phoneNumber: phone,
+              verificationId: verificationId,
+
+              // THIS IS THE MAGIC PART!
+              // When the OTP is correct, it runs this block of code:
+              onSuccess: () async {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  // Save all their child data to the database
+                  await DatabaseService().createParentAndChild(
+                    uid: user.uid,
+                    email: phone, // Saving phone in place of email for now
+                    childNickname: widget.nickname,
+                    childGoals: widget.goals,
+                    parentBirthYear: widget.parentBirthYear,
+                  );
+                }
+
+                if (!mounted) return;
+                // Move forward to the Consent Screen!
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ConsentScreen()),
+                  (route) => false,
+                );
+              },
             ),
           ),
-          content: Text(
-            "We sent a magic login link to $email. Tap the link to continue your adventure!",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                "OK",
-                style: TextStyle(
-                  color: ColorTheme.orange,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      if (!mounted) return;
-      AppDialog.showError(
-        context,
-        message:
-            "Oops! We couldn't send the link. Please check your console for errors.",
-      );
-    }
+        );
+      },
+      onError: (String error) {
+        Navigator.pop(context); // Remove loading circle
+        AppDialog.showError(context, message: error);
+      },
+      onVerificationCompleted: () {
+        // Automatically reads SMS on Android and logs them in!
+      },
+    );
   }
 
   void _onGoogleSignUp() async {
@@ -232,17 +229,17 @@ class _SignUpAccountState extends State<SignUpAccount>
 
                       const SizedBox(height: 32),
 
-                      // Email field
+                      // Phone field
                       TextField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
                         style: const TextStyle(
                           fontFamily: AppTextStyles.fredoka,
                           fontSize: 15,
                           color: ColorTheme.deepNavyBlue,
                         ),
                         decoration: InputDecoration(
-                          labelText: 'Email:',
+                          labelText: 'Phone Number (+63):',
                           labelStyle: const TextStyle(
                             fontFamily: AppTextStyles.fredoka,
                             fontSize: 14,

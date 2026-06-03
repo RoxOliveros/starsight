@@ -1,4 +1,6 @@
 import 'package:StarSight/UI_Layer/signup_signin.dart';
+import 'package:StarSight/business_layer/database_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/Business_Layer/auth_service.dart';
 import 'package:StarSight/UI_Layer/consent_screen.dart';
@@ -29,7 +31,7 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<Offset> _flyOffset;
   late final Animation<double> _starFade;
 
-  //loading bar
+  // Loading bar
   late final AnimationController _loadingController;
   late final Animation<double> _loadingAnimation;
 
@@ -82,7 +84,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
     _flyOffset = Tween<Offset>(
       begin: Offset.zero,
-      end: Offset.zero, // updated dynamically before flying
+      end: Offset.zero,
     ).animate(CurvedAnimation(parent: _flyController, curve: Curves.easeInOut));
     _starFade = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(parent: _flyController, curve: const Interval(0.7, 1.0)),
@@ -109,8 +111,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _startSequence() async {
-    final authFuture = AuthService().handleIncomingLink();
-
     // 1. Logo pops in
     await Future.delayed(const Duration(milliseconds: 300));
     await _logoController.forward();
@@ -134,25 +134,22 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Show the bunny/bar early (invisible) so the key is mounted
     setState(() => _showBunny = true);
-    await Future.delayed(const Duration(milliseconds: 50)); // let it render
+    await Future.delayed(const Duration(milliseconds: 50));
 
     final RenderBox? barBox =
         _loadingBarKey.currentContext?.findRenderObject() as RenderBox?;
     final barTarget = barBox != null
         ? barBox.localToGlobal(Offset(0, barBox.size.height / 2))
-        : Offset(screenSize.width * 0.12, screenSize.height * 0.62); // fallback
+        : Offset(screenSize.width * 0.12, screenSize.height * 0.62);
 
-    // Then hide it again until the star arrives:
     setState(() => _showBunny = false);
 
     if (starBox != null) {
       final starPos = starBox.localToGlobal(
         Offset(starBox.size.width / 2, starBox.size.height / 2),
       );
-      (_flyOffset as dynamic); // just to reference it
       final newFlyOffset = barTarget - starPos;
 
-      // Re-initialize fly offset with correct target
       _flyController.reset();
       final tween = Tween<Offset>(begin: Offset.zero, end: newFlyOffset);
       _flyOffset = tween.animate(
@@ -165,39 +162,54 @@ class _SplashScreenState extends State<SplashScreen>
     // 5. Star flies to bunny
     await _flyController.forward();
 
-    // Step 6 — run both concurrently instead of sequentially
+    // 6. Bunny fades in and loading bar runs
     setState(() => _showBunny = true);
     await _bunnyController.forward();
 
-    await Future.wait<void>([_loadingController.forward(), authFuture]);
+    // Wait for the loading bar to finish reaching 100%
+    await _loadingController.forward();
 
-    String loginStatus = await authFuture;
-
+    // --- UPDATED LOGIC: Auth Check + Database Safety Check ---
     if (mounted) {
-      if (loginStatus == "signup") {
-        // SUCCESSFUL SIGN UP -> Go to Consent Screen
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (_, __, ___) => const ConsentScreen(),
-            transitionsBuilder: (_, anim, __, child) =>
-                FadeTransition(opacity: anim, child: child),
-          ),
-        );
-      } else if (loginStatus == "login") {
-        // SUCCESSFUL SIGN IN (or already logged in) -> Go to Dashboard
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (_, __, ___) => const DashboardScreen(
-              nickname: "",
-            ), //TODO: @Ron get nickname from db
-            transitionsBuilder: (_, anim, __, child) =>
-                FadeTransition(opacity: anim, child: child),
-          ),
-        );
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        try {
+          // THEY ARE LOGGED IN -> Let's make sure their DB data still exists!
+          String fetchedNickname = await DatabaseService().getNickname();
+
+          if (fetchedNickname.isNotEmpty) {
+            // DB exists! Go to Dashboard.
+            if (!mounted) return;
+            Navigator.of(context).pushReplacement(
+              PageRouteBuilder(
+                transitionDuration: const Duration(milliseconds: 500),
+                pageBuilder: (_, __, ___) =>
+                    DashboardScreen(nickname: fetchedNickname),
+                transitionsBuilder: (_, anim, __, child) =>
+                    FadeTransition(opacity: anim, child: child),
+              ),
+            );
+          } else {
+            // DB is empty/deleted! Force a logout.
+            throw Exception("Database profile missing.");
+          }
+        } catch (e) {
+          // If the DB was deleted or corrupted, forcefully sign them out
+          await FirebaseAuth.instance.signOut();
+
+          if (!mounted) return;
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              transitionDuration: const Duration(milliseconds: 500),
+              pageBuilder: (_, __, ___) => const SignUpSignInScreen(),
+              transitionsBuilder: (_, anim, __, child) =>
+                  FadeTransition(opacity: anim, child: child),
+            ),
+          );
+        }
       } else {
-        // NOT LOGGED IN -> Go to Start Screen
+        // THEY ARE NOT LOGGED IN -> Go to Start Screen
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 500),
@@ -245,11 +257,8 @@ class _SplashScreenState extends State<SplashScreen>
                       final logoW = constraints.maxWidth;
                       final logoH = logoW / (1500 / 805);
 
-                      // Tune these two values to pin the star on your "i" dot
-                      final starX =
-                          logoW * 0.63; // 0.0 = left edge, 1.0 = right edge
-                      final starY =
-                          logoH * 0.45; // 0.0 = top edge, 1.0 = bottom edge
+                      final starX = logoW * 0.63;
+                      final starY = logoH * 0.45;
 
                       return Stack(
                         clipBehavior: Clip.none,
@@ -271,9 +280,7 @@ class _SplashScreenState extends State<SplashScreen>
                           if (_showStar)
                             Positioned(
                               left: starX - 22,
-                              // 22 = half of star width (44/2)
                               top: starY - 19,
-                              // 19 = half of star height (39/2)
                               child: AnimatedBuilder(
                                 animation: Listenable.merge([
                                   _wiggleController,
@@ -376,7 +383,6 @@ class _SplashScreenState extends State<SplashScreen>
                                           ),
                                           // Bunny
                                           Positioned(
-                                            //left: _loadingAnimation.value * (barWidth - bunnyWidth) - (bunnyWidth * 0.35),
                                             left:
                                                 -bunnyWidth * 0.35 +
                                                 _loadingAnimation.value *

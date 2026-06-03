@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/otp_screen.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -42,7 +43,7 @@ class SignInAccount extends StatefulWidget {
 
 class _SignInAccountState extends State<SignInAccount>
     with SingleTickerProviderStateMixin {
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   late final AnimationController _fadeController;
   late final Animation<double> _fadeIn;
 
@@ -61,27 +62,26 @@ class _SignInAccountState extends State<SignInAccount>
   @override
   void dispose() {
     _fadeController.dispose();
-    _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
   void _onSignIn() async {
-    String email = _emailController.text.trim();
+    String phone = _phoneController.text.trim();
 
-    if (email.isEmpty) {
-      AppDialog.showError(context, message: "Email should not be empty");
+    if (phone.isEmpty || phone.length < 10) {
+      AppDialog.showError(
+        context,
+        message: "Please enter a valid phone number (e.g., +639123456789)",
+      );
       return;
     }
 
-    if (!email.contains('@') || !email.contains('.')) {
-      AppDialog.showError(context, message: "Please enter a valid email");
-      return;
-    }
+    // Since we saved the phone number into the 'email' database field during signup,
+    // we can safely use your existing doesEmailExist function to check if the phone exists!
+    bool accountExists = await DatabaseService().doesEmailExist(phone);
 
-    //Checks if the account actually exists
-    bool emailExists = await DatabaseService().doesEmailExist(email);
-
-    if (!emailExists) {
+    if (!accountExists) {
       if (!mounted) return;
       AppDialog.showError(
         context,
@@ -89,46 +89,63 @@ class _SignInAccountState extends State<SignInAccount>
       );
       return;
     }
-    //Call AuthService to send the LOGIN link
-    bool isSent = await AuthService().sendLoginMagicLink(email: email);
 
-    if (isSent) {
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text(
-            "Check your email!",
-            style: TextStyle(
-              fontFamily: AppTextStyles.fredoka,
-              color: ColorTheme.deepNavyBlue,
-              fontWeight: FontWeight.bold,
+    // Show a loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    // Call AuthService to send the SMS
+    await AuthService().verifyPhoneNumber(
+      phoneNumber: phone,
+      onCodeSent: (String verificationId) {
+        Navigator.pop(context); // Remove loading circle
+
+        // Navigate to the Penguin OTP screen!
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtpScreen(
+              phoneNumber: phone,
+              verificationId: verificationId,
+              onSuccess: () async {
+                // SUCCESS! Get the nickname and go straight to the Dashboard!
+                String fetchedNickname = await DatabaseService().getNickname();
+                if (!mounted) return;
+
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DashboardScreen(nickname: fetchedNickname),
+                  ),
+                  (route) => false,
+                );
+              },
             ),
           ),
-          content: Text(
-            "We sent a magic login link to $email. Tap the link to jump back into StarSight!",
+        );
+      },
+      onError: (String error) {
+        Navigator.pop(context); // Remove loading circle
+        AppDialog.showError(context, message: error);
+      },
+      onVerificationCompleted: () async {
+        // Automatically reads SMS on Android and logs them in!
+        Navigator.pop(context); // Remove loading circle
+        String fetchedNickname = await DatabaseService().getNickname();
+        if (!mounted) return;
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DashboardScreen(nickname: fetchedNickname),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                "OK",
-                style: TextStyle(
-                  color: ColorTheme.orange,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      if (!mounted) return;
-      AppDialog.showError(
-        context,
-        message: "Oops! We couldn't send the link. Please try again.",
-      );
-    }
+          (route) => false,
+        );
+      },
+    );
   }
 
   void _onGoogleSignIn() async {
@@ -228,15 +245,15 @@ class _SignInAccountState extends State<SignInAccount>
 
                       // Email field
                       TextField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
                         style: const TextStyle(
                           fontFamily: AppTextStyles.fredoka,
                           fontSize: 15,
                           color: ColorTheme.deepNavyBlue,
                         ),
                         decoration: InputDecoration(
-                          labelText: 'Email:',
+                          labelText: 'Phone Number (+63):',
                           labelStyle: const TextStyle(
                             fontFamily: AppTextStyles.fredoka,
                             fontSize: 14,

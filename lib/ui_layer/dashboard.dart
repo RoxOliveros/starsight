@@ -1,5 +1,7 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/puzzle_glade/puzzle_level.dart';
+import 'package:StarSight/ui_layer/signup_signin.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'arctic_numberland/arctic_level.dart';
