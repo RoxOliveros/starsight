@@ -37,12 +37,14 @@ class SignUpAccount extends StatefulWidget {
   final String nickname;
   final List<String> goals;
   final String parentBirthYear;
+  final String parentPin;
 
   const SignUpAccount({
     super.key,
     required this.nickname,
     required this.goals,
     required this.parentBirthYear,
+    required this.parentPin,
   });
 
   @override
@@ -118,10 +120,11 @@ class _SignUpAccountState extends State<SignUpAccount>
                   // Save all their child data to the database
                   await DatabaseService().createParentAndChild(
                     uid: user.uid,
-                    email: phone, // Saving phone in place of email for now
+                    phoneNumber: phone,
                     childNickname: widget.nickname,
                     childGoals: widget.goals,
                     parentBirthYear: widget.parentBirthYear,
+                    parentPin: widget.parentPin,
                   );
                 }
 
@@ -159,6 +162,7 @@ class _SignUpAccountState extends State<SignUpAccount>
           childNickname: widget.nickname,
           childGoals: widget.goals,
           parentBirthYear: widget.parentBirthYear,
+          parentPin: widget.parentPin,
         );
       }
 

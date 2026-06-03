@@ -77,9 +77,7 @@ class _SignInAccountState extends State<SignInAccount>
       return;
     }
 
-    // Since we saved the phone number into the 'email' database field during signup,
-    // we can safely use your existing doesEmailExist function to check if the phone exists!
-    bool accountExists = await DatabaseService().doesEmailExist(phone);
+    bool accountExists = await DatabaseService().doesPhoneExist(phone);
 
     if (!accountExists) {
       if (!mounted) return;

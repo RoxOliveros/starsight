@@ -52,16 +52,15 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
       return;
     }
 
-    if (ParentAgeController.isAdult(birthYear)) {
+    if (ParentAgeController.ValidParentAge(birthYear)) {
       setState(() => _digits.clear());
 
       Navigator.push(
         context,
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 800),
-          pageBuilder: (context, animation, secondaryAnimation) => ChildNickname(
-            parentBirthYear: birthYear.toString(),
-          ),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              ChildNickname(parentBirthYear: birthYear.toString()),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final tween = Tween(
               begin: const Offset(0, 1),
@@ -78,7 +77,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
       setState(() => _digits.clear());
       AppDialog.showError(
         context,
-        message: "Access Denied. You must be a parent to continue.",
+        message: "Access Denied. Parents must be between 20 and 60 years old.",
       );
     }
   }

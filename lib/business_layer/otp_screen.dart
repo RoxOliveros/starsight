@@ -1,7 +1,6 @@
 import 'package:StarSight/business_layer/auth_service.dart';
 import 'package:flutter/material.dart';
 
-// Assuming you have these defined somewhere, if not, put them in a constants file!
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
   static const Color deepNavyBlue = Color(0xFF5F7199);
@@ -44,7 +43,6 @@ class _OtpScreenState extends State<OtpScreen> {
       _errorMessage = '';
     });
 
-    // Call your new Phone Auth backend!
     bool success = await AuthService().verifyOTP(
       verificationId: widget.verificationId,
       smsCode: _otpController.text,

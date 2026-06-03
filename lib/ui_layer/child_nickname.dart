@@ -34,6 +34,13 @@ class _ChildNickname extends State<ChildNickname> {
       AppDialog.showError(context, message: "Nickname should not be empty");
       return;
     }
+    if (RegExp(r'[0-9]').hasMatch(nickname)) {
+      AppDialog.showError(
+        context,
+        message: "Nicknames cannot contain numbers. Letters only, please!",
+      );
+      return;
+    }
 
     if (nickname.contains(' ')) {
       AppDialog.showError(

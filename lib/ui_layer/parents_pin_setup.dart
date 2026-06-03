@@ -52,13 +52,25 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
     }
   }
 
+  // TODO: @Tin navigate to signin signup after save Pin to db is done
   void _onComplete() {
     if (!_isConfirmStep) {
+      // --- NEW: Check for repetitive numbers (e.g. 1111, 2222) ---
+      // If they enter 4 of the same number, turning it into a Set shrinks the length to 1.
+      if (_pin.toSet().length == 1) {
+        AppDialog.showError(
+          context,
+          message:
+              "PIN is too weak. Please do not use repeating numbers (e.g., 1111).",
+        );
+        setState(() => _pin.clear());
+        return; // Stop them from moving to the confirm step
+      }
+
       setState(() => _isConfirmStep = true);
     } else {
       if (_pin.join() == _confirmPin.join()) {
-        // TODO: save PIN @Ron
-        // TODO: @Tin navigate to signin signup after save Pin to db is done
+        // --- NEW: Pass the PIN to the SignUpAccount screen ---
         Navigator.push(
           context,
           PageRouteBuilder(
@@ -68,6 +80,7 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
                   nickname: widget.nickname,
                   goals: widget.goals,
                   parentBirthYear: widget.parentBirthYear,
+                  parentPin: _pin.join(), // We are sending the exact PIN here!
                 ),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
