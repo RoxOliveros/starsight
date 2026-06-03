@@ -313,22 +313,22 @@ class _Section1State extends State<_Section1> {
           children: [
             _AnimatedSensorItem(
               visible: _visibleSensors >= 1,
-              asset: 'assets/images/eye.png',
+              asset: 'assets/images/icons/eye.png',
               label: 'Eye Focus',
             ),
             _AnimatedSensorItem(
               visible: _visibleSensors >= 2,
-              asset: 'assets/images/hand.png',
+              asset: 'assets/images/icons/hand.png',
               label: 'Hand\nMovement',
             ),
             _AnimatedSensorItem(
               visible: _visibleSensors >= 3,
-              asset: 'assets/images/audio.png',
+              asset: 'assets/images/icons/audio.png',
               label: 'Audio &\nSpeech',
             ),
             _AnimatedSensorItem(
               visible: _visibleSensors >= 4,
-              asset: 'assets/images/face.png',
+              asset: 'assets/images/icons/face.png',
               label: 'Facial\nExpressions',
             ),
           ],
@@ -418,7 +418,7 @@ class _Section2State extends State<_Section2> {
             ),
             const SizedBox(width: 8),
             Image.asset(
-              'assets/images/bunny_holding_star.png',
+              'assets/images/characters/bunny_holding_star.png',
               height: 130,
               fit: BoxFit.contain,
             ),
@@ -475,7 +475,10 @@ class _Section3State extends State<_Section3> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Image.asset('assets/images/cat_holding_fishbone.png', height: 130),
+            Image.asset(
+              'assets/images/characters/cat_holding_fishbone.png',
+              height: 130,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -765,12 +768,11 @@ class _GoToDashboardDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-
             const SizedBox(height: 8),
 
             // ── Jar illustration ──────────────────────────────────
             Image.asset(
-              'assets/images/jar_on_grass.png',
+              'assets/images/icons/jar_on_grass.png',
               height: 150,
               fit: BoxFit.contain,
             ),

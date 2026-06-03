@@ -2,8 +2,6 @@ import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:StarSight/business_layer/database_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:StarSight/Business_Layer/auth_service.dart';
-import 'package:StarSight/UI_Layer/consent_screen.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
 
 class SplashScreen extends StatefulWidget {
