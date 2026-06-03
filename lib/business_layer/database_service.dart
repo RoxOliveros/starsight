@@ -88,9 +88,7 @@ class DatabaseService {
     return "Little Explorer";
   }
 
-  // --- NEW FUNCTION: Get the Parent's PIN ---
-  // (This fixes the second error!)
-  Future<String?> getParentBirthYear() async {
+  Future<String?> getParentPin() async {
     try {
       User? currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
@@ -99,11 +97,11 @@ class DatabaseService {
             .doc(currentUser.uid)
             .get();
         if (doc.exists && doc.data() != null) {
-          return doc.get('parentBirthYear');
+          return doc.get('parentPin'); // <-- Grabs the PIN field
         }
       }
     } catch (e) {
-      print("Error fetching birth year: $e");
+      print("Error fetching PIN: $e");
     }
     return null;
   }

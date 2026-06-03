@@ -55,7 +55,7 @@ class ParentPinState extends State<ParentPin> {
     // 1. Show a loading indicator if you want, because we have to ask the internet!
 
     // 2. Go get the real PIN from the database
-    String? realPin = await DatabaseService().getParentBirthYear();
+    String? realPin = await DatabaseService().getParentPin();
 
     if (!mounted) return;
 
