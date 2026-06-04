@@ -95,33 +95,6 @@ class ProfileDayDialog extends StatelessWidget {
                 const SizedBox(height: 18),
 
                 _ProfileOption(
-                  icon: Icons.nightlight_round,
-                  label: "Night Mode",
-                  trailing: Container(
-                    width: 45,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: ColorTheme.orange, width: 2),
-                    ),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        margin: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: ColorTheme.orange,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                _ProfileOption(
                   icon: Icons.auto_awesome,
                   label: "Analysis and Reports",
                 ),

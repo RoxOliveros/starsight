@@ -640,13 +640,16 @@ class _IslandTileState extends State<_IslandTile>
                 errorBuilder: (_, __, ___) => _IslandPlaceholder(large: true),
               ),
             ),
-            Text(
-              widget.activity.title,
-              style: const TextStyle(
-                fontFamily: AppTextStyles.fredoka,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: ColorTheme.deepNavyBlue,
+            Transform.translate(
+              offset: const Offset(0, -25),
+              child: Text(
+                widget.activity.title,
+                style: const TextStyle(
+                  fontFamily: AppTextStyles.fredoka,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: ColorTheme.deepNavyBlue,
+                ),
               ),
             ),
           ],
