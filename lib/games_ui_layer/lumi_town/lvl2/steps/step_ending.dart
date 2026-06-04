@@ -55,10 +55,15 @@ class _StepEndingScreenState extends State<StepEndingScreen> {
             left: 0,
             right: 0,
             child: Center(
-              child: Image.asset(
-                'assets/images/characters/little_bear.png',
-                height: 300,
-                fit: BoxFit.contain,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final bearH = MediaQuery.of(context).size.height * 0.80;
+                  return Image.asset(
+                    'assets/images/characters/little_bear.png',
+                    height: bearH,
+                    fit: BoxFit.contain,
+                  );
+                },
               ),
             ),
           ),

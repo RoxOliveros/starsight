@@ -5,7 +5,7 @@ import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
 import '../audio_helper.dart';
 import '../widgets/bubble_overlay.dart';
-import '../widgets/swipe_progress_bar.dart';
+import '../widgets/sparkle_overlay.dart';
 import 'step2_choice.dart';
 
 class Step1BrushingScreen extends StatefulWidget {
@@ -19,43 +19,40 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
     with SingleTickerProviderStateMixin {
   final AudioPlayer _player = AudioPlayer();
 
-  bool _isDragging = false;
   bool _dropped = false; // toothbrush has been dragged to mouth
   BubbleState _bubbleState = BubbleState.none;
+  StarState _starState = StarState.none;
 
   // Wobble animation for the draggable toothbrush hint
   late AnimationController _wobbleCtrl;
   late Animation<double> _wobbleAnim;
 
+  double _brushProgress = 0.0;
+  bool _quarterFired = false;
+  bool _halfFired = false;
+  bool _completeFired = false;
+
+  double _toothbrushX = 0.0;
+  double _toothbrushY = 0.0;
+  bool _isBrushing = false;
+
+  bool _audioFired = false;
+
   @override
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    _dropped = true;
 
     _wobbleCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
 
-    _wobbleAnim = Tween<double>(begin: -4.0, end: 4.0).animate(
-      CurvedAnimation(parent: _wobbleCtrl, curve: Curves.easeInOut),
-    );
-  }
-
-  void _onHalfway() {
-    setState(() => _bubbleState = BubbleState.few);
-    playAssetAudio(_player, 'assets/audio/lumi_town/level2/vo_brush_mid.wav');
-  }
-
-  Future<void> _onBrushComplete() async {
-    setState(() => _bubbleState = BubbleState.lot);
-    _wobbleCtrl.stop();
-    await playAssetAudio(_player, 'assets/audio/lumi_town/level2/vo_brush_done.wav');
-    await waitForAudio(_player);
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      _fadeRoute(const Step2ChoiceScreen()),
-    );
+    _wobbleAnim = Tween<double>(
+      begin: -4.0,
+      end: 4.0,
+    ).animate(CurvedAnimation(parent: _wobbleCtrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -65,10 +62,27 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
     super.dispose();
   }
 
+  void _onHalfway() {
+    setState(() => _bubbleState = BubbleState.lot);
+  }
+
+  Future<void> _onBrushComplete() async {
+    setState(() => _bubbleState = BubbleState.none);
+    setState(() => _starState = StarState.lot); //TODO
+    _wobbleCtrl.stop();
+    await playAssetAudio(
+      _player,
+      'assets/audio/lumi_town/level2/vo_brush_done.wav',
+    );
+    await waitForAudio(_player);
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).pushReplacement(_fadeRoute(const Step2ChoiceScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
-    //final size = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -86,52 +100,85 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
             left: 0,
             right: 0,
             child: Center(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Image.asset(
-                    'assets/images/characters/little_bear.png',
-                    height: 300,
-                    fit: BoxFit.contain,
-                  ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final screenH = MediaQuery.of(context).size.height;
+                  final bearH = screenH * 0.80;
+                  final mouthBottom =
+                      bearH * 0.28; // adjust this % to hit the mouth
 
-                  // Mouth drop target — positioned in the lower-center of bear
-                  if (!_dropped)
-                    Positioned(
-                      bottom: 60,
-                      child: DragTarget<String>(
-                        onWillAcceptWithDetails: (details) => true,
-                        onAcceptWithDetails: (details) {
-                          setState(() => _dropped = true);
-                          _wobbleCtrl.stop();
-                        },
-                        builder: (context, candidateData, rejectedData) {
-                          final isHovering = candidateData.isNotEmpty;
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 70,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: isHovering
-                                  ? Colors.white.withValues(alpha: 0.35)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              border: isHovering
-                                  ? Border.all(color: Colors.white54, width: 2)
-                                  : null,
-                            ),
-                          );
-                        },
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/characters/little_bear.png',
+                        height: bearH,
+                        fit: BoxFit.contain,
                       ),
-                    ),
 
-                  // Bubbles appear around bear's mouth
-                  if (_dropped)
-                    Positioned(
-                      bottom: 100,
-                      child: BubbleOverlay(state: _bubbleState),
-                    ),
-                ],
+                      // Bubbles and Stars
+                      if (_dropped)
+                        Positioned(
+                          bottom: mouthBottom + 90,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              BubbleOverlay(state: _bubbleState, size: 40),
+                              StarSparkleOverlay(state: _starState),
+                            ],
+                          ),
+                        ),
+
+                      // Swipe touch area on mouth
+                      if (_dropped)
+                        Positioned(
+                          bottom: mouthBottom + 70,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.translucent,
+                            onPanStart: (details) {
+                              setState(() {
+                                _isBrushing = true;
+                                _toothbrushX = details.globalPosition.dx;
+                                _toothbrushY = details.globalPosition.dy;
+                              });
+                            },
+                            onPanUpdate: (details) {
+                              if (_completeFired) return;
+                              setState(() {
+                                _toothbrushX = details.globalPosition.dx;
+                                _toothbrushY = details.globalPosition.dy;
+                                _brushProgress = (_brushProgress + details.delta.dx.abs() * 0.0010).clamp(0.0, 1.0);
+
+                              });
+                              if (!_audioFired && _brushProgress >= 0.15) {
+                                _audioFired = true;
+                                playAssetAudio(_player, 'assets/audio/lumi_town/level2/vo_brush_mid.wav');
+                              }
+                              if (!_quarterFired && _brushProgress >= 0.5) {
+                                _quarterFired = true;
+                                setState(() => _bubbleState = BubbleState.few);
+                              }
+                              if (!_halfFired && _brushProgress >= 0.75) {
+                                _halfFired = true;
+                                _onHalfway();
+                              }
+                              if (!_completeFired && _brushProgress >= 1.0) {
+                                _completeFired = true;
+                                _onBrushComplete();
+                              }
+                            },
+                            onPanEnd: (_) =>
+                                setState(() => _isBrushing = false),
+                            child: Container(
+                              width: 160,
+                              height: 80,
+                              color: Colors.transparent,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -151,37 +198,66 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
                   ),
                   child: Draggable<String>(
                     data: 'toothbrush',
+                    dragAnchorStrategy: pointerDragAnchorStrategy,
                     feedback: _ToothbrushIcon(size: 80, opacity: 0.85),
                     childWhenDragging: _ToothbrushIcon(size: 80, opacity: 0.3),
-                    onDragStarted: () => setState(() => _isDragging = true),
-                    onDraggableCanceled: (_, __) =>
-                        setState(() => _isDragging = false),
                     child: _ToothbrushIcon(size: 80, opacity: 1.0),
                   ),
                 ),
               ),
             ),
 
-          // Swipe bar — only appears after toothbrush is dropped on mouth
+          // Toothbrush follows finger
+          if (_isBrushing)
+            Positioned(
+              left: _toothbrushX - 30,
+              top: _toothbrushY - 30,
+              child: IgnorePointer(
+                child: Image.asset(
+                  'assets/images/objects/lumi/toothbrush.png',
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+
+          // Progress bar
           if (_dropped)
             Positioned(
               bottom: 20,
               left: 0,
               right: 0,
               child: Center(
-                child: SwipeProgressBar(
-                  onHalfway: _onHalfway,
-                  onComplete: _onBrushComplete,
+                child: Container(
+                  height: 22,
+                  width: MediaQuery.of(context).size.width * 0.65,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white38, width: 1.5),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: AnimatedFractionallySizedBox(
+                      duration: const Duration(milliseconds: 100),
+                      widthFactor: _brushProgress,
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF80DFFF), Color(0xFF00BFFF)],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
 
           // X button
-          Positioned(
-            top: 16,
-            left: 16,
-            child: LumiXButton(onTap: _onBack),
-          ),
+          Positioned(top: 16, left: 16, child: LumiXButton(onTap: _onBack)),
         ],
       ),
     );
@@ -206,19 +282,11 @@ class _ToothbrushIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return Opacity(
       opacity: opacity,
-      child: Container(
+      child: Image.asset(
+        'assets/images/objects/lumi/toothbrush.png',
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          color: const Color(0xFFE8B84B),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white, width: 3),
-        ),
-        padding: const EdgeInsets.all(10),
-        child: Image.asset(
-          'assets/images/objects/lumi/toothbrush.png',
-          fit: BoxFit.contain,
-        ),
+        fit: BoxFit.contain,
       ),
     );
   }

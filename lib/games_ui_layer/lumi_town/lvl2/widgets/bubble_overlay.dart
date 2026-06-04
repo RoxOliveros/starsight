@@ -4,8 +4,9 @@ enum BubbleState { none, few, lot }
 
 class BubbleOverlay extends StatelessWidget {
   final BubbleState state;
+  final double size;
 
-  const BubbleOverlay({super.key, required this.state});
+  const BubbleOverlay({super.key, required this.state,  this.size = 200});
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +23,7 @@ class BubbleOverlay extends StatelessWidget {
         child: Image.asset(
           imagePath,
           fit: BoxFit.contain,
-          height: 200,
+          height: size,
           errorBuilder: (_, __, ___) => const SizedBox.shrink(),
         ),
       ),

@@ -144,7 +144,7 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
             ),
 
             Positioned(
-              top: 150,
+              top: 130,
               left: 0,
               right: 0,
               child: Center(
@@ -204,7 +204,7 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
   Widget _buildCharacter() {
     return Image.asset(
       widget.characterImage,
-      height: 350,
+      height: 300,
       fit: BoxFit.contain,
       errorBuilder: (_, __, ___) =>
           const Icon(Icons.pets, size: 120, color: Colors.white),
@@ -222,7 +222,7 @@ class _ArcedGoodJobBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Image.asset(
       'assets/images/goodjob.png',
-      width: 600,
+      width: 550,
       fit: BoxFit.contain,
     );
   }

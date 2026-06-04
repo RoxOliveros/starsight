@@ -45,3 +45,21 @@ class LumiXButton extends StatelessWidget {
     );
   }
 }
+
+class LumiSkipButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const LumiSkipButton({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Image.asset(
+        'assets/images/buttons/skip_lumi.png',
+        width: 72,
+        fit: BoxFit.contain,
+      ),
+    );
+  }
+}

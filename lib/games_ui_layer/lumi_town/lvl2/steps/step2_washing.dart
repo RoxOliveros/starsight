@@ -4,11 +4,10 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
 import '../audio_helper.dart';
-import '../widgets/bubble_overlay.dart';
-import '../widgets/swipe_progress_bar.dart';
+import '../widgets/sparkle_overlay.dart';
 import 'step3_choice.dart';
 
-enum _WashPhase { dragging, washing, drying, done }
+enum _WashPhase { washing, drying, done, dragging }
 
 class Step2WashingScreen extends StatefulWidget {
   const Step2WashingScreen({super.key});
@@ -21,64 +20,70 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
     with TickerProviderStateMixin {
   final AudioPlayer _player = AudioPlayer();
   _WashPhase _phase = _WashPhase.dragging;
-  BubbleState _bubbleState = BubbleState.none;
+  StarState _starState = StarState.none;
 
   late AnimationController _wobbleCtrl;
-  late Animation<double> _wobbleAnim;
 
-  // Towel bounce
-  late AnimationController _towelBounceCtrl;
+  double _washProgress = 0.0;
+  bool _halfFired = false;
+  bool _completeFired = false;
+  double _splashX = 0.0;
+  double _splashY = 0.0;
+  bool _isWashing = false;
+
+  double _towelProgress = 0.0;
+  bool _towelCompleteFired = false;
+  double _towelX = 0.0;
+  double _towelY = 0.0;
+  bool _isWiping = false;
 
   @override
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    _phase = _WashPhase.washing;
 
     _wobbleCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
-    _wobbleAnim = Tween<double>(begin: -4.0, end: 4.0).animate(
-      CurvedAnimation(parent: _wobbleCtrl, curve: Curves.easeInOut),
-    );
-
-    _towelBounceCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    )..repeat(reverse: true);
   }
 
   void _onHalfway() {
-    setState(() => _bubbleState = BubbleState.few);
+    setState(() => _starState = StarState.few);
   }
 
   Future<void> _onWashComplete() async {
     setState(() {
-      _bubbleState = BubbleState.lot;
+      _starState = StarState.lot;
       _phase = _WashPhase.drying;
+      _isWashing = false;
     });
     _wobbleCtrl.stop();
   }
 
-  Future<void> _onTowelTap() async {
+  Future<void> _onTowelComplete() async {
     if (_phase != _WashPhase.drying) return;
     setState(() {
       _phase = _WashPhase.done;
-      _bubbleState = BubbleState.none;
+      _starState = StarState.none;
+      _isWiping = false;
     });
-    await playAssetAudio(_player, 'assets/audio/lumi_town/level2/vo_wash_done.wav');
+    await playAssetAudio(
+      _player,
+      'assets/audio/lumi_town/level2/vo_wash_done.wav',
+    );
     await waitForAudio(_player);
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      _fadeRoute(const Step3ChoiceScreen()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(_fadeRoute(const Step3ChoiceScreen()));
   }
 
   @override
   void dispose() {
     _player.dispose();
     _wobbleCtrl.dispose();
-    _towelBounceCtrl.dispose();
     super.dispose();
   }
 
@@ -89,8 +94,10 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/images/backgrounds/bg_lumi_bathroom.png',
-              fit: BoxFit.cover),
+          Image.asset(
+            'assets/images/backgrounds/bg_lumi_bathroom.png',
+            fit: BoxFit.cover,
+          ),
 
           // Little Bear + drop target on face
           Positioned(
@@ -98,136 +105,218 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
             left: 0,
             right: 0,
             child: Center(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Image.asset(
-                    'assets/images/characters/little_bear.png',
-                    height: 300,
-                    fit: BoxFit.contain,
-                  ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final screenH = MediaQuery.of(context).size.height;
+                  final bearH = screenH * 0.80;
 
-                  // Drop target on face area
-                  if (_phase == _WashPhase.dragging)
-                    Positioned(
-                      top: 30,
-                      child: DragTarget<String>(
-                        onWillAcceptWithDetails: (_) => true,
-                        onAcceptWithDetails: (_) {
-                          setState(() => _phase = _WashPhase.washing);
-                          _wobbleCtrl.stop();
-                        },
-                        builder: (context, candidateData, _) {
-                          final isHovering = candidateData.isNotEmpty;
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 80,
-                            height: 70,
-                            decoration: BoxDecoration(
-                              color: isHovering
-                                  ? Colors.lightBlue.withValues(alpha: 0.35)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                              border: isHovering
-                                  ? Border.all(color: Colors.lightBlue, width: 2)
-                                  : null,
+                  return SizedBox(
+                    width: bearH, // approximate bear width
+                    height: bearH,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/images/characters/little_bear.png',
+                          height: bearH,
+                          fit: BoxFit.contain,
+                        ),
+
+                        // Stars
+                        if (_phase == _WashPhase.washing ||
+                            _phase == _WashPhase.drying)
+                          Positioned(
+                            top: 20,
+                            child: StarSparkleOverlay(state: _starState),
+                          ),
+
+                        // Drying
+                        if (_phase == _WashPhase.drying)
+                          Positioned(
+                            top: bearH * 0.28,
+                            left: bearH * 0.25,
+                            right: bearH * 0.25,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.translucent,
+                              onPanStart: (details) {
+                                setState(() {
+                                  _isWiping = true;
+                                  _towelX = details.globalPosition.dx;
+                                  _towelY = details.globalPosition.dy;
+                                });
+                              },
+                              onPanUpdate: (details) {
+                                if (_towelCompleteFired) return;
+                                setState(() {
+                                  _towelX = details.globalPosition.dx;
+                                  _towelY = details.globalPosition.dy;
+                                  _towelProgress =
+                                      (_towelProgress +
+                                              details.delta.dx.abs() * 0.0010)
+                                          .clamp(0.0, 1.0);
+                                });
+                                if (!_towelCompleteFired &&
+                                    _towelProgress >= 1.0) {
+                                  _towelCompleteFired = true;
+                                  _onTowelComplete();
+                                }
+                              },
+                              onPanEnd: (_) =>
+                                  setState(() => _isWiping = false),
+                              child: Container(
+                                width: 160,
+                                height: 80,
+                                color: Colors.transparent,
+                              ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                      ],
                     ),
-
-                  // Bubbles on face during washing / drying
-                  if (_phase == _WashPhase.washing ||
-                      _phase == _WashPhase.drying)
-                    Positioned(
-                      top: 20,
-                      child: BubbleOverlay(state: _bubbleState),
-                    ),
-                ],
+                  );
+                },
               ),
             ),
           ),
 
-          // Bottom tray — water splash draggable
-          if (_phase == _WashPhase.dragging)
+          // Swipe bar — appears after water dropped on face
+          if (_phase == _WashPhase.washing)
             Positioned(
-              bottom: 16,
+              bottom: MediaQuery.of(context).size.height * 0.28 + 70,
               left: 0,
               right: 0,
               child: Center(
-                child: AnimatedBuilder(
-                  animation: _wobbleCtrl,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(0, _wobbleAnim.value),
-                    child: child,
-                  ),
-                  child: Draggable<String>(
-                    data: 'water',
-                    feedback: _ObjectIcon(
-                        path: 'assets/images/objects/lumi/water_splash.png',
-                        bgColor: const Color(0xFF5B9FD4),
-                        opacity: 0.85),
-                    childWhenDragging: _ObjectIcon(
-                        path: 'assets/images/objects/lumi/water_splash.png',
-                        bgColor: const Color(0xFF5B9FD4),
-                        opacity: 0.3),
-                    child: _ObjectIcon(
-                        path: 'assets/images/objects/lumi/water_splash.png',
-                        bgColor: const Color(0xFF5B9FD4),
-                        opacity: 1.0),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onPanStart: (details) {
+                    setState(() {
+                      _isWashing = true;
+                      _splashX = details.globalPosition.dx;
+                      _splashY = details.globalPosition.dy;
+                    });
+                  },
+                  onPanUpdate: (details) {
+                    if (_completeFired) return;
+                    setState(() {
+                      _splashX = details.globalPosition.dx;
+                      _splashY = details.globalPosition.dy;
+                      _washProgress =
+                          (_washProgress + details.delta.dx.abs() * 0.0010)
+                              .clamp(0.0, 1.0);
+                    });
+                    if (!_halfFired && _washProgress >= 0.5) {
+                      _halfFired = true;
+                      _onHalfway();
+                    }
+                    if (!_completeFired && _washProgress >= 1.0) {
+                      _completeFired = true;
+                      _onWashComplete();
+                    }
+                  },
+                  onPanEnd: (_) => setState(() => _isWashing = false),
+                  child: Container(
+                    width: 160,
+                    height: 80,
+                    color: Colors.transparent,
                   ),
                 ),
               ),
             ),
 
-          // Swipe bar — appears after water dropped on face
+          if (_isWashing)
+            Positioned(
+              left: _splashX - 30,
+              top: _splashY - 30,
+              child: IgnorePointer(
+                child: Image.asset(
+                  'assets/images/objects/lumi/water_splash.png',
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+
           if (_phase == _WashPhase.washing)
             Positioned(
               bottom: 20,
               left: 0,
               right: 0,
               child: Center(
-                child: SwipeProgressBar(
-                  onHalfway: _onHalfway,
-                  onComplete: _onWashComplete,
-                ),
-              ),
-            ),
-
-          // Towel appears after washing — child taps to dry
-          if (_phase == _WashPhase.drying)
-            Positioned(
-              bottom: 16,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: AnimatedBuilder(
-                  animation: _towelBounceCtrl,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(
-                        0,
-                        Tween<double>(begin: -4.0, end: 4.0)
-                            .evaluate(_towelBounceCtrl)),
-                    child: child,
+                child: Container(
+                  height: 22,
+                  width: MediaQuery.of(context).size.width * 0.65,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white38, width: 1.5),
                   ),
-                  child: GestureDetector(
-                    onTap: _onTowelTap,
-                    child: _ObjectIcon(
-                      path: 'assets/images/objects/lumi/towel.png',
-                      bgColor: const Color(0xFFD4785B),
-                      opacity: 1.0,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: AnimatedFractionallySizedBox(
+                      duration: const Duration(milliseconds: 100),
+                      widthFactor: _washProgress,
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF80DFFF), Color(0xFF00BFFF)],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
 
-          Positioned(
-            top: 16,
-            left: 16,
-            child: LumiXButton(onTap: _onBack),
-          ),
+          if (_isWiping)
+            Positioned(
+              left: _towelX - 30,
+              top: _towelY - 30,
+              child: IgnorePointer(
+                child: Image.asset(
+                  'assets/images/objects/lumi/towel.png',
+                  width: 60,
+                  height: 60,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+
+          if (_phase == _WashPhase.drying)
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  height: 22,
+                  width: MediaQuery.of(context).size.width * 0.65,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white38, width: 1.5),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: AnimatedFractionallySizedBox(
+                      duration: const Duration(milliseconds: 100),
+                      widthFactor: _towelProgress,
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFFFFD580), Color(0xFFFFAA40)],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          Positioned(top: 16, left: 16, child: LumiXButton(onTap: _onBack)),
         ],
       ),
     );
@@ -238,36 +327,6 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
       (route) => route.isFirst,
-    );
-  }
-}
-
-class _ObjectIcon extends StatelessWidget {
-  final String path;
-  final Color bgColor;
-  final double opacity;
-
-  const _ObjectIcon(
-      {required this.path, required this.bgColor, required this.opacity});
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: opacity,
-      child: Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white, width: 3),
-        ),
-        padding: const EdgeInsets.all(10),
-        child: Image.asset(path,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
-                const Icon(Icons.help_outline, color: Colors.white, size: 36)),
-      ),
     );
   }
 }

@@ -259,7 +259,10 @@ class _NumberTwoIntroductionScreenState
         if (words.contains('two') ||
             words.contains('too') ||
             words.contains('tow') ||
+            words.contains('to') ||
             words.contains('tew') ||
+            words.contains('choo') ||
+            words.contains('chew') ||
             words.contains('tue') ||
             words.contains('tu') ||
             words.contains('true') ||

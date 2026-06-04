@@ -82,10 +82,15 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
             left: 0,
             right: 0,
             child: Center(
-              child: Image.asset(
-                'assets/images/characters/little_bear.png',
-                height: 300,
-                fit: BoxFit.contain,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final bearH = MediaQuery.of(context).size.height * 0.80;
+                  return Image.asset(
+                    'assets/images/characters/little_bear.png',
+                    height: bearH,
+                    fit: BoxFit.contain,
+                  );
+                },
               ),
             ),
           ),
@@ -110,7 +115,7 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
                   ShakeWidget(
                     key: _combKey,
                     child: _ChoiceIcon(
-                      imagePath: 'assets/images/objects/chair.png',
+                      imagePath: 'assets/images/objects/lumi/chair.png',
                       bgColor: const Color(0xFF5BAD72),
                       onTap: () => _onWrong(_combKey),
                     ),
@@ -121,7 +126,7 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
                   ShakeWidget(
                     key: _towelKey,
                     child: _ChoiceIcon(
-                      imagePath: 'assets/images/objects/rug.png',
+                      imagePath: 'assets/images/objects/lumi/rug.png',
                       bgColor: const Color(0xFFD4785B),
                       onTap: () => _onWrong(_towelKey),
                     ),

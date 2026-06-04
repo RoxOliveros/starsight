@@ -256,6 +256,14 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
                       },
                     ),
                   ),
+                  if (_audioFinished)
+                    Positioned(
+                      top: 25,
+                      right: 25,
+                      child: LumiSkipButton(
+                        onTap: () => _onCompleted(),
+                      ),
+                    ),
                 ],
               ),
             )

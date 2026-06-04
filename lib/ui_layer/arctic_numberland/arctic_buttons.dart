@@ -39,7 +39,7 @@ class ArcticSkipButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Image.asset(
-        'assets/images/buttons/skip.png',
+        'assets/images/buttons/skip_arctic.png',
         width: 72,
         fit: BoxFit.contain,
       ),

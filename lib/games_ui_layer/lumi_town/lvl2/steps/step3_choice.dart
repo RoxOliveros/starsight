@@ -18,7 +18,7 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
     with SingleTickerProviderStateMixin {
   final AudioPlayer _player = AudioPlayer();
 
-  final GlobalKey<ShakeWidgetState> _soapKey = GlobalKey();
+  final GlobalKey<ShakeWidgetState> _plantKey = GlobalKey();
   final GlobalKey<ShakeWidgetState> _appleKey = GlobalKey();
 
   late AnimationController _iconEntranceCtrl;
@@ -81,10 +81,15 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
             left: 0,
             right: 0,
             child: Center(
-              child: Image.asset(
-                'assets/images/characters/little_bear.png',
-                height: 300,
-                fit: BoxFit.contain,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final bearH = MediaQuery.of(context).size.height * 0.80;
+                  return Image.asset(
+                    'assets/images/characters/little_bear.png',
+                    height: bearH,
+                    fit: BoxFit.contain,
+                  );
+                },
               ),
             ),
           ),
@@ -106,13 +111,13 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
                   ),
                   const SizedBox(width: 24),
 
-                  // Soap — WRONG
+                  // Plant — WRONG
                   ShakeWidget(
-                    key: _soapKey,
+                    key: _plantKey,
                     child: _ChoiceIcon(
-                      imagePath: 'assets/images/objects/lumi/soap.png',
+                      imagePath: 'assets/images/objects/lumi/plant.png',
                       bgColor: const Color(0xFFB88FD4),
-                      onTap: () => _onWrong(_soapKey),
+                      onTap: () => _onWrong(_plantKey),
                     ),
                   ),
                   const SizedBox(width: 24),

@@ -19,7 +19,7 @@ class _Step1ChoiceScreenState extends State<Step1ChoiceScreen>
   final AudioPlayer _player = AudioPlayer();
 
   // Shake keys for wrong icons
-  final GlobalKey<ShakeWidgetState> _combKey = GlobalKey();
+  final GlobalKey<ShakeWidgetState> _duckKey = GlobalKey();
   final GlobalKey<ShakeWidgetState> _appleKey = GlobalKey();
 
   late AnimationController _iconEntranceCtrl;
@@ -85,10 +85,15 @@ class _Step1ChoiceScreenState extends State<Step1ChoiceScreen>
             left: 0,
             right: 0,
             child: Center(
-              child: Image.asset(
-                'assets/images/characters/little_bear.png',
-                height: 300,
-                fit: BoxFit.contain,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final bearH = MediaQuery.of(context).size.height * 0.80;
+                  return Image.asset(
+                    'assets/images/characters/little_bear.png',
+                    height: bearH,
+                    fit: BoxFit.contain,
+                  );
+                },
               ),
             ),
           ),
@@ -111,13 +116,13 @@ class _Step1ChoiceScreenState extends State<Step1ChoiceScreen>
                   ),
                   const SizedBox(width: 24),
 
-                  // Comb — WRONG
+                  // Duck — WRONG
                   ShakeWidget(
-                    key: _combKey,
+                    key: _duckKey,
                     child: _ChoiceIcon(
-                      imagePath: 'assets/images/objects/lumi/comb.png',
+                      imagePath: 'assets/images/objects/lumi/duck.png',
                       bgColor: const Color(0xFF5BAD72),
-                      onTap: () => _onWrong(_combKey),
+                      onTap: () => _onWrong(_duckKey),
                     ),
                   ),
                   const SizedBox(width: 24),

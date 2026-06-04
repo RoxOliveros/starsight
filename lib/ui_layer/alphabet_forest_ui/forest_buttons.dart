@@ -28,3 +28,21 @@ class ForestBackButton extends StatelessWidget {
     );
   }
 }
+
+class ForestSkipButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const ForestSkipButton({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Image.asset(
+        'assets/images/buttons/skip_forest.png',
+        width: 72,
+        fit: BoxFit.contain,
+      ),
+    );
+  }
+}

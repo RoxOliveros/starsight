@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:StarSight/games_ui_layer/lumi_town/1/wakeup1.dart';
+import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -6,6 +8,8 @@ import 'package:lottie/lottie.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/lumi_theme.dart';
+import '../../goodjob_prompt.dart';
+import '../lvl2/bathroom_game_screen.dart';
 
 class Lumi2ValuesWakingup extends StatefulWidget {
   const Lumi2ValuesWakingup({super.key});
@@ -17,6 +21,7 @@ class Lumi2ValuesWakingup extends StatefulWidget {
 class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
   bool _showNext = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _showGoodJob = false;
 
   @override
   void initState() {
@@ -48,8 +53,11 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
   Future<void> _playAlarm() =>
       _playAudio('assets/audio/sound_effects/alarmclock.wav');
 
-  Future<void> _playNext() => _playAudio('assets/audio/lumi_town/level1/salamat.wav');
-
+  Future<void> _playNext() async {
+    await _playAudio('assets/audio/lumi_town/level1/salamat.wav');
+    await _audioPlayer.onPlayerComplete.first;
+    if (mounted) setState(() => _showGoodJob = true);
+  }
   @override
   void dispose() {
     _audioPlayer.dispose();
@@ -60,9 +68,34 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 800),
-        child: _showNext ? _buildNext() : _buildAwake(),
+      body: Stack(
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 800),
+            child: _showNext ? _buildNext() : _buildAwake(),
+          ),
+          if (_showGoodJob)
+            GoodJobOverlay(
+              characterImage: 'assets/images/characters/dr.woo_the_owl.png',
+              closeButtonColor: const Color(0xFF5BAD72),
+              onNext: () {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const Lvl2BathroomGameScreen()),
+                );
+              },
+              onRestart: () {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const Lumi1ValuesWakeup()),
+                );
+              },
+              onBack: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
+                      (route) => route.isFirst,
+                );
+              },
+            ),
+        ],
       ),
     );
   }

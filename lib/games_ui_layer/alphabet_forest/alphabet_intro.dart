@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +26,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     with TickerProviderStateMixin {
   late AnimationController _floatCtrl;
   late Animation<double> _float;
-  ScreenPhase _screenPhase = ScreenPhase.intro;
   IntroPhase _introPhase = IntroPhase.entering;
 
   // THE AUDIO PLAYER
@@ -186,7 +183,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
   Widget _buildAnimatedGif() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final gifSize = (constraints.maxHeight * 0.65).clamp(100.0, 350.0);
 
         if (_introPhase == IntroPhase.entering ||
             _introPhase == IntroPhase.playingIntro) {
@@ -280,39 +276,28 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
               ),
             ),
 
-            // Mic - bottom right
             if (_introPhase == IntroPhase.listening)
               Positioned(
-                bottom: 24,
-                right: 24,
+                bottom: 20,
+                right: 20,
+                child: ForestSkipButton(
+                  onTap: () {
+                    _speechToText.stop();
+                    setState(() => _introPhase = IntroPhase.done);
+                    _letterDanceCtrl.stop();
+                  },
+                ),
+              ),
+
+            // Mic - center
+            if (_introPhase == IntroPhase.listening)
+              Positioned(
+                bottom: 20,
+                right: 0,
+                left: 0,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Stack(
-                      children: [
-                        Text(
-                          "Say the letter!",
-                          style: TextStyle(
-                            fontFamily: ForestAppTextStyles.fredoka,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            foreground: Paint()
-                              ..style = PaintingStyle.stroke
-                              ..strokeWidth = 5
-                              ..color = Colors.black,
-                          ),
-                        ),
-                        const Text(
-                          "Say the letter!",
-                          style: TextStyle(
-                            fontFamily: ForestAppTextStyles.fredoka,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 8),
                     GestureDetector(
                       onTap: _startListening,

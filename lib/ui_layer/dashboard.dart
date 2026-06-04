@@ -405,14 +405,14 @@ class _MainIslandCard extends StatelessWidget {
 
             // story mode button bottom-right
             Positioned(
-              right: 12,
-              bottom: 12,
+              right: 5,
+              bottom: 5,
               child: GestureDetector(
                 onTap: () {}, //TODO: @Tin Navigate to storymode
-                child: Image.asset(
-                  'assets/animations/movie_clapperboard.webp',
-                  width: 56,
-                  height: 56,
+                child: Lottie.asset(
+                  'assets/animations/movie_clapperboard.json',
+                  width: 60,
+                  height: 60,
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 ),
               ),
