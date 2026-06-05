@@ -67,6 +67,12 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
         'n',
       ];
       _winCondition = 14;
+    } else {
+      _targetLetters = [
+        widget.startingLetter.toUpperCase(),
+        widget.startingLetter.toLowerCase(),
+      ];
+      _winCondition = 4;
     }
   }
 
