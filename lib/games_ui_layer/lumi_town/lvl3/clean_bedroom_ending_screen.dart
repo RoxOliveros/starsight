@@ -6,6 +6,7 @@ import '../../../../business_layer/orientation_service.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
 import '../../goodjob_prompt.dart';
 import '../lvl2/audio_helper.dart';
+import '../lvl4_cooking/game_screen.dart';
 import 'clean_bedroom_game_screen.dart';
 
 
@@ -81,10 +82,10 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
   }
 
   void _onNext() {
-    // Navigator.of(context).pushAndRemoveUntil(
-    //   MaterialPageRoute(builder: (_) => const ()),
-    //   (route) => route.isFirst,
-    // );
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const CookingGameScreen()),
+      (route) => route.isFirst,
+    );
   }
 
   void _onRestart() {

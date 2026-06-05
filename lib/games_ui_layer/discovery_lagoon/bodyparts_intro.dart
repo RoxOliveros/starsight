@@ -66,6 +66,11 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
     setState(() {});
   }
 
+  void _onSkip() {
+    _speechToText.stop();
+    setState(() => _introPhase = IntroPhase.done);
+  }
+
   void _initAnimations() {
     _charSlideCtrl = AnimationController(
       vsync: this,
@@ -274,6 +279,13 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
                     ],
                   ],
                 ),
+              ),
+
+              if (_introPhase == IntroPhase.listening)
+              Positioned(
+                bottom: 0,
+                right: 20,
+                child: LagoonSkipButton(onTap: _onSkip),
               ),
 
               if (_introPhase == IntroPhase.done)
