@@ -221,8 +221,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      const AlphabetFallScreen(startingLetter: 'H'),
+                  builder: (context) => const AlphabetFallScreen(),
                 ),
               );
             } else {

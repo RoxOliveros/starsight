@@ -11,14 +11,7 @@ import 'dart:async';
 import '../../business_layer/orientation_service.dart';
 
 class AlphabetFallScreen extends StatefulWidget {
-  final String startingLetter;
-  final bool isBigGame;
-
-  const AlphabetFallScreen({
-    super.key,
-    this.startingLetter = 'A',
-    this.isBigGame = false,
-  });
+  const AlphabetFallScreen({super.key});
 
   @override
   State<AlphabetFallScreen> createState() => _AlphabetFallScreenState();
@@ -48,32 +41,24 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   }
 
   void _loadLevel() {
-    if (widget.isBigGame) {
-      // Catch any letter from H through N!
-      _targetLetters = [
-        'H',
-        'h',
-        'I',
-        'i',
-        'J',
-        'j',
-        'K',
-        'k',
-        'L',
-        'l',
-        'M',
-        'm',
-        'N',
-        'n',
-      ];
-      _winCondition = 14;
-    } else {
-      _targetLetters = [
-        widget.startingLetter.toUpperCase(),
-        widget.startingLetter.toLowerCase(),
-      ];
-      _winCondition = 4;
-    }
+    // ONLY load the Big Game letters!
+    _targetLetters = [
+      'H',
+      'h',
+      'I',
+      'i',
+      'J',
+      'j',
+      'K',
+      'k',
+      'L',
+      'l',
+      'M',
+      'm',
+      'N',
+      'n',
+    ];
+    _winCondition = 14;
   }
 
   // --- THE IMAGE DICTIONARY ---
@@ -205,49 +190,12 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
           characterImage: 'assets/images/characters/dog.png',
           closeButtonColor: ForestColorTheme.seagreen,
 
+          // Clean, simple navigation back to the map!
           onNext: () {
             Navigator.pop(context); // Close the Good Job prompt
-
-            if (widget.isBigGame) {
-              Navigator.pop(context); // Go back to Level Map to celebrate!
-              return;
-            }
-
-            // 2. NORMAL ROUTING
-            String current = widget.startingLetter.toUpperCase();
-
-            if (current == 'G') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AlphabetMatchScreen(),
-                ),
-              );
-            } else if (current == 'N') {
-              // Launch the Big Game Fall!
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const AlphabetFallScreen(isBigGame: true),
-                ),
-              );
-            } else {
-              int charCode = current.codeUnitAt(0);
-              if (charCode >= 65 && charCode < 90) {
-                String nextLetter = String.fromCharCode(charCode + 1);
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AlphabetIntroScreen(startingLetter: nextLetter),
-                  ),
-                );
-              } else {
-                Navigator.pop(context);
-              }
-            }
+            Navigator.pop(context); // Go back to the Map!
           },
+
           onRestart: () {
             Navigator.pop(context);
             setState(() {
@@ -287,28 +235,14 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                   padding: const EdgeInsets.only(top: 10),
                   child: Column(
                     children: [
-                      Text(
-                        widget.isBigGame
-                            ? "Catch H through N!"
-                            : "Catch the letters:",
-                        style: const TextStyle(
+                      const Text(
+                        "Catch H, I, J, K, L, M, N!",
+                        style: TextStyle(
                           fontFamily: ForestAppTextStyles.fredoka,
                           fontSize: 24,
                           color: Color.fromARGB(255, 71, 70, 70),
                         ),
                       ),
-
-                      if (!widget.isBigGame)
-                        Text(
-                          "${_targetLetters[0]} & ${_targetLetters[1]}",
-                          style: const TextStyle(
-                            fontFamily: ForestAppTextStyles.fredoka,
-                            fontSize: 50,
-                            fontWeight: FontWeight.bold,
-                            color: Color.fromARGB(255, 71, 70, 70),
-                          ),
-                        ),
-
                       Text(
                         "$_correctCount / $_winCondition",
                         style: const TextStyle(

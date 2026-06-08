@@ -158,8 +158,7 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      const AlphabetFallScreen(startingLetter: 'H'),
+                  builder: (context) => const AlphabetFallScreen(),
                 ),
               );
             } else {

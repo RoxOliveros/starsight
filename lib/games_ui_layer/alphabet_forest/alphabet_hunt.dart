@@ -192,8 +192,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      const AlphabetFallScreen(startingLetter: 'H'),
+                  builder: (context) => const AlphabetFallScreen(),
                 ),
               );
             } else {

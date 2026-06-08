@@ -185,8 +185,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      const AlphabetFallScreen(startingLetter: 'H'),
+                  builder: (context) => const AlphabetFallScreen(),
                 ),
               );
             } else {

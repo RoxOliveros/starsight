@@ -449,7 +449,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AlphabetFallScreen(isBigGame: true),
+                builder: (context) =>
+                    const AlphabetFallScreen(), // Removed isBigGame: true!
               ),
             );
             break;
