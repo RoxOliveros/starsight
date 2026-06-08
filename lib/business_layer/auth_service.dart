@@ -2,7 +2,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthService {
-  // GOOGLE SIGN-IN
+  // 1. GOOGLE SIGN-IN
   Future<bool> signInWithGoogle() async {
     try {
       await GoogleSignIn.instance.initialize();
@@ -16,9 +16,7 @@ class AuthService {
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithCredential(credential);
-      print("Success! Logged in as: ${userCredential.user?.email}");
+      await FirebaseAuth.instance.signInWithCredential(credential);
       return true;
     } catch (e) {
       print("Error during Google Sign-In: $e");
@@ -26,60 +24,67 @@ class AuthService {
     }
   }
 
-  // --- 1. START PHONE VERIFICATION ---
-  Future<void> verifyPhoneNumber({
-    required String phoneNumber,
-    required Function(String verificationId) onCodeSent,
-    required Function(String error) onError,
-    required Function() onVerificationCompleted,
-  }) async {
+  // 2. EMAIL SIGN UP
+  // Returns null if successful, or an error message string if it fails.
+  Future<String?> signUpWithEmail(String email, String password) async {
     try {
-      await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
-
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          await FirebaseAuth.instance.signInWithCredential(credential);
-          onVerificationCompleted();
-        },
-
-        verificationFailed: (FirebaseAuthException e) {
-          print("Phone Auth Failed: ${e.message}");
-          onError(e.message ?? "Verification failed. Please check the number.");
-        },
-
-        codeSent: (String verificationId, int? resendToken) {
-          print("SMS sent successfully!");
-          onCodeSent(verificationId);
-        },
-
-        codeAutoRetrievalTimeout: (String verificationId) {},
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
       );
+      return null; // Success!
+    } on FirebaseAuthException catch (e) {
+      return e
+          .message; // Returns Firebase errors like "Password too weak" or "Email already in use"
     } catch (e) {
-      onError("An error occurred. Please try again.");
+      return "An unknown error occurred.";
     }
   }
 
-  Future<bool> verifyOTP({
-    required String verificationId,
-    required String smsCode,
+  // 3. EMAIL SIGN IN
+  Future<String?> signInWithEmail(String email, String password) async {
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return null; // Success!
+    } on FirebaseAuthException catch (e) {
+      return e.message; // Returns errors like "Invalid credentials"
+    } catch (e) {
+      return "An unknown error occurred.";
+    }
+  }
+
+  // 4. FORGOT PASSWORD RESET
+  Future<String?> sendPasswordResetEmail(String email) async {
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      return null; // Success!
+    } on FirebaseAuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return "An unknown error occurred.";
+    }
+  }
+
+  // 5. CONFIRM NEW PASSWORD
+  Future<String?> confirmPasswordReset({
+    required String code,
+    required String newPassword,
   }) async {
     try {
-      PhoneAuthCredential credential = PhoneAuthProvider.credential(
-        verificationId: verificationId,
-        smsCode: smsCode,
+      await FirebaseAuth.instance.confirmPasswordReset(
+        code: code,
+        newPassword: newPassword,
       );
-
-      final userCredential = await FirebaseAuth.instance.signInWithCredential(
-        credential,
-      );
-      print(
-        "Success! Logged in with Phone: ${userCredential.user?.phoneNumber}",
-      );
-
-      return true;
+      return null; // Success!
+    } on FirebaseAuthException catch (e) {
+      print("confirmPasswordReset error: ${e.code} — ${e.message}");
+      return e.message;
     } catch (e) {
-      print("Invalid OTP or error: $e");
-      return false;
+      print("confirmPasswordReset unknown error: $e");
+      return "An unknown error occurred.";
     }
   }
 }

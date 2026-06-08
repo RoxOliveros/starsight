@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:StarSight/ui_layer/signin_account.dart';
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/orientation_service.dart';
 import 'parent_age_verification.dart';
+import 'password_reset_screen.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -69,12 +72,14 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
 
   bool _animationsReady = false;
 
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+  static bool _hasHandledInitialLink = false;
+  String? _lastHandledCode;
   @override
   void initState() {
     super.initState();
-
     OrientationService.setPortrait();
-
     _loadAnimations();
 
     _fadeController = AnimationController(
@@ -82,11 +87,54 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
       duration: const Duration(milliseconds: 800),
     );
     _fadeIn = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
+
+    // --- START LISTENING FOR LINKS ---
+    _initDeepLinks();
+  }
+
+  void _initDeepLinks() async {
+    _appLinks = AppLinks();
+
+    // Catch the link if the app is currently running in the background
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleLink(uri);
+    });
+
+    // Catch the link if the app was completely closed, BUT ONLY ONCE!
+    if (!_hasHandledInitialLink) {
+      _hasHandledInitialLink =
+          true; // Mark it as handled so we never read it again!
+
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleLink(initialUri);
+      }
+    }
+  }
+
+  void _handleLink(Uri uri) {
+    print("Deep link received: $uri");
+    if (uri.queryParameters['mode'] == 'resetPassword') {
+      final String? oobCode = uri.queryParameters['oobCode'];
+      print("oobCode: $oobCode");
+
+      if (oobCode == null || oobCode == _lastHandledCode) return;
+
+      _lastHandledCode = oobCode;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PasswordResetScreen(oobCode: oobCode),
+        ),
+      );
+    }
   }
 
   @override
   void dispose() {
     _fadeController.dispose();
+    _linkSubscription?.cancel(); // Close the listener
     super.dispose();
   }
 

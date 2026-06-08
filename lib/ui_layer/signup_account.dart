@@ -1,5 +1,4 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/business_layer/otp_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/auth_service.dart';
@@ -53,16 +52,17 @@ class SignUpAccount extends StatefulWidget {
 
 class _SignUpAccountState extends State<SignUpAccount>
     with SingleTickerProviderStateMixin {
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+
   late final AnimationController _fadeController;
   late final Animation<double> _fadeIn;
 
   @override
   void initState() {
     super.initState();
-
     OrientationService.setPortrait();
-
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -73,81 +73,62 @@ class _SignUpAccountState extends State<SignUpAccount>
   @override
   void dispose() {
     _fadeController.dispose();
-    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  // DON'T FORGET TO RENAME YOUR CONTROLLER!
-  // Change _emailController to _phoneController at the top of your state class!
-
   void _onSignUp() async {
-    String phone = _phoneController.text.trim();
+    String email = _emailController.text.trim();
+    String password = _passwordController.text.trim();
 
-    if (phone.isEmpty || phone.length < 10) {
+    if (email.isEmpty || !email.contains('@')) {
       AppDialog.showError(
         context,
-        message: "Please enter a valid phone number (e.g., +639123456789)",
+        message: "Please enter a valid email address.",
+      );
+      return;
+    }
+    if (password.length < 6) {
+      AppDialog.showError(
+        context,
+        message: "Password must be at least 6 characters.",
       );
       return;
     }
 
-    // Show a loading indicator (optional, but good UX)
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    // Call your new AuthService to send the SMS
-    await AuthService().verifyPhoneNumber(
-      phoneNumber: phone,
-      onCodeSent: (String verificationId) {
-        Navigator.pop(context); // Remove loading circle
+    String? error = await AuthService().signUpWithEmail(email, password);
 
-        // Navigate to the beautiful new Penguin OTP screen!
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OtpScreen(
-              phoneNumber: phone,
-              verificationId: verificationId,
+    if (!mounted) return;
+    Navigator.pop(context);
 
-              // THIS IS THE MAGIC PART!
-              // When the OTP is correct, it runs this block of code:
-              onSuccess: () async {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  // Save all their child data to the database
-                  await DatabaseService().createParentAndChild(
-                    uid: user.uid,
-                    phoneNumber: phone,
-                    childNickname: widget.nickname,
-                    childGoals: widget.goals,
-                    parentBirthYear: widget.parentBirthYear,
-                    parentPin: widget.parentPin,
-                  );
-                }
-
-                if (!mounted) return;
-                // Move forward to the Consent Screen!
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ConsentScreen()),
-                  (route) => false,
-                );
-              },
-            ),
-          ),
+    if (error == null) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await DatabaseService().createParentAndChild(
+          uid: user.uid,
+          email: email,
+          childNickname: widget.nickname,
+          childGoals: widget.goals,
+          parentBirthYear: widget.parentBirthYear,
+          parentPin: widget.parentPin,
         );
-      },
-      onError: (String error) {
-        Navigator.pop(context); // Remove loading circle
-        AppDialog.showError(context, message: error);
-      },
-      onVerificationCompleted: () {
-        // Automatically reads SMS on Android and logs them in!
-      },
-    );
+      }
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const ConsentScreen()),
+        (route) => false,
+      );
+    } else {
+      AppDialog.showError(context, message: error);
+    }
   }
 
   void _onGoogleSignUp() async {
@@ -190,7 +171,6 @@ class _SignUpAccountState extends State<SignUpAccount>
           opacity: _fadeIn,
           child: Column(
             children: [
-              // Cloud top
               Flexible(
                 flex: 0,
                 child: Align(
@@ -208,7 +188,6 @@ class _SignUpAccountState extends State<SignUpAccount>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Title
                       RichText(
                         textAlign: TextAlign.center,
                         text: TextSpan(
@@ -233,47 +212,102 @@ class _SignUpAccountState extends State<SignUpAccount>
 
                       const SizedBox(height: 32),
 
-                      // Phone field
-                      TextField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                        style: const TextStyle(
-                          fontFamily: AppTextStyles.fredoka,
-                          fontSize: 15,
-                          color: ColorTheme.deepNavyBlue,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'Phone Number (+63):',
-                          labelStyle: const TextStyle(
-                            fontFamily: AppTextStyles.fredoka,
-                            fontSize: 14,
-                            color: ColorTheme.deepNavyBlue,
-                          ),
-                          floatingLabelBehavior: FloatingLabelBehavior.always,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 14,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: const BorderSide(
+                      //EMAIL AND PASSWORD FIELDS
+                      Column(
+                        children: [
+                          TextField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            style: const TextStyle(
+                              fontFamily: AppTextStyles.fredoka,
+                              fontSize: 15,
                               color: ColorTheme.deepNavyBlue,
-                              width: 1.5,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Email Address:',
+                              labelStyle: const TextStyle(
+                                fontFamily: AppTextStyles.fredoka,
+                                fontSize: 14,
+                                color: ColorTheme.deepNavyBlue,
+                              ),
+                              floatingLabelBehavior:
+                                  FloatingLabelBehavior.always,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 14,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: const BorderSide(
+                                  color: ColorTheme.deepNavyBlue,
+                                  width: 1.5,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: const BorderSide(
+                                  color: ColorTheme.blue,
+                                  width: 2,
+                                ),
+                              ),
                             ),
                           ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: const BorderSide(
-                              color: ColorTheme.blue,
-                              width: 2,
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            style: const TextStyle(
+                              fontFamily: AppTextStyles.fredoka,
+                              fontSize: 15,
+                              color: ColorTheme.deepNavyBlue,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Password:',
+                              labelStyle: const TextStyle(
+                                fontFamily: AppTextStyles.fredoka,
+                                fontSize: 14,
+                                color: ColorTheme.deepNavyBlue,
+                              ),
+                              floatingLabelBehavior:
+                                  FloatingLabelBehavior.always,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 14,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: ColorTheme.deepNavyBlue,
+                                ),
+                                onPressed: () {
+                                  setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  );
+                                },
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: const BorderSide(
+                                  color: ColorTheme.deepNavyBlue,
+                                  width: 1.5,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: const BorderSide(
+                                  color: ColorTheme.blue,
+                                  width: 2,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
 
-                      const SizedBox(height: 80),
+                      const SizedBox(height: 50),
 
-                      // Sign Up button
                       SizedBox(
                         width: 190,
                         height: 52,
@@ -304,7 +338,6 @@ class _SignUpAccountState extends State<SignUpAccount>
 
                       const SizedBox(height: 16),
 
-                      // Or divider
                       const Text(
                         'or',
                         style: TextStyle(
@@ -316,7 +349,6 @@ class _SignUpAccountState extends State<SignUpAccount>
 
                       const SizedBox(height: 16),
 
-                      // Google Sign Up button
                       GestureDetector(
                         onTap: _onGoogleSignUp,
                         child: Image.asset(
@@ -327,7 +359,6 @@ class _SignUpAccountState extends State<SignUpAccount>
 
                       const Spacer(),
 
-                      // Terms
                       RichText(
                         textAlign: TextAlign.center,
                         text: const TextSpan(
