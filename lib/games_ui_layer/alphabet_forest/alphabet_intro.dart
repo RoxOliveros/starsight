@@ -183,7 +183,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
   Widget _buildAnimatedGif() {
     return LayoutBuilder(
       builder: (context, constraints) {
-
         if (_introPhase == IntroPhase.entering ||
             _introPhase == IntroPhase.playingIntro) {
           return const SizedBox.shrink();
@@ -196,7 +195,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
             child: ScaleTransition(scale: _letterPop, child: child),
           ),
           child: Image.asset(
-            'assets/gifs/letters/intro_${widget.startingLetter.toLowerCase()}.gif',
+            'assets/fonts/game_letters/intro_${widget.startingLetter.toLowerCase()}.png',
             width: 1000,
             height: 1000,
             fit: BoxFit.contain,
@@ -396,6 +395,20 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
         return ['m', 'em', 'am', 'them', 'gem', 'milk', 'ham'];
       case 'N':
         return ['n', 'en', 'an', 'and', 'in', 'end', 'nose', 'no'];
+      case 'O':
+        return ['o', 'oh', 'owe', 'woah', 'go', 'so', 'oil'];
+      case 'P':
+        return ['p', 'pee', 'pe', 'pi', 'pea', 'be', 'ball', 'pan'];
+      case 'Q':
+        return ['q', 'cue', 'queue', 'kew', 'kyu', 'kay', 'key', 'queen'];
+      case 'R':
+        return ['r', 'are', 'ar', 'our', 'err', 'her', 'rain'];
+      case 'S':
+        return ['s', 'ess', 'is', 'as', 'has', 'his', 'sun'];
+      case 'T':
+        return ['t', 'tee', 'ti', 'tea', 'the', 'to', 'too', 'two', 'tree'];
+      case 'U':
+        return ['u', 'you', 'hue', 'uh', 'ewe', 'yew', 'umbrella'];
       default:
         return [letter.toLowerCase()];
     }
@@ -417,6 +430,13 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       'L': 'lamp',
       'M': 'milk',
       'N': 'nose',
+      'O': 'oil',
+      'P': 'pan',
+      'Q': 'queen',
+      'R': 'rain',
+      'S': 'sun',
+      'T': 'tree',
+      'U': 'umbrella',
     };
     final name = objectMap[letter.toUpperCase()] ?? letter.toLowerCase();
     return 'assets/images/objects/forest/$name.png';

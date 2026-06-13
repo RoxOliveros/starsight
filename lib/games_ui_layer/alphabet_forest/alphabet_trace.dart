@@ -496,6 +496,234 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
             ],
           ),
         ];
+      case 'O':
+        _levels = [
+          TraceLevel(
+            letterName: "Big O",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.5, 0.2),
+                const Offset(0.3, 0.3),
+                const Offset(0.3, 0.7),
+                const Offset(0.5, 0.8),
+                const Offset(0.7, 0.7),
+                const Offset(0.7, 0.3),
+                const Offset(0.5, 0.2),
+              ],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small o",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.5, 0.4),
+                const Offset(0.35, 0.5),
+                const Offset(0.35, 0.7),
+                const Offset(0.5, 0.8),
+                const Offset(0.65, 0.7),
+                const Offset(0.65, 0.5),
+                const Offset(0.5, 0.4),
+              ],
+            ],
+          ),
+        ];
+        break;
+
+      case 'P':
+        _levels = [
+          TraceLevel(
+            letterName: "Big P",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Line down
+              [
+                const Offset(0.3, 0.2),
+                const Offset(0.6, 0.2),
+                const Offset(0.7, 0.35),
+                const Offset(0.6, 0.5),
+                const Offset(0.3, 0.5),
+              ], // Top loop
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small p",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.3, 0.4),
+                const Offset(0.3, 0.95),
+              ], // Line drops below baseline
+              [
+                const Offset(0.3, 0.4),
+                const Offset(0.6, 0.4),
+                const Offset(0.7, 0.55),
+                const Offset(0.6, 0.7),
+                const Offset(0.3, 0.7),
+              ], // Small loop
+            ],
+          ),
+        ];
+        break;
+
+      case 'Q':
+        _levels = [
+          TraceLevel(
+            letterName: "Big Q",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.5, 0.2),
+                const Offset(0.3, 0.3),
+                const Offset(0.3, 0.7),
+                const Offset(0.5, 0.8),
+                const Offset(0.7, 0.7),
+                const Offset(0.7, 0.3),
+                const Offset(0.5, 0.2),
+              ], // Circle
+              [const Offset(0.55, 0.65), const Offset(0.75, 0.85)], // Tail
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small q",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.65, 0.4),
+                const Offset(0.5, 0.4),
+                const Offset(0.35, 0.55),
+                const Offset(0.5, 0.7),
+                const Offset(0.65, 0.7),
+              ], // Left circle
+              [const Offset(0.65, 0.4), const Offset(0.65, 0.95)], // Line down
+            ],
+          ),
+        ];
+        break;
+
+      case 'R':
+        _levels = [
+          TraceLevel(
+            letterName: "Big R",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Line down
+              [
+                const Offset(0.3, 0.2),
+                const Offset(0.6, 0.2),
+                const Offset(0.7, 0.35),
+                const Offset(0.6, 0.5),
+                const Offset(0.3, 0.5),
+              ], // Loop
+              [const Offset(0.3, 0.5), const Offset(0.7, 0.8)], // Diagonal leg
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small r",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.3, 0.4), const Offset(0.3, 0.8)], // Line down
+              [
+                const Offset(0.3, 0.55),
+                const Offset(0.45, 0.4),
+                const Offset(0.6, 0.4),
+              ], // Small arc
+            ],
+          ),
+        ];
+        break;
+
+      case 'S':
+        _levels = [
+          TraceLevel(
+            letterName: "Big S",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.7, 0.3),
+                const Offset(0.5, 0.2),
+                const Offset(0.3, 0.35),
+                const Offset(0.5, 0.5),
+                const Offset(0.7, 0.65),
+                const Offset(0.5, 0.8),
+                const Offset(0.3, 0.7),
+              ],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small s",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.65, 0.45),
+                const Offset(0.5, 0.4),
+                const Offset(0.35, 0.5),
+                const Offset(0.5, 0.6),
+                const Offset(0.65, 0.7),
+                const Offset(0.5, 0.8),
+                const Offset(0.35, 0.75),
+              ],
+            ],
+          ),
+        ];
+        break;
+
+      case 'T':
+        _levels = [
+          TraceLevel(
+            letterName: "Big T",
+            imagePath: '',
+            strokes: [
+              [const Offset(0.2, 0.2), const Offset(0.8, 0.2)], // Top bar
+              [const Offset(0.5, 0.2), const Offset(0.5, 0.8)], // Stem down
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small t",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.5, 0.2),
+                const Offset(0.5, 0.75),
+                const Offset(0.6, 0.8),
+              ], // Stem with bottom hook
+              [const Offset(0.3, 0.45), const Offset(0.7, 0.45)], // Cross bar
+            ],
+          ),
+        ];
+        break;
+
+      case 'U':
+        _levels = [
+          TraceLevel(
+            letterName: "Big U",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.3, 0.2),
+                const Offset(0.3, 0.65),
+                const Offset(0.5, 0.8),
+                const Offset(0.7, 0.65),
+                const Offset(0.7, 0.2),
+              ], // Single large curve
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small u",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.3, 0.4),
+                const Offset(0.3, 0.7),
+                const Offset(0.5, 0.8),
+                const Offset(0.7, 0.7),
+                const Offset(0.7, 0.4),
+              ], // Small cup
+              [const Offset(0.7, 0.4), const Offset(0.7, 0.8)], // Stem down
+            ],
+          ),
+        ];
         break;
       default:
         // Fallback to A if something goes wrong

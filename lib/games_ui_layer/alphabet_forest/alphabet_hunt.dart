@@ -269,7 +269,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
                           fontFamily: ForestAppTextStyles.fredoka,
                           fontSize: screenSize.height * 0.12,
                           fontWeight: FontWeight.w900,
-                          color: ForestColorTheme.seagreen,
+                          color: Color.fromARGB(255, 71, 70, 70),
                           height: 1.0,
                         ),
                       ),

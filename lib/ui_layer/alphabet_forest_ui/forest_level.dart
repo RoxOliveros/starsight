@@ -159,19 +159,19 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: const [
-                              _LockedTile(),
-                              _LockedTile(),
-                              _LockedTile(),
-                              _LockedTile(),
+                              _LevelTile(level: 17),
+                              _LevelTile(level: 18),
+                              _LevelTile(level: 19),
+                              _LevelTile(level: 20),
                             ],
                           ),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: const [
-                              _LockedTile(), // Level 21 (locked)
-                              _LockedTile(), // Level 22 (locked)
-                              _LockedTile(), // Level 23 (locked)
+                              _LevelTile(level: 21),
+                              _LevelTile(level: 22),
+                              _LevelTile(level: 23),
                               _LockedTile(), // Level 24 (locked)
                             ],
                           ),
@@ -449,8 +449,70 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
+                builder: (context) => const AlphabetFallScreen(),
+              ),
+            );
+            break;
+          case 17:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
                 builder: (context) =>
-                    const AlphabetFallScreen(), // Removed isBigGame: true!
+                    const AlphabetIntroScreen(startingLetter: 'O'),
+              ),
+            );
+            break;
+          case 18:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'P'),
+              ),
+            );
+            break;
+          case 19:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'Q'),
+              ),
+            );
+            break;
+          case 20:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'R'),
+              ),
+            );
+            break;
+          case 21:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'S'),
+              ),
+            );
+            break;
+          case 22:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'T'),
+              ),
+            );
+            break;
+          case 23:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'U'),
               ),
             );
             break;
