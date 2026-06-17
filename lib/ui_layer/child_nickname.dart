@@ -85,6 +85,7 @@ class _ChildNickname extends State<ChildNickname> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: ColorTheme.darkBlue,
       body: Stack(
         children: [
@@ -188,7 +189,6 @@ class _ChildNickname extends State<ChildNickname> {
                               const Expanded(
                                 child: Text(
                                   'Who will be playing today? Enter their nickname!',
-                                  // ← changed
                                   style: TextStyle(
                                     color: Color(0xFFFAF7EB),
                                     fontSize: 18,

@@ -218,7 +218,7 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
         children: [
           // Top-right cloud
           Positioned(
-            top: screenHeight * 0.04,
+            top: -screenHeight * 0.01,
             right: -100,
             child: Lottie.asset(
               'assets/animations/night_cloud_fluffy.json',
@@ -257,7 +257,7 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        SizedBox(height: screenHeight * 0.1),
+                        SizedBox(height: screenHeight * 0.05),
 
                         // Dog + message row
                         Padding(

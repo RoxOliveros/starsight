@@ -135,7 +135,7 @@ class _SignInAccountState extends State<SignInAccount>
       AppDialog.showSuccess(
         context,
         message:
-        "Check your inbox for a link to reset your password.\n\nBe sure to check your spam folder!",
+            "Check your inbox for a link to reset your password.\n\nBe sure to check your spam folder!",
       );
     } else {
       AppDialog.showError(context, message: error);
@@ -180,7 +180,7 @@ class _SignInAccountState extends State<SignInAccount>
           MaterialPageRoute(
             builder: (_) => DashboardScreen(nickname: fetchedNickname),
           ),
-              (route) => false,
+          (route) => false,
         );
       } else {
         if (!mounted) return;
@@ -201,6 +201,14 @@ class _SignInAccountState extends State<SignInAccount>
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: ColorTheme.cream,
+      appBar: AppBar(
+        backgroundColor: ColorTheme.cream,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: ColorTheme.deepNavyBlue),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeIn,
