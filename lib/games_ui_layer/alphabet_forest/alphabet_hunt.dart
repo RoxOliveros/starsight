@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
@@ -21,7 +21,6 @@ class AlphabetHuntScreen extends StatefulWidget {
 
 class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final Random _random = Random();
 
   late List<String> _letterPool;
   List<HuntObject> _activeObjects = [];
@@ -101,6 +100,17 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
       'H': 'hat',
       'I': 'igloo',
       'J': 'jar',
+      'K': 'key',
+      'L': 'lamp',
+      'M': 'milk',
+      'N': 'nose',
+      'O': 'oil',
+      'P': 'pan',
+      'Q': 'queen',
+      'R': 'rain',
+      'S': 'sun',
+      'T': 'tree',
+      'U': 'umbrella',
     };
     final name = objectMap[letter.toUpperCase()] ?? 'apple';
     return 'assets/images/objects/forest/$name.png';
@@ -179,6 +189,14 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
 
             String current = widget.targetLetter.toUpperCase();
 
+            // Mark this letter's level as complete, unlocking the next one.
+            final completedLevel = ForestProgressService.levelNumberForLetter(
+              current,
+            );
+            if (completedLevel != null) {
+              ForestProgressService.instance.markLevelComplete(completedLevel);
+            }
+
             if (current == 'G') {
               // If they just finished G, send them to Level 8 (Match Game!)
               Navigator.pushReplacement(
@@ -239,7 +257,6 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.of(context).size;
     final double objSize = (screenSize.height * 0.22).clamp(80.0, 150.0);
-    final double letterFontSize = objSize * 0.55;
 
     return Scaffold(
       body: ForestBackground(

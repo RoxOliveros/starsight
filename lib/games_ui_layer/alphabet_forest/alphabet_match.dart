@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
@@ -129,11 +129,9 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen> {
   void _onPanEnd(DragEndDetails details) async {
     if (_activeLine == null) return;
 
-    bool matched = false;
     for (var node in _rightNodes) {
       if ((node.relativePos - _activeLine!.end).distance < 0.12) {
         if (node.letter.toUpperCase() == _activeLine!.letter.toUpperCase()) {
-          matched = true;
           String audioFile =
               'audio/alphabet_forest/sound_effects/sound_${node.letter.toLowerCase()}.wav';
           await _audioPlayer.play(AssetSource(audioFile));
@@ -194,6 +192,9 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen> {
           closeButtonColor: ForestColorTheme.seagreen,
 
           onNext: () {
+            // Beating the Match game completes level 8, unlocking level 9.
+            ForestProgressService.instance.markLevelComplete(8);
+
             Navigator.pop(context);
             Navigator.pop(context);
           },

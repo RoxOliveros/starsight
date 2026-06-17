@@ -1,5 +1,4 @@
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
+import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -192,6 +191,9 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
           // Clean, simple navigation back to the map!
           onNext: () {
+            // Beating the Fall game completes level 16, unlocking level 17.
+            ForestProgressService.instance.markLevelComplete(16);
+
             Navigator.pop(context); // Close the Good Job prompt
             Navigator.pop(context); // Go back to the Map!
           },
