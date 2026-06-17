@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
@@ -231,6 +232,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       await Future.delayed(const Duration(milliseconds: 1000));
 
       if (_round + 1 >= _totalRounds) {
+        await ArcticProgressService.instance.markLevelComplete(7);
         setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
@@ -329,7 +331,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-
                           const Spacer(),
                           // LEFT — Number card
                           _buildNumberCard(),
@@ -483,7 +484,10 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   }
 
   Widget _buildObjectTile(int index) {
-    final tileSize = (MediaQuery.of(context).size.height * 0.18).clamp(52.0, 80.0);
+    final tileSize = (MediaQuery.of(context).size.height * 0.18).clamp(
+      52.0,
+      80.0,
+    );
     final isSelected = _selected[index];
 
     return Padding(

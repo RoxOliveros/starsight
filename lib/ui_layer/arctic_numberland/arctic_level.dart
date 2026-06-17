@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:StarSight/ui_layer/arctic_numberland/arctic_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
@@ -31,11 +32,32 @@ class ArcticLevelScreen extends StatefulWidget {
 
 class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   int _page = 0;
+  int _unlockedLevel = 1;
+  bool _isLoadingProgress = true;
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+    _loadProgress();
+  }
+
+  Future<void> _loadProgress() async {
+    final unlocked = await ArcticProgressService.instance.getUnlockedLevel();
+    if (!mounted) return;
+    setState(() {
+      _unlockedLevel = unlocked;
+      _isLoadingProgress = false;
+    });
+  }
+
+  Future<void> _openLevel(Widget screen) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
+    if (!mounted) return;
+    _loadProgress(); // Refresh progress when they come back!
   }
 
   @override
@@ -88,7 +110,11 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: List.generate(4, (i) {
                             final level = _page * 8 + i + 1;
-                            return _LevelTile(level: level);
+                            return _LevelTile(
+                              level: level,
+                              unlockedLevel: _unlockedLevel,
+                              onOpenLevel: _openLevel,
+                            );
                           }),
                         ),
                         const SizedBox(height: 16),
@@ -96,7 +122,11 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: List.generate(4, (i) {
                             final level = _page * 8 + i + 5;
-                            return _LevelTile(level: level);
+                            return _LevelTile(
+                              level: level,
+                              unlockedLevel: _unlockedLevel,
+                              onOpenLevel: _openLevel,
+                            );
                           }),
                         ),
                       ],
@@ -217,6 +247,17 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
           ),
+          if (_isLoadingProgress)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.25),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: ArcticColorTheme.lightblue,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -225,155 +266,74 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
 
 class _LevelTile extends StatelessWidget {
   final int level;
+  final int unlockedLevel;
+  final Future<void> Function(Widget screen) onOpenLevel;
 
-  const _LevelTile({required this.level});
+  const _LevelTile({
+    required this.level,
+    required this.unlockedLevel,
+    required this.onOpenLevel,
+  });
+
+  Widget? _screenForLevel() {
+    switch (level) {
+      case 1:
+        return const NumberZeroIntroductionScreen();
+      case 2:
+        return const NumberOneIntroductionScreen();
+      case 3:
+        return const NumberTwoIntroductionScreen();
+      case 4:
+        return const Number012ReintroductionScreen();
+      case 5:
+        return const Number012RecognitionScreen();
+      case 6:
+        return const Number012CountingObjectsScreen();
+      case 7:
+        return const Number012TapCountScreen();
+      case 8:
+        return const NumberThreeIntroductionScreen();
+      case 9:
+        return const NumberFourIntroductionScreen();
+      case 10:
+        return const NumberFiveIntroductionScreen();
+      case 11:
+        return const Number345ReintroductionScreen();
+      case 12:
+        return const Number345CountingScreen();
+      case 13:
+        return const Number345OddOneOutScreen();
+      case 14:
+        return const Number012345SequenceScreen();
+      case 15:
+        return const Number0to5CountingTreesScreen();
+      case 16:
+        return const Number0to5FillIglooScreen();
+      case 17:
+        return const Number0to5MatchSnowglobesScreen();
+      default:
+        return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bool isLocked = level > unlockedLevel;
+
+    if (isLocked) {
+      return const _LockedTile();
+    }
+
     return GestureDetector(
       onTap: () {
-        switch (level) {
-          case 1:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NumberZeroIntroductionScreen(),
-              ),
-            );
-            break;
-          case 2:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NumberOneIntroductionScreen(),
-              ),
-            );
-            break;
-          case 3:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NumberTwoIntroductionScreen(),
-              ),
-            );
-            break;
-          case 4:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number012ReintroductionScreen(),
-              ),
-            );
-            break;
-          case 5:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number012RecognitionScreen(),
-              ),
-            );
-            break;
-          case 6:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number012CountingObjectsScreen(),
-              ),
-            );
-            break;
-          case 7:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number012TapCountScreen(),
-              ),
-            );
-            break;
-          case 8:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NumberThreeIntroductionScreen(),
-              ),
-            );
-            break;
-          case 9:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NumberFourIntroductionScreen(),
-              ),
-            );
-            break;
-          case 10:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NumberFiveIntroductionScreen(),
-              ),
-            );
-            break;
-          case 11:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number345ReintroductionScreen(),
-              ),
-            );
-            break;
-          case 12:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number345CountingScreen(),
-              ),
-            );
-            break;
-          case 13:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number345OddOneOutScreen(),
-              ),
-            );
-            break;
-          case 14:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number012345SequenceScreen(),
-              ),
-            );
-            break;
-          case 15:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number0to5CountingTreesScreen(),
-              ),
-            );
-            break;
-          case 16:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number0to5FillIglooScreen(),
-              ),
-            );
-            break;
-          case 17:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Number0to5MatchSnowglobesScreen(),
-              ),
-            );
-            break;
-          default:
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Coming soon!')));
+        final screen = _screenForLevel();
+        if (screen == null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Coming soon!')));
+          return;
         }
+        onOpenLevel(screen);
       },
       child: Stack(
         clipBehavior: Clip.none,

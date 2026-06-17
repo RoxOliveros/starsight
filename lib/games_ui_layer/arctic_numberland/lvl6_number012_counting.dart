@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
@@ -115,6 +116,7 @@ class _Number012CountingObjectsScreenState
       _playAudio('assets/audio/arctic_numberland/$_correctCount.wav');
       await Future.delayed(const Duration(milliseconds: 900));
       if (_round >= _totalRounds) {
+        await ArcticProgressService.instance.markLevelComplete(6);
         setState(() => _showWinDialog = true);
       } else {
         setState(() {

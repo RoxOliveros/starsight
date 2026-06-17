@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -17,8 +18,7 @@ class Number0to5FillIglooScreen extends StatefulWidget {
       _Number0to5FillIglooScreenState();
 }
 
-class _Number0to5FillIglooScreenState
-    extends State<Number0to5FillIglooScreen>
+class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
     with TickerProviderStateMixin {
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -28,17 +28,17 @@ class _Number0to5FillIglooScreenState
       'assets/images/characters/doma_the_penguin.png';
   static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level19/intro.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level19/intro.wav';
   static const String _audioBuild =
       'assets/audio/arctic_numberland/level19/build.wav';
-  static const String _audioComplete =
-      'assets/audio/sound_effects/shine.wav';
+  static const String _audioComplete = 'assets/audio/sound_effects/shine.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
   int _currentRound = 0;
 
-  late int _targetCount;        // how many ice blocks to place (0–5)
+  late int _targetCount; // how many ice blocks to place (0–5)
   late List<int?> _slotContents; // null = empty, int = block id placed
   late List<bool> _slotHighlighted; // slot highlight when dragging over
   late List<_IceBlockData> _sourceBlocks; // blocks in the pile
@@ -116,45 +116,59 @@ class _Number0to5FillIglooScreenState
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _slotsEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _slotsEnter = CurvedAnimation(parent: _slotsEnterCtrl, curve: Curves.elasticOut);
+    _slotsEnter = CurvedAnimation(
+      parent: _slotsEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _blocksEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _blocksEnter = CurvedAnimation(parent: _blocksEnterCtrl, curve: Curves.easeOutBack);
+    _blocksEnter = CurvedAnimation(
+      parent: _blocksEnterCtrl,
+      curve: Curves.easeOutBack,
+    );
 
     _correctPulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _correctPulse = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.18), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.18, end: 0.92), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.92, end: 1.04), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: 1.04, end: 1.0), weight: 10),
-    ]).animate(CurvedAnimation(parent: _correctPulseCtrl, curve: Curves.easeOut));
+    _correctPulse =
+        TweenSequence([
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.18), weight: 40),
+          TweenSequenceItem(tween: Tween(begin: 1.18, end: 0.92), weight: 30),
+          TweenSequenceItem(tween: Tween(begin: 0.92, end: 1.04), weight: 20),
+          TweenSequenceItem(tween: Tween(begin: 1.04, end: 1.0), weight: 10),
+        ]).animate(
+          CurvedAnimation(parent: _correctPulseCtrl, curve: Curves.easeOut),
+        );
 
     _iglooShakeCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _iglooShake = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 8.0, end: -4.0), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: -4.0, end: 0.0), weight: 20),
-    ]).animate(CurvedAnimation(parent: _iglooShakeCtrl, curve: Curves.easeInOut));
+    _iglooShake =
+        TweenSequence([
+          TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 20),
+          TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 40),
+          TweenSequenceItem(tween: Tween(begin: 8.0, end: -4.0), weight: 20),
+          TweenSequenceItem(tween: Tween(begin: -4.0, end: 0.0), weight: 20),
+        ]).animate(
+          CurvedAnimation(parent: _iglooShakeCtrl, curve: Curves.easeInOut),
+        );
 
     _numberDanceCtrl = AnimationController(
       vsync: this,
@@ -166,7 +180,10 @@ class _Number0to5FillIglooScreenState
 
     _slotFillCtrls = List.generate(
       5,
-          (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 350)),
+      (_) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 350),
+      ),
     );
     _slotFillAnims = _slotFillCtrls
         .map((c) => CurvedAnimation(parent: c, curve: Curves.elasticOut))
@@ -236,7 +253,8 @@ class _Number0to5FillIglooScreenState
       _dragPosition = globalPos;
       // Highlight slots on hover
       for (int i = 0; i < _targetCount; i++) {
-        _slotHighlighted[i] = _isOverSlot(i, globalPos) && _slotContents[i] == null;
+        _slotHighlighted[i] =
+            _isOverSlot(i, globalPos) && _slotContents[i] == null;
       }
     });
   }
@@ -278,6 +296,7 @@ class _Number0to5FillIglooScreenState
         await Future.delayed(const Duration(milliseconds: 700));
         if (!mounted) return;
         if (_currentRound + 1 >= _totalRounds) {
+          await ArcticProgressService.instance.markLevelComplete(16);
           setState(() => _showWinDialog = true);
         } else {
           setState(() => _currentRound++);
@@ -373,7 +392,7 @@ class _Number0to5FillIglooScreenState
                     height: MediaQuery.of(context).size.height * 0.62,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
-                    const Text('🐧', style: TextStyle(fontSize: 60)),
+                        const Text('🐧', style: TextStyle(fontSize: 60)),
                   ),
                 ),
               ),
@@ -392,33 +411,39 @@ class _Number0to5FillIglooScreenState
                               _numberDance.value * ((i % 2 == 0) ? 1 : -1);
                           final blockH =
                               MediaQuery.of(context).size.height * 0.14 +
-                                  (i * 8.0);
+                              (i * 8.0);
                           return Transform.rotate(
                             angle: angle,
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   // Stack of i ice blocks
                                   ...List.generate(
                                     i,
-                                        (j) => Padding(
+                                    (j) => Padding(
                                       padding: const EdgeInsets.only(bottom: 2),
                                       child: Image.asset(
                                         _iceAsset,
                                         height: blockH * 0.5,
                                         fit: BoxFit.contain,
                                         errorBuilder: (_, __, ___) =>
-                                        const Text('🧊',
-                                            style: TextStyle(fontSize: 20)),
+                                            const Text(
+                                              '🧊',
+                                              style: TextStyle(fontSize: 20),
+                                            ),
                                       ),
                                     ),
                                   ),
                                   const SizedBox(height: 6),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: ArcticColorTheme.cadetblue,
                                       borderRadius: BorderRadius.circular(10),
@@ -463,14 +488,17 @@ class _Number0to5FillIglooScreenState
               children: [
                 // ── HEADER ──────────────────────────────
                 Padding(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
                       Align(
-                          alignment: Alignment.centerLeft,
-                          child: ArcticBackButton()),
+                        alignment: Alignment.centerLeft,
+                        child: ArcticBackButton(),
+                      ),
                       Center(child: _buildInstructionBanner(h)),
                     ],
                   ),
@@ -482,10 +510,7 @@ class _Number0to5FillIglooScreenState
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // LEFT: Doma + ice block pile
-                      Expanded(
-                        flex: 4,
-                        child: _buildBlockPileArea(h, w),
-                      ),
+                      Expanded(flex: 4, child: _buildBlockPileArea(h, w)),
 
                       // RIGHT: Igloo with slots
                       Expanded(
@@ -527,77 +552,75 @@ class _Number0to5FillIglooScreenState
     return ScaleTransition(
       scale: _instructionBounce,
       child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-          decoration: BoxDecoration(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Put  ',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: (h * 0.072).clamp(13.0, 21.0),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: const [
-                    Shadow(
-                      color: Color(0x55003366),
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-              // Show the target number prominently
-              Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                decoration: BoxDecoration(
-                  color: ArcticColorTheme.cadetblue,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$_targetCount',
-                  style: TextStyle(
-                    fontFamily: ArcticAppTextStyles.fredoka,
-                    fontSize: (h * 0.085).clamp(16.0, 26.0),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'blocks into the igloo!',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: (h * 0.072).clamp(13.0, 21.0),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: const [
-                    Shadow(
-                      color: Color(0x55003366),
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+        decoration: BoxDecoration(
+          color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Put  ',
+              style: TextStyle(
+                fontFamily: ArcticAppTextStyles.fredoka,
+                fontSize: (h * 0.072).clamp(13.0, 21.0),
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                shadows: const [
+                  Shadow(
+                    color: Color(0x55003366),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+            // Show the target number prominently
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              decoration: BoxDecoration(
+                color: ArcticColorTheme.cadetblue,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$_targetCount',
+                style: TextStyle(
+                  fontFamily: ArcticAppTextStyles.fredoka,
+                  fontSize: (h * 0.085).clamp(16.0, 26.0),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'blocks into the igloo!',
+              style: TextStyle(
+                fontFamily: ArcticAppTextStyles.fredoka,
+                fontSize: (h * 0.072).clamp(13.0, 21.0),
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                shadows: const [
+                  Shadow(
+                    color: Color(0x55003366),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -648,10 +671,12 @@ class _Number0to5FillIglooScreenState
   }
 
   // ── Ice block widget ───────────────────────────────────────────────────────
-  Widget _buildIceBlockWidget(double size,
-      {double opacity = 1.0,
-        bool elevated = false,
-        bool isDragging = false}) {
+  Widget _buildIceBlockWidget(
+    double size, {
+    double opacity = 1.0,
+    bool elevated = false,
+    bool isDragging = false,
+  }) {
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 150),
       opacity: isDragging ? 0.3 : opacity,
@@ -662,19 +687,19 @@ class _Number0to5FillIglooScreenState
           borderRadius: BorderRadius.circular(10),
           boxShadow: elevated
               ? [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ]
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
               : [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
@@ -684,18 +709,14 @@ class _Number0to5FillIglooScreenState
             errorBuilder: (_, __, ___) => Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFFADE8F4),
-                    const Color(0xFF48CAE4),
-                  ],
+                  colors: [const Color(0xFFADE8F4), const Color(0xFF48CAE4)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Center(
-                child: Text('🧊',
-                    style: TextStyle(fontSize: size * 0.55)),
+                child: Text('🧊', style: TextStyle(fontSize: size * 0.55)),
               ),
             ),
           ),
@@ -723,7 +744,9 @@ class _Number0to5FillIglooScreenState
             child: child,
           ),
           child: ScaleTransition(
-            scale: _roundComplete ? _correctPulse : const AlwaysStoppedAnimation(1.0),
+            scale: _roundComplete
+                ? _correctPulse
+                : const AlwaysStoppedAnimation(1.0),
             child: Stack(
               key: _iglooAreaKey,
               children: [
@@ -773,14 +796,14 @@ class _Number0to5FillIglooScreenState
                               : isFilled
                               ? _buildIceBlockWidget(slotSize)
                               : Center(
-                            child: Icon(
-                              Icons.add,
-                              color: Colors.white.withValues(
-                                alpha: isHighlighted ? 0.9 : 0.4,
-                              ),
-                              size: slotSize * 0.38,
-                            ),
-                          ),
+                                  child: Icon(
+                                    Icons.add,
+                                    color: Colors.white.withValues(
+                                      alpha: isHighlighted ? 0.9 : 0.4,
+                                    ),
+                                    size: slotSize * 0.38,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -818,6 +841,7 @@ class _Number0to5FillIglooScreenState
         if (!mounted) return;
 
         if (_currentRound + 1 >= _totalRounds) {
+          await ArcticProgressService.instance.markLevelComplete(16);
           setState(() => _showWinDialog = true);
         } else {
           setState(() {
@@ -829,11 +853,7 @@ class _Number0to5FillIglooScreenState
       });
     }
 
-    return Stack(
-      children: [
-        Positioned.fill(child: _buildIglooOutline(w, h)),
-      ],
-    );
+    return Stack(children: [Positioned.fill(child: _buildIglooOutline(w, h))]);
   }
 
   // ── Igloo Outline (custom painted) ─────────────────────────────────────────
@@ -894,15 +914,13 @@ class _Number0to5FillIglooScreenState
       },
       onRestart: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const Number0to5FillIglooScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const Number0to5FillIglooScreen()),
         );
       },
       onBack: () {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-              (route) => route.isFirst,
+          (route) => route.isFirst,
         );
       },
     );
@@ -914,7 +932,7 @@ class _IceBlockData {
   final int id;
   final double pileOffsetX; // -0.5 to 0.5
   final double pileOffsetY;
-  final double rotation;    // radians
+  final double rotation; // radians
 
   const _IceBlockData({
     required this.id,

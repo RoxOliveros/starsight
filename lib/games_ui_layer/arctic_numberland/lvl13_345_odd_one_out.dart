@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -218,6 +219,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       if (!mounted) return;
 
       if (_currentRound + 1 >= _totalRounds) {
+        await ArcticProgressService.instance.markLevelComplete(13);
         setState(() => _showWinDialog = true);
       } else {
         setState(() => _currentRound++);

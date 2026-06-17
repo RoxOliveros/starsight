@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
@@ -191,11 +192,12 @@ class _Number012ReintroductionScreenState
     }
   }
 
-  void _nextNumber() {
+  Future<void> _nextNumber() async {
     if (_transitioning) return;
     setState(() => _transitioning = true);
 
     if (_currentNumber >= _totalNumbers - 1) {
+      await ArcticProgressService.instance.markLevelComplete(4);
       setState(() => _showWinDialog = true);
       return;
     }

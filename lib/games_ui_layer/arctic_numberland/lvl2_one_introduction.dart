@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -306,6 +307,7 @@ class _NumberOneIntroductionScreenState
     await _objectTapCtrl.forward(from: 0);
     await _playAudio('assets/audio/arctic_numberland/1.wav');
     await Future.delayed(const Duration(milliseconds: 200));
+    await ArcticProgressService.instance.markLevelComplete(2);
     setState(() => _showWinDialog = true);
   }
 
@@ -558,7 +560,9 @@ class _NumberOneIntroductionScreenState
                   successAudio: 'assets/audio/arctic_numberland/mahusay.wav',
                   onComplete: () {
                     setState(() => _miniGamePhase = _MiniGamePhase.tapping);
-                    _playAudio('assets/audio/arctic_numberland/level2/click_one_snowman.wav');
+                    _playAudio(
+                      'assets/audio/arctic_numberland/level2/click_one_snowman.wav',
+                    );
                   },
                 )
               else ...[
@@ -575,7 +579,9 @@ class _NumberOneIntroductionScreenState
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
+                        color: ArcticColorTheme.pictonblue.withValues(
+                          alpha: 0.8,
+                        ),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(color: Colors.white, width: 3),
                       ),
@@ -777,7 +783,9 @@ class _NumberOneIntroductionScreenState
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const NumberTwoIntroductionScreen()),
+          MaterialPageRoute(
+            builder: (_) => const NumberTwoIntroductionScreen(),
+          ),
         );
       },
       onRestart: () {

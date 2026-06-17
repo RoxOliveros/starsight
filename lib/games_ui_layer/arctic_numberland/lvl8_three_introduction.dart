@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -325,6 +326,7 @@ class _NumberThreeIntroductionScreenState
     _objectTapCtrl.forward(from: 0);
     await _playAudio('assets/audio/arctic_numberland/$_iceCreamsTapped.wav');
     if (_iceCreamsTapped >= _targetCount) {
+      await ArcticProgressService.instance.markLevelComplete(8);
       await Future.delayed(const Duration(milliseconds: 200));
       setState(() => _showWinDialog = true);
     }
@@ -627,39 +629,38 @@ class _NumberThreeIntroductionScreenState
                 // Instruction banner — anchored top center
                 Positioned(
                   top: 10,
-                  left:  0,
+                  left: 0,
                   right: 0,
                   child: Center(
                     child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 8,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ArcticColorTheme.pictonblue.withValues(
+                          alpha: 0.8,
                         ),
-                        decoration: BoxDecoration(
-                          color: ArcticColorTheme.pictonblue.withValues(
-                            alpha: 0.8,
-                          ),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(color: Colors.white, width: 3),
-                        ),
-                        child: Text(
-                          ' 👆 Tap THREE Tree!',
-                          style: TextStyle(
-                            fontFamily: ArcticAppTextStyles.fredoka,
-                            fontSize: (h * 0.09).clamp(16.0, 26.0),
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            shadows: const [
-                              Shadow(
-                                color: Color(0x55003366),
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: Text(
+                        ' 👆 Tap THREE Tree!',
+                        style: TextStyle(
+                          fontFamily: ArcticAppTextStyles.fredoka,
+                          fontSize: (h * 0.09).clamp(16.0, 26.0),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: const [
+                            Shadow(
+                              color: Color(0x55003366),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
                         ),
                       ),
-
+                    ),
                   ),
                 ),
 

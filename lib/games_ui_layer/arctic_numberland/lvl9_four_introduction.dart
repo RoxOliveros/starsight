@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -385,6 +386,7 @@ class _NumberFourIntroductionScreenState
     _objectTapCtrl.forward(from: 0);
     await _playAudio('assets/audio/arctic_numberland/$_objectsTapped.wav');
     if (_objectsTapped >= _targetCount) {
+      await ArcticProgressService.instance.markLevelComplete(9);
       setState(() => _showWinDialog = true);
     }
   }

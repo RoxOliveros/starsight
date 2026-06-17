@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -20,7 +21,6 @@ class Number345ReintroductionScreen extends StatefulWidget {
 class _Number345ReintroductionScreenState
     extends State<Number345ReintroductionScreen>
     with TickerProviderStateMixin {
-
   // ── Stage config ───────────────────────────────────────────────────────────
   static const int _totalStages = 3;
 
@@ -56,8 +56,7 @@ class _Number345ReintroductionScreenState
     'assets/audio/arctic_numberland/5.wav',
   ];
 
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_arctic.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
   static const String _audioIntro =
@@ -110,14 +109,15 @@ class _Number345ReintroductionScreenState
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _numberBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.28), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.28, end: 0.9), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.05), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: 1.05, end: 1.0), weight: 10),
-    ]).animate(
-      CurvedAnimation(parent: _numberBounceCtrl, curve: Curves.easeOut),
-    );
+    _numberBounce =
+        TweenSequence([
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.28), weight: 40),
+          TweenSequenceItem(tween: Tween(begin: 1.28, end: 0.9), weight: 30),
+          TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.05), weight: 20),
+          TweenSequenceItem(tween: Tween(begin: 1.05, end: 1.0), weight: 10),
+        ]).animate(
+          CurvedAnimation(parent: _numberBounceCtrl, curve: Curves.easeOut),
+        );
 
     _enterCtrl = AnimationController(
       vsync: this,
@@ -133,7 +133,7 @@ class _Number345ReintroductionScreenState
     // Max 5 objects
     _objectPopCtrls = List.generate(
       5,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 450),
       ),
@@ -153,9 +153,7 @@ class _Number345ReintroductionScreenState
     _countBadge = TweenSequence([
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.4), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 1.4, end: 1.0), weight: 50),
-    ]).animate(
-      CurvedAnimation(parent: _countBadgeCtrl, curve: Curves.easeOut),
-    );
+    ]).animate(CurvedAnimation(parent: _countBadgeCtrl, curve: Curves.easeOut));
   }
 
   // ── Flow ───────────────────────────────────────────────────────────────────
@@ -219,11 +217,12 @@ class _Number345ReintroductionScreenState
     }
   }
 
-  void _nextStage() {
+  Future<void> _nextStage() async {
     if (_transitioning) return;
     setState(() => _transitioning = true);
 
     if (_currentStage >= _totalStages - 1) {
+      await ArcticProgressService.instance.markLevelComplete(11);
       setState(() => _showWinDialog = true);
       return;
     }
@@ -279,11 +278,7 @@ class _Number345ReintroductionScreenState
                 builder: (context, constraints) {
                   return Stack(
                     children: [
-                      Positioned(
-                        top: 8,
-                        left: 12,
-                        child: ArcticBackButton(),
-                      ),
+                      Positioned(top: 8, left: 12, child: ArcticBackButton()),
 
                       // Center intro content
                       Center(
@@ -420,9 +415,7 @@ class _Number345ReintroductionScreenState
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            isDone
-                ? '⭐ Great job!'
-                : '👆 Tap all the ${_stage.label}!',
+            isDone ? '⭐ Great job!' : '👆 Tap all the ${_stage.label}!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
               fontSize: (h * 0.07).clamp(16.0, 24.0),
@@ -542,9 +535,7 @@ class _Number345ReintroductionScreenState
                 builder: (_, child) {
                   final wiggle = tapped
                       ? 0.0
-                      : (_wiggleCtrl.value - 0.5) *
-                      8 *
-                      ((i % 2 == 0) ? 1 : -1);
+                      : (_wiggleCtrl.value - 0.5) * 8 * ((i % 2 == 0) ? 1 : -1);
                   return Transform.translate(
                     offset: Offset(0, wiggle),
                     child: child,
@@ -560,9 +551,7 @@ class _Number345ReintroductionScreenState
                         ? ArcticColorTheme.cadetblue
                         : ArcticColorTheme.pictonblue.withValues(alpha: 0.9),
                     border: Border.all(
-                      color: tapped
-                          ? Colors.greenAccent
-                          : Colors.white,
+                      color: tapped ? Colors.greenAccent : Colors.white,
                       width: tapped ? 4 : 3,
                     ),
                     boxShadow: [
@@ -570,8 +559,8 @@ class _Number345ReintroductionScreenState
                         color: tapped
                             ? Colors.greenAccent.withValues(alpha: 0.4)
                             : ArcticColorTheme.pictonblue.withValues(
-                          alpha: 0.5,
-                        ),
+                                alpha: 0.5,
+                              ),
                         blurRadius: tapped ? 8 : 16,
                         offset: const Offset(0, 4),
                       ),
@@ -580,21 +569,21 @@ class _Number345ReintroductionScreenState
                   child: Center(
                     child: tapped
                         ? Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: objSize * 0.48,
-                    )
+                            Icons.check_rounded,
+                            color: Colors.white,
+                            size: objSize * 0.48,
+                          )
                         : Padding(
-                      padding: EdgeInsets.all(objSize * 0.12),
-                      child: Image.asset(
-                        _stage.objectAsset,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Text(
-                          _stage.objectEmoji,
-                          style: TextStyle(fontSize: objSize * 0.45),
-                        ),
-                      ),
-                    ),
+                            padding: EdgeInsets.all(objSize * 0.12),
+                            child: Image.asset(
+                              _stage.objectAsset,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => Text(
+                                _stage.objectEmoji,
+                                style: TextStyle(fontSize: objSize * 0.45),
+                              ),
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -607,11 +596,11 @@ class _Number345ReintroductionScreenState
 
   // Returns centered positions for N objects in the right panel
   List<Offset> _getObjectPositions(
-      int count,
-      double panelW,
-      double panelH,
-      double objSize,
-      ) {
+    int count,
+    double panelW,
+    double panelH,
+    double objSize,
+  ) {
     final List<Offset> positions = [];
     final rng = Random(_currentStage * 100); // consistent per stage
 
@@ -692,9 +681,7 @@ class _Number345ReintroductionScreenState
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const Number345CountingScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const Number345CountingScreen()),
         );
       },
       onRestart: () {
@@ -707,7 +694,7 @@ class _Number345ReintroductionScreenState
       onBack: () {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-              (route) => route.isFirst,
+          (route) => route.isFirst,
         );
       },
     );

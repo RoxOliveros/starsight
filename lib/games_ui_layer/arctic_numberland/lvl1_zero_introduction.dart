@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:StarSight/games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -228,7 +229,9 @@ class _NumberZeroIntroductionScreenState
     _setIntroPhase(_IntroPhase.celebrating);
     _celebrateCtrl.forward(from: 0);
 
-    await _playAudio('assets/audio/arctic_numberland/level1/now_you_know_zero.wav');
+    await _playAudio(
+      'assets/audio/arctic_numberland/level1/now_you_know_zero.wav',
+    );
     await Future.delayed(const Duration(milliseconds: 500));
 
     _setIntroPhase(_IntroPhase.done);
@@ -472,7 +475,10 @@ class _NumberZeroIntroductionScreenState
             number: 0,
             player: _player,
             successAudio: 'assets/audio/arctic_numberland/mahusay.wav',
-            onComplete: () => setState(() => _showWinDialog = true),
+            onComplete: () async {
+              await ArcticProgressService.instance.markLevelComplete(1);
+              setState(() => _showWinDialog = true);
+            },
           );
         },
       ),

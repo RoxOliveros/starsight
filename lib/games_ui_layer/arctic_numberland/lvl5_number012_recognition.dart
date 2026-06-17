@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
@@ -74,6 +75,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
       _playAudio('assets/audio/arctic_numberland/$_correctNumber.wav');
       await Future.delayed(const Duration(milliseconds: 900));
       if (_round >= _totalRounds) {
+        await ArcticProgressService.instance.markLevelComplete(5);
         setState(() => _showWinDialog = true);
       } else {
         setState(() {

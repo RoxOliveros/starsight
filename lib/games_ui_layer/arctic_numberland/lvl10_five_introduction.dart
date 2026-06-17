@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -380,21 +381,27 @@ class _NumberFiveIntroductionScreenState
       const Offset(0.91, 0.72),
     ]..shuffle(rng);
 
-    _objectPos  = allSlots[0];
+    _objectPos = allSlots[0];
     _objectPos2 = allSlots[1];
     _objectPos3 = allSlots[2];
     _objectPos4 = allSlots[3];
     _objectPos5 = allSlots[4];
-    _decoyPos   = allSlots[5];
-    _decoyPos2  = allSlots[6];
-    _decoyPos3  = allSlots[7];
+    _decoyPos = allSlots[5];
+    _decoyPos2 = allSlots[6];
+    _decoyPos3 = allSlots[7];
 
     _decoyAsset = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
-    _decoyEmoji = (_decoyAsset == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji2;
+    _decoyEmoji = (_decoyAsset == _decoyOptionAsset1)
+        ? _decoyOptionEmoji1
+        : _decoyOptionEmoji2;
     _decoyAsset2 = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset2;
-    _decoyEmoji2 = (_decoyAsset2 == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji2;
+    _decoyEmoji2 = (_decoyAsset2 == _decoyOptionAsset1)
+        ? _decoyOptionEmoji1
+        : _decoyOptionEmoji2;
     _decoyAsset3 = rng.nextBool() ? _decoyOptionAsset1 : _decoyOptionAsset3;
-    _decoyEmoji3 = (_decoyAsset3 == _decoyOptionAsset1) ? _decoyOptionEmoji1 : _decoyOptionEmoji3;
+    _decoyEmoji3 = (_decoyAsset3 == _decoyOptionAsset1)
+        ? _decoyOptionEmoji1
+        : _decoyOptionEmoji3;
   }
 
   final List<bool> _objectTapped = [false, false, false, false, false];
@@ -410,6 +417,7 @@ class _NumberFiveIntroductionScreenState
     _objectTapCtrl.forward(from: 0);
     await _playAudio('assets/audio/arctic_numberland/$_objectsTapped.wav');
     if (_objectsTapped >= _targetCount) {
+      await ArcticProgressService.instance.markLevelComplete(10);
       setState(() => _showWinDialog = true);
     }
   }

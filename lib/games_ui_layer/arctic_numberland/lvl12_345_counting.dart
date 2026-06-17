@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -205,6 +206,7 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
       if (!mounted) return;
 
       if (_round >= _totalRounds) {
+        await ArcticProgressService.instance.markLevelComplete(12);
         setState(() => _showWinDialog = true);
       } else {
         setState(() {
@@ -444,11 +446,17 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
             children: [
               Expanded(
                 flex: 5,
-                child: ScaleTransition(scale: _objectsEnter, child: _buildObjectsBox()),
+                child: ScaleTransition(
+                  scale: _objectsEnter,
+                  child: _buildObjectsBox(),
+                ),
               ),
               Expanded(
                 flex: 3,
-                child: ScaleTransition(scale: _choicesEnter, child: _buildChoicesGrid()),
+                child: ScaleTransition(
+                  scale: _choicesEnter,
+                  child: _buildChoicesGrid(),
+                ),
               ),
             ],
           ),
@@ -502,7 +510,7 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
               height: objSize,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) =>
-              const Text('❄️', style: TextStyle(fontSize: 48)),
+                  const Text('❄️', style: TextStyle(fontSize: 48)),
             );
           }),
         );
@@ -520,7 +528,7 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
           crossAxisCount: 2,
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
-          childAspectRatio: 1.4,   // ← changed from 1.3
+          childAspectRatio: 1.4, // ← changed from 1.3
         ),
         itemCount: _choices.length,
         itemBuilder: (context, index) {

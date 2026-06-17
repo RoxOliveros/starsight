@@ -33,8 +33,6 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   // 2 is equal to levels 17-24
   int _currentPage = 0;
 
-  // Highest level the player is currently allowed to play.
-  // Defaults to 1 (only level 1 unlocked) until Firestore responds.
   int _unlockedLevel = 1;
   bool _isLoadingProgress = true;
 
@@ -54,8 +52,6 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
     });
   }
 
-  /// Pushes the given route, then refreshes progress when the player
-  /// returns (in case the level they just played unlocked the next one).
   Future<void> _openLevel(Widget screen) async {
     await Navigator.push(
       context,

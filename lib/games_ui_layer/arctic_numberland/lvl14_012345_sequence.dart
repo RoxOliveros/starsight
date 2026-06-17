@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:StarSight/games_ui_layer/arctic_numberland/lvl15_0to5_counting_trees.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -26,8 +27,10 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level17/intro.wav';
-  static const String _audioSlotCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level17/intro.wav';
+  static const String _audioSlotCorrect =
+      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioWin = 'assets/audio/sound_effects/shine.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -222,6 +225,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         if (!mounted) return;
 
         if (_currentRound + 1 >= _totalRounds) {
+          await ArcticProgressService.instance.markLevelComplete(14);
           setState(() => _showWinDialog = true);
         } else {
           setState(() => _currentRound++);

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -244,6 +245,7 @@ class _Number0to5CountingTreesScreenState
     if (!mounted) return;
 
     if (_currentRound + 1 >= _totalRounds) {
+      await ArcticProgressService.instance.markLevelComplete(15);
       setState(() => _showWinDialog = true);
     } else {
       setState(() => _currentRound++);

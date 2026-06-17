@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -219,13 +220,12 @@ class _Number0to5MatchSnowglobesScreenState
     if (isCorrect) {
       setState(() => _tappedIndex = index);
       _correctPulseCtrl.forward(from: 0);
-      await _playAudio(
-        'assets/audio/arctic_numberland/$_targetNumber.wav',
-      );
+      await _playAudio('assets/audio/arctic_numberland/$_targetNumber.wav');
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 
       if (_currentRound + 1 >= _totalRounds) {
+        await ArcticProgressService.instance.markLevelComplete(17);
         setState(() => _showWinDialog = true);
       } else {
         setState(() => _currentRound++);

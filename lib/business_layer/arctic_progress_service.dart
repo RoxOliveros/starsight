@@ -1,11 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class ForestProgressService {
-  ForestProgressService._();
-  static final ForestProgressService instance = ForestProgressService._();
+class ArcticProgressService {
+  ArcticProgressService._();
+  static final ArcticProgressService instance = ArcticProgressService._();
 
-  static const int totalLevels = 24;
+  // You currently have 17 levels defined
+  static const int totalLevels = 17;
   static const int _defaultUnlockedLevel = 1;
 
   DocumentReference<Map<String, dynamic>>? get _docRef {
@@ -15,7 +16,7 @@ class ForestProgressService {
         .collection('users')
         .doc(uid)
         .collection('progress')
-        .doc('forest');
+        .doc('arctic'); // Saves to 'arctic' instead of 'forest'
   }
 
   Future<int> getUnlockedLevel() async {
@@ -31,7 +32,7 @@ class ForestProgressService {
       final unlocked = data?['unlockedLevel'] as int?;
       return unlocked ?? _defaultUnlockedLevel;
     } catch (e) {
-      print('ForestProgressService: failed to load progress: $e');
+      print('ArcticProgressService: failed to load progress: $e');
       return _defaultUnlockedLevel;
     }
   }
@@ -50,22 +51,8 @@ class ForestProgressService {
 
       return newUnlocked;
     } catch (e) {
-      print('ForestProgressService: failed to save progress: $e');
+      print('ArcticProgressService: failed to save progress: $e');
       return _defaultUnlockedLevel;
     }
-  }
-
-  bool isUnlocked(int level, int unlockedLevel) => level <= unlockedLevel;
-
-  static int? levelNumberForLetter(String letter) {
-    final upper = letter.toUpperCase();
-    const order = [
-      'A', 'B', 'C', 'D', 'E', 'F', 'G', // levels 1-7
-      'H', 'I', 'J', 'K', 'L', 'M', 'N', // levels 9-15
-    ];
-    final index = order.indexOf(upper);
-    if (index == -1) return null;
-    // A-G map directly to 1-7. H-N need +2 to skip over level 8 (Match).
-    return index < 7 ? index + 1 : index + 2;
   }
 }
