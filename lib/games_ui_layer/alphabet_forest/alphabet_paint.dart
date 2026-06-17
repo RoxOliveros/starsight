@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:ui' as ui;
+import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
@@ -62,14 +63,11 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
 
   // --- Celebration animation ---
   late AnimationController _celebCtrl;
-  late Animation<double> _celebScale;
 
   // --- Brush size ---
   double _brushSize = 28.0;
 
   // --- Letter path cache for clipping ---
-  // We cache the TextPainter layout result to check point-in-letter
-  Size? _lastCanvasSize;
 
   @override
   void initState() {
@@ -80,7 +78,6 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _celebScale = CurvedAnimation(parent: _celebCtrl, curve: Curves.elasticOut);
   }
 
   @override
@@ -143,6 +140,14 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
             Navigator.pop(context); // Close the prompt
 
             String current = widget.letter.toUpperCase();
+
+            // Mark this letter's level as complete, unlocking the next one.
+            final completedLevel = ForestProgressService.levelNumberForLetter(
+              current,
+            );
+            if (completedLevel != null) {
+              ForestProgressService.instance.markLevelComplete(completedLevel);
+            }
 
             // --- THE BOSS LEVEL CHECKER ---
             if (current == 'G') {

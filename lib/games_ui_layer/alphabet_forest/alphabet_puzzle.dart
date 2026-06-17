@@ -1,8 +1,8 @@
+import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -167,19 +167,6 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
     });
   }
 
-  // Helper to find the next letter in the alphabet
-  String _getNextLetter(String currentLetter) {
-    int charCode = currentLetter.toUpperCase().codeUnitAt(0);
-
-    // If the letter is between A (65) and Y (89), return the next letter!
-    if (charCode >= 65 && charCode < 90) {
-      return String.fromCharCode(charCode + 1);
-    }
-
-    // If they finished 'Z', return a flag to tell the app they are done
-    return 'DONE';
-  }
-
   void _showSuccessDialog() {
     showDialog(
       context: context,
@@ -207,6 +194,14 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
             Navigator.pop(context); // Close the prompt
 
             String current = widget.startingLetter.toUpperCase();
+
+            // Mark this letter's level as complete, unlocking the next one.
+            final completedLevel = ForestProgressService.levelNumberForLetter(
+              current,
+            );
+            if (completedLevel != null) {
+              ForestProgressService.instance.markLevelComplete(completedLevel);
+            }
 
             if (current == 'G') {
               // If they just finished G, send them to Level 8 (Match Game!)

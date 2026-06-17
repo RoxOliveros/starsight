@@ -741,16 +741,6 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
     }
   }
 
-  // --- HELPER FOR THE NEXT LETTER ---
-  String _getNextLetter(String currentLetter) {
-    int charCode = currentLetter.toUpperCase().codeUnitAt(0);
-    // Move to next letter if between A-Y
-    if (charCode >= 65 && charCode < 90) {
-      return String.fromCharCode(charCode + 1);
-    }
-    return 'DONE';
-  }
-
   void _generateDensePaths() {
     final RenderBox? renderBox =
         _canvasKey.currentContext?.findRenderObject() as RenderBox?;

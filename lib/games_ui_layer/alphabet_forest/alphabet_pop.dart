@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
@@ -171,6 +172,14 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
             Navigator.pop(context); // Close the prompt
 
             String current = widget.targetLetter.toUpperCase();
+
+            // Mark this letter's level as complete, unlocking the next one.
+            final completedLevel = ForestProgressService.levelNumberForLetter(
+              current,
+            );
+            if (completedLevel != null) {
+              ForestProgressService.instance.markLevelComplete(completedLevel);
+            }
 
             if (current == 'G') {
               // If they just finished G, send them to Level 8 (Match Game!)

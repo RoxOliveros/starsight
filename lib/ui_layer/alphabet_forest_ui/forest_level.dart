@@ -1,11 +1,10 @@
+import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:lottie/lottie.dart';
 
 abstract class ColorTheme {
@@ -34,10 +33,36 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   // 2 is equal to levels 17-24
   int _currentPage = 0;
 
+  // Highest level the player is currently allowed to play.
+  // Defaults to 1 (only level 1 unlocked) until Firestore responds.
+  int _unlockedLevel = 1;
+  bool _isLoadingProgress = true;
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+    _loadProgress();
+  }
+
+  Future<void> _loadProgress() async {
+    final unlocked = await ForestProgressService.instance.getUnlockedLevel();
+    if (!mounted) return;
+    setState(() {
+      _unlockedLevel = unlocked;
+      _isLoadingProgress = false;
+    });
+  }
+
+  /// Pushes the given route, then refreshes progress when the player
+  /// returns (in case the level they just played unlocked the next one).
+  Future<void> _openLevel(Widget screen) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
+    if (!mounted) return;
+    _loadProgress();
   }
 
   @override
@@ -113,21 +138,53 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                         if (_currentPage == 0) ...[
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 1),
-                              _LevelTile(level: 2),
-                              _LevelTile(level: 3),
-                              _LevelTile(level: 4),
+                            children: [
+                              _LevelTile(
+                                level: 1,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 2,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 3,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 4,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 5),
-                              _LevelTile(level: 6),
-                              _LevelTile(level: 7),
-                              _LevelTile(level: 8),
+                            children: [
+                              _LevelTile(
+                                level: 5,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 6,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 7,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 8,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
                             ],
                           ),
                         ],
@@ -136,21 +193,53 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                         if (_currentPage == 1) ...[
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 9),
-                              _LevelTile(level: 10),
-                              _LevelTile(level: 11),
-                              _LevelTile(level: 12),
+                            children: [
+                              _LevelTile(
+                                level: 9,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 10,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 11,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 12,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 13),
-                              _LevelTile(level: 14),
-                              _LevelTile(level: 15),
-                              _LevelTile(level: 16),
+                            children: [
+                              _LevelTile(
+                                level: 13,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 14,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 15,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 16,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
                             ],
                           ),
                         ],
@@ -158,21 +247,53 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                         if (_currentPage == 2) ...[
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 17),
-                              _LevelTile(level: 18),
-                              _LevelTile(level: 19),
-                              _LevelTile(level: 20),
+                            children: [
+                              _LevelTile(
+                                level: 17,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 18,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 19,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 20,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 21),
-                              _LevelTile(level: 22),
-                              _LevelTile(level: 23),
-                              _LockedTile(), // Level 24 (locked)
+                            children: [
+                              _LevelTile(
+                                level: 21,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 22,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 23,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
+                              _LevelTile(
+                                level: 24,
+                                unlockedLevel: _unlockedLevel,
+                                onOpenLevel: _openLevel,
+                              ),
                             ],
                           ),
                         ],
@@ -295,6 +416,20 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
           ),
+
+          // Loading overlay while progress is being fetched from Firestore,
+          // so tiles don't briefly flash as locked before data arrives.
+          if (_isLoadingProgress)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.25),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: ColorTheme.flaxengold,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -303,223 +438,86 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
 
 class _LevelTile extends StatelessWidget {
   final int level;
+  final int unlockedLevel;
+  final Future<void> Function(Widget screen) onOpenLevel;
 
-  const _LevelTile({required this.level});
+  const _LevelTile({
+    required this.level,
+    required this.unlockedLevel,
+    required this.onOpenLevel,
+  });
+
+  /// Returns the destination screen for this level, or null if it isn't
+  /// wired up to a screen yet.
+  Widget? _screenForLevel() {
+    switch (level) {
+      case 1:
+        return const AlphabetIntroScreen(startingLetter: 'A');
+      case 2:
+        return const AlphabetIntroScreen(startingLetter: 'B');
+      case 3:
+        return const AlphabetIntroScreen(startingLetter: 'C');
+      case 4:
+        return const AlphabetIntroScreen(startingLetter: 'D');
+      case 5:
+        return const AlphabetIntroScreen(startingLetter: 'E');
+      case 6:
+        return const AlphabetIntroScreen(startingLetter: 'F');
+      case 7:
+        return const AlphabetIntroScreen(startingLetter: 'G');
+      case 8:
+        return const AlphabetMatchScreen();
+      case 9:
+        return const AlphabetIntroScreen(startingLetter: 'H');
+      case 10:
+        return const AlphabetIntroScreen(startingLetter: 'I');
+      case 11:
+        return const AlphabetIntroScreen(startingLetter: 'J');
+      case 12:
+        return const AlphabetIntroScreen(startingLetter: 'K');
+      case 13:
+        return const AlphabetIntroScreen(startingLetter: 'L');
+      case 14:
+        return const AlphabetIntroScreen(startingLetter: 'M');
+      case 15:
+        return const AlphabetIntroScreen(startingLetter: 'N');
+      case 16:
+        return const AlphabetFallScreen();
+      case 17:
+        return const AlphabetIntroScreen(startingLetter: 'O');
+      case 18:
+        return const AlphabetIntroScreen(startingLetter: 'P');
+      case 19:
+        return const AlphabetIntroScreen(startingLetter: 'Q');
+      case 20:
+        return const AlphabetIntroScreen(startingLetter: 'R');
+      case 21:
+        return const AlphabetIntroScreen(startingLetter: 'S');
+      case 22:
+        return const AlphabetIntroScreen(startingLetter: 'T');
+      case 23:
+        return const AlphabetIntroScreen(startingLetter: 'U');
+      default:
+        return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bool isLocked = level > unlockedLevel;
+
+    if (isLocked) {
+      return const _LockedTile();
+    }
+
     return GestureDetector(
       onTap: () {
-        switch (level) {
-          case 1:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'A'),
-              ),
-            );
-            break;
-          case 2:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'B'),
-              ),
-            );
-            break;
-          case 3:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'C'),
-              ),
-            );
-            break;
-          case 4:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'D'),
-              ),
-            );
-            break;
-          case 5:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'E'),
-              ),
-            );
-            break;
-          case 6:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'F'),
-              ),
-            );
-            break;
-          case 7:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'G'),
-              ),
-            );
-            break;
-          case 8:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AlphabetMatchScreen(),
-              ),
-            );
-            break;
-          case 9:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'H'),
-              ),
-            );
-            break;
-          case 10:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'I'),
-              ),
-            );
-            break;
-          case 11:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'J'),
-              ),
-            );
-            break;
-          case 12:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'K'),
-              ),
-            );
-            break;
-          case 13:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'L'),
-              ),
-            );
-            break;
-          case 14:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'M'),
-              ),
-            );
-            break;
-          case 15:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'N'),
-              ),
-            );
-            break;
-          case 16:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AlphabetFallScreen(),
-              ),
-            );
-            break;
-          case 17:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'O'),
-              ),
-            );
-            break;
-          case 18:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'P'),
-              ),
-            );
-            break;
-          case 19:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'Q'),
-              ),
-            );
-            break;
-          case 20:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'R'),
-              ),
-            );
-            break;
-          case 21:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'S'),
-              ),
-            );
-            break;
-          case 22:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'T'),
-              ),
-            );
-            break;
-          case 23:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'U'),
-              ),
-            );
-            break;
-          default:
-            print("Level $level is not linked up yet!");
-            break;
+        final screen = _screenForLevel();
+        if (screen == null) {
+          print("Level $level is not linked up yet!");
+          return;
         }
+        onOpenLevel(screen);
       },
       child: Container(
         width: 80,
