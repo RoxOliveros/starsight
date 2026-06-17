@@ -3,6 +3,8 @@ import 'package:StarSight/ui_layer/parents_pin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'app_dialog.dart';
+
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
   static const Color deepNavyBlue = Color(0xFF5F7199);
@@ -122,21 +124,24 @@ class ProfileDayDialog extends StatelessWidget {
                   icon: Icons.logout,
                   label: "Log out",
                   onTap: () async {
-                    // 1. Close the drawer menu
-                    Navigator.pop(context);
 
-                    // 2. Erase the Firebase login token
+                    final confirmed = await AppDialog.showConfirm(
+                      context,
+                      message: "Are you sure you want to log out?",
+                      confirmLabel: "Log Out",
+                      cancelLabel: "Cancel",
+                    );
+
+                    if (!confirmed) return;
+
                     await FirebaseAuth.instance.signOut();
 
-                    // 3. Send them to the Start Screen AND clear the back-button history
                     if (!context.mounted) return;
+
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => const SignUpSignInScreen(),
-                      ),
-                      (route) =>
-                          false, // This destroys the old Dashboard screen
+                      MaterialPageRoute(builder: (context) => const SignUpSignInScreen()),
+                          (route) => false,
                     );
                   },
                 ),
