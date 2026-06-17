@@ -134,7 +134,7 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
   @override
   void dispose() {
     _fadeController.dispose();
-    _linkSubscription?.cancel(); // Close the listener
+    _linkSubscription?.cancel();
     super.dispose();
   }
 

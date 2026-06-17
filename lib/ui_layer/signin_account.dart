@@ -132,20 +132,10 @@ class _SignInAccountState extends State<SignInAccount>
     Navigator.pop(context);
 
     if (error == null) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Email Sent!"),
-          content: const Text(
-            "Check your inbox for a link to reset your password. Be sure to check your spam folder!",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("OK"),
-            ),
-          ],
-        ),
+      AppDialog.showSuccess(
+        context,
+        message:
+        "Check your inbox for a link to reset your password.\n\nBe sure to check your spam folder!",
       );
     } else {
       AppDialog.showError(context, message: error);
@@ -153,6 +143,12 @@ class _SignInAccountState extends State<SignInAccount>
   }
 
   void _onGoogleSignIn() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
     bool success = await AuthService().signInWithGoogle();
 
     if (success) {
@@ -167,6 +163,7 @@ class _SignInAccountState extends State<SignInAccount>
           await GoogleSignIn.instance.signOut();
 
           if (!mounted) return;
+          Navigator.pop(context);
           AppDialog.showError(
             context,
             message: "Account not found! Please go back and Sign Up first.",
@@ -177,16 +174,21 @@ class _SignInAccountState extends State<SignInAccount>
         String fetchedNickname = await DatabaseService().getNickname();
 
         if (!mounted) return;
+        Navigator.pop(context);
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
             builder: (_) => DashboardScreen(nickname: fetchedNickname),
           ),
-          (route) => false,
+              (route) => false,
         );
+      } else {
+        if (!mounted) return;
+        Navigator.pop(context);
       }
     } else {
       if (!mounted) return;
+      Navigator.pop(context);
       AppDialog.showError(
         context,
         message: "Google Sign-In was canceled or failed.",
@@ -344,8 +346,7 @@ class _SignInAccountState extends State<SignInAccount>
                               "Forgot Password?",
                               style: TextStyle(
                                 fontFamily: AppTextStyles.fredoka,
-                                color: ColorTheme.blue,
-                                fontWeight: FontWeight.bold,
+                                color: ColorTheme.deepNavyBlue,
                               ),
                             ),
                           ),
