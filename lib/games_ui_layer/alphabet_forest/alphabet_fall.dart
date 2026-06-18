@@ -1,6 +1,7 @@
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -133,7 +134,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
             'audio/alphabet_forest/sound_effects/sound_${obj.letter.toLowerCase()}.wav';
         await _audioPlayer.play(AssetSource(audioFile));
       } catch (e) {
-        // Ignore if sound file is missing
+        print("Error playing sound for ${obj.letter}: $e");
       }
 
       setState(() {
@@ -189,13 +190,17 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
           characterImage: 'assets/images/characters/dog.png',
           closeButtonColor: ForestColorTheme.seagreen,
 
-          // Clean, simple navigation back to the map!
           onNext: () {
             // Beating the Fall game completes level 16, unlocking level 17.
             ForestProgressService.instance.markLevelComplete(16);
 
             Navigator.pop(context); // Close the Good Job prompt
-            Navigator.pop(context); // Go back to the Map!
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ForestLevelScreen(),
+              ),
+            );
           },
 
           onRestart: () {
@@ -207,8 +212,13 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
             });
           },
           onBack: () {
-            Navigator.pop(context);
-            Navigator.pop(context);
+            Navigator.pop(context); // Close the prompt
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ForestLevelScreen(),
+              ),
+            );
           },
         ),
       ),

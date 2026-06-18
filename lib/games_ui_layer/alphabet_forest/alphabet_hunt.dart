@@ -6,6 +6,7 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -100,17 +101,6 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
       'H': 'hat',
       'I': 'igloo',
       'J': 'jar',
-      'K': 'key',
-      'L': 'lamp',
-      'M': 'milk',
-      'N': 'nose',
-      'O': 'oil',
-      'P': 'pan',
-      'Q': 'queen',
-      'R': 'rain',
-      'S': 'sun',
-      'T': 'tree',
-      'U': 'umbrella',
     };
     final name = objectMap[letter.toUpperCase()] ?? 'apple';
     return 'assets/images/objects/forest/$name.png';
@@ -226,7 +216,12 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
                   ),
                 );
               } else {
-                Navigator.pop(context); // Return to Map
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ForestLevelScreen(),
+                  ),
+                );
               }
             }
           },
@@ -238,8 +233,13 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
             });
           },
           onBack: () {
-            Navigator.pop(context);
-            Navigator.pop(context);
+            Navigator.pop(context); // Close the prompt
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ForestLevelScreen(),
+              ),
+            );
           },
         ),
       ),

@@ -6,6 +6,7 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -232,7 +233,16 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
                   ),
                 );
               } else {
-                Navigator.pop(context); // Return to Map
+                // Reached the end with no more letters/boss levels mapped.
+                // Go back to a fresh level-select screen so it reloads
+                // progress on its own, instead of popping back to a
+                // potentially stale existing instance.
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ForestLevelScreen(),
+                  ),
+                );
               }
             }
           },
@@ -242,8 +252,13 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
           },
 
           onBack: () {
-            Navigator.pop(context);
-            Navigator.pop(context);
+            Navigator.pop(context); // Close the prompt
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ForestLevelScreen(),
+              ),
+            );
           },
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -195,8 +196,16 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen> {
             // Beating the Match game completes level 8, unlocking level 9.
             ForestProgressService.instance.markLevelComplete(8);
 
-            Navigator.pop(context);
-            Navigator.pop(context);
+            Navigator.pop(context); // Close the prompt
+            // Go to a *fresh* level-select screen so it reloads progress
+            // on its own (same pattern as Arctic/Puzzle Glade), instead of
+            // popping back to a potentially stale existing instance.
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ForestLevelScreen(),
+              ),
+            );
           },
           onRestart: () {
             Navigator.pop(context);
@@ -206,8 +215,13 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen> {
             });
           },
           onBack: () {
-            Navigator.pop(context);
-            Navigator.pop(context);
+            Navigator.pop(context); // Close the prompt
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ForestLevelScreen(),
+              ),
+            );
           },
         ),
       ),

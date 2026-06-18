@@ -8,6 +8,7 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -173,7 +174,6 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
 
             String current = widget.targetLetter.toUpperCase();
 
-            // Mark this letter's level as complete, unlocking the next one.
             final completedLevel = ForestProgressService.levelNumberForLetter(
               current,
             );
@@ -210,7 +210,12 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
                   ),
                 );
               } else {
-                Navigator.pop(context); // Return to Map
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ForestLevelScreen(),
+                  ),
+                );
               }
             }
           },
@@ -223,8 +228,13 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
             });
           },
           onBack: () {
-            Navigator.pop(context);
-            Navigator.pop(context);
+            Navigator.pop(context); // Close the prompt
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ForestLevelScreen(),
+              ),
+            );
           },
         ),
       ),

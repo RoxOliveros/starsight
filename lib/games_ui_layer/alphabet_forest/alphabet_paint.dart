@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:StarSight/business_layer/forest_progress_service.dart';
+import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
@@ -61,13 +62,10 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
     const ui.Color.fromARGB(255, 255, 99, 71), // tomato
   ];
 
-  // --- Celebration animation ---
   late AnimationController _celebCtrl;
 
   // --- Brush size ---
   double _brushSize = 28.0;
-
-  // --- Letter path cache for clipping ---
 
   @override
   void initState() {
@@ -179,7 +177,17 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                   ),
                 );
               } else {
-                Navigator.pop(context); // Return to Map
+                // Reached the end of the alphabet with no more letters or
+                // boss levels mapped. Go back to a *fresh* level-select
+                // screen so it reloads progress on its own (same pattern
+                // as Arctic/Puzzle Glade), instead of popping back to a
+                // potentially stale existing instance.
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ForestLevelScreen(),
+                  ),
+                );
               }
             }
           },
@@ -191,8 +199,13 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
             });
           },
           onBack: () {
-            Navigator.pop(context);
-            Navigator.pop(context);
+            Navigator.pop(context); // Close the prompt
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ForestLevelScreen(),
+              ),
+            );
           },
         ),
       ),

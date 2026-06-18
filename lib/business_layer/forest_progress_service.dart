@@ -36,6 +36,20 @@ class ForestProgressService {
     }
   }
 
+  Stream<int> streamUnlockedLevel() {
+    final ref = _docRef;
+    if (ref == null) return Stream.value(_defaultUnlockedLevel);
+
+    return ref.snapshots().map((snapshot) {
+      if (!snapshot.exists) {
+        return _defaultUnlockedLevel;
+      }
+      final data = snapshot.data();
+      final unlocked = data?['unlockedLevel'] as int?;
+      return unlocked ?? _defaultUnlockedLevel;
+    });
+  }
+
   Future<int> markLevelComplete(int completedLevel) async {
     final ref = _docRef;
     if (ref == null) return _defaultUnlockedLevel;

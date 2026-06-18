@@ -40,16 +40,6 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-    _loadProgress();
-  }
-
-  Future<void> _loadProgress() async {
-    final unlocked = await ForestProgressService.instance.getUnlockedLevel();
-    if (!mounted) return;
-    setState(() {
-      _unlockedLevel = unlocked;
-      _isLoadingProgress = false;
-    });
   }
 
   Future<void> _openLevel(Widget screen) async {
@@ -57,8 +47,6 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
       context,
       MaterialPageRoute(builder: (context) => screen),
     );
-    if (!mounted) return;
-    _loadProgress();
   }
 
   @override
@@ -70,363 +58,384 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // 🌳 Background image
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/backgrounds/bg_forest.png',
-              fit: BoxFit.cover,
-            ),
-          ),
+      body: StreamBuilder<int>(
+        stream: ForestProgressService.instance.streamUnlockedLevel(),
+        builder: (context, snapshot) {
+          // Default to level 1 if data hasn't loaded yet
+          final _unlockedLevel = snapshot.data ?? 1;
 
-          // back button
-          Positioned(
-            top: 16,
-            left: 16,
-            child: GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: ColorTheme.flaxengold,
-                  borderRadius: BorderRadius.circular(25),
-                  border: Border.all(color: ColorTheme.olivegreen, width: 5),
-                ),
-                child: const Text(
-                  'back',
-                  style: TextStyle(
-                    fontFamily: AppTextStyles.fredoka,
-                    fontSize: 18,
-                    color: ColorTheme.olivegreen,
-                    fontWeight: FontWeight.bold,
-                  ),
+          // Show the loading screen while Firebase is connecting
+          final _isLoadingProgress =
+              snapshot.connectionState == ConnectionState.waiting;
+
+          return Stack(
+            children: [
+              // 🌳 Background image
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/backgrounds/bg_forest.png',
+                  fit: BoxFit.cover,
                 ),
               ),
-            ),
-          ),
-
-          // 🌿 Content
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 40),
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.topCenter,
-                children: [
-                  const SizedBox(height: 20),
-                  Container(
-                    width: 650,
-                    height: 280,
-                    padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
+              // back button
+              Positioned(
+                top: 16,
+                left: 16,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF4EFE6),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: ColorTheme.darkbrown, width: 8),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // --- PAGE 0: LEVELS 1-8 ---
-                        if (_currentPage == 0) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _LevelTile(
-                                level: 1,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 2,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 3,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 4,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _LevelTile(
-                                level: 5,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 6,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 7,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 8,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                            ],
-                          ),
-                        ],
-
-                        // --- PAGE 1: LEVELS 9-16 ---
-                        if (_currentPage == 1) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _LevelTile(
-                                level: 9,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 10,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 11,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 12,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _LevelTile(
-                                level: 13,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 14,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 15,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 16,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                            ],
-                          ),
-                        ],
-                        // --- PAGE 2: LEVELS 17-24 ---
-                        if (_currentPage == 2) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _LevelTile(
-                                level: 17,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 18,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 19,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 20,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _LevelTile(
-                                level: 21,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 22,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 23,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                              _LevelTile(
-                                level: 24,
-                                unlockedLevel: _unlockedLevel,
-                                onOpenLevel: _openLevel,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  // SELECT LEVEL badge on top border
-                  Positioned(
-                    top: -32,
-                    child: Stack(
-                      alignment: Alignment.topCenter,
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ColorTheme.forestgreen,
-                            borderRadius: BorderRadius.circular(25),
-                            border: Border.all(
-                              color: ColorTheme.darkgreen,
-                              width: 5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                offset: const Offset(0, 6),
-                                blurRadius: 8,
-                              ),
-                            ],
-                          ),
-                          child: const Text(
-                            ' SELECT LEVEL ',
-                            style: TextStyle(
-                              fontFamily: AppTextStyles.fredoka,
-                              fontSize: 25,
-                              color: ColorTheme.peach,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                        // Left star
-                        Positioned(
-                          top: -4,
-                          left: -35,
-                          child: Transform.rotate(
-                            angle: -0.2,
-                            child: Image.asset(
-                              'assets/images/night_star.png',
-                              width: 70,
-                            ),
-                          ),
-                        ),
-                        // Right star
-                        Positioned(
-                          top: -4,
-                          right: -35,
-                          child: Transform.rotate(
-                            angle: 0.2,
-                            child: Image.asset(
-                              'assets/images/night_star.png',
-                              width: 70,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  if (_currentPage >
-                      0) // Only shows if it passes the first page
-                    Positioned(
-                      left: -35,
-                      top: 0,
-                      bottom: 0,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _currentPage--;
-                          });
-                        },
-                        child: Image.asset(
-                          'assets/images/arrows/bttn_forest_arrow_left.png',
-                          width: 70,
-                        ),
+                      color: ColorTheme.flaxengold,
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(
+                        color: ColorTheme.olivegreen,
+                        width: 5,
                       ),
                     ),
-
-                  if (_currentPage < 2) // Hides when hit the final page
-                    Positioned(
-                      right: -35,
-                      top: 0,
-                      bottom: 0,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _currentPage++;
-                          });
-                        },
-                        child: Image.asset(
-                          'assets/images/arrows/bttn_forest_arrow_right.png',
-                          width: 70,
-                        ),
+                    child: const Text(
+                      'back',
+                      style: TextStyle(
+                        fontFamily: AppTextStyles.fredoka,
+                        fontSize: 18,
+                        color: ColorTheme.olivegreen,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 15,
-            right: 15,
-            child: Lottie.asset(
-              'assets/animations/movie_clapperboard.json',
-              width: 60,
-              height: 60,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            ),
-          ),
-
-          // Loading overlay while progress is being fetched from Firestore,
-          // so tiles don't briefly flash as locked before data arrives.
-          if (_isLoadingProgress)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.25),
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    color: ColorTheme.flaxengold,
                   ),
                 ),
               ),
-            ),
-        ],
+
+              // 🌿 Content
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 40),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.topCenter,
+                    children: [
+                      const SizedBox(height: 20),
+                      Container(
+                        width: 650,
+                        height: 280,
+                        padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4EFE6),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: ColorTheme.darkbrown,
+                            width: 8,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // --- PAGE 0: LEVELS 1-8 ---
+                            if (_currentPage == 0) ...[
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _LevelTile(
+                                    level: 1,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 2,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 3,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 4,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _LevelTile(
+                                    level: 5,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 6,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 7,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 8,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                ],
+                              ),
+                            ],
+
+                            // --- PAGE 1: LEVELS 9-16 ---
+                            if (_currentPage == 1) ...[
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _LevelTile(
+                                    level: 9,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 10,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 11,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 12,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _LevelTile(
+                                    level: 13,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 14,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 15,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 16,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                ],
+                              ),
+                            ],
+                            // --- PAGE 2: LEVELS 17-24 ---
+                            if (_currentPage == 2) ...[
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _LevelTile(
+                                    level: 17,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 18,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 19,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 20,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  _LevelTile(
+                                    level: 21,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 22,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 23,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                  _LevelTile(
+                                    level: 24,
+                                    unlockedLevel: _unlockedLevel,
+                                    onOpenLevel: _openLevel,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      // SELECT LEVEL badge on top border
+                      Positioned(
+                        top: -32,
+                        child: Stack(
+                          alignment: Alignment.topCenter,
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: ColorTheme.forestgreen,
+                                borderRadius: BorderRadius.circular(25),
+                                border: Border.all(
+                                  color: ColorTheme.darkgreen,
+                                  width: 5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    offset: const Offset(0, 6),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                              child: const Text(
+                                ' SELECT LEVEL ',
+                                style: TextStyle(
+                                  fontFamily: AppTextStyles.fredoka,
+                                  fontSize: 25,
+                                  color: ColorTheme.peach,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                            ),
+                            // Left star
+                            Positioned(
+                              top: -4,
+                              left: -35,
+                              child: Transform.rotate(
+                                angle: -0.2,
+                                child: Image.asset(
+                                  'assets/images/night_star.png',
+                                  width: 70,
+                                ),
+                              ),
+                            ),
+                            // Right star
+                            Positioned(
+                              top: -4,
+                              right: -35,
+                              child: Transform.rotate(
+                                angle: 0.2,
+                                child: Image.asset(
+                                  'assets/images/night_star.png',
+                                  width: 70,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      if (_currentPage >
+                          0) // Only shows if it passes the first page
+                        Positioned(
+                          left: -35,
+                          top: 0,
+                          bottom: 0,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _currentPage--;
+                              });
+                            },
+                            child: Image.asset(
+                              'assets/images/arrows/bttn_forest_arrow_left.png',
+                              width: 70,
+                            ),
+                          ),
+                        ),
+
+                      if (_currentPage < 2) // Hides when hit the final page
+                        Positioned(
+                          right: -35,
+                          top: 0,
+                          bottom: 0,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _currentPage++;
+                              });
+                            },
+                            child: Image.asset(
+                              'assets/images/arrows/bttn_forest_arrow_right.png',
+                              width: 70,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 15,
+                right: 15,
+                child: Lottie.asset(
+                  'assets/animations/movie_clapperboard.json',
+                  width: 60,
+                  height: 60,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+
+              if (_isLoadingProgress)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        color: ColorTheme.flaxengold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -443,8 +452,6 @@ class _LevelTile extends StatelessWidget {
     required this.onOpenLevel,
   });
 
-  /// Returns the destination screen for this level, or null if it isn't
-  /// wired up to a screen yet.
   Widget? _screenForLevel() {
     switch (level) {
       case 1:
