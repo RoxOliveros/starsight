@@ -54,6 +54,8 @@ class _SignUpAccountState extends State<SignUpAccount>
     with SingleTickerProviderStateMixin {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController(); // 1. ADDED CONTROLLER
   bool _obscurePassword = true;
 
   late final AnimationController _fadeController;
@@ -75,12 +77,14 @@ class _SignUpAccountState extends State<SignUpAccount>
     _fadeController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
   void _onSignUp() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
+    String confirmPassword = _confirmPasswordController.text.trim();
 
     if (email.isEmpty || !email.contains('@')) {
       AppDialog.showError(
@@ -93,6 +97,14 @@ class _SignUpAccountState extends State<SignUpAccount>
       AppDialog.showError(
         context,
         message: "Password must be at least 6 characters.",
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      AppDialog.showError(
+        context,
+        message: "Passwords do not match! Please try again.",
       );
       return;
     }
@@ -212,7 +224,7 @@ class _SignUpAccountState extends State<SignUpAccount>
 
                       const SizedBox(height: 32),
 
-                      //EMAIL AND PASSWORD FIELDS
+                      // EMAIL AND PASSWORD FIELDS
                       Column(
                         children: [
                           TextField(
@@ -253,6 +265,7 @@ class _SignUpAccountState extends State<SignUpAccount>
                             ),
                           ),
                           const SizedBox(height: 16),
+
                           TextField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
@@ -286,6 +299,45 @@ class _SignUpAccountState extends State<SignUpAccount>
                                     () => _obscurePassword = !_obscurePassword,
                                   );
                                 },
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: const BorderSide(
+                                  color: ColorTheme.deepNavyBlue,
+                                  width: 1.5,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: const BorderSide(
+                                  color: ColorTheme.blue,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          TextField(
+                            controller: _confirmPasswordController,
+                            obscureText: _obscurePassword,
+                            style: const TextStyle(
+                              fontFamily: AppTextStyles.fredoka,
+                              fontSize: 15,
+                              color: ColorTheme.deepNavyBlue,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Confirm Password:',
+                              labelStyle: const TextStyle(
+                                fontFamily: AppTextStyles.fredoka,
+                                fontSize: 14,
+                                color: ColorTheme.deepNavyBlue,
+                              ),
+                              floatingLabelBehavior:
+                                  FloatingLabelBehavior.always,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 14,
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(30),
