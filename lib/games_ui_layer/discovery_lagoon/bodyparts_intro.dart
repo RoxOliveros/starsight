@@ -305,7 +305,7 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
                         MaterialPageRoute(
                           builder: (context) => BodyPartsDragScreen(
                             bodyPart: widget.bodyPart,
-                            level: widget.level,
+                            level: widget.level + 1,
                           ),
                         ),
                       );

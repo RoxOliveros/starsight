@@ -4,6 +4,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_intro.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_background.dart';
+import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 
 // --- DISCOVERY LAGOON THEME ---
@@ -252,17 +253,10 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    Align(
+                    // Replaced the standard IconButton with your custom button!
+                    const Align(
                       alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: LagoonTheme.wasteland,
-                          size: 32,
-                        ),
-                        onPressed: () =>
-                            Navigator.pop(context), // Safely exit back to map
-                      ),
+                      child: LagoonBackButton(),
                     ),
                     const Text(
                       'Body Parts',
@@ -276,7 +270,6 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                   ],
                 ),
               ),
-
               // --- GAME AREA ---
               Expanded(
                 child: Padding(
