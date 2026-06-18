@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -350,6 +351,8 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
           );
           await completer.future.timeout(const Duration(seconds: 10));
           await sub.cancel();
+
+          await PuzzleProgressService.instance.markLevelComplete(19);
 
           if (mounted) setState(() => _showWinDialog = true);
         } else {

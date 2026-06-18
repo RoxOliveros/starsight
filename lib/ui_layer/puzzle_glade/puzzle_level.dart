@@ -2,6 +2,7 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
+import '../../business_layer/puzzle_progress_service.dart';
 import '../../games_ui_layer/puzzle_glade/lvl10_memory_match2.dart';
 import '../../games_ui_layer/puzzle_glade/lvl11_shadow_match2.dart';
 import '../../games_ui_layer/puzzle_glade/lvl12_jigsaw_puzzle2.dart';
@@ -34,11 +35,32 @@ class PuzzleLevelScreen extends StatefulWidget {
 
 class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
   int _page = 0;
+  int _unlockedLevel = 1;
+  bool _isLoadingProgress = true;
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+    _loadProgress();
+  }
+
+  Future<void> _loadProgress() async {
+    final unlocked = await PuzzleProgressService.instance.getUnlockedLevel();
+    if (!mounted) return;
+    setState(() {
+      _unlockedLevel = unlocked;
+      _isLoadingProgress = false;
+    });
+  }
+
+  Future<void> _openLevel(Widget screen) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
+    if (!mounted) return;
+    _loadProgress(); // Refresh progress when returning from a level!
   }
 
   @override
@@ -71,7 +93,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                 clipBehavior: Clip.none,
                 alignment: Alignment.topCenter,
                 children: [
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   Container(
                     width: 650,
                     height: 280,
@@ -91,7 +113,11 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: List.generate(4, (i) {
                             final level = _page * 8 + i + 1;
-                            return _LevelTile(level: level);
+                            return _LevelTile(
+                              level: level,
+                              unlockedLevel: _unlockedLevel,
+                              onOpenLevel: _openLevel,
+                            );
                           }),
                         ),
                         const SizedBox(height: 16),
@@ -99,7 +125,11 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: List.generate(4, (i) {
                             final level = _page * 8 + i + 5;
-                            return _LevelTile(level: level);
+                            return _LevelTile(
+                              level: level,
+                              unlockedLevel: _unlockedLevel,
+                              onOpenLevel: _openLevel,
+                            );
                           }),
                         ),
                       ],
@@ -224,6 +254,18 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
           ),
+          // Loading overlay while progress is being fetched from Firestore
+          if (_isLoadingProgress)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.25),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: JarColorTheme.goldenyellow,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -232,173 +274,85 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
 
 class _LevelTile extends StatelessWidget {
   final int level;
+  final int unlockedLevel;
+  final Future<void> Function(Widget screen) onOpenLevel;
 
-  const _LevelTile({required this.level});
+  const _LevelTile({
+    required this.level,
+    required this.unlockedLevel,
+    required this.onOpenLevel,
+  });
+
+  Widget? _screenForLevel() {
+    switch (level) {
+      case 1:
+        return const Lvl1JarColorSortScreen();
+      case 2:
+        return const Lvl2PatternMatchScreen();
+      case 3:
+        return const Lvl3JarMemoryMatchScreen();
+      case 4:
+        return const Lvl4ShadowMatchScreen();
+      case 5:
+        return const Lvl5JigsawPuzzleScreen();
+      case 6:
+        return const Lvl6BasketSortScreen();
+      case 7:
+        return const Lvl7SizeSortScreen();
+      case 8:
+        return const Lvl8WhatsMissingScreen();
+      case 9:
+        return const Lvl9PatternMatch2Screen();
+      case 10:
+        return const Lvl10JarMemoryMatch2Screen();
+      case 11:
+        return const Lvl11ShadowMatch2Screen();
+      case 12:
+        return const Lvl12JigsawPuzzle2Screen();
+      case 13:
+        return const Lvl13BasketSort2Screen();
+      case 14:
+        return const Lvl14SizeSort2Screen();
+      case 15:
+        return const Lvl15WhatsMissing2Screen();
+      case 16:
+        return const Lvl16CopyPatternScreen();
+      case 17:
+        return const Lvl17SpotDifferenceScreen();
+      case 18:
+        return const Lvl18JarColorSort2Screen();
+      case 19:
+        return const Lvl19JarMemoryMatch3Screen();
+      case 20:
+        return const Lvl20CopyPattern2Screen();
+      default:
+        return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Hide tiles entirely if the level exceeds the total 20 levels
+    if (level > 20) {
+      return const SizedBox(width: 80, height: 80);
+    }
+
+    final bool isLocked = level > unlockedLevel;
+
+    if (isLocked) {
+      return const _LockedTile();
+    }
+
     return GestureDetector(
       onTap: () {
-        switch (level) {
-          case 1:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl1JarColorSortScreen(),
-              ),
-            );
-            break;
-          case 2:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl2PatternMatchScreen(),
-              ),
-            );
-            break;
-          case 3:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl3JarMemoryMatchScreen(),
-              ),
-            );
-            break;
-          case 4:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl4ShadowMatchScreen(),
-              ),
-            );
-            break;
-          case 5:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl5JigsawPuzzleScreen(),
-              ),
-            );
-            break;
-          case 6:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl6BasketSortScreen(),
-              ),
-            );
-            break;
-          case 7:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl7SizeSortScreen(),
-              ),
-            );
-            break;
-          case 8:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl8WhatsMissingScreen(),
-              ),
-            );
-            break;
-          case 9:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl9PatternMatch2Screen(),
-              ),
-            );
-          case 10:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl10JarMemoryMatch2Screen(),
-              ),
-            );
-          case 11:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl11ShadowMatch2Screen(),
-              ),
-            );
-            break;
-          case 12:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl12JigsawPuzzle2Screen(),
-              ),
-            );
-            break;
-          case 13:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl13BasketSort2Screen(),
-              ),
-            );
-            break;
-          case 14:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl14SizeSort2Screen(),
-              ),
-            );
-            break;
-          case 15:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl15WhatsMissing2Screen(),
-              ),
-            );
-            break;
-          case 16:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl16CopyPatternScreen(),
-              ),
-            );
-            break;
-          case 17:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl17SpotDifferenceScreen(),
-              ),
-            );
-            break;
-          case 18:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl18JarColorSort2Screen(),
-              ),
-            );
-            break;
-          case 19:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl19JarMemoryMatch3Screen(),
-              ),
-            );
-            break;
-          case 20:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const Lvl20CopyPattern2Screen(),
-              ),
-            );
-            break;
+        final screen = _screenForLevel();
+        if (screen == null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Coming soon!')));
+          return;
         }
+        onOpenLevel(screen);
       },
       child: Stack(
         clipBehavior: Clip.none,

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -305,9 +306,13 @@ class _Lvl18JarColorSort2ScreenState extends State<Lvl18JarColorSort2Screen>
             AssetSource(_audioGameComplete.replaceFirst('assets/', '')),
           );
 
+          await PuzzleProgressService.instance.markLevelComplete(18);
+
           await Future.delayed(const Duration(milliseconds: 800));
 
-          setState(() => _showWinDialog = true);
+          if (mounted) {
+            setState(() => _showWinDialog = true);
+          }
         } else {
           setState(() {
             _round++;

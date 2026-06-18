@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -20,16 +21,25 @@ enum _ScreenPhase { intro, game }
 const _totalRounds = 5;
 
 const _kAllObjects = [
-  'compass', 'jar', 'lamp', 'magnifying_glass', 'map',
-  'pen', 'notebook', 'puzzle_piece', 'star', 'telescope', 'water_bottle',
+  'compass',
+  'jar',
+  'lamp',
+  'magnifying_glass',
+  'map',
+  'pen',
+  'notebook',
+  'puzzle_piece',
+  'star',
+  'telescope',
+  'water_bottle',
 ];
 
 // Longer patterns (5 items shown, 1 answer) for higher difficulty
 const _patternTemplates = [
-  [0, 1, 0, 1, 0, 1, 0],  // A-B-A-B-A-B → A
-  [0, 0, 1, 0, 0, 1, 0],  // A-A-B-A-A-B → A
-  [1, 0, 0, 1, 0, 0, 1],  // B-A-A-B-A-A → B
-  [0, 1, 1, 0, 1, 1, 0],  // A-B-B-A-B-B → A
+  [0, 1, 0, 1, 0, 1, 0], // A-B-A-B-A-B → A
+  [0, 0, 1, 0, 0, 1, 0], // A-A-B-A-A-B → A
+  [1, 0, 0, 1, 0, 0, 1], // B-A-A-B-A-A → B
+  [0, 1, 1, 0, 1, 1, 0], // A-B-B-A-B-B → A
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -40,23 +50,28 @@ class Lvl9PatternMatch2Screen extends StatefulWidget {
   const Lvl9PatternMatch2Screen({super.key});
 
   @override
-  State<Lvl9PatternMatch2Screen> createState() => _Lvl9PatternMatch2ScreenState();
+  State<Lvl9PatternMatch2Screen> createState() =>
+      _Lvl9PatternMatch2ScreenState();
 }
 
 class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
     with TickerProviderStateMixin, RoxieReactionMixin {
-
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level9/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level9/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level9/instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level9/complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/level9/intro.wav';
+  static const String _audioWelcome =
+      'assets/audio/puzzle_glade/level9/welcome.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/level9/instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/level9/complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -144,8 +159,8 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-    );
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -288,6 +303,7 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
 
+        await PuzzleProgressService.instance.markLevelComplete(9);
         if (mounted) setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
@@ -330,14 +346,14 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
                 : Stack(
-              children: [
-                FadeTransition(
-                  opacity: _gameFade,
-                  child: _buildGameContent(),
-                ),
-                buildRoxie(context),
-              ],
-            ),
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
@@ -422,58 +438,65 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
                 angle: angle,
                 child: isQuestion
                     ? Container(
-                  width: 68,
-                  height: 68,
-                  decoration: BoxDecoration(
-                    color: JarColorTheme.goldenyellow.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: JarColorTheme.sunnyhue, width: 2.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.10),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      '?',
-                      style: TextStyle(
-                        fontFamily: JarAppTextStyles.fredoka,
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        color: JarColorTheme.sunnyhue,
-                      ),
-                    ),
-                  ),
-                )
+                        width: 68,
+                        height: 68,
+                        decoration: BoxDecoration(
+                          color: JarColorTheme.goldenyellow.withValues(
+                            alpha: 0.25,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: JarColorTheme.sunnyhue,
+                            width: 2.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.10),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            '?',
+                            style: TextStyle(
+                              fontFamily: JarAppTextStyles.fredoka,
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              color: JarColorTheme.sunnyhue,
+                            ),
+                          ),
+                        ),
+                      )
                     : Container(
-                  width: 68,
-                  height: 68,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.30),
-                      width: 2.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.10),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
+                        width: 68,
+                        height: 68,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.88),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: JarColorTheme.darkdesaturatedblue.withValues(
+                              alpha: 0.30,
+                            ),
+                            width: 2.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.10),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(10),
+                        child: Image.asset(
+                          'assets/images/objects/puzzle/${previewObjects[i]}.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) =>
+                              const Text('📦', style: TextStyle(fontSize: 28)),
+                        ),
                       ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(10),
-                  child: Image.asset(
-                    'assets/images/objects/puzzle/${previewObjects[i]}.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                    const Text('📦', style: TextStyle(fontSize: 28)),
-                  ),
-                ),
               );
             }),
           ),
@@ -577,7 +600,7 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           ..._sequenceObjects.map(
-                (obj) => Padding(
+            (obj) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: _objectTile(obj, 56),
             ),
@@ -706,7 +729,7 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
         'assets/images/objects/puzzle/$objectName.png',
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) =>
-        const Text('📦', style: TextStyle(fontSize: 20)),
+            const Text('📦', style: TextStyle(fontSize: 20)),
       ),
     );
   }

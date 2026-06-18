@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -46,21 +47,18 @@ class Lvl8WhatsMissingScreen extends StatefulWidget {
   const Lvl8WhatsMissingScreen({super.key});
 
   @override
-  State<Lvl8WhatsMissingScreen> createState() =>
-      _Lvl8WhatsMissingScreenState();
+  State<Lvl8WhatsMissingScreen> createState() => _Lvl8WhatsMissingScreenState();
 }
 
 class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
     with TickerProviderStateMixin, RoxieReactionMixin {
-
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_puzzle.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
   static const String _audioIntro =
       'assets/audio/puzzle_glade/level8/intro.wav';
@@ -177,8 +175,8 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _roxieSlide =
-        Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero).animate(
+    _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
+        .animate(
           CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
         );
     _roxieFade = CurvedAnimation(
@@ -190,9 +188,10 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     )..repeat(reverse: true);
-    _itemDance = Tween<double>(begin: -0.06, end: 0.06).animate(
-      CurvedAnimation(parent: _itemDanceCtrl, curve: Curves.easeInOut),
-    );
+    _itemDance = Tween<double>(
+      begin: -0.06,
+      end: 0.06,
+    ).animate(CurvedAnimation(parent: _itemDanceCtrl, curve: Curves.easeInOut));
 
     _gameEnterCtrl = AnimationController(
       vsync: this,
@@ -352,6 +351,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
         );
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
+        await PuzzleProgressService.instance.markLevelComplete(8);
         if (mounted) setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
@@ -399,14 +399,14 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
                 : Stack(
-              children: [
-                FadeTransition(
-                  opacity: _gameFade,
-                  child: _buildGameContent(),
-                ),
-                buildRoxie(context),
-              ],
-            ),
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
@@ -501,8 +501,9 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
                       border: Border.all(
                         color: isMiddle
                             ? JarColorTheme.sunnyhue
-                            : JarColorTheme.darkdesaturatedblue
-                            .withValues(alpha: 0.25),
+                            : JarColorTheme.darkdesaturatedblue.withValues(
+                                alpha: 0.25,
+                              ),
                         width: 2.5,
                       ),
                       boxShadow: [
@@ -516,23 +517,23 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
                     padding: const EdgeInsets.all(10),
                     child: isMiddle
                         ? Center(
-                      child: Text(
-                        '?',
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: JarColorTheme.sunnyhue,
-                        ),
-                      ),
-                    )
+                            child: Text(
+                              '?',
+                              style: TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: JarColorTheme.sunnyhue,
+                              ),
+                            ),
+                          )
                         : Image.asset(
-                      'assets/images/objects/puzzle/${sampleObjects[i]}.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text(
-                        '🔭',
-                        style: TextStyle(fontSize: 28),
-                      ),
-                    ),
+                            'assets/images/objects/puzzle/${sampleObjects[i]}.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Text(
+                              '🔭',
+                              style: TextStyle(fontSize: 28),
+                            ),
+                          ),
                   ),
                 ),
               );
@@ -573,8 +574,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
           children: [
             Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
             Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(20),
@@ -607,15 +607,9 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
     return Row(
       children: [
         // LEFT: object display area
-        Expanded(
-          flex: 6,
-          child: Center(child: _buildObjectDisplay()),
-        ),
+        Expanded(flex: 6, child: Center(child: _buildObjectDisplay())),
         // RIGHT: choices or countdown
-        Expanded(
-          flex: 4,
-          child: Center(child: _buildRightPanel()),
-        ),
+        Expanded(flex: 4, child: Center(child: _buildRightPanel())),
       ],
     );
   }
@@ -659,9 +653,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
                 _gamePhase != _GamePhase.showing && obj == _missingObject;
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: isMissing
-                  ? _buildMissingSlot()
-                  : _buildObjectTile(obj),
+              child: isMissing ? _buildMissingSlot() : _buildObjectTile(obj),
             );
           }),
         ),
@@ -693,7 +685,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
         'assets/images/objects/puzzle/$objectName.png',
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) =>
-        const Text('📦', style: TextStyle(fontSize: 28)),
+            const Text('📦', style: TextStyle(fontSize: 28)),
       ),
     );
   }
@@ -707,10 +699,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
         decoration: BoxDecoration(
           color: JarColorTheme.goldenyellow.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: JarColorTheme.sunnyhue,
-            width: 3,
-          ),
+          border: Border.all(color: JarColorTheme.sunnyhue, width: 3),
           boxShadow: [
             BoxShadow(
               color: JarColorTheme.sunnyhue.withValues(alpha: 0.25),
@@ -769,8 +758,8 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
                     child: CircularProgressIndicator(
                       value: 1.0 - _countdownRingCtrl.value,
                       strokeWidth: 7,
-                      backgroundColor:
-                      JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.15),
+                      backgroundColor: JarColorTheme.darkdesaturatedblue
+                          .withValues(alpha: 0.15),
                       valueColor: AlwaysStoppedAnimation<Color>(ringColor),
                     ),
                   ),
@@ -828,7 +817,9 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
     final isWrongTap = isTapped && !isCorrect;
     final isCorrectTap = isTapped && isCorrect;
 
-    Color borderColor = JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.28);
+    Color borderColor = JarColorTheme.darkdesaturatedblue.withValues(
+      alpha: 0.28,
+    );
     Color bgColor = Colors.white.withValues(alpha: 0.90);
 
     if (isWrongTap) {
@@ -868,14 +859,17 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
                 'assets/images/objects/puzzle/$objectName.png',
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) =>
-                const Text('📦', style: TextStyle(fontSize: 24)),
+                    const Text('📦', style: TextStyle(fontSize: 24)),
               ),
             ),
             // Feedback icon
             if (isWrongTap) ...[
               const SizedBox(width: 6),
-              const Icon(Icons.close_rounded,
-                  color: Color(0xFFE05A5A), size: 22),
+              const Icon(
+                Icons.close_rounded,
+                color: Color(0xFFE05A5A),
+                size: 22,
+              ),
             ] else if (isCorrectTap) ...[
               const SizedBox(width: 6),
               const Icon(Icons.check_rounded, color: Colors.green, size: 22),
@@ -909,8 +903,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
                 ? JarColorTheme.darkdesaturatedblue
                 : current
                 ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue
-                .withValues(alpha: 0.20),
+                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -927,7 +920,8 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
       onNext: () {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const Lvl9PatternMatch2Screen()),
-        );      },
+        );
+      },
       onRestart: () {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const Lvl8WhatsMissingScreen()),

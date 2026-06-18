@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -319,6 +320,8 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
 
+        await PuzzleProgressService.instance.markLevelComplete(2);
+
         if (mounted) setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
@@ -367,8 +370,7 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
                   ),
           ),
 
-          if (_screenPhase == _ScreenPhase.game)
-            buildRoxie(context),
+          if (_screenPhase == _ScreenPhase.game) buildRoxie(context),
 
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],

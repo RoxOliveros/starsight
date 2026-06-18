@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -364,6 +365,8 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
         );
         await completer.future.timeout(const Duration(seconds: 15));
         await sub.cancel();
+
+        await PuzzleProgressService.instance.markLevelComplete(20);
         if (mounted) setState(() => _showWinDialog = true);
       } else {
         await _phaseCtrl.reverse();
@@ -580,11 +583,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
           _buildGameHeader(),
           const SizedBox(height: 6),
           Expanded(
-            child: Row(
-              children: [
-                Expanded(child: _buildMainArea()),
-              ],
-            ),
+            child: Row(children: [Expanded(child: _buildMainArea())]),
           ),
           _buildProgressDots(),
           const SizedBox(height: 8),

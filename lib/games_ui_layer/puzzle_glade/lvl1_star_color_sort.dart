@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -24,7 +25,6 @@ class Lvl1JarColorSortScreen extends StatefulWidget {
 
 class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
     with TickerProviderStateMixin, RoxieReactionMixin {
-
   // Required by the mixin — point it to your existing _player
   @override
   AudioPlayer get roxiePlayer => _player;
@@ -38,7 +38,8 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
       'assets/audio/puzzle_glade/level1/welcome.wav';
   static const String _audioInstructions =
       'assets/audio/puzzle_glade/level1/instruction.wav';
-  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioCorrect =
+      'assets/audio/sound_effects/bubble_pop.wav';
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
@@ -294,7 +295,11 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
 
           await Future.delayed(const Duration(milliseconds: 800));
 
-          setState(() => _showWinDialog = true);
+          await PuzzleProgressService.instance.markLevelComplete(1);
+
+          if (mounted) {
+            setState(() => _showWinDialog = true);
+          }
         } else {
           setState(() {
             _round++;
@@ -478,7 +483,8 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   // GAME
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildGameContent() {
-    return Stack(           // ← wrap in Stack
+    return Stack(
+      // ← wrap in Stack
       children: [
         Column(
           children: [

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -320,7 +321,6 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
     final isCorrect = currentItem == basketObject;
 
     if (isCorrect) {
-
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
 
       setState(() {
@@ -358,6 +358,7 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
           await completer.future.timeout(const Duration(seconds: 10));
           await sub.cancel();
 
+          await PuzzleProgressService.instance.markLevelComplete(6);
           if (mounted) setState(() => _showWinDialog = true);
         } else {
           await _enterCtrl.reverse();
@@ -374,7 +375,6 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
       }
     } else {
       // Wrong basket
-
 
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
       setState(() {
@@ -394,7 +394,6 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
       }
 
       await showRoxieReaction(RoxieState.wrong);
-
     }
   }
 

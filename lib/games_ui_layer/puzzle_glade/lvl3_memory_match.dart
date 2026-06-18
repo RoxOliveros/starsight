@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -64,7 +65,9 @@ class Lvl3JarMemoryMatchScreen extends StatefulWidget {
 }
 
 class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<Lvl3JarMemoryMatchScreen> {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<Lvl3JarMemoryMatchScreen> {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
   // ── Asset config ───────────────────────────────────────────────────────────
@@ -79,7 +82,8 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
       'assets/audio/puzzle_glade/level3/welcome.wav';
   static const String _audioInstructions =
       'assets/audio/puzzle_glade/level3/instruction.wav';
-  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioCorrect =
+      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioComplete =
       'assets/audio/puzzle_glade/level3/complete.wav';
@@ -349,6 +353,8 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
           await completer.future.timeout(const Duration(seconds: 10));
           await sub.cancel();
 
+          await PuzzleProgressService.instance.markLevelComplete(3);
+
           if (mounted) setState(() => _showWinDialog = true);
         } else {
           await _enterCtrl.reverse();
@@ -396,15 +402,15 @@ class _Lvl3JarMemoryMatchScreenState extends State<Lvl3JarMemoryMatchScreen>
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
                 : Stack(
-              children: [
-                FadeTransition(
-                  opacity: _gameFade,
-                  child: _buildGameContent(),
-                ),
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
 
-                buildRoxie(context),
-              ],
-            ),
+                      buildRoxie(context),
+                    ],
+                  ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],

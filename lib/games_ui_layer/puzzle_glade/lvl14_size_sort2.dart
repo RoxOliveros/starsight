@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -340,6 +341,8 @@ class _Lvl14SizeSort2ScreenState extends State<Lvl14SizeSort2Screen>
         );
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
+
+        await PuzzleProgressService.instance.markLevelComplete(14);
         if (mounted) setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();

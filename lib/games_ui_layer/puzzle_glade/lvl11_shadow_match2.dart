@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -42,12 +43,12 @@ class Lvl11ShadowMatch2Screen extends StatefulWidget {
   const Lvl11ShadowMatch2Screen({super.key});
 
   @override
-  State<Lvl11ShadowMatch2Screen> createState() => _Lvl11ShadowMatch2ScreenState();
+  State<Lvl11ShadowMatch2Screen> createState() =>
+      _Lvl11ShadowMatch2ScreenState();
 }
 
 class _Lvl11ShadowMatch2ScreenState extends State<Lvl11ShadowMatch2Screen>
     with TickerProviderStateMixin, RoxieReactionMixin {
-
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
@@ -153,8 +154,8 @@ class _Lvl11ShadowMatch2ScreenState extends State<Lvl11ShadowMatch2Screen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-    );
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -272,7 +273,6 @@ class _Lvl11ShadowMatch2ScreenState extends State<Lvl11ShadowMatch2Screen>
     final tapped = _choices[index];
 
     if (tapped == _answerObject) {
-
       showRoxieReaction(RoxieState.correct);
 
       _pulseCtrl.stop();
@@ -300,6 +300,7 @@ class _Lvl11ShadowMatch2ScreenState extends State<Lvl11ShadowMatch2Screen>
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
 
+        await PuzzleProgressService.instance.markLevelComplete(11);
         if (mounted) setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
@@ -351,14 +352,14 @@ class _Lvl11ShadowMatch2ScreenState extends State<Lvl11ShadowMatch2Screen>
             child: _screenPhase == _ScreenPhase.intro
                 ? _buildIntroContent()
                 : Stack(
-              children: [
-                FadeTransition(
-                  opacity: _gameFade,
-                  child: _buildGameContent(),
-                ),
-                buildRoxie(context),
-              ],
-            ),
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameContent(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
@@ -470,8 +471,8 @@ class _Lvl11ShadowMatch2ScreenState extends State<Lvl11ShadowMatch2Screen>
                       height: 44,
                       color: isShadow
                           ? JarColorTheme.verydarkdesaturatedblue.withValues(
-                        alpha: 0.80,
-                      )
+                              alpha: 0.80,
+                            )
                           : null,
                       colorBlendMode: isShadow
                           ? BlendMode.srcIn
