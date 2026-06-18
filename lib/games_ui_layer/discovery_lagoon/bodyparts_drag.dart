@@ -1,8 +1,9 @@
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_intro.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_background.dart';
-import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_level.dart';
 import 'package:flutter/material.dart';
 
 // --- DISCOVERY LAGOON THEME ---
@@ -34,11 +35,33 @@ class BodyPart {
   BodyPart({required this.word, required this.imagePath});
 }
 
-class BodyPartsDragScreen extends StatefulWidget {
-  // 1. The screen now expects a specific body part!
-  final String bodyPart;
+// --- LEVEL -> BODY PART LOOKUP ---
+// Mirrors the routing table in LagoonLevelScreen's _LevelTile.
+// Odd levels are always Intro screens, so this only needs to map
+// the odd "next level" numbers to their body part identifier.
+const Map<int, String> _introBodyPartForLevel = {
+  1: 'feet',
+  3: 'knee',
+  5: 'shoulder',
+  7: 'head',
+  9: 'lips',
+  11: 'nose',
+  13: 'eye',
+  15: 'ear',
+  17: 'eyebrows',
+  19: 'hair',
+  21: 'hand',
+};
 
-  const BodyPartsDragScreen({super.key, required this.bodyPart});
+class BodyPartsDragScreen extends StatefulWidget {
+  final String bodyPart;
+  final int level;
+
+  const BodyPartsDragScreen({
+    super.key,
+    required this.bodyPart,
+    required this.level,
+  });
 
   @override
   State<BodyPartsDragScreen> createState() => _BodyPartsDragScreenState();
@@ -68,8 +91,6 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
     )..repeat();
   }
 
-  // --- 2. THE DICTIONARY ---
-  // Translates the English identifier to the Tagalog word and correct image
   void _setupBodyPart() {
     switch (widget.bodyPart.toLowerCase()) {
       case 'feet':
@@ -161,6 +182,7 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
 
   // --- 3. THE GOOD JOB OVERLAY ---
   void _showSuccessDialog() {
+    LagoonProgressService.instance.markLevelComplete(widget.level);
     showDialog(
       context: context,
       useSafeArea: false,
@@ -168,13 +190,10 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
       barrierDismissible: false,
       builder: (context) => GoodJobOverlay(
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-        closeButtonColor:
-            LagoonTheme.wasteland, // Fits the lagoon theme perfectly
+        closeButtonColor: LagoonTheme.wasteland,
         onNext: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => LagoonLevelScreen()),
-          ); // Close the overlay
+          Navigator.pop(context); // Close the overlay
+          _goToNextLevel();
         },
         onRestart: () {
           Navigator.pop(context); // Close the overlay
@@ -186,6 +205,24 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
           Navigator.pop(context); // Close the overlay
           Navigator.pop(context); // Exit the game back to the map
         },
+      ),
+    );
+  }
+
+  void _goToNextLevel() {
+    final int nextLevel = widget.level + 1;
+    final String? nextBodyPart = _introBodyPartForLevel[nextLevel];
+
+    if (nextBodyPart == null) {
+      Navigator.pop(context);
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            BodyPartsIntroScreen(bodyPart: nextBodyPart, level: nextLevel),
       ),
     );
   }

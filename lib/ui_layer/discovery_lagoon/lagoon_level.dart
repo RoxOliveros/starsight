@@ -1,15 +1,11 @@
-import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_drag.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_intro.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_line_match.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_match.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
-
 import '../../business_layer/orientation_service.dart';
-import '../../games_ui_layer/discovery_lagoon/animal_habitant_match.dart';
 
 abstract class ColorTheme {
   static const Color wasteland = Color(0xFF5F5630);
@@ -111,76 +107,102 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: ColorTheme.darkbrown, width: 8),
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // --- PAGE 0: LEVELS 1-8 ---
-                        if (_currentPage == 0) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 1),
-                              _LevelTile(level: 2),
-                              _LevelTile(level: 3),
-                              _LevelTile(level: 4),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 5),
-                              _LevelTile(level: 6),
-                              _LevelTile(level: 7),
-                              _LevelTile(level: 8),
-                            ],
-                          ),
-                        ],
+                    child: StreamBuilder<int>(
+                      stream: LagoonProgressService.instance
+                          .streamUnlockedLevel(),
+                      builder: (context, snapshot) {
+                        // If it hasn't loaded yet, assume level 1 is unlocked
+                        final unlockedLevel = snapshot.data ?? 1;
 
-                        // --- PAGE 1: LEVELS 9-16 ---
-                        if (_currentPage == 1) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 9),
-                              _LevelTile(level: 10),
-                              _LevelTile(level: 11),
-                              _LevelTile(level: 12),
+                        // This helper decides whether to show an unlocked or locked tile!
+                        Widget buildTile(int level) {
+                          if (level <= unlockedLevel) {
+                            return _LevelTile(level: level);
+                          } else {
+                            return const _LockedTile();
+                          }
+                        }
+
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // --- PAGE 0: LEVELS 1-8 ---
+                            if (_currentPage == 0) ...[
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(1),
+                                  buildTile(2),
+                                  buildTile(3),
+                                  buildTile(4),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(5),
+                                  buildTile(6),
+                                  buildTile(7),
+                                  buildTile(8),
+                                ],
+                              ),
                             ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 13),
-                              _LevelTile(level: 14),
-                              _LevelTile(level: 15),
-                              _LevelTile(level: 16),
+
+                            // --- PAGE 1: LEVELS 9-16 ---
+                            if (_currentPage == 1) ...[
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(9),
+                                  buildTile(10),
+                                  buildTile(11),
+                                  buildTile(12),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(13),
+                                  buildTile(14),
+                                  buildTile(15),
+                                  buildTile(16),
+                                ],
+                              ),
                             ],
-                          ),
-                        ],
-                        if (_currentPage == 2) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 17),
-                              _LevelTile(level: 18),
-                              _LevelTile(level: 19),
-                              _LevelTile(level: 20),
+
+                            // --- PAGE 2: LEVELS 17-24 ---
+                            if (_currentPage == 2) ...[
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(17),
+                                  buildTile(18),
+                                  buildTile(19),
+                                  buildTile(20),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(21),
+                                  buildTile(22),
+                                  buildTile(23),
+                                  buildTile(24),
+                                ],
+                              ),
                             ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: const [
-                              _LevelTile(level: 21), // Level 21 (locked)
-                              _LevelTile(level: 22), // Level 22 (locked)
-                              _LockedTile(), // Level 23 (locked)
-                              _LockedTile(), // Level 24 (locked)
-                            ],
-                          ),
-                        ],
-                      ],
+                          ],
+                        );
+                      },
                     ),
                   ),
                   // SELECT LEVEL badge on top border
@@ -319,7 +341,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => BodyPartsIntroScreen(bodyPart: 'feet'),
+                builder: (context) =>
+                    BodyPartsIntroScreen(bodyPart: 'feet', level: level),
               ),
             );
             break;
@@ -328,7 +351,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsDragScreen(bodyPart: 'feet'),
+                    BodyPartsDragScreen(bodyPart: 'feet', level: level),
               ),
             );
             break;
@@ -336,7 +359,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => BodyPartsIntroScreen(bodyPart: 'knee'),
+                builder: (context) =>
+                    BodyPartsIntroScreen(bodyPart: 'knee', level: level),
               ),
             );
             break;
@@ -345,7 +369,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsDragScreen(bodyPart: 'knee'),
+                    BodyPartsDragScreen(bodyPart: 'knee', level: level),
               ),
             );
             break;
@@ -354,7 +378,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'shoulder'),
+                    BodyPartsIntroScreen(bodyPart: 'shoulder', level: level),
               ),
             );
             break;
@@ -363,7 +387,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsDragScreen(bodyPart: 'shoulder'),
+                    BodyPartsDragScreen(bodyPart: 'shoulder', level: level),
               ),
             );
             break;
@@ -371,7 +395,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => BodyPartsIntroScreen(bodyPart: 'head'),
+                builder: (context) =>
+                    BodyPartsIntroScreen(bodyPart: 'head', level: level),
               ),
             );
             break;
@@ -380,7 +405,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsDragScreen(bodyPart: 'head'),
+                    BodyPartsDragScreen(bodyPart: 'head', level: level),
               ),
             );
             break;
@@ -388,7 +413,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => BodyPartsIntroScreen(bodyPart: 'lips'),
+                builder: (context) =>
+                    BodyPartsIntroScreen(bodyPart: 'lips', level: level),
               ),
             );
             break;
@@ -397,7 +423,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsDragScreen(bodyPart: 'lips'),
+                    BodyPartsDragScreen(bodyPart: 'lips', level: level),
               ),
             );
             break;
@@ -405,7 +431,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => BodyPartsIntroScreen(bodyPart: 'nose'),
+                builder: (context) =>
+                    BodyPartsIntroScreen(bodyPart: 'nose', level: level),
               ),
             );
             break;
@@ -414,7 +441,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsDragScreen(bodyPart: 'nose'),
+                    BodyPartsDragScreen(bodyPart: 'nose', level: level),
               ),
             );
             break;
@@ -422,7 +449,8 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => BodyPartsIntroScreen(bodyPart: 'eye'),
+                builder: (context) =>
+                    BodyPartsIntroScreen(bodyPart: 'eye', level: level),
               ),
             );
             break;
@@ -431,7 +459,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsDragScreen(bodyPart: 'eye'),
+                    BodyPartsDragScreen(bodyPart: 'eye', level: level),
               ),
             );
             break;
@@ -440,7 +468,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsIntroScreen(bodyPart: 'ear'),
+                    BodyPartsIntroScreen(bodyPart: 'ear', level: level),
               ),
             );
             break;
@@ -449,7 +477,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsDragScreen(bodyPart: 'ear'),
+                    BodyPartsDragScreen(bodyPart: 'ear', level: level),
               ),
             );
             break;
@@ -458,7 +486,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsIntroScreen(bodyPart: 'eyebrows'),
+                    BodyPartsIntroScreen(bodyPart: 'eyebrows', level: level),
               ),
             );
             break;
@@ -467,7 +495,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsDragScreen(bodyPart: 'eyebrows'),
+                    BodyPartsDragScreen(bodyPart: 'eyebrows', level: level),
               ),
             );
             break;
@@ -476,7 +504,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsIntroScreen(bodyPart: 'hair'),
+                    BodyPartsIntroScreen(bodyPart: 'hair', level: level),
               ),
             );
             break;
@@ -485,7 +513,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsDragScreen(bodyPart: 'hair'),
+                    BodyPartsDragScreen(bodyPart: 'hair', level: level),
               ),
             );
             break;
@@ -494,7 +522,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsIntroScreen(bodyPart: 'hand'),
+                    BodyPartsIntroScreen(bodyPart: 'hand', level: level),
               ),
             );
             break;
@@ -503,7 +531,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    const BodyPartsDragScreen(bodyPart: 'hand'),
+                    BodyPartsDragScreen(bodyPart: 'hand', level: level),
               ),
             );
             break;

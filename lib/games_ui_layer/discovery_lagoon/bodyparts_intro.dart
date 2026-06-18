@@ -13,8 +13,13 @@ enum IntroPhase { entering, playingIntro, showingPart, listening, done }
 
 class BodyPartsIntroScreen extends StatefulWidget {
   final String bodyPart;
+  final int level;
 
-  const BodyPartsIntroScreen({super.key, required this.bodyPart});
+  const BodyPartsIntroScreen({
+    super.key,
+    required this.bodyPart,
+    required this.level,
+  });
 
   @override
   State<BodyPartsIntroScreen> createState() => _BodyPartsIntroScreenState();
@@ -182,7 +187,7 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
   Widget _buildAnimatedGif() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final gifSize = (constraints.maxHeight * 0.55).clamp(100.0, 250.0);
+        (constraints.maxHeight * 0.55).clamp(100.0, 250.0);
 
         if (_introPhase == IntroPhase.entering ||
             _introPhase == IntroPhase.playingIntro) {
@@ -282,11 +287,11 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
               ),
 
               if (_introPhase == IntroPhase.listening)
-              Positioned(
-                bottom: 0,
-                right: 20,
-                child: LagoonSkipButton(onTap: _onSkip),
-              ),
+                Positioned(
+                  bottom: 0,
+                  right: 20,
+                  child: LagoonSkipButton(onTap: _onSkip),
+                ),
 
               if (_introPhase == IntroPhase.done)
                 Positioned(
@@ -298,8 +303,10 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              BodyPartsDragScreen(bodyPart: widget.bodyPart),
+                          builder: (context) => BodyPartsDragScreen(
+                            bodyPart: widget.bodyPart,
+                            level: widget.level,
+                          ),
                         ),
                       );
                     },
