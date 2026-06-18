@@ -126,10 +126,24 @@ class _SignInAccountState extends State<SignInAccount>
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
+    bool emailExists = await DatabaseService().doesEmailExist(email);
+
+    if (!emailExists) {
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      AppDialog.showError(
+        context,
+        message:
+            "We couldn't find an account with that email. Please check for typos or sign up first.",
+      );
+      return;
+    }
+
     String? error = await AuthService().sendPasswordResetEmail(email);
 
     if (!mounted) return;
-    Navigator.pop(context);
+    Navigator.pop(context); // Dismiss loading circle
 
     if (error == null) {
       AppDialog.showSuccess(

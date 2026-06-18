@@ -62,6 +62,14 @@ class AuthService {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
       return null; // Success!
     } on FirebaseAuthException catch (e) {
+      // Intercept the Firebase spam filter error
+      if (e.code == 'too-many-requests') {
+        return "Too many tries. Please wait a few minutes and try again later.";
+      }
+      // Intercept the ugly auth credential error you saw
+      if (e.code == 'invalid-credential' || e.code == 'expired-action-code') {
+        return "Your request has expired or is invalid. Please try again.";
+      }
       return e.message;
     } catch (e) {
       return "An unknown error occurred.";
