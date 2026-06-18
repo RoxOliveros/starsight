@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/1/wakeup1.dart';
 import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
@@ -58,6 +59,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
     await _audioPlayer.onPlayerComplete.first;
     if (mounted) setState(() => _showGoodJob = true);
   }
+
   @override
   void dispose() {
     _audioPlayer.dispose();
@@ -78,21 +80,33 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
             GoodJobOverlay(
               characterImage: 'assets/images/characters/dr.woo_the_owl.png',
               closeButtonColor: const Color(0xFF5BAD72),
-              onNext: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const Lvl2BathroomGameScreen()),
-                );
+              onNext: () async {
+                // Unlock level 2!
+                await TownProgressService.instance.markLevelComplete(1);
+
+                if (mounted) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => const Lvl2BathroomGameScreen(),
+                    ),
+                  );
+                }
               },
               onRestart: () {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => const Lumi1ValuesWakeup()),
                 );
               },
-              onBack: () {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-                      (route) => route.isFirst,
-                );
+              onBack: () async {
+                // Unlock level 2 even after they tap the back btn
+                await TownProgressService.instance.markLevelComplete(1);
+
+                if (mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
+                    (route) => route.isFirst,
+                  );
+                }
               },
             ),
         ],
@@ -103,18 +117,20 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
   Widget _buildAwake() {
     return SizedBox.expand(
       key: const ValueKey('awake'),
-        child: Stack(fit: StackFit.expand,
-          children: [
-            Lottie.asset(
-              'assets/animations/awake.json',
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Lottie.asset(
+            'assets/animations/awake.json',
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          ),
 
-            //X button
-            Positioned(top: 25, left: 25, child: LumiXButton()),
-          ],)
+          //X button
+          Positioned(top: 25, left: 25, child: LumiXButton()),
+        ],
+      ),
     );
   }
 
@@ -124,7 +140,10 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/images/backgrounds/bg_lumi_bed.png', fit: BoxFit.cover),
+          Image.asset(
+            'assets/images/backgrounds/bg_lumi_bed.png',
+            fit: BoxFit.cover,
+          ),
           Positioned(
             left: 160,
             bottom: -80,
@@ -207,7 +226,10 @@ class _SpeechBubblePainter extends CustomPainter {
         end: Alignment.bottomRight,
         colors: [const Color(0xFFFFFBF0), const Color(0xFFFFF3CC)],
       ).createShader(bubbleRect);
-    final rrect = RRect.fromRectAndRadius(bubbleRect, const Radius.circular(24));
+    final rrect = RRect.fromRectAndRadius(
+      bubbleRect,
+      const Radius.circular(24),
+    );
     canvas.drawRRect(rrect, fillPaint);
 
     // Border

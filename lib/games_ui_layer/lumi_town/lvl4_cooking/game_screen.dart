@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../ui_layer/lumi_town/town_level.dart';
@@ -1209,15 +1210,26 @@ class _CookingGameScreenState extends State<CookingGameScreen>
           GoodJobOverlay(
             characterImage: 'assets/images/characters/dr.woo_the_owl.png',
             closeButtonColor: const Color(0xFFFF9D3E),
-            onNext: () {
+            onNext: () async {
               // TODO: navigate to next level
+              await TownProgressService.instance.markLevelComplete(4);
+
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
+                  (route) => route.isFirst,
+                );
+              }
             },
             onRestart: _restartGame,
-            onBack: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-                (route) => route.isFirst,
-              );
+            onBack: () async {
+              await TownProgressService.instance.markLevelComplete(4);
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
+                  (route) => route.isFirst,
+                );
+              }
             },
           ),
       ],

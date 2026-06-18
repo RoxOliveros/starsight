@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -54,42 +55,51 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                 alignment: Alignment.topCenter,
                 children: [
                   SizedBox(height: 20),
-                  Container(
-                    width: 650,
-                    height: 280,
-                    padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF4EFE6),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: LumiColorTheme.darkbrown,
-                        width: 8,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _LevelTile(level: 1),
-                            _LevelTile(level: 2),
-                            _LevelTile(level: 3),
-                            _LevelTile(level: 4),
+                  StreamBuilder<int>(
+                    stream: TownProgressService.instance.streamUnlockedLevel(),
+                    builder: (context, snapshot) {
+                      final unlockedLevel = snapshot.data ?? 1;
+
+                      return Container(
+                        width: 650,
+                        height: 280,
+                        padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4EFE6),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: LumiColorTheme.darkbrown,
+                            width: 8,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: List.generate(4, (index) {
+                                final level = index + 1;
+                                // Check if the level should be unlocked
+                                return level <= unlockedLevel
+                                    ? _LevelTile(level: level)
+                                    : const _LockedTile();
+                              }),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: const [
+                                // Placeholder for levels 5-8 if you add them later
+                                _LockedTile(),
+                                _LockedTile(),
+                                _LockedTile(),
+                                _LockedTile(),
+                              ],
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: const [
-                            _LockedTile(),
-                            _LockedTile(),
-                            _LockedTile(),
-                            _LockedTile(),
-                          ],
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                   // SELECT LEVEL badge on top border
                   Positioned(

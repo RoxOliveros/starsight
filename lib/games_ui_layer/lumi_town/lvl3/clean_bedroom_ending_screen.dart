@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,12 +10,12 @@ import '../lvl2/audio_helper.dart';
 import '../lvl4_cooking/game_screen.dart';
 import 'clean_bedroom_game_screen.dart';
 
-
 class CleanBedroomEndingScreen extends StatefulWidget {
   const CleanBedroomEndingScreen({super.key});
 
   @override
-  State<CleanBedroomEndingScreen> createState() => _CleanBedroomEndingScreenState();
+  State<CleanBedroomEndingScreen> createState() =>
+      _CleanBedroomEndingScreenState();
 }
 
 class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
@@ -42,7 +43,10 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
   }
 
   Future<void> _playEndingThenShow() async {
-    await playAssetAudio(_player, 'assets/audio/lumi_town/level3/vo_ending.wav');
+    await playAssetAudio(
+      _player,
+      'assets/audio/lumi_town/level3/vo_ending.wav',
+    );
     await waitForAudio(_player);
     if (mounted) setState(() => _showOverlay = true);
   }
@@ -81,11 +85,15 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
     );
   }
 
-  void _onNext() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const CookingGameScreen()),
-      (route) => route.isFirst,
-    );
+  Future<void> _onNext() async {
+    await TownProgressService.instance.markLevelComplete(3);
+
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const CookingGameScreen()),
+        (route) => route.isFirst,
+      );
+    }
   }
 
   void _onRestart() {
@@ -94,10 +102,14 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
     );
   }
 
-  void _onBack() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-      (route) => route.isFirst,
-    );
+  Future<void> _onBack() async {
+    await TownProgressService.instance.markLevelComplete(3);
+
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
+        (route) => route.isFirst,
+      );
+    }
   }
 }

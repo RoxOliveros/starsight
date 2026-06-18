@@ -1,3 +1,5 @@
+import 'package:StarSight/business_layer/town_progress_service.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl3/clean_bedroom_game_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -25,7 +27,10 @@ class _StepEndingScreenState extends State<StepEndingScreen> {
   }
 
   Future<void> _playEndingThenShow() async {
-    await playAssetAudio(_player, 'assets/audio/lumi_town/level2/vo_ending.wav');
+    await playAssetAudio(
+      _player,
+      'assets/audio/lumi_town/level2/vo_ending.wav',
+    );
     await waitForAudio(_player);
     if (mounted) setState(() => _showOverlay = true);
   }
@@ -83,12 +88,16 @@ class _StepEndingScreenState extends State<StepEndingScreen> {
     );
   }
 
-  void _onNext() {
-    // Navigate to whatever comes after the bathroom game
-    // Replace NextScreen() with your actual next level/screen
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-    );
+  Future<void> _onNext() async {
+    // 1. Unlock Level 3 in the database
+    await TownProgressService.instance.markLevelComplete(2);
+
+    if (mounted) {
+      // 2. Navigate directly to Level 3!
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const CleanBedroomGameScreen()),
+      );
+    }
   }
 
   void _onRestart() {
@@ -98,10 +107,13 @@ class _StepEndingScreenState extends State<StepEndingScreen> {
     );
   }
 
-  void _onBack() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-      (route) => route.isFirst,
-    );
+  Future<void> _onBack() async {
+    await TownProgressService.instance.markLevelComplete(2);
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
+        (route) => route.isFirst,
+      );
+    }
   }
 }
