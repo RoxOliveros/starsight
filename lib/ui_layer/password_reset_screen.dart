@@ -66,14 +66,13 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    // Send the secret code and new password to Firebase!
     String? error = await AuthService().confirmPasswordReset(
       code: widget.oobCode,
       newPassword: newPassword,
     );
 
     if (!mounted) return;
-    Navigator.pop(context); // remove loading circle
+    Navigator.pop(context);
     setState(() => _isSaving = false);
 
     if (error == null) {
@@ -98,7 +97,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => const SignInAccount()),
-                      (route) => false,
+                  (route) => false,
                 );
               },
               child: const Text("GO TO LOGIN"),
@@ -107,7 +106,22 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
         ),
       );
     } else {
-      AppDialog.showError(context, message: error);
+      String friendlyMessage = error;
+      String lowerCaseError = error.toLowerCase();
+
+      if (lowerCaseError.contains('invalid-action-code') ||
+          lowerCaseError.contains('out of band code is invalid')) {
+        friendlyMessage =
+            "This reset link has expired or already been used. Please request a new password reset email.";
+      } else if (lowerCaseError.contains('weak-password')) {
+        friendlyMessage =
+            "Your new password is too weak. Please choose a stronger one.";
+      } else if (lowerCaseError.contains('network-request-failed')) {
+        friendlyMessage =
+            "Network error. Please check your internet connection.";
+      }
+
+      AppDialog.showError(context, message: friendlyMessage);
     }
   }
 
@@ -181,7 +195,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
                                 color: ColorTheme.deepNavyBlue,
                               ),
                               floatingLabelBehavior:
-                              FloatingLabelBehavior.always,
+                                  FloatingLabelBehavior.always,
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 20,
                                 vertical: 14,
@@ -194,7 +208,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
                                   color: ColorTheme.deepNavyBlue,
                                 ),
                                 onPressed: () => setState(
-                                      () => _obscurePassword = !_obscurePassword,
+                                  () => _obscurePassword = !_obscurePassword,
                                 ),
                               ),
                               enabledBorder: OutlineInputBorder(
@@ -230,7 +244,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
                                 color: ColorTheme.deepNavyBlue,
                               ),
                               floatingLabelBehavior:
-                              FloatingLabelBehavior.always,
+                                  FloatingLabelBehavior.always,
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 20,
                                 vertical: 14,
@@ -243,7 +257,8 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
                                   color: ColorTheme.deepNavyBlue,
                                 ),
                                 onPressed: () => setState(
-                                      () => _obscureconfirmPassword = !_obscureconfirmPassword,
+                                  () => _obscureconfirmPassword =
+                                      !_obscureconfirmPassword,
                                 ),
                               ),
                               enabledBorder: OutlineInputBorder(
