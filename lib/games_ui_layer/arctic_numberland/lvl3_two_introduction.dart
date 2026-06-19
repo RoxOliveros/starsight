@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
@@ -17,7 +18,7 @@ enum _IntroPhase {
   playingIntro,
   playingSayTwo,
   listening,
-  celebrating
+  celebrating,
 }
 
 enum _MiniGamePhase { tracing, tapping }
@@ -228,10 +229,18 @@ class _NumberTwoIntroductionScreenState
     // Spread 3 objects vertically in the right half
     final ySlots = [0.15, 0.45, 0.72]..shuffle(rng);
 
-    _objectPos = Offset(0.58 + rng.nextDouble() * 0.30, ySlots[0]);   // ice cream 1
-    _objectPos2 = Offset(0.58 + rng.nextDouble() * 0.30, ySlots[1]);  // ice cream 2
-    _decoyPos   = Offset(0.58 + rng.nextDouble() * 0.30, ySlots[2]);  // decoy (sled or snowy_tree)
-
+    _objectPos = Offset(
+      0.58 + rng.nextDouble() * 0.30,
+      ySlots[0],
+    ); // ice cream 1
+    _objectPos2 = Offset(
+      0.58 + rng.nextDouble() * 0.30,
+      ySlots[1],
+    ); // ice cream 2
+    _decoyPos = Offset(
+      0.58 + rng.nextDouble() * 0.30,
+      ySlots[2],
+    ); // decoy (sled or snowy_tree)
 
     final useSled = Random().nextBool();
     _decoyAsset = useSled
@@ -240,7 +249,10 @@ class _NumberTwoIntroductionScreenState
     _decoyEmoji = useSled ? '🛷' : '🌲';
   }
 
-  Future<void> _onObjectTapped(Offset tappedPos, {required bool isFirst}) async {
+  Future<void> _onObjectTapped(
+    Offset tappedPos, {
+    required bool isFirst,
+  }) async {
     if (_iceCreamsTapped >= _targetCount) return;
     if (isFirst && _iceCream1Tapped) return;
     if (!isFirst && _iceCream2Tapped) return;
@@ -258,6 +270,7 @@ class _NumberTwoIntroductionScreenState
     await _playAudio('assets/audio/arctic_numberland/$_iceCreamsTapped.wav');
 
     if (_iceCreamsTapped >= _targetCount) {
+      await ArcticProgressService.instance.markLevelComplete(3);
       await Future.delayed(const Duration(milliseconds: 200));
       setState(() => _showWinDialog = true);
     }
@@ -312,19 +325,40 @@ class _NumberTwoIntroductionScreenState
     );
   }
 
-  Widget _buildObjectCircle(double size, String asset, String emoji, bool isWrong) {
+  Widget _buildObjectCircle(
+    double size,
+    String asset,
+    String emoji,
+    bool isWrong,
+  ) {
     return Container(
-      width: size, height: size,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: ArcticColorTheme.pictonblue.withValues(alpha: isWrong ? 1.0 : 0.85),
-        border: Border.all(color: isWrong ? Colors.red : Colors.white, width: isWrong ? 4 : 3),
-        boxShadow: [BoxShadow(color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 6))],
+        color: ArcticColorTheme.pictonblue.withValues(
+          alpha: isWrong ? 1.0 : 0.85,
+        ),
+        border: Border.all(
+          color: isWrong ? Colors.red : Colors.white,
+          width: isWrong ? 4 : 3,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Padding(
         padding: EdgeInsets.all(size * 0.12),
-        child: Image.asset(asset, fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Text(emoji, style: const TextStyle(fontSize: 40))),
+        child: Image.asset(
+          asset,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) =>
+              Text(emoji, style: const TextStyle(fontSize: 40)),
+        ),
       ),
     );
   }
@@ -458,7 +492,9 @@ class _NumberTwoIntroductionScreenState
                   successAudio: 'assets/audio/arctic_numberland/mahusay.wav',
                   onComplete: () {
                     setState(() => _miniGamePhase = _MiniGamePhase.tapping);
-                    _playAudio('assets/audio/arctic_numberland/level3/click_two_icecream.wav');
+                    _playAudio(
+                      'assets/audio/arctic_numberland/level3/click_two_icecream.wav',
+                    );
                   },
                 )
               else ...[
@@ -475,7 +511,9 @@ class _NumberTwoIntroductionScreenState
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
+                        color: ArcticColorTheme.pictonblue.withValues(
+                          alpha: 0.8,
+                        ),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(color: Colors.white, width: 3),
                       ),
@@ -532,15 +570,26 @@ class _NumberTwoIntroductionScreenState
                       ),
                       child: GestureDetector(
                         onTap: () => _onObjectTapped(_objectPos, isFirst: true),
-                        child: _buildObjectCircle(objSize, 'assets/images/objects/arctic/icecream.png', '🍦', false),
+                        child: _buildObjectCircle(
+                          objSize,
+                          'assets/images/objects/arctic/icecream.png',
+                          '🍦',
+                          false,
+                        ),
                       ),
                     ),
                   ),
 
                 if (!_iceCream2Tapped)
                   Positioned(
-                    left: (_objectPos2.dx * w - objSize / 2).clamp(w * 0.55, w - objSize),
-                    top:  (_objectPos2.dy * h - objSize / 2).clamp(h * 0.20, h - objSize),
+                    left: (_objectPos2.dx * w - objSize / 2).clamp(
+                      w * 0.55,
+                      w - objSize,
+                    ),
+                    top: (_objectPos2.dy * h - objSize / 2).clamp(
+                      h * 0.20,
+                      h - objSize,
+                    ),
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
@@ -548,8 +597,14 @@ class _NumberTwoIntroductionScreenState
                         child: child,
                       ),
                       child: GestureDetector(
-                        onTap: () => _onObjectTapped(_objectPos2, isFirst: false),
-                        child: _buildObjectCircle(objSize, 'assets/images/objects/arctic/icecream.png', '🍦', false),
+                        onTap: () =>
+                            _onObjectTapped(_objectPos2, isFirst: false),
+                        child: _buildObjectCircle(
+                          objSize,
+                          'assets/images/objects/arctic/icecream.png',
+                          '🍦',
+                          false,
+                        ),
                       ),
                     ),
                   ),
@@ -559,8 +614,14 @@ class _NumberTwoIntroductionScreenState
                     _lastTappedPos != null &&
                     _objectTapCtrl.status != AnimationStatus.completed)
                   Positioned(
-                    left: (_lastTappedPos!.dx * w - objSize / 2).clamp(w * 0.55, w - objSize),
-                    top:  (_lastTappedPos!.dy * h - objSize / 2).clamp(h * 0.20, h - objSize),
+                    left: (_lastTappedPos!.dx * w - objSize / 2).clamp(
+                      w * 0.55,
+                      w - objSize,
+                    ),
+                    top: (_lastTappedPos!.dy * h - objSize / 2).clamp(
+                      h * 0.20,
+                      h - objSize,
+                    ),
                     child: ScaleTransition(
                       scale: _objectTapScale,
                       child: Container(
@@ -579,22 +640,39 @@ class _NumberTwoIntroductionScreenState
 
                 if (_iceCreamsTapped < _targetCount)
                   Positioned(
-                    left: (_decoyPos.dx * w - objSize / 2).clamp(w * 0.55, w - objSize),
-                    top:  (_decoyPos.dy * h - objSize / 2).clamp(h * 0.20, h - objSize),
+                    left: (_decoyPos.dx * w - objSize / 2).clamp(
+                      w * 0.55,
+                      w - objSize,
+                    ),
+                    top: (_decoyPos.dy * h - objSize / 2).clamp(
+                      h * 0.20,
+                      h - objSize,
+                    ),
                     child: AnimatedBuilder(
                       animation: _objectWiggleCtrl,
                       builder: (_, child) => Transform.translate(
-                        offset: Offset(0, (_objectWiggleCtrl.value - 0.5) * -10),
+                        offset: Offset(
+                          0,
+                          (_objectWiggleCtrl.value - 0.5) * -10,
+                        ),
                         child: child,
                       ),
                       child: GestureDetector(
                         onTap: () {
                           setState(() => _wrongTapped = true);
-                          Future.delayed(const Duration(milliseconds: 1000), () {
-                            if (mounted) setState(() => _wrongTapped = false);
-                          });
+                          Future.delayed(
+                            const Duration(milliseconds: 1000),
+                            () {
+                              if (mounted) setState(() => _wrongTapped = false);
+                            },
+                          );
                         },
-                        child: _buildObjectCircle(objSize, _decoyAsset, _decoyEmoji, _wrongTapped),
+                        child: _buildObjectCircle(
+                          objSize,
+                          _decoyAsset,
+                          _decoyEmoji,
+                          _wrongTapped,
+                        ),
                       ),
                     ),
                   ),
@@ -615,7 +693,9 @@ class _NumberTwoIntroductionScreenState
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Number012ReintroductionScreen()),
+          MaterialPageRoute(
+            builder: (_) => const Number012ReintroductionScreen(),
+          ),
         );
       },
       onRestart: () {

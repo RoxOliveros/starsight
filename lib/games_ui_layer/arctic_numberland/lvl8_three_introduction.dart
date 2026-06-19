@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
@@ -251,6 +252,7 @@ class _NumberThreeIntroductionScreenState
     _objectTapCtrl.forward(from: 0);
     await _playAudio('assets/audio/arctic_numberland/$_iceCreamsTapped.wav');
     if (_iceCreamsTapped >= _targetCount) {
+      await ArcticProgressService.instance.markLevelComplete(8);
       await Future.delayed(const Duration(milliseconds: 200));
       setState(() => _showWinDialog = true);
     }

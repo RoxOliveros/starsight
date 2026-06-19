@@ -1,5 +1,6 @@
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -193,17 +194,15 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen> {
           closeButtonColor: ForestColorTheme.seagreen,
 
           onNext: () {
-            // Beating the Match game completes level 8, unlocking level 9.
             ForestProgressService.instance.markLevelComplete(8);
 
             Navigator.pop(context); // Close the prompt
-            // Go to a *fresh* level-select screen so it reloads progress
-            // on its own (same pattern as Arctic/Puzzle Glade), instead of
-            // popping back to a potentially stale existing instance.
+
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const ForestLevelScreen(),
+                builder: (context) =>
+                    const AlphabetIntroScreen(startingLetter: 'H'),
               ),
             );
           },
