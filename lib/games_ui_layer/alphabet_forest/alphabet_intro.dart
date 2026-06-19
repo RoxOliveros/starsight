@@ -6,12 +6,10 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:speech_to_text/speech_to_text.dart';
-import 'package:speech_to_text/speech_recognition_result.dart';
 
 enum ScreenPhase { intro, tracing }
 
-enum IntroPhase { entering, playingIntro, showingLetter, listening, done }
+enum IntroPhase { entering, playingIntro, showingLetter, done }
 
 class AlphabetIntroScreen extends StatefulWidget {
   final String startingLetter;
@@ -31,10 +29,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
   // THE AUDIO PLAYER
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  final SpeechToText _speechToText = SpeechToText();
-  bool _speechEnabled = false;
-  String _wordsHeard = '';
-
   // --- ANIMATION CONTROLLERS ---
   late AnimationController _charSlideCtrl;
   late Animation<Offset> _charSlide;
@@ -50,13 +44,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _initSpeech();
     _startIntroFlow(); // Start the magic!
-  }
-
-  void _initSpeech() async {
-    _speechEnabled = await _speechToText.initialize();
-    setState(() {});
   }
 
   void _initAnimations() {
@@ -111,73 +99,30 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
 
   Future<void> _startIntroFlow() async {
     await _charSlideCtrl.forward();
+    if (!mounted) return;
+    setState(() => _introPhase = IntroPhase.playingIntro);
 
-    if (mounted) setState(() => _introPhase = IntroPhase.playingIntro);
-
-    // 1. Set up a "listener" to know exactly when the audio finishes!
     Completer<void> audioFinished = Completer<void>();
-    _audioPlayer.onPlayerComplete.listen((_) {
+    final sub = _audioPlayer.onPlayerComplete.listen((_) {
       if (!audioFinished.isCompleted) audioFinished.complete();
     });
 
-    // 2. Play the dynamic audio
     String audioFile =
         'audio/alphabet_forest/intro_${widget.startingLetter.toLowerCase()}.wav';
     await _audioPlayer.play(AssetSource(audioFile));
 
     await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
 
-    if (mounted) setState(() => _introPhase = IntroPhase.showingLetter);
+    setState(() => _introPhase = IntroPhase.showingLetter);
     _letterPopCtrl.forward();
     _letterDanceCtrl.repeat(reverse: true);
 
     await audioFinished.future;
+    await sub.cancel();
+    if (!mounted) return;
 
-    // Show the Microphone UI and "listen" exactly when the voice finishes!
-    if (mounted) setState(() => _introPhase = IntroPhase.listening);
-
-    if (_speechEnabled) {
-      _startListening();
-    }
-  }
-
-  void _startListening() async {
-    if (_speechToText.isListening) return;
-
-    await _speechToText.listen(
-      onResult: _checkChildsAnswer,
-      listenFor: const Duration(seconds: 15),
-      pauseFor: const Duration(seconds: 8),
-      partialResults: true,
-      cancelOnError: false,
-    );
-  }
-
-  void _checkChildsAnswer(SpeechRecognitionResult result) {
-    setState(() {
-      _wordsHeard = result.recognizedWords.toLowerCase();
-    });
-
-    // 1. Ask the dictionary for all acceptable words for this letter
-    List<String> acceptableWords = _getAcceptableWords(widget.startingLetter);
-
-    // 2. Check if the microphone heard ANY of those acceptable words
-    bool isCorrect = false;
-    for (String word in acceptableWords) {
-      if (_wordsHeard.contains(word)) {
-        isCorrect = true;
-        break;
-      }
-    }
-
-    // 3. If they got it right, trigger the win sequence!
-    if (isCorrect) {
-      _speechToText.stop(); // Turn off the mic
-
-      // Advance to the Next button!
-      setState(() => _introPhase = IntroPhase.done);
-      _letterDanceCtrl.stop();
-    }
+    setState(() => _introPhase = IntroPhase.done);
   }
 
   Widget _buildAnimatedGif() {
@@ -275,42 +220,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
               ),
             ),
 
-            if (_introPhase == IntroPhase.listening)
-              Positioned(
-                bottom: 20,
-                right: 20,
-                child: ForestSkipButton(
-                  onTap: () {
-                    _speechToText.stop();
-                    setState(() => _introPhase = IntroPhase.done);
-                    _letterDanceCtrl.stop();
-                  },
-                ),
-              ),
-
-            // Mic - center
-            if (_introPhase == IntroPhase.listening)
-              Positioned(
-                bottom: 20,
-                right: 0,
-                left: 0,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: _startListening,
-                      child: Image.asset(
-                        'assets/images/icons/audio.png',
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
             if (_introPhase == IntroPhase.done)
               Positioned(
                 bottom: 24,
@@ -363,55 +272,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
         ),
       ),
     );
-  }
-
-  List<String> _getAcceptableWords(String letter) {
-    switch (letter.toUpperCase()) {
-      case 'A':
-        return ['a', 'ay', 'eight', 'hey', 'eh', 'apple'];
-      case 'B':
-        return ['b', 'bee', 'be', 'vee', 'me', 'ball'];
-      case 'C':
-        return ['c', 'see', 'sea', 'si', 'she', 'car'];
-      case 'D':
-        return ['d', 'dee', 'de', 'di', 'the', 'duck'];
-      case 'E':
-        return ['e', 'ee', 'ea', 'i', 'he', 'egg'];
-      case 'F':
-        return ['f', 'ef', 'eff', 've', 'half', 'feet'];
-      case 'G':
-        return ['g', 'gee', 'je', 'ji', 'she', 'glass'];
-      case 'H':
-        return ['h', 'aitch', 'hech', 'ha', 'eight', 'age', 'hat'];
-      case 'I':
-        return ['i', 'eye', 'ai', 'ay', 'hi', 'igloo'];
-      case 'J':
-        return ['j', 'jay', 'je', 'ji', 'chey', 'jar'];
-      case 'K':
-        return ['k', 'kay', 'okay', 'cay', 'hey', 'key'];
-      case 'L':
-        return ['l', 'el', 'ell', 'al', 'hell', 'lamp', 'owl'];
-      case 'M':
-        return ['m', 'em', 'am', 'them', 'gem', 'milk', 'ham'];
-      case 'N':
-        return ['n', 'en', 'an', 'and', 'in', 'end', 'nose', 'no'];
-      case 'O':
-        return ['o', 'oh', 'owe', 'woah', 'go', 'so', 'oil'];
-      case 'P':
-        return ['p', 'pee', 'pe', 'pi', 'pea', 'be', 'ball', 'pan'];
-      case 'Q':
-        return ['q', 'cue', 'queue', 'kew', 'kyu', 'kay', 'key', 'queen'];
-      case 'R':
-        return ['r', 'are', 'ar', 'our', 'err', 'her', 'rain'];
-      case 'S':
-        return ['s', 'ess', 'is', 'as', 'has', 'his', 'sun'];
-      case 'T':
-        return ['t', 'tee', 'ti', 'tea', 'the', 'to', 'too', 'two', 'tree'];
-      case 'U':
-        return ['u', 'you', 'hue', 'uh', 'ewe', 'yew', 'umbrella'];
-      default:
-        return [letter.toLowerCase()];
-    }
   }
 
   String _getObjectImage(String letter) {
