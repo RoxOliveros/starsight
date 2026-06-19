@@ -93,8 +93,26 @@ class _SignInAccountState extends State<SignInAccount>
     Navigator.pop(context);
 
     if (error == null) {
-      String fetchedNickname = await DatabaseService().getNickname();
+      String? fetchedNickname = await DatabaseService().getNickname();
       if (!mounted) return;
+
+      if (fetchedNickname == null) {
+        // Delete the broken Auth account!
+        try {
+          await FirebaseAuth.instance.currentUser?.delete();
+        } catch (e) {
+          print("Failed to delete ghost account: $e");
+        }
+
+        await FirebaseAuth.instance.signOut(); // Force log them out
+
+        AppDialog.showError(
+          context,
+          message:
+              "Profile data was missing! We have cleaned up the corrupted account. You can now successfully Sign Up again.",
+        );
+        return;
+      }
 
       Navigator.pushAndRemoveUntil(
         context,
@@ -173,6 +191,12 @@ class _SignInAccountState extends State<SignInAccount>
         );
 
         if (!emailExists) {
+          try {
+            await FirebaseAuth.instance.currentUser?.delete();
+          } catch (e) {
+            print("Failed to delete ghost account: $e");
+          }
+
           await FirebaseAuth.instance.signOut();
           await GoogleSignIn.instance.signOut();
 
@@ -185,10 +209,28 @@ class _SignInAccountState extends State<SignInAccount>
           return;
         }
 
-        String fetchedNickname = await DatabaseService().getNickname();
+        String? fetchedNickname = await DatabaseService().getNickname();
 
         if (!mounted) return;
         Navigator.pop(context);
+
+        if (fetchedNickname == null) {
+          try {
+            await FirebaseAuth.instance.currentUser?.delete();
+          } catch (e) {
+            print("Failed to delete ghost account: $e");
+          }
+
+          await FirebaseAuth.instance.signOut();
+          await GoogleSignIn.instance.signOut();
+
+          AppDialog.showError(
+            context,
+            message:
+                "Profile data was missing! We have cleaned up the corrupted account. You can now successfully Sign Up again.",
+          );
+          return;
+        }
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(

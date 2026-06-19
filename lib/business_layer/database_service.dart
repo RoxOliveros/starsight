@@ -64,7 +64,7 @@ class DatabaseService {
     }
   }
 
-  Future<String> getNickname() async {
+  Future<String?> getNickname() async {
     try {
       User? currentUser = FirebaseAuth.instance.currentUser;
 
@@ -78,14 +78,13 @@ class DatabaseService {
 
         if (childrenDocs.docs.isNotEmpty) {
           var childDoc = childrenDocs.docs.first;
-          return childDoc.get('nickname') ?? "Little Explorer";
+          return childDoc.get('nickname');
         }
       }
     } catch (e) {
       print("Error fetching nickname: $e");
     }
-
-    return "Little Explorer";
+    return null;
   }
 
   Future<String?> getParentPin() async {

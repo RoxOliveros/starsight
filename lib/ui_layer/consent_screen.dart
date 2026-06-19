@@ -1,4 +1,7 @@
+import 'package:StarSight/ui_layer/app_dialog.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
+import 'package:StarSight/ui_layer/signup_signin.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../business_layer/database_service.dart';
 
@@ -806,7 +809,7 @@ class _GoToDashboardDialog extends StatelessWidget {
               width: 200,
               child: ElevatedButton(
                 onPressed: () async {
-                  String fetchedNickname = await DatabaseService()
+                  String? fetchedNickname = await DatabaseService()
                       .getNickname();
 
                   if (!context.mounted) return;
@@ -815,6 +818,27 @@ class _GoToDashboardDialog extends StatelessWidget {
 
                   if (!context.mounted) return;
 
+                  if (fetchedNickname == null) {
+                    await FirebaseAuth.instance
+                        .signOut(); // Wipe the broken token
+
+                    AppDialog.showError(
+                      context,
+                      message:
+                          "Profile data missing! It looks like this account's data was deleted. Please Sign Up again.",
+                    );
+
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SignUpSignInScreen(),
+                      ),
+                      (route) => false,
+                    );
+                    return;
+                  }
+
+                  // 3. Normal Dashboard route if everything is perfect!
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(

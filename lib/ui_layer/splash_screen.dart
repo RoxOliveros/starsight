@@ -173,11 +173,9 @@ class _SplashScreenState extends State<SplashScreen>
 
       if (user != null) {
         try {
-          // THEY ARE LOGGED IN -> Let's make sure their DB data still exists!
-          String fetchedNickname = await DatabaseService().getNickname();
+          String? fetchedNickname = await DatabaseService().getNickname();
 
-          if (fetchedNickname.isNotEmpty) {
-            // DB exists! Go to Dashboard.
+          if (fetchedNickname != null && fetchedNickname.isNotEmpty) {
             if (!mounted) return;
             Navigator.of(context).pushReplacement(
               PageRouteBuilder(
