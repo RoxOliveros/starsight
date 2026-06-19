@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:StarSight/games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import 'package:flutter/material.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
@@ -19,7 +17,6 @@ enum _IntroPhase {
   playingSayZero,
   listening,
   celebrating,
-  done,
 }
 
 class NumberZeroIntroductionScreen extends StatefulWidget {
@@ -40,12 +37,6 @@ class _NumberZeroIntroductionScreenState
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _player = AudioPlayer();
 
-  // ── Speech ─────────────────────────────────────────────────────────────────
-  final stt.SpeechToText _speech = stt.SpeechToText();
-  bool _speechAvailable = false;
-  bool _isListening = false;
-  bool _recognized = false;
-
   // ── Tracing ────────────────────────────────────────────────────────────────
   bool _showWinDialog = false;
 
@@ -58,8 +49,6 @@ class _NumberZeroIntroductionScreenState
   late Animation<double> _domaFade;
   late AnimationController _celebrateCtrl;
   late Animation<double> _celebrateScale;
-  late AnimationController _micPulseCtrl;
-  late Animation<double> _micPulse;
   late AnimationController _numberPopCtrl;
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
@@ -75,7 +64,6 @@ class _NumberZeroIntroductionScreenState
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _initSpeech();
     _startIntroFlow();
   }
 
@@ -109,15 +97,6 @@ class _NumberZeroIntroductionScreenState
       TweenSequenceItem(tween: Tween(begin: 1.08, end: 1.0), weight: 15),
     ]).animate(CurvedAnimation(parent: _celebrateCtrl, curve: Curves.easeOut));
 
-    _micPulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _micPulse = Tween<double>(
-      begin: 1.0,
-      end: 1.22,
-    ).animate(CurvedAnimation(parent: _micPulseCtrl, curve: Curves.easeInOut));
-
     _numberPopCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -143,33 +122,41 @@ class _NumberZeroIntroductionScreenState
     _mgFade = CurvedAnimation(parent: _mgTransitionCtrl, curve: Curves.easeIn);
   }
 
-  Future<void> _initSpeech() async {
-    _speechAvailable = await _speech.initialize(
-      onError: (e) => debugPrint('STT error: $e'),
-    );
-  }
-
   // ── Intro flow ────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
     _domaSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
     await _playAudio('assets/audio/arctic_numberland/level1/zero_intro.wav');
+    if (!mounted) return;
 
     _setIntroPhase(_IntroPhase.playingSayZero);
     _numberPopCtrl.forward();
     _numberDanceCtrl.repeat(reverse: true);
     await Future.delayed(const Duration(milliseconds: 1500));
-    await _playAudio('assets/audio/arctic_numberland/level1/say_zero.wav');
+    if (!mounted) return;
+    await _playAudio('assets/audio/arctic_numberland/level1/know_zero.wav');
+    if (!mounted) return;
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
 
     _setIntroPhase(_IntroPhase.listening);
-    _startListening();
     _numberDanceCtrl.stop();
+
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (!mounted) return;
+    await _goToTracing();
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    await _playAudio('assets/audio/arctic_numberland/level1/write_zero.wav');
+    if (!mounted) return;
   }
 
   Future<void> _playAudio(String asset) async {
+    if (!mounted) return;
     try {
       final completer = Completer<void>();
       final sub = _player.onPlayerComplete.listen((_) {
@@ -189,67 +176,20 @@ class _NumberZeroIntroductionScreenState
     setState(() => _introPhase = p);
   }
 
-  // ── Speech ────────────────────────────────────────────────────────────────
-  void _startListening() {
-    if (!_speechAvailable) {
-      Future.delayed(const Duration(seconds: 6), _onWordRecognized);
-      return;
-    }
-
-    _speech.statusListener = (status) {
-      if (!mounted) return;
-      if (status == 'done' || status == 'notListening') {
-        if (_isListening && _introPhase == _IntroPhase.listening) {
-          Future.delayed(const Duration(milliseconds: 500), _startListening);
-        }
-      }
-    };
-
-    setState(() => _isListening = true);
-    _speech.listen(
-      onResult: (result) {
-        final words = result.recognizedWords.toLowerCase();
-        if (words.contains('zero') || words.contains('hero')) {
-          _speech.stop();
-          setState(() => _isListening = false);
-          _onWordRecognized();
-        }
-      },
-      onSoundLevelChange: (_) {},
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 15),
-      localeId: 'en_US',
-    );
-  }
-
-  Future<void> _onWordRecognized() async {
-    if (_recognized) return;
-    _recognized = true;
-
-    _setIntroPhase(_IntroPhase.celebrating);
-    _celebrateCtrl.forward(from: 0);
-
-    await _playAudio(
-      'assets/audio/arctic_numberland/level1/now_you_know_zero.wav',
-    );
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    _setIntroPhase(_IntroPhase.done);
-    _mgTransitionCtrl.forward();
+  Future<void> _goToTracing() async {
+    if (!mounted) return;
     setState(() => _screenPhase = _ScreenPhase.tracing);
-    await _playAudio('assets/audio/arctic_numberland/level1/write_zero.wav');
+    _mgTransitionCtrl.forward();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   @override
   void dispose() {
     _player.dispose();
-    _speech.stop();
     for (final c in [
       _domaFloatCtrl,
       _domaSlideCtrl,
       _celebrateCtrl,
-      _micPulseCtrl,
       _numberPopCtrl,
       _numberDanceCtrl,
       _mgTransitionCtrl,
@@ -319,21 +259,6 @@ class _NumberZeroIntroductionScreenState
               ),
             ],
           ),
-          // Listening prompt
-          if (_introPhase == _IntroPhase.listening)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 30),
-                child: _buildBottomListeningPrompt(),
-              ),
-            ),
-          if (_introPhase == _IntroPhase.listening)
-            Positioned(
-              bottom: 20,
-              right: 20,
-              child: ArcticSkipButton(onTap: _onWordRecognized),
-            ),
         ],
       ),
     );
@@ -385,59 +310,6 @@ class _NumberZeroIntroductionScreenState
     );
   }
 
-  Widget _buildBottomListeningPrompt() {
-    return AnimatedBuilder(
-      animation: _micPulseCtrl,
-      builder: (_, child) => Transform.scale(
-        scale: _isListening ? _micPulse.value : 1.0,
-        child: child,
-      ),
-      child: GestureDetector(
-        onTap: _isListening ? null : _startListening,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1565C0).withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(40),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.35),
-              width: 2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF6B6B).withValues(alpha: 0.4),
-                blurRadius: 20,
-                spreadRadius: 3,
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.graphic_eq_rounded,
-                color: Colors.white,
-                size: 34,
-              ),
-              const SizedBox(width: 10),
-              Icon(
-                _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-                color: Colors.white,
-                size: 30,
-              ),
-              const SizedBox(width: 10),
-              const Icon(
-                Icons.multitrack_audio_rounded,
-                color: Colors.white,
-                size: 34,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildIntroNumber() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -475,10 +347,7 @@ class _NumberZeroIntroductionScreenState
             number: 0,
             player: _player,
             successAudio: 'assets/audio/arctic_numberland/mahusay.wav',
-            onComplete: () async {
-              await ArcticProgressService.instance.markLevelComplete(1);
-              setState(() => _showWinDialog = true);
-            },
+            onComplete: () => setState(() => _showWinDialog = true),
           );
         },
       ),

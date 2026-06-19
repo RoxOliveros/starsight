@@ -210,8 +210,6 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('✏️', style: TextStyle(fontSize: 22)),
-          const SizedBox(width: 8),
           Text(
             'Trace the number ${widget.number}!',
             style: TextStyle(

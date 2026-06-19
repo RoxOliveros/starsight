@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_level.dart';
@@ -19,8 +18,7 @@ enum _IntroPhase {
   playingIntro,
   playingSayTwo,
   listening,
-  celebrating,
-  done,
+  celebrating
 }
 
 enum _MiniGamePhase { tracing, tapping }
@@ -66,13 +64,11 @@ class _NumberFiveIntroductionScreenState
   static const String _audioIntro =
       'assets/audio/arctic_numberland/level11/five_intro.wav';
   static const String _audioSayNumber =
-      'assets/audio/arctic_numberland/level11/say_five.wav';
+      'assets/audio/arctic_numberland/level11/know_five.wav';
   static const String _audioWrite =
       'assets/audio/arctic_numberland/level11/write_five.wav';
   static const String _audioCount =
       'assets/audio/arctic_numberland/level11/count_five.wav';
-  static const String _audioGoodJob =
-      'assets/audio/arctic_numberland/mahusay.wav';
   static const String _audioVeryGood =
       'assets/audio/arctic_numberland/magaling.wav';
 
@@ -82,13 +78,6 @@ class _NumberFiveIntroductionScreenState
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _player = AudioPlayer();
-
-  // ── Speech ─────────────────────────────────────────────────────────────────
-  final stt.SpeechToText _speech = stt.SpeechToText();
-  bool _speechAvailable = false;
-  bool _isListening = false;
-  bool _recognized = false;
-  Timer? _listenRestartTimer;
 
   // ── Mini-game state ────────────────────────────────────────────────────────
   int _objectsTapped = 0;
@@ -124,8 +113,6 @@ class _NumberFiveIntroductionScreenState
   late Animation<double> _domaFade;
   late AnimationController _celebrateCtrl;
   late Animation<double> _celebrateScale;
-  late AnimationController _micPulseCtrl;
-  late Animation<double> _micPulse;
   late AnimationController _numberPopCtrl;
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
@@ -144,7 +131,6 @@ class _NumberFiveIntroductionScreenState
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _initSpeech();
     _startIntroFlow();
   }
 
@@ -179,15 +165,6 @@ class _NumberFiveIntroductionScreenState
       TweenSequenceItem(tween: Tween(begin: 0.88, end: 1.08), weight: 20),
       TweenSequenceItem(tween: Tween(begin: 1.08, end: 1.0), weight: 15),
     ]).animate(CurvedAnimation(parent: _celebrateCtrl, curve: Curves.easeOut));
-
-    _micPulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _micPulse = Tween<double>(
-      begin: 1.0,
-      end: 1.22,
-    ).animate(CurvedAnimation(parent: _micPulseCtrl, curve: Curves.easeInOut));
 
     _numberPopCtrl = AnimationController(
       vsync: this,
@@ -229,34 +206,41 @@ class _NumberFiveIntroductionScreenState
     ]).animate(CurvedAnimation(parent: _objectTapCtrl, curve: Curves.easeOut));
   }
 
-  // ── Speech init ───────────────────────────────────────────────────────────
-  Future<void> _initSpeech() async {
-    _speechAvailable = await _speech.initialize(
-      onError: (e) => debugPrint('STT error: $e'),
-    );
-  }
-
   // ── Intro flow ────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
     _domaSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
     await _playAudio(_audioIntro);
+    if (!mounted) return;
 
     _setIntroPhase(_IntroPhase.playingSayTwo);
     _numberPopCtrl.forward();
     _numberDanceCtrl.repeat(reverse: true);
     await Future.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
     await _playAudio(_audioSayNumber);
+    if (!mounted) return;
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
 
     _setIntroPhase(_IntroPhase.listening);
-    _startListening();
     _numberDanceCtrl.stop();
+
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    await _goToTracing();
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    await _playAudio(_audioWrite);
+    if (!mounted) return;
   }
 
   Future<void> _playAudio(String asset) async {
+    if (!mounted) return;
     try {
       final completer = Completer<void>();
       final sub = _player.onPlayerComplete.listen((_) {
@@ -276,94 +260,11 @@ class _NumberFiveIntroductionScreenState
     setState(() => _introPhase = p);
   }
 
-  // ── Speech ────────────────────────────────────────────────────────────────
-  void _startListening() {
-    if (!_speechAvailable) {
-      Future.delayed(const Duration(seconds: 6), _onWordRecognized);
-      return;
-    }
-
-    if (!mounted || _introPhase != _IntroPhase.listening) return;
-    if (_recognized) return;
-    if (_speech.isListening) return;
-
-    setState(() => _isListening = true);
-
-    _speech.listen(
-      onResult: (result) {
-        if (_recognized) return;
-        final words = result.recognizedWords.toLowerCase();
-        final cleaned = words.replaceAll(RegExp(r'[^a-z\s]'), '').trim();
-
-        final matched =
-            cleaned
-                .split(RegExp(r'\s+'))
-                .any(
-                  (word) =>
-                      word == 'five' ||
-                      word == 'fi' ||
-                      word == 'fife' ||
-                      word == 'hive' ||
-                      word == 'fyve' ||
-                      word == 'fiev' ||
-                      word == 'fine' ||
-                      word == 'fife' ||
-                      word == 'fiv' ||
-                      word == 'faiv' ||
-                      word == 'fibe' ||
-                      word == 'fav' ||
-                      word == 'feiv' ||
-                      word == 'fai',
-                ) ||
-            cleaned.contains('five') ||
-            cleaned.contains('fiv');
-
-        if (matched) {
-          debugPrint('STT matched: "$words"');
-          _listenRestartTimer?.cancel();
-          _speech.stop();
-          setState(() => _isListening = false);
-          _onWordRecognized();
-        }
-      },
-      onSoundLevelChange: null,
-      listenFor: const Duration(seconds: 30),
-      pauseFor: const Duration(seconds: 15),
-      localeId: 'en_US',
-      cancelOnError: false,
-    );
-
-    // Only restart on actual stop, with a longer delay
-    _speech.statusListener = (status) {
-      if (!mounted || _recognized) return;
-      debugPrint('STT status: $status');
-      if (status == 'done' || status == 'notListening') {
-        _listenRestartTimer?.cancel();
-        _listenRestartTimer = Timer(const Duration(milliseconds: 800), () {
-          if (!mounted || _recognized) return;
-          setState(() => _isListening = false);
-          _startListening();
-        });
-      }
-    };
-  }
-
-  Future<void> _onWordRecognized() async {
-    if (_recognized) return;
-    _recognized = true;
-
-    _setIntroPhase(_IntroPhase.celebrating);
-    _celebrateCtrl.forward(from: 0);
-
-    await _playAudio(_audioGoodJob);
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // ── Transition to mini game ──────────────────────────────────────────
-    _setIntroPhase(_IntroPhase.done);
-    _mgTransitionCtrl.forward();
+  Future<void> _goToTracing() async {
+    if (!mounted) return;
     _randomiseObjectPosition();
     setState(() => _screenPhase = _ScreenPhase.miniGame);
-    await _playAudio(_audioWrite);
+    _mgTransitionCtrl.forward();
   }
 
   // ── Mini-game logic ───────────────────────────────────────────────────────
@@ -425,13 +326,10 @@ class _NumberFiveIntroductionScreenState
   @override
   void dispose() {
     _player.dispose();
-    _speech.stop();
-    _listenRestartTimer?.cancel();
     for (final c in [
       _domaFloatCtrl,
       _domaSlideCtrl,
       _celebrateCtrl,
-      _micPulseCtrl,
       _numberPopCtrl,
       _mgTransitionCtrl,
       _objectWiggleCtrl,
@@ -538,22 +436,6 @@ class _NumberFiveIntroductionScreenState
               ),
             ],
           ),
-
-          // Listening prompt
-          if (_introPhase == _IntroPhase.listening)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 30),
-                child: _buildBottomListeningPrompt(),
-              ),
-            ),
-          if (_introPhase == _IntroPhase.listening)
-            Positioned(
-              bottom: 20,
-              right: 20,
-              child: ArcticSkipButton(onTap: _onWordRecognized),
-            ),
         ],
       ),
     );
@@ -603,59 +485,6 @@ class _NumberFiveIntroductionScreenState
           ),
         );
       },
-    );
-  }
-
-  Widget _buildBottomListeningPrompt() {
-    return AnimatedBuilder(
-      animation: _micPulseCtrl,
-      builder: (_, child) => Transform.scale(
-        scale: _isListening ? _micPulse.value : 1.0,
-        child: child,
-      ),
-      child: GestureDetector(
-        onTap: null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1565C0).withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(40),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.35),
-              width: 2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF6B6B).withValues(alpha: 0.4),
-                blurRadius: 20,
-                spreadRadius: 3,
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.graphic_eq_rounded, color: Colors.white, size: 34),
-
-              const SizedBox(width: 10),
-
-              Icon(
-                _isListening ? Icons.mic_rounded : Icons.mic_none_rounded,
-                color: Colors.white,
-                size: 30,
-              ),
-
-              const SizedBox(width: 10),
-
-              Icon(
-                Icons.multitrack_audio_rounded,
-                color: Colors.white,
-                size: 34,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
