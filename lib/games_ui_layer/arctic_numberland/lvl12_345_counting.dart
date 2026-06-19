@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
-import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl13_345_odd_one_out.dart';
@@ -613,20 +612,13 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Number345OddOneOutScreen()),
-        );
+        Navigator.pop(context, const Number345OddOneOutScreen());
       },
       onRestart: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Number345CountingScreen()),
-        );
+        Navigator.pop(context, const Number345CountingScreen());
       },
       onBack: () {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-          (route) => route.isFirst,
-        );
+        Navigator.pop(context);
       },
     );
   }

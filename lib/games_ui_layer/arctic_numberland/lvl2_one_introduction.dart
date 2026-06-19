@@ -4,7 +4,6 @@ import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
-import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
@@ -18,7 +17,7 @@ enum _IntroPhase {
   playingIntro,
   playingSayOne,
   listening,
-  celebrating
+  celebrating,
 }
 
 enum _MiniGamePhase { tracing, tapping }
@@ -642,24 +641,13 @@ class _NumberOneIntroductionScreenState
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const NumberTwoIntroductionScreen(),
-          ),
-        );
+        Navigator.pop(context, const NumberTwoIntroductionScreen());
       },
       onRestart: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const NumberOneIntroductionScreen(),
-          ),
-        );
+        Navigator.pop(context, const NumberOneIntroductionScreen());
       },
       onBack: () {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-          (route) => route.isFirst,
-        );
+        Navigator.pop(context);
       },
     );
   }

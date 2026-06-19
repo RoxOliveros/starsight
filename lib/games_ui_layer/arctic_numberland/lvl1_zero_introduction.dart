@@ -3,7 +3,6 @@ import 'package:StarSight/games_ui_layer/arctic_numberland/lvl2_one_introduction
 import 'package:flutter/material.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
-import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
@@ -362,24 +361,13 @@ class _NumberZeroIntroductionScreenState
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const NumberOneIntroductionScreen(),
-          ),
-        );
+        Navigator.pop(context, const NumberOneIntroductionScreen());
       },
       onRestart: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const NumberZeroIntroductionScreen(),
-          ),
-        );
+        Navigator.pop(context, const NumberZeroIntroductionScreen());
       },
       onBack: () {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-          (route) => route.isFirst,
-        );
+        Navigator.pop(context);
       },
     );
   }

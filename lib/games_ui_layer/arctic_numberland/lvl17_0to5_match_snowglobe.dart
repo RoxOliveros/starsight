@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
-import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../goodjob_prompt.dart';
 
@@ -780,17 +779,10 @@ class _Number0to5MatchSnowglobesScreenState
         // TODO: @tin navigate to next screen
       },
       onRestart: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const Number0to5MatchSnowglobesScreen(),
-          ),
-        );
+        Navigator.pop(context, const Number0to5MatchSnowglobesScreen());
       },
       onBack: () {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-          (route) => route.isFirst,
-        );
+        Navigator.pop(context);
       },
     );
   }

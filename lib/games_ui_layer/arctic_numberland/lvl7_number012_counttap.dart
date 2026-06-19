@@ -7,7 +7,6 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import '../goodjob_prompt.dart';
-import '../../ui_layer/arctic_numberland/arctic_level.dart';
 import 'lvl8_three_introduction.dart';
 
 enum _ScreenPhase { intro, miniGame }
@@ -589,22 +588,13 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const NumberThreeIntroductionScreen(),
-          ),
-        );
+        Navigator.pop(context, const NumberThreeIntroductionScreen());
       },
       onRestart: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Number012TapCountScreen()),
-        );
+        Navigator.pop(context, const Number012TapCountScreen());
       },
       onBack: () {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-          (route) => route.isFirst,
-        );
+        Navigator.pop(context);
       },
     );
   }
