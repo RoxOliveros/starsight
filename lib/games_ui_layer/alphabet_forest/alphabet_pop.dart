@@ -113,10 +113,6 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
   void _onBallTap(BouncingBall ball) async {
     if (ball.isPopped) return;
 
-    RenderBox? box = ball.key.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    Offset position = box.localToGlobal(Offset.zero);
-
     if (ball.letter == widget.targetLetter.toUpperCase()) {
       // --- CORRECT MATCH ---
       String audioFile =
@@ -141,15 +137,18 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
       });
     } else {
       // --- WRONG MATCH ---
+      final double tapX = ball.xPos;
+      final double tapY = ball.yPos;
+
       setState(() {
-        _wrongEffects.add({'x': position.dx, 'y': position.dy});
+        _wrongEffects.add({'x': tapX, 'y': tapY});
       });
+
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
           setState(() {
             _wrongEffects.removeWhere(
-              (effect) =>
-                  effect['x'] == position.dx && effect['y'] == position.dy,
+              (effect) => effect['x'] == tapX && effect['y'] == tapY,
             );
           });
         }
@@ -299,73 +298,90 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     return Stack(
-                      children: _activeBalls.map((ball) {
-                        return Positioned(
-                          left: ball.xPos * (constraints.maxWidth - ballSize),
-                          top: ball.yPos * (constraints.maxHeight - ballSize),
-                          child: GestureDetector(
-                            key: ball.key,
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => _onBallTap(ball),
+                      children: [
+                        // 1. Draw the balls
+                        ..._activeBalls.map((ball) {
+                          return Positioned(
+                            left: ball.xPos * (constraints.maxWidth - ballSize),
+                            top: ball.yPos * (constraints.maxHeight - ballSize),
+                            child: GestureDetector(
+                              key: ball.key,
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _onBallTap(ball),
+                              child: SizedBox(
+                                width: ballSize,
+                                height: ballSize,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Image.asset(
+                                      ball.isPopped
+                                          ? 'assets/images/objects/forest/ball_popped.png'
+                                          : 'assets/images/objects/forest/ball_normal.png',
+                                      fit: BoxFit.contain,
+                                    ),
+                                    if (!ball.isPopped)
+                                      Text(
+                                        ball.letter,
+                                        textScaler: const TextScaler.linear(
+                                          1.0,
+                                        ),
+                                        style: TextStyle(
+                                          fontFamily:
+                                              ForestAppTextStyles.fredoka,
+                                          fontSize: letterFontSize,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                          shadows: const [
+                                            Shadow(
+                                              blurRadius: 6,
+                                              color: Colors.black87,
+                                              offset: Offset(2, 2),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+
+                        // 2. Draw the Red X's using the EXACT same math as the balls
+                        ..._wrongEffects.map((effect) {
+                          return Positioned(
+                            left:
+                                effect['x']! *
+                                (constraints.maxWidth - ballSize),
+                            top:
+                                effect['y']! *
+                                (constraints.maxHeight - ballSize),
                             child: SizedBox(
                               width: ballSize,
                               height: ballSize,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Image.asset(
-                                    ball.isPopped
-                                        ? 'assets/images/objects/forest/ball_popped.png'
-                                        : 'assets/images/objects/forest/ball_normal.png',
-                                    fit: BoxFit.contain,
-                                  ),
-
-                                  if (!ball.isPopped)
-                                    Text(
-                                      ball.letter,
-                                      style: TextStyle(
-                                        fontFamily: ForestAppTextStyles.fredoka,
-                                        fontSize: letterFontSize,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                        shadows: const [
-                                          Shadow(
-                                            blurRadius: 6,
-                                            color: Colors.black87,
-                                            offset: Offset(2, 2),
-                                          ),
-                                        ],
-                                      ),
+                              child: Center(
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  color: Colors.redAccent,
+                                  size: ballSize * 0.8,
+                                  shadows: const [
+                                    Shadow(
+                                      color: Colors.white,
+                                      blurRadius: 12,
+                                      offset: Offset(0, 0),
                                     ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      }).toList(),
+                          );
+                        }),
+                      ],
                     );
                   },
                 ),
               ),
-
-              ..._wrongEffects.map((effect) {
-                return Positioned(
-                  left: effect['x']! - 20,
-                  top: effect['y']! - 20,
-                  child: Icon(
-                    Icons.close_rounded,
-                    color: Colors.redAccent,
-                    size: ballSize * 0.8,
-                    shadows: const [
-                      Shadow(
-                        color: Colors.white,
-                        blurRadius: 12,
-                        offset: Offset(0, 0),
-                      ),
-                    ],
-                  ),
-                );
-              }),
 
               const Positioned(top: 10, left: 10, child: ForestBackButton()),
             ],
