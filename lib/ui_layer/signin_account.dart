@@ -122,7 +122,28 @@ class _SignInAccountState extends State<SignInAccount>
         (route) => false,
       );
     } else {
-      AppDialog.showError(context, message: error);
+      String friendlyMessage = error;
+      String lowerCaseError = error.toLowerCase();
+
+      // Combine all credential/account errors into ONE vague message for security
+      if (lowerCaseError.contains('incorrect, malformed or has expired') ||
+          lowerCaseError.contains('invalid-credential') ||
+          lowerCaseError.contains('invalid_login_credentials') ||
+          lowerCaseError.contains('user-not-found') ||
+          lowerCaseError.contains('wrong-password')) {
+        friendlyMessage = "Incorrect email or password. Please try again.";
+      }
+      // Handle other non-security-sensitive errors
+      else if (lowerCaseError.contains('invalid-email')) {
+        friendlyMessage = "Please enter a valid email format.";
+      } else if (lowerCaseError.contains('network-request-failed')) {
+        friendlyMessage =
+            "Network error. Please check your internet connection.";
+      } else if (lowerCaseError.contains('too-many-requests')) {
+        friendlyMessage = "Too many failed attempts. Please try again later.";
+      }
+
+      AppDialog.showError(context, message: friendlyMessage);
     }
   }
 
