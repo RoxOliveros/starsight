@@ -57,6 +57,7 @@ class _SignUpAccountState extends State<SignUpAccount>
   final TextEditingController _confirmPasswordController =
       TextEditingController(); // 1. ADDED CONTROLLER
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   late final AnimationController _fadeController;
   late final Animation<double> _fadeIn;
@@ -319,8 +320,9 @@ class _SignUpAccountState extends State<SignUpAccount>
                           const SizedBox(height: 16),
 
                           TextField(
+                            // Fixed the controller name to match the top of your file!
                             controller: _confirmPasswordController,
-                            obscureText: _obscurePassword,
+                            obscureText: _obscureConfirmPassword,
                             style: const TextStyle(
                               fontFamily: AppTextStyles.fredoka,
                               fontSize: 15,
@@ -339,6 +341,22 @@ class _SignUpAccountState extends State<SignUpAccount>
                                 horizontal: 20,
                                 vertical: 14,
                               ),
+                              // --- ADDED THE EYE ICON HERE ---
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirmPassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: ColorTheme.deepNavyBlue,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscureConfirmPassword =
+                                        !_obscureConfirmPassword;
+                                  });
+                                },
+                              ),
+                              // -------------------------------
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(30),
                                 borderSide: const BorderSide(
