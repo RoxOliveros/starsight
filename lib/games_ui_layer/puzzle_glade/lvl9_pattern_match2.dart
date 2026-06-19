@@ -31,7 +31,6 @@ const _kAllObjects = [
   'puzzle_piece',
   'star',
   'telescope',
-  'water_bottle',
 ];
 
 // Longer patterns (5 items shown, 1 answer) for higher difficulty

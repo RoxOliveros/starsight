@@ -29,7 +29,6 @@ const _kAllObjects = [
   'puzzle_piece',
   'star',
   'telescope',
-  'water_bottle',
 ];
 
 const int _kChoices = 2;

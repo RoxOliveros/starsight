@@ -31,7 +31,6 @@ const _kAllObjects = [
   'puzzle_piece',
   'star',
   'telescope',
-  'water_bottle',
 ];
 
 const _kPairsPerRound = 4;
