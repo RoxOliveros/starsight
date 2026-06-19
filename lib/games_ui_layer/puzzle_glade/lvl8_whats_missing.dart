@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/puzzle_level.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl9_pattern_match2.dart';
@@ -917,19 +916,13 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
       characterImage: _characterImage,
       closeButtonColor: JarColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl9PatternMatch2Screen()),
-        );
+        Navigator.pop(context, const Lvl9PatternMatch2Screen());
       },
       onRestart: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl8WhatsMissingScreen()),
-        );
+        Navigator.pop(context, const Lvl8WhatsMissingScreen());
       },
       onBack: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const PuzzleLevelScreen()),
-        );
+        Navigator.pop(context);
       },
     );
   }

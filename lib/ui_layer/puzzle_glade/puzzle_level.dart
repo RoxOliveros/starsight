@@ -55,12 +55,18 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
   }
 
   Future<void> _openLevel(Widget screen) async {
-    await Navigator.push(
+    final nextScreen = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
     );
+
     if (!mounted) return;
-    _loadProgress(); // Refresh progress when returning from a level!
+
+    await _loadProgress();
+
+    if (nextScreen is Widget) {
+      _openLevel(nextScreen);
+    }
   }
 
   @override

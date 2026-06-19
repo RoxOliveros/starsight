@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/puzzle_level.dart';
 import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl2_pattern_match.dart';
@@ -793,19 +792,13 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
       characterImage: _characterImage,
       closeButtonColor: JarColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl2PatternMatchScreen()),
-        );
+        Navigator.pop(context, const Lvl2PatternMatchScreen());
       },
       onRestart: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl1JarColorSortScreen()),
-        );
+        Navigator.pop(context, const Lvl1JarColorSortScreen());
       },
       onBack: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const PuzzleLevelScreen()),
-        );
+        Navigator.pop(context);
       },
     );
   }

@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/puzzle_level.dart';
 import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl8_whats_missing.dart';
@@ -912,19 +911,13 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
       characterImage: _characterImage,
       closeButtonColor: JarColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl8WhatsMissingScreen()),
-        );
+        Navigator.pop(context, const Lvl8WhatsMissingScreen());
       },
       onRestart: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl7SizeSortScreen()),
-        );
+        Navigator.pop(context, const Lvl7SizeSortScreen());
       },
       onBack: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const PuzzleLevelScreen()),
-        );
+        Navigator.pop(context);
       },
     );
   }

@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/puzzle_level.dart';
 import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl10_memory_match2.dart';
@@ -766,19 +765,13 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
       characterImage: _characterImage,
       closeButtonColor: JarColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl10JarMemoryMatch2Screen()),
-        );
+        Navigator.pop(context, const Lvl10JarMemoryMatch2Screen());
       },
       onRestart: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl9PatternMatch2Screen()),
-        );
+        Navigator.pop(context, const Lvl9PatternMatch2Screen());
       },
       onBack: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const PuzzleLevelScreen()),
-        );
+        Navigator.pop(context);
       },
     );
   }

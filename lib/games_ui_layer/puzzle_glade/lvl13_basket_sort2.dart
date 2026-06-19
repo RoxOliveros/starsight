@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/puzzle_level.dart';
 import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl14_size_sort2.dart';
@@ -950,19 +949,13 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
       characterImage: _characterImage,
       closeButtonColor: JarColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl14SizeSort2Screen()),
-        );
+        Navigator.pop(context, const Lvl14SizeSort2Screen());
       },
       onRestart: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl13BasketSort2Screen()),
-        );
+        Navigator.pop(context, const Lvl13BasketSort2Screen());
       },
       onBack: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const PuzzleLevelScreen()),
-        );
+        Navigator.pop(context);
       },
     );
   }

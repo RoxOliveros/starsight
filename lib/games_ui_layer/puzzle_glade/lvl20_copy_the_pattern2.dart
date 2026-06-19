@@ -946,14 +946,10 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
         // ); TODO
       },
       onRestart: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const Lvl20CopyPattern2Screen()),
-        );
+        Navigator.pop(context, const Lvl20CopyPattern2Screen());
       },
       onBack: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const PuzzleLevelScreen()),
-        );
+        Navigator.pop(context);
       },
     );
   }
