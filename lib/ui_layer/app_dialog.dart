@@ -246,10 +246,14 @@ class _AppConfirmWidget extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 8),
-              Image.asset(
-                'assets/images/icons/night_cloud_fluffy.png',
-                height: 130,
-                fit: BoxFit.contain,
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.30,
+                ),
+                child: Image.asset(
+                  'assets/images/icons/night_cloud_fluffy.png',
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(height: 20),
               Text(
