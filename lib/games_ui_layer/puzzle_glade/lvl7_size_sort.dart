@@ -35,7 +35,7 @@ const int _kTotalRounds = 5;
 // Size definitions: index 0 = small, 1 = medium, 2 = large
 const _kSizes = [40.0, 60.0, 82.0];
 const _kSizeLabels = ['Small', 'Medium', 'Large'];
-const _kSlotSizes = [64.0, 88.0, 116.0]; // slot visual sizes
+const _kSlotSizes = [120.0, 120.0, 120.0];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data model
@@ -95,11 +95,6 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
   /// The object used this round
   late String _currentObject;
 
-  /// The 3 size items shuffled for the pool
-  late List<_SizeItem> _poolItems;
-
-  /// Slots: index 0=small slot, 1=medium slot, 2=large slot
-  /// null means empty
   final List<_SizeItem?> _slots = [null, null, null];
 
   /// Flash state per slot (wrong drop)
@@ -138,7 +133,6 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
 
   // Round complete pulse
   late AnimationController _completePulseCtrl;
-  late Animation<double> _completePulseAnim;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -229,9 +223,6 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _completePulseAnim = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(parent: _completePulseCtrl, curve: Curves.easeInOut),
-    );
   }
 
   // ── Intro flow ─────────────────────────────────────────────────────────────
@@ -276,19 +267,20 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
     final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
     _currentObject = shuffled[0];
 
-    // Create 3 size items (small=0, medium=1, large=2)
-    _poolItems = List.generate(
-      3,
-      (i) => _SizeItem(
-        objectName: _currentObject,
-        sizeIndex: i,
-        displaySize: _kSizes[i],
-      ),
-    )..shuffle(rng);
-
-    _slots[0] = null;
-    _slots[1] = null;
-    _slots[2] = null;
+    List<_SizeItem> items;
+    do {
+      items = List.generate(
+        3,
+        (i) => _SizeItem(
+          objectName: _currentObject,
+          sizeIndex: i,
+          displaySize: _kSizes[i],
+        ),
+      )..shuffle(rng);
+    } while (List.generate(3, (i) => items[i].sizeIndex == i).every((b) => b));
+    for (int i = 0; i < 3; i++) {
+      _slots[i] = items[i];
+    }
     _flashSlot[0] = false;
     _flashSlot[1] = false;
     _flashSlot[2] = false;
@@ -304,83 +296,56 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
 
   // ── Drop logic ─────────────────────────────────────────────────────────────
 
-  Future<void> _dropOnSlot(int slotIndex, _SizeItem item) async {
+  // Remove _dropOnSlot() and _pickUpFromSlot(), add:
+  void _onDragAccepted(int toSlot, int fromSlot) async {
     if (_roundComplete) return;
+    if (fromSlot == toSlot) return;
 
-    final isCorrect = item.sizeIndex == slotIndex;
-
-    if (isCorrect) {
-      final previousItem = _slots[slotIndex];
-      setState(() {
-        // If slot had an item, return it to pool
-        if (previousItem != null) {
-          _poolItems.add(previousItem);
-        }
-        // Place new item
-        _poolItems.remove(item);
-        _slots[slotIndex] = item;
-        _slotBounceCtrl[slotIndex].forward(from: 0);
-      });
-      _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
-
-      showRoxieReaction(RoxieState.correct);
-
-      // Check round complete — all 3 slots filled correctly
-      if (_slots[0] != null && _slots[1] != null && _slots[2] != null) {
-        await Future.delayed(const Duration(milliseconds: 300));
-        setState(() => _roundComplete = true);
-        _completePulseCtrl.repeat(reverse: true);
-        _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
-        await Future.delayed(const Duration(milliseconds: 1400));
-
-        if (_round >= _kTotalRounds) {
-          await _sfxPlayer.stop();
-          final completer = Completer<void>();
-          final sub = _completePlayer.onPlayerComplete.listen((_) {
-            if (!completer.isCompleted) completer.complete();
-          });
-          await _completePlayer.play(
-            AssetSource(_audioComplete.replaceFirst('assets/', '')),
-          );
-          await completer.future.timeout(const Duration(seconds: 10));
-          await sub.cancel();
-          await PuzzleProgressService.instance.markLevelComplete(7);
-          if (mounted) setState(() => _showWinDialog = true);
-        } else {
-          await _enterCtrl.reverse();
-          if (mounted) {
-            setState(() {
-              _round++;
-              _startRound();
-            });
-          }
-        }
-      }
-    } else {
-      // Wrong slot
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
-      setState(() => _flashSlot[slotIndex] = true);
-      await Future.delayed(const Duration(milliseconds: 600));
-      if (mounted) {
-        setState(() {
-          _flashSlot[0] = false;
-          _flashSlot[1] = false;
-          _flashSlot[2] = false;
-        });
-      }
-      showRoxieReaction(RoxieState.wrong);
-    }
-  }
-
-  /// Pick up an item already placed in a slot (swap support)
-  void _pickUpFromSlot(int slotIndex) {
-    if (_roundComplete) return;
-    final item = _slots[slotIndex];
-    if (item == null) return;
     setState(() {
-      _slots[slotIndex] = null;
-      _poolItems.add(item);
+      final temp = _slots[fromSlot];
+      _slots[fromSlot] = _slots[toSlot];
+      _slots[toSlot] = temp;
+      _slotBounceCtrl[toSlot].forward(from: 0);
+      _slotBounceCtrl[fromSlot].forward(from: 0);
     });
+
+    _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+
+    final sorted = List.generate(
+      3,
+      (i) => _slots[i]?.sizeIndex == i,
+    ).every((b) => b);
+    if (sorted) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      setState(() => _roundComplete = true);
+      _completePulseCtrl.repeat(reverse: true);
+      _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
+      showRoxieReaction(RoxieState.correct);
+      await Future.delayed(const Duration(milliseconds: 1400));
+
+      if (_round >= _kTotalRounds) {
+        await _sfxPlayer.stop();
+        final completer = Completer<void>();
+        final sub = _completePlayer.onPlayerComplete.listen((_) {
+          if (!completer.isCompleted) completer.complete();
+        });
+        await _completePlayer.play(
+          AssetSource(_audioComplete.replaceFirst('assets/', '')),
+        );
+        await completer.future.timeout(const Duration(seconds: 10));
+        await sub.cancel();
+        await PuzzleProgressService.instance.markLevelComplete(7);
+        if (mounted) setState(() => _showWinDialog = true);
+      } else {
+        await _enterCtrl.reverse();
+        if (mounted) {
+          setState(() {
+            _round++;
+            _startRound();
+          });
+        }
+      }
+    }
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -595,55 +560,29 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
   }
 
   Widget _buildGameArea() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Row(
-          children: [
-            // LEFT: choices
-            Expanded(flex: 4, child: Center(child: _buildItemPool())),
-
-            // RIGHT: shelf
-            Expanded(flex: 6, child: Center(child: _buildShelfColumn())),
-          ],
-        );
-      },
-    );
+    return Center(child: _buildShelfRow());
   }
 
   // ── Shelf row ──────────────────────────────────────────────────────────────
 
   Widget _buildShelfRow() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final slotWidth = constraints.maxWidth / 3.5;
-
-        return Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(3, (i) {
-                return SizedBox(width: slotWidth, child: _buildSlot(i));
-              }),
-            ),
-
-            Container(
-              width: constraints.maxWidth * 0.75,
-              height: 14,
-              decoration: BoxDecoration(
-                color: const Color(0xFFB5845A),
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildShelfColumn() {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [_buildShelfRow()],
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: List.generate(3, (i) => _buildSlot(i)),
+        ),
+        Container(
+          width: 400,
+          height: 14,
+          decoration: BoxDecoration(
+            color: const Color(0xFFB5845A),
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+      ],
     );
   }
 
@@ -651,14 +590,12 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
     final slotSize = _kSlotSizes[slotIndex];
     final label = _kSizeLabels[slotIndex];
     final placedItem = _slots[slotIndex];
-    final isFlashing = _flashSlot[slotIndex];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Size hint label
           Container(
             margin: const EdgeInsets.only(bottom: 6),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -684,85 +621,96 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
               ),
             ),
           ),
-          // Drop target
           ScaleTransition(
-            scale: _slotBounceAnim[slotIndex],
-            child: DragTarget<_SizeItem>(
-              onWillAcceptWithDetails: (details) => true,
+            scale: slotIndex < _slotBounceAnim.length
+                ? _slotBounceAnim[slotIndex]
+                : const AlwaysStoppedAnimation(1.0),
+            child: DragTarget<int>(
               onAcceptWithDetails: (details) =>
-                  _dropOnSlot(slotIndex, details.data),
+                  _onDragAccepted(slotIndex, details.data),
               builder: (context, candidateData, _) {
-                final isDragOver = candidateData.isNotEmpty;
-                return GestureDetector(
-                  // Tap placed item to pick it back up
-                  onTap: placedItem != null
-                      ? () => _pickUpFromSlot(slotIndex)
-                      : null,
+                final isHovered = candidateData.isNotEmpty;
+                return Draggable<int>(
+                  data: slotIndex,
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: Opacity(
+                      opacity: 0.85,
+                      child: Container(
+                        width: slotSize,
+                        height: slotSize,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: JarColorTheme.sunnyhue,
+                            width: 3,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(8),
+                        child: placedItem != null
+                            ? Center(
+                                child: Image.asset(
+                                  'assets/images/objects/puzzle/${placedItem.objectName}.png',
+                                  width: _kSizes[placedItem.sizeIndex],
+                                  height: _kSizes[placedItem.sizeIndex],
+                                  fit: BoxFit.contain,
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                  childWhenDragging: Container(
+                    width: slotSize,
+                    height: slotSize,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: JarColorTheme.darkdesaturatedblue.withValues(
+                          alpha: 0.20,
+                        ),
+                        width: 2,
+                      ),
+                    ),
+                  ),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     width: slotSize,
                     height: slotSize,
                     decoration: BoxDecoration(
-                      color: isFlashing
-                          ? const Color(0xFFE05A5A).withValues(alpha: 0.18)
-                          : placedItem != null
-                          ? JarColorTheme.goldenyellow.withValues(alpha: 0.20)
-                          : isDragOver
-                          ? JarColorTheme.goldenyellow.withValues(alpha: 0.25)
-                          : Colors.white.withValues(alpha: 0.40),
+                      color: isHovered
+                          ? JarColorTheme.sunnyhue.withValues(alpha: 0.25)
+                          : Colors.white.withValues(alpha: 0.90),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isFlashing
-                            ? const Color(0xFFE05A5A)
-                            : placedItem != null
-                            ? JarColorTheme.sunnyhue
-                            : isDragOver
+                        color: isHovered
                             ? JarColorTheme.sunnyhue
                             : JarColorTheme.darkdesaturatedblue.withValues(
                                 alpha: 0.30,
                               ),
-                        width: isFlashing || isDragOver || placedItem != null
-                            ? 2.5
-                            : 2,
-                        style: placedItem == null && !isDragOver && !isFlashing
-                            ? BorderStyle.solid
-                            : BorderStyle.solid,
+                        width: isHovered ? 3 : 2,
                       ),
-                      boxShadow: placedItem != null
-                          ? [
-                              BoxShadow(
-                                color: JarColorTheme.sunnyhue.withValues(
-                                  alpha: 0.20,
-                                ),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ]
-                          : [],
                     ),
                     padding: const EdgeInsets.all(8),
                     child: placedItem != null
-                        ? Image.asset(
-                            'assets/images/objects/puzzle/${placedItem.objectName}.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Text(
-                              '📦',
-                              style: TextStyle(fontSize: 24),
+                        ? Center(
+                            child: Image.asset(
+                              'assets/images/objects/puzzle/${placedItem.objectName}.png',
+                              width: _kSizes[placedItem.sizeIndex],
+                              height: _kSizes[placedItem.sizeIndex],
+                              fit: BoxFit.contain,
                             ),
                           )
-                        : isDragOver
-                        ? Icon(
-                            Icons.arrow_downward_rounded,
-                            color: JarColorTheme.sunnyhue,
-                            size: slotSize * 0.4,
-                          )
-                        : Icon(
-                            Icons.add_rounded,
-                            color: JarColorTheme.darkdesaturatedblue.withValues(
-                              alpha: 0.20,
-                            ),
-                            size: slotSize * 0.4,
-                          ),
+                        : const SizedBox.shrink(),
                   ),
                 );
               },
@@ -770,111 +718,6 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
           ),
         ],
       ),
-    );
-  }
-
-  // ── Item pool ──────────────────────────────────────────────────────────────
-
-  Widget _buildItemPool() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(
-        color: JarColorTheme.vandecane,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.55),
-          width: 2.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: JarColorTheme.goldenyellow.withValues(alpha: 0.20),
-            blurRadius: 0,
-            spreadRadius: 3,
-            offset: Offset.zero,
-          ),
-        ],
-      ),
-      child: _poolItems.isEmpty
-          ? _roundComplete
-                ? ScaleTransition(
-                    scale: _completePulseAnim,
-                    child: const Center(
-                      child: Text('⭐', style: TextStyle(fontSize: 44)),
-                    ),
-                  )
-                : Center(
-                    child: Icon(
-                      Icons.check_circle_rounded,
-                      size: 44,
-                      color: JarColorTheme.sunnyhue,
-                    ),
-                  )
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: _poolItems
-                  .map((item) => _buildDraggableItem(item))
-                  .toList(),
-            ),
-    );
-  }
-
-  Widget _buildDraggableItem(_SizeItem item) {
-    final size = item.displaySize;
-    final tileSize = size + 8;
-
-    Widget tile({bool isDragging = false}) => AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      width: tileSize,
-      height: tileSize,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: isDragging
-            ? JarColorTheme.goldenyellow.withValues(alpha: 0.28)
-            : Colors.white.withValues(alpha: 0.90),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDragging
-              ? JarColorTheme.sunnyhue
-              : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
-          width: isDragging ? 3 : 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isDragging
-                ? JarColorTheme.sunnyhue.withValues(alpha: 0.40)
-                : Colors.black.withValues(alpha: 0.10),
-            blurRadius: isDragging ? 14 : 8,
-            spreadRadius: isDragging ? 2 : 0,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(8),
-      child: Image.asset(
-        'assets/images/objects/puzzle/${item.objectName}.png',
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) =>
-            Text('📦', style: TextStyle(fontSize: size * 0.6)),
-      ),
-    );
-
-    return Draggable<_SizeItem>(
-      data: item,
-      feedback: Material(
-        color: Colors.transparent,
-        child: tile(isDragging: true),
-      ),
-      childWhenDragging: Opacity(opacity: 0.25, child: tile()),
-      child: tile(),
     );
   }
 
