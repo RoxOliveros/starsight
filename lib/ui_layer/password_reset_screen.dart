@@ -76,34 +76,18 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
     setState(() => _isSaving = false);
 
     if (error == null) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Text(
-            "Success!",
-            style: TextStyle(
-              fontFamily: 'Fredoka',
-              fontWeight: FontWeight.w700,
-              color: ColorTheme.deepNavyBlue,
-            ),
-          ),
-          content: const Text(
-            "Your password has been reset. You can now log in!",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SignInAccount()),
-                  (route) => false,
-                );
-              },
-              child: const Text("GO TO LOGIN"),
-            ),
-          ],
-        ),
+      AppDialog.showSuccessAction(
+        context,
+        title: "Success!",
+        message: "Your password has been reset. You can now log in!",
+        actionLabel: "GO TO LOGIN",
+        onAction: () {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const SignInAccount()),
+                (route) => false,
+          );
+        },
       );
     } else {
       String friendlyMessage = error;

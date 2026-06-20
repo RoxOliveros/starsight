@@ -270,7 +270,7 @@ class _Number012ReintroductionScreenState
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      padding: const EdgeInsets.only(top: 20),
       child: Row(
         children: [
           ArcticBackButton(),
@@ -283,7 +283,7 @@ class _Number012ReintroductionScreenState
               border: Border.all(color: Colors.white, width: 3),
             ),
             child: Text(
-              ' 👆 Let\'s Count! Tap the Objects',
+              'Let\'s Count! Tap the Objects',
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: 24,
@@ -502,56 +502,59 @@ class _Number012ReintroductionScreenState
 
   Widget _buildIntroContent() {
     return SafeArea(
-      child: Stack(
-        children: [
-          Positioned(top: 8, left: 12, child: ArcticBackButton()),
-          Positioned.fill(
-            top: 50,
-            child: Row(
-              children: [
-                // LEFT — Doma
-                Expanded(
-                  child: Center(
-                    child: Image.asset(
-                      'assets/images/characters/doma_the_penguin.png',
-                      height: MediaQuery.of(context).size.height * 0.65,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          const Text('🐧', style: TextStyle(fontSize: 60)),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 20),
+        child: Stack(
+          children: [
+            Positioned(top: 8, left: 12, child: ArcticBackButton()),
+            Positioned.fill(
+              top: 50,
+              child: Row(
+                children: [
+                  // LEFT — Doma
+                  Expanded(
+                    child: Center(
+                      child: Image.asset(
+                        'assets/images/characters/doma_the_penguin.png',
+                        height: MediaQuery.of(context).size.height * 0.65,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            const Text('🐧', style: TextStyle(fontSize: 60)),
+                      ),
                     ),
                   ),
-                ),
 
-                // RIGHT — 0, 1, 2 dancing
-                Expanded(
-                  child: Center(
-                    child: AnimatedBuilder(
-                      animation: _numberDanceCtrl,
-                      builder: (_, __) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(3, (i) {
-                            final angle =
-                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              child: Transform.rotate(
-                                angle: angle,
-                                child: _buildIntroNumberCard(i),
-                              ),
-                            );
-                          }),
-                        );
-                      },
+                  // RIGHT — 0, 1, 2 dancing
+                  Expanded(
+                    child: Center(
+                      child: AnimatedBuilder(
+                        animation: _numberDanceCtrl,
+                        builder: (_, __) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(3, (i) {
+                              final angle =
+                                  _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Transform.rotate(
+                                  angle: angle,
+                                  child: _buildIntroNumberCard(i),
+                                ),
+                              );
+                            }),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -59,10 +59,9 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   }
 
   void _generateRound() {
-    final all = [1, 2, 3, 4, 5]..shuffle();
+    final all = [0, 1, 2]..shuffle();
     _correctNumber = all.first;
-    final wrong = all.skip(1).take(3).toList();
-    _choices = [...wrong, _correctNumber]..shuffle();
+    _choices = [0, 1, 2]..shuffle();
     setState(() => _tappedIndex = null);
   }
 
@@ -143,171 +142,175 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
           if (_screenPhase == _ScreenPhase.intro)
             _buildIntroContent()
           else
-            SafeArea(
-              child: Column(
-                children: [
-                  const SizedBox(height: 12),
 
-                  // --- HEADER ---
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: ArcticBackButton(),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 8,
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 12),
+
+                    // --- HEADER ---
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: ArcticBackButton(),
                           ),
-                          decoration: BoxDecoration(
-                            color: ArcticColorTheme.pictonblue.withValues(
-                              alpha: 0.8,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 8,
                             ),
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(color: Colors.white, width: 3),
+                            decoration: BoxDecoration(
+                              color: ArcticColorTheme.pictonblue.withValues(
+                                alpha: 0.8,
+                              ),
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(color: Colors.white, width: 3),
+                            ),
+                            child: Text(
+                              'Tap the number you see!',
+                              style: TextStyle(
+                                fontFamily: ArcticAppTextStyles.fredoka,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black54,
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                          child: Text(
-                            'Tap the number you see!',
-                            style: TextStyle(
-                              fontFamily: ArcticAppTextStyles.fredoka,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black54,
-                                  blurRadius: 8,
-                                  offset: Offset(0, 2),
+                        ],
+                      ),
+                    ),
+
+                    // --- MAIN CONTENT ---
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // BIG NUMBER CARD
+                          Container(
+                            width: 180,
+                            height: 180,
+                            decoration: BoxDecoration(
+                              color: ArcticColorTheme.cotton,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: ArcticColorTheme.pictonblue,
+                                width: 4,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: ArcticColorTheme.pictonblue.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // --- MAIN CONTENT ---
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // BIG NUMBER CARD
-                        Container(
-                          width: 180,
-                          height: 180,
-                          decoration: BoxDecoration(
-                            color: ArcticColorTheme.cotton,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: ArcticColorTheme.pictonblue,
-                              width: 4,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ArcticColorTheme.pictonblue.withValues(
-                                  alpha: 0.3,
-                                ),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Image.asset(
-                              'assets/fonts/game_numbers/$_correctNumber.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Center(
-                                child: Text(
-                                  '$_correctNumber',
-                                  style: const TextStyle(
-                                    fontFamily: ArcticAppTextStyles.fredoka,
-                                    fontSize: 100,
-                                    fontWeight: FontWeight.bold,
-                                    color: ArcticColorTheme.cadetblue,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // CHOICES GRID
-                        SizedBox(
-                          width: 280,
-                          child: GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 14,
-                                  mainAxisSpacing: 14,
-                                  childAspectRatio: 1.3,
-                                ),
-                            itemCount: _choices.length,
-                            itemBuilder: (context, index) {
-                              return GestureDetector(
-                                onTap: () => _onChoiceTap(index),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  decoration: BoxDecoration(
-                                    color: _choiceColor(index),
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
-                                      color: _choiceBorderColor(index),
-                                      width: 3,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Image.asset(
+                                'assets/fonts/game_numbers/$_correctNumber.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Text(
+                                    '$_correctNumber',
+                                    style: const TextStyle(
+                                      fontFamily: ArcticAppTextStyles.fredoka,
+                                      fontSize: 100,
+                                      fontWeight: FontWeight.bold,
+                                      color: ArcticColorTheme.cadetblue,
                                     ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: _choiceColor(
-                                          index,
-                                        ).withValues(alpha: 0.35),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
+                                    textAlign: TextAlign.center,
                                   ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(10),
-                                    child: Image.asset(
-                                      'assets/fonts/game_numbers/${_choices[index]}.png',
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) => Center(
-                                        child: Text(
-                                          '${_choices[index]}',
-                                          style: const TextStyle(
-                                            fontFamily:
-                                                ArcticAppTextStyles.fredoka,
-                                            fontSize: 40,
-                                            fontWeight: FontWeight.bold,
-                                            color: ArcticColorTheme.cotton,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // CHOICES GRID
+                          SizedBox(
+                            width: 280,
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                                childAspectRatio: 1.3,
+                              ),
+                              itemCount: _choices.length,
+                              itemBuilder: (context, index) {
+                                return GestureDetector(
+                                  onTap: () => _onChoiceTap(index),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    decoration: BoxDecoration(
+                                      color: _choiceColor(index),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: _choiceBorderColor(index),
+                                        width: 3,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: _choiceColor(
+                                            index,
+                                          ).withValues(alpha: 0.35),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Image.asset(
+                                        'assets/fonts/game_numbers/${_choices[index]}.png',
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) => Center(
+                                          child: Text(
+                                            '${_choices[index]}',
+                                            style: const TextStyle(
+                                              fontFamily:
+                                              ArcticAppTextStyles.fredoka,
+                                              fontSize: 40,
+                                              fontWeight: FontWeight.bold,
+                                              color: ArcticColorTheme.cotton,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  _buildProgressDots(),
+                    _buildProgressDots(),
 
-                  const SizedBox(height: 4),
-                ],
+                    const SizedBox(height: 4),
+                  ],
+                ),
               ),
             ),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
@@ -358,53 +361,56 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   Widget _buildIntroContent() {
     return SafeArea(
-      child: Stack(
-        children: [
-          Positioned(top: 8, left: 12, child: ArcticBackButton()),
-          Positioned.fill(
-            top: 50,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Center(
-                    child: Image.asset(
-                      'assets/images/characters/doma_the_penguin.png',
-                      height: MediaQuery.of(context).size.height * 0.65,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          const Text('🐧', style: TextStyle(fontSize: 60)),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 20),
+        child: Stack(
+          children: [
+            Positioned(top: 8, left: 12, child: ArcticBackButton()),
+            Positioned.fill(
+              top: 50,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Image.asset(
+                        'assets/images/characters/doma_the_penguin.png',
+                        height: MediaQuery.of(context).size.height * 0.65,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                        const Text('🐧', style: TextStyle(fontSize: 60)),
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Center(
-                    child: AnimatedBuilder(
-                      animation: _numberDanceCtrl,
-                      builder: (_, __) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(3, (i) {
-                            final angle =
-                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              child: Transform.rotate(
-                                angle: angle,
-                                child: _buildIntroNumberCard(i),
-                              ),
-                            );
-                          }),
-                        );
-                      },
+                  Expanded(
+                    child: Center(
+                      child: AnimatedBuilder(
+                        animation: _numberDanceCtrl,
+                        builder: (_, __) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(3, (i) {
+                              final angle =
+                                  _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Transform.rotate(
+                                  angle: angle,
+                                  child: _buildIntroNumberCard(i),
+                                ),
+                              );
+                            }),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

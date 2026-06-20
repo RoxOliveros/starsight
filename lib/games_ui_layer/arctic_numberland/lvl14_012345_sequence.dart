@@ -297,7 +297,10 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
           SafeArea(
-            child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+            ),
           ),
 
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
@@ -430,7 +433,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 40),
 
             // ── SLOTS ROW ──────────────────────────
             ScaleTransition(scale: _tilesEnter, child: _buildSlotsRow(w, h)),

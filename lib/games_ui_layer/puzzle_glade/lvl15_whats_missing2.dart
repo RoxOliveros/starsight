@@ -99,6 +99,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
+  AudioPlayer? _introPlayer;
 
   // ── Animations ─────────────────────────────────────────────────────────────
 
@@ -147,6 +148,8 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _introPlayer?.stop();
+    _introPlayer?.dispose();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -249,6 +252,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
 
   Future<void> _playAudio(String asset) async {
     final player = AudioPlayer();
+    _introPlayer = player;                      // <-- track it
     try {
       await player.setReleaseMode(ReleaseMode.stop);
       final completer = Completer<void>();
@@ -263,6 +267,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
     } finally {
       await player.stop();
       await player.dispose();
+      if (_introPlayer == player) _introPlayer = null;  // <-- clear
     }
   }
 
@@ -322,6 +327,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
 
   Future<void> _onChoiceTapped(String choice) async {
     if (_gamePhase != _GamePhase.guessing) return;
+    if (!mounted) return;                          // <-- add at top
 
     final isCorrect = choice == _missingObject;
     setState(() {
@@ -330,17 +336,19 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
     });
 
     if (isCorrect) {
-      _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
+      if (mounted) _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));  // <-- guard
 
       showRoxieReaction(RoxieState.correct);
-
       _correctBounceCtrl.forward(from: 0);
       _missingPulseCtrl.stop();
 
       await Future.delayed(const Duration(milliseconds: 1000));
+      if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
         await _sfxPlayer.stop();
+        if (!mounted) return;
+
         final completer = Completer<void>();
         final sub = _completePlayer.onPlayerComplete.listen((_) {
           if (!completer.isCompleted) completer.complete();
@@ -350,6 +358,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
         );
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
+        if (!mounted) return;
 
         await PuzzleProgressService.instance.markLevelComplete(15);
         if (mounted) setState(() => _showWinDialog = true);
@@ -361,7 +370,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
         }
       }
     } else {
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+      if (mounted) _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));  // <-- guard
 
       showRoxieReaction(RoxieState.wrong);
 
@@ -439,7 +448,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        final roxieH = h * 1.05;
+        final roxieH = h * 0.95;
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );

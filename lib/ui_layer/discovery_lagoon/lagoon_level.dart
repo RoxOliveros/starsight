@@ -1,9 +1,9 @@
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_drag.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_intro.dart';
+import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 
@@ -61,255 +61,248 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
           ),
 
           //back button
-          Positioned(
-            top: 16,
-            left: 16,
-            child: GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: ColorTheme.pastelorange,
-                  borderRadius: BorderRadius.circular(25),
-                  border: Border.all(color: ColorTheme.wasteland, width: 5),
-                ),
-                child: const Text(
-                  'back',
-                  style: TextStyle(
-                    fontFamily: AppTextStyles.fredoka,
-                    fontSize: 18,
-                    color: ColorTheme.wasteland,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 20, left: 20, child: LagoonBackButton()),
 
           // 🌿 Content
           Center(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 40),
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.topCenter,
-                children: [
-                  const SizedBox(height: 20),
-                  Container(
-                    width: 650,
-                    height: 280,
-                    padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF4EFE6),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: ColorTheme.darkbrown, width: 8),
-                    ),
-                    child: StreamBuilder<int>(
-                      stream: LagoonProgressService.instance
-                          .streamUnlockedLevel(),
-                      builder: (context, snapshot) {
-                        // If it hasn't loaded yet, assume level 1 is unlocked
-                        final unlockedLevel = snapshot.data ?? 1;
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final screenW = constraints.maxWidth;
+                final screenH = constraints.maxHeight;
 
-                        // This helper decides whether to show an unlocked or locked tile!
-                        Widget buildTile(int level) {
-                          if (level <= unlockedLevel) {
-                            return _LevelTile(level: level);
-                          } else {
-                            return const _LockedTile();
-                          }
-                        }
+                final cardWidth = (screenW * 0.75).clamp(320.0, 700.0);
+                final cardHeight = (screenH * 0.75).clamp(220.0, 320.0);
+                final tileSize = (cardWidth / 4 - 24).clamp(48.0, 90.0);
 
-                        return Column(
-                          mainAxisSize: MainAxisSize.min,
+                return Padding(
+                  padding: const EdgeInsets.only(top: 40),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.topCenter,
+                    children: [
+                      const SizedBox(height: 20),
+                      Container(
+                        width: cardWidth,
+                        height: cardHeight,
+                        padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4EFE6),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: ColorTheme.darkbrown,
+                            width: 8,
+                          ),
+                        ),
+                        child: StreamBuilder<int>(
+                          stream: LagoonProgressService.instance
+                              .streamUnlockedLevel(),
+                          builder: (context, snapshot) {
+                            // If it hasn't loaded yet, assume level 1 is unlocked
+                            final unlockedLevel = snapshot.data ?? 1;
+
+                            // This helper decides whether to show an unlocked or locked tile!
+                            Widget buildTile(int level) {
+                              if (level <= unlockedLevel) {
+                                return _LevelTile(
+                                  level: level,
+                                  size: tileSize,
+                                );
+                              } else {
+                                return _LockedTile(
+                                  size: tileSize,
+                                );                              }
+                            }
+
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // --- PAGE 0: LEVELS 1-8 ---
+                                if (_currentPage == 0) ...[
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      buildTile(1),
+                                      buildTile(2),
+                                      buildTile(3),
+                                      buildTile(4),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      buildTile(5),
+                                      buildTile(6),
+                                      buildTile(7),
+                                      buildTile(8),
+                                    ],
+                                  ),
+                                ],
+
+                                // --- PAGE 1: LEVELS 9-16 ---
+                                if (_currentPage == 1) ...[
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      buildTile(9),
+                                      buildTile(10),
+                                      buildTile(11),
+                                      buildTile(12),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      buildTile(13),
+                                      buildTile(14),
+                                      buildTile(15),
+                                      buildTile(16),
+                                    ],
+                                  ),
+                                ],
+
+                                // --- PAGE 2: LEVELS 17-24 ---
+                                if (_currentPage == 2) ...[
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      buildTile(17),
+                                      buildTile(18),
+                                      buildTile(19),
+                                      buildTile(20),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      buildTile(21),
+                                      buildTile(22),
+                                      buildTile(23),
+                                      buildTile(24),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      // SELECT LEVEL badge on top border
+                      Positioned(
+                        top: -32,
+                        child: Stack(
+                          alignment: Alignment.topCenter,
+                          clipBehavior: Clip.none,
                           children: [
-                            // --- PAGE 0: LEVELS 1-8 ---
-                            if (_currentPage == 0) ...[
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(1),
-                                  buildTile(2),
-                                  buildTile(3),
-                                  buildTile(4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: ColorTheme.ferngreen,
+                                borderRadius: BorderRadius.circular(25),
+                                border: Border.all(
+                                  color: ColorTheme.gunmetalgreen,
+                                  width: 5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    offset: const Offset(0, 6),
+                                    blurRadius: 8,
+                                  ),
                                 ],
                               ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(5),
-                                  buildTile(6),
-                                  buildTile(7),
-                                  buildTile(8),
-                                ],
+                              child: const Text(
+                                ' SELECT LEVEL ',
+                                style: TextStyle(
+                                  fontFamily: AppTextStyles.fredoka,
+                                  fontSize: 25,
+                                  color: ColorTheme.peach,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1,
+                                ),
                               ),
-                            ],
-
-                            // --- PAGE 1: LEVELS 9-16 ---
-                            if (_currentPage == 1) ...[
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(9),
-                                  buildTile(10),
-                                  buildTile(11),
-                                  buildTile(12),
-                                ],
+                            ),
+                            // Left star
+                            Positioned(
+                              top: -4,
+                              left: -35,
+                              child: Transform.rotate(
+                                angle: -0.2,
+                                child: Image.asset(
+                                  'assets/images/night_star.png',
+                                  width: 70,
+                                ),
                               ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(13),
-                                  buildTile(14),
-                                  buildTile(15),
-                                  buildTile(16),
-                                ],
+                            ),
+                            // Right star
+                            Positioned(
+                              top: -4,
+                              right: -35,
+                              child: Transform.rotate(
+                                angle: 0.2,
+                                child: Image.asset(
+                                  'assets/images/night_star.png',
+                                  width: 70,
+                                ),
                               ),
-                            ],
-
-                            // --- PAGE 2: LEVELS 17-24 ---
-                            if (_currentPage == 2) ...[
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(17),
-                                  buildTile(18),
-                                  buildTile(19),
-                                  buildTile(20),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(21),
-                                  buildTile(22),
-                                  buildTile(23),
-                                  buildTile(24),
-                                ],
-                              ),
-                            ],
+                            ),
                           ],
-                        );
-                      },
-                    ),
-                  ),
-                  // SELECT LEVEL badge on top border
-                  Positioned(
-                    top: -32,
-                    child: Stack(
-                      alignment: Alignment.topCenter,
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ColorTheme.ferngreen,
-                            borderRadius: BorderRadius.circular(25),
-                            border: Border.all(
-                              color: ColorTheme.gunmetalgreen,
-                              width: 5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                offset: const Offset(0, 6),
-                                blurRadius: 8,
-                              ),
-                            ],
-                          ),
-                          child: const Text(
-                            ' SELECT LEVEL ',
-                            style: TextStyle(
-                              fontFamily: AppTextStyles.fredoka,
-                              fontSize: 25,
-                              color: ColorTheme.peach,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
                         ),
-                        // Left star
-                        Positioned(
-                          top: -4,
-                          left: -35,
-                          child: Transform.rotate(
-                            angle: -0.2,
+                      ),
+
+                      Positioned(
+                        left: -35,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (_currentPage > 0) setState(() => _currentPage--);
+                          },
+                          child: Opacity(
+                            opacity: _currentPage > 0 ? 1.0 : 0.3,
                             child: Image.asset(
-                              'assets/images/night_star.png',
+                              'assets/images/arrows/bttn_lagoon_arrow_left.png',
                               width: 70,
                             ),
                           ),
                         ),
-                        // Right star
-                        Positioned(
-                          top: -4,
-                          right: -35,
-                          child: Transform.rotate(
-                            angle: 0.2,
+                      ),
+
+                      Positioned(
+                        right: -35,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (_currentPage < _maxPages) setState(() => _currentPage++);
+                          },
+                          child: Opacity(
+                            opacity: _currentPage < _maxPages ? 1.0 : 0.3,
                             child: Image.asset(
-                              'assets/images/night_star.png',
+                              'assets/images/arrows/bttn_lagoon_arrow_right.png',
                               width: 70,
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-
-                  if (_currentPage > 0)
-                    Positioned(
-                      left: -35,
-                      top: 0,
-                      bottom: 0,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _currentPage--;
-                          });
-                        },
-                        child: Image.asset(
-                          'assets/images/arrows/bttn_lagoon_arrow_left.png',
-                          width: 70,
-                        ),
-                      ),
-                    ),
-
-                  if (_currentPage < _maxPages)
-                    Positioned(
-                      right: -35,
-                      top: 0,
-                      bottom: 0,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _currentPage++;
-                          });
-                        },
-                        child: Image.asset(
-                          'assets/images/arrows/bttn_lagoon_arrow_right.png',
-                          width: 70,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+                );
+              },
             ),
           ),
+
           Positioned(
             bottom: 15,
             right: 15,
@@ -328,8 +321,12 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
 
 class _LevelTile extends StatelessWidget {
   final int level;
+  final double size;
 
-  const _LevelTile({required this.level});
+  const _LevelTile({
+    required this.level,
+    required this.size,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -546,8 +543,8 @@ class _LevelTile extends StatelessWidget {
         alignment: Alignment.bottomCenter,
         children: [
           Container(
-            width: 80,
-            height: 80,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
               color: ColorTheme.sagegreen,
               borderRadius: BorderRadius.circular(17),
@@ -556,9 +553,9 @@ class _LevelTile extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               '$level',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: AppTextStyles.fredoka,
-                fontSize: 40,
+                fontSize: size * 0.5,
                 color: ColorTheme.gunmetalgreen,
                 fontWeight: FontWeight.bold,
               ),
@@ -571,13 +568,15 @@ class _LevelTile extends StatelessWidget {
 }
 
 class _LockedTile extends StatelessWidget {
-  const _LockedTile();
+  final double size;
+
+  const _LockedTile({required this.size});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 79,
-      height: 79,
+      width: size - 1,
+      height: size - 1,
       child: DottedBorder(
         borderType: BorderType.RRect,
         radius: const Radius.circular(17),
@@ -585,8 +584,8 @@ class _LockedTile extends StatelessWidget {
         strokeWidth: 5,
         dashPattern: const [6, 3],
         child: Container(
-          width: 80,
-          height: 80,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             color: Colors.grey.shade300,
             borderRadius: BorderRadius.circular(17),
@@ -594,7 +593,7 @@ class _LockedTile extends StatelessWidget {
           child: Center(
             child: Image.asset(
               'assets/images/icons/lock.png',
-              width: 40,
+              width: size * 0.5,
               fit: BoxFit.contain,
             ),
           ),

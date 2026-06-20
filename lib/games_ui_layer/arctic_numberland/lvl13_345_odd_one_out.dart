@@ -303,7 +303,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
           children: [
             // ── HEADER ─────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.only(top: 20),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -358,9 +358,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Question mark icon
-              const Icon(Icons.search_rounded, color: Colors.white, size: 26),
-              const SizedBox(width: 10),
               Text(
                 'Which is NOT $word?',
                 style: TextStyle(
@@ -393,7 +390,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 10),
               // Speaker hint
               Image.asset(
                 'assets/images/icons/speaker.png',

@@ -86,161 +86,174 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
           ),
 
           //back button
-          Positioned(top: 25, left: 25, child: ArcticBackButton()),
+          Positioned(top: 20, left: 20, child: ArcticBackButton()),
 
           // 🌿 Content
           Center(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 40),
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.topCenter,
-                children: [
-                  SizedBox(height: 20),
-                  Container(
-                    width: 650,
-                    height: 280,
-                    padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF4EFE6),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: ArcticColorTheme.slateblue,
-                        width: 8,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: List.generate(4, (i) {
-                            final level = _page * 8 + i + 1;
-                            return _LevelTile(
-                              level: level,
-                              unlockedLevel: _unlockedLevel,
-                              onOpenLevel: _openLevel,
-                            );
-                          }),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: List.generate(4, (i) {
-                            final level = _page * 8 + i + 5;
-                            return _LevelTile(
-                              level: level,
-                              unlockedLevel: _unlockedLevel,
-                              onOpenLevel: _openLevel,
-                            );
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // SELECT LEVEL badge on top border
-                  Positioned(
-                    top: -32,
-                    child: Stack(
-                      alignment: Alignment.topCenter,
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 10,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final screenW = constraints.maxWidth;
+                final screenH = constraints.maxHeight;
+
+                final cardWidth = (screenW * 0.75).clamp(320.0, 700.0);
+                final cardHeight = (screenH * 0.75).clamp(220.0, 320.0);
+                final tileSize = (cardWidth / 4 - 24).clamp(48.0, 90.0);
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 40),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.topCenter,
+                    children: [
+                      SizedBox(height: 20),
+                      Container(
+                        width: cardWidth,
+                        height: cardHeight,
+                        padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4EFE6),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: ArcticColorTheme.slateblue,
+                            width: 8,
                           ),
-                          decoration: BoxDecoration(
-                            color: ArcticColorTheme.lightblue,
-                            borderRadius: BorderRadius.circular(25),
-                            border: Border.all(
-                              color: ArcticColorTheme.slateblue,
-                              width: 5,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: List.generate(4, (i) {
+                                final level = _page * 8 + i + 1;
+                                return _LevelTile(
+                                  level: level,
+                                  unlockedLevel: _unlockedLevel,
+                                  onOpenLevel: _openLevel,
+                                  size: tileSize,
+                                );
+                              }),
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                offset: const Offset(0, 6),
-                                blurRadius: 8,
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: List.generate(4, (i) {
+                                final level = _page * 8 + i + 5;
+                                return _LevelTile(
+                                  level: level,
+                                  unlockedLevel: _unlockedLevel,
+                                  onOpenLevel: _openLevel,
+                                  size: tileSize,
+                                );
+                              }),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // SELECT LEVEL badge on top border
+                      Positioned(
+                        top: -32,
+                        child: Stack(
+                          alignment: Alignment.topCenter,
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 10,
                               ),
-                            ],
-                          ),
-                          child: Text(
-                            ' SELECT LEVEL ',
-                            style: TextStyle(
-                              fontFamily: ArcticAppTextStyles.fredoka,
-                              fontSize: 25,
-                              color: ArcticColorTheme.lightgrayishcyan,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
+                              decoration: BoxDecoration(
+                                color: ArcticColorTheme.lightblue,
+                                borderRadius: BorderRadius.circular(25),
+                                border: Border.all(
+                                  color: ArcticColorTheme.slateblue,
+                                  width: 5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    offset: const Offset(0, 6),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                ' SELECT LEVEL ',
+                                style: TextStyle(
+                                  fontFamily: ArcticAppTextStyles.fredoka,
+                                  fontSize: 25,
+                                  color: ArcticColorTheme.lightgrayishcyan,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1,
+                                ),
+                              ),
                             ),
-                          ),
+                            // Left star
+                            Positioned(
+                              top: -4,
+                              left: -35,
+                              child: Transform.rotate(
+                                angle: -0.2,
+                                child: Image.asset(
+                                  'assets/images/night_star.png',
+                                  width: 70,
+                                ),
+                              ),
+                            ),
+                            // Right star
+                            Positioned(
+                              top: -4,
+                              right: -35,
+                              child: Transform.rotate(
+                                angle: 0.2,
+                                child: Image.asset(
+                                  'assets/images/night_star.png',
+                                  width: 70,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        // Left star
-                        Positioned(
-                          top: -4,
-                          left: -35,
-                          child: Transform.rotate(
-                            angle: -0.2,
+                      ),
+                      // Left arrow
+                      Positioned(
+                        left: -35,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (_page > 0) setState(() => _page--);
+                          },
+                          child: Opacity(
+                            opacity: _page > 0 ? 1.0 : 0.3,
                             child: Image.asset(
-                              'assets/images/night_star.png',
+                              'assets/images/arrows/bttn_arctic_arrow_left.png',
                               width: 70,
                             ),
                           ),
                         ),
-                        // Right star
-                        Positioned(
-                          top: -4,
-                          right: -35,
-                          child: Transform.rotate(
-                            angle: 0.2,
+                      ),
+                      // Right arrow
+                      Positioned(
+                        right: -35,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (_page < 2) setState(() => _page++);
+                          },
+                          child: Opacity(
+                            opacity: _page < 2 ? 1.0 : 0.3,
                             child: Image.asset(
-                              'assets/images/night_star.png',
+                              'assets/images/arrows/bttn_arctic_arrow_right.png',
                               width: 70,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  // Left arrow
-                  Positioned(
-                    left: -35,
-                    top: 0,
-                    bottom: 0,
-                    child: GestureDetector(
-                      onTap: () {
-                        if (_page > 0) setState(() => _page--);
-                      },
-                      child: Opacity(
-                        opacity: _page > 0 ? 1.0 : 0.3,
-                        child: Image.asset(
-                          'assets/images/arrows/bttn_arctic_arrow_left.png',
-                          width: 70,
-                        ),
                       ),
-                    ),
+                    ],
                   ),
-                  // Right arrow
-                  Positioned(
-                    right: -35,
-                    top: 0,
-                    bottom: 0,
-                    child: GestureDetector(
-                      onTap: () {
-                        if (_page < 2) setState(() => _page++);
-                      },
-                      child: Opacity(
-                        opacity: _page < 2 ? 1.0 : 0.3,
-                        child: Image.asset(
-                          'assets/images/arrows/bttn_arctic_arrow_right.png',
-                          width: 70,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
           Positioned(
@@ -253,17 +266,6 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
           ),
-          if (_isLoadingProgress)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.25),
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: ArcticColorTheme.lightblue,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -273,12 +275,14 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
 class _LevelTile extends StatelessWidget {
   final int level;
   final int unlockedLevel;
+  final double size;
   final Future<void> Function(Widget screen) onOpenLevel;
 
   const _LevelTile({
     required this.level,
     required this.unlockedLevel,
     required this.onOpenLevel,
+    required this.size,
   });
 
   Widget? _screenForLevel() {
@@ -327,7 +331,7 @@ class _LevelTile extends StatelessWidget {
     final bool isLocked = level > unlockedLevel;
 
     if (isLocked) {
-      return const _LockedTile();
+      return _LockedTile(size: size);
     }
 
     return GestureDetector(
@@ -346,8 +350,8 @@ class _LevelTile extends StatelessWidget {
         alignment: Alignment.bottomCenter,
         children: [
           Container(
-            width: 80,
-            height: 80,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
               color: ArcticColorTheme.pictonblue,
               borderRadius: BorderRadius.circular(17),
@@ -356,9 +360,9 @@ class _LevelTile extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               '$level',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 40,
+                fontSize: size * 0.5,
                 color: ArcticColorTheme.cadetblue,
                 fontWeight: FontWeight.bold,
               ),
@@ -371,13 +375,15 @@ class _LevelTile extends StatelessWidget {
 }
 
 class _LockedTile extends StatelessWidget {
-  const _LockedTile();
+  final double size;
+
+  const _LockedTile({required this.size});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 79,
-      height: 79,
+      width: size - 1,
+      height: size - 1,
       child: DottedBorder(
         borderType: BorderType.RRect,
         radius: const Radius.circular(17),
@@ -385,8 +391,8 @@ class _LockedTile extends StatelessWidget {
         strokeWidth: 5,
         dashPattern: const [6, 3],
         child: Container(
-          width: 80,
-          height: 80,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             color: Colors.grey.shade300,
             borderRadius: BorderRadius.circular(17),
@@ -394,8 +400,7 @@ class _LockedTile extends StatelessWidget {
           child: Center(
             child: Image.asset(
               'assets/images/icons/lock.png',
-              width: 40,
-              fit: BoxFit.contain,
+              width: size * 0.5,
             ),
           ),
         ),

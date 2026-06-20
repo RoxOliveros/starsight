@@ -6,10 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_drag.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:speech_to_text/speech_to_text.dart';
-import 'package:speech_to_text/speech_recognition_result.dart';
 
-enum IntroPhase { entering, playingIntro, showingPart, listening, done }
+enum IntroPhase { entering, playingIntro, showingPart, done }
 
 class BodyPartsIntroScreen extends StatefulWidget {
   final String bodyPart;
@@ -31,10 +29,6 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
 
   // --- AUDIO & SPEECH VARIABLES ---
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final SpeechToText _speechToText = SpeechToText();
-  bool _speechEnabled = false;
-  String _wordsHeard = '';
-  String _tagalogLocaleId = '';
 
   // --- ANIMATION CONTROLLERS ---
   late AnimationController _charSlideCtrl;
@@ -51,29 +45,7 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _initSpeech();
     _startIntroFlow();
-  }
-
-  void _initSpeech() async {
-    _speechEnabled = await _speechToText.initialize();
-
-    if (_speechEnabled) {
-      var systemLocales = await _speechToText.locales();
-      for (var locale in systemLocales) {
-        if (locale.localeId.startsWith('fil') ||
-            locale.localeId.startsWith('tl')) {
-          _tagalogLocaleId = locale.localeId;
-          break;
-        }
-      }
-    }
-    setState(() {});
-  }
-
-  void _onSkip() {
-    _speechToText.stop();
-    setState(() => _introPhase = IntroPhase.done);
   }
 
   void _initAnimations() {
@@ -118,7 +90,8 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
 
   Future<void> _startIntroFlow() async {
     await _charSlideCtrl.forward();
-    if (mounted) setState(() => _introPhase = IntroPhase.playingIntro);
+    if (!mounted) return;                       // <-- add
+    setState(() => _introPhase = IntroPhase.playingIntro);
 
     // 1. Set up the Listener to wait for the audio to finish!
     Completer<void> audioFinished = Completer<void>();
@@ -129,59 +102,20 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
     String audioFile =
         'audio/discovery_lagoon/intro_${widget.bodyPart.toLowerCase()}.wav';
     await _audioPlayer.play(AssetSource(audioFile));
+    if (!mounted) return;                        // <-- add
 
     // 3. Pop the custom GIF onto the screen after 2 seconds
     await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;                         // <-- add
 
-    if (mounted) setState(() => _introPhase = IntroPhase.showingPart);
+    setState(() => _introPhase = IntroPhase.showingPart);
     _partPopCtrl.forward();
     _partDanceCtrl.repeat(reverse: true);
 
     // 4. FREEZE! Wait for the cat to finish talking
     await audioFinished.future;
-
-    // 5. Show the Microphone UI and start listening
-    if (mounted) setState(() => _introPhase = IntroPhase.listening);
-
-    if (_speechEnabled) {
-      _startListening();
-    }
-  }
-
-  // --- THE MICROPHONE STARTER ---
-  void _startListening() async {
-    if (_speechToText.isListening) return;
-
-    await _speechToText.listen(
-      onResult: _checkChildsAnswer,
-      listenFor: const Duration(seconds: 15),
-      pauseFor: const Duration(seconds: 8),
-      // THIS IS THE MAGIC! Forces the mic to listen for Tagalog!
-      localeId: _tagalogLocaleId.isNotEmpty ? _tagalogLocaleId : null,
-    );
-  }
-
-  // --- THE ANSWER CHECKER ---
-  void _checkChildsAnswer(SpeechRecognitionResult result) {
-    setState(() {
-      _wordsHeard = result.recognizedWords.toLowerCase();
-    });
-
-    List<String> acceptableWords = _getAcceptableWords(widget.bodyPart);
-
-    bool isCorrect = false;
-    for (String word in acceptableWords) {
-      if (_wordsHeard.contains(word)) {
-        isCorrect = true;
-        break;
-      }
-    }
-
-    if (isCorrect) {
-      _speechToText.stop();
-      setState(() => _introPhase = IntroPhase.done);
-      // Notice: _partDanceCtrl.stop() is completely removed so it wiggles forever!
-    }
+    if (!mounted) return;                         // <-- add
+    setState(() => _introPhase = IntroPhase.done);
   }
 
   Widget _buildAnimatedGif() {
@@ -257,41 +191,9 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
                       height: screenSize.height * 0.45,
                       child: _buildAnimatedGif(),
                     ),
-
-                    const SizedBox(height: 20),
-
-                    if (_introPhase == IntroPhase.listening) ...[
-                      const Text(
-                        "Say the word!",
-                        style: TextStyle(
-                          fontFamily: LagoonAppTextStyles.fredoka,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: LagoonColorTheme.darkbrown,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      GestureDetector(
-                        onTap: _startListening,
-                        child: Image.asset(
-                          'assets/images/icons/audio.png',
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
-
-              if (_introPhase == IntroPhase.listening)
-                Positioned(
-                  bottom: 0,
-                  right: 20,
-                  child: LagoonSkipButton(onTap: _onSkip),
-                ),
 
               if (_introPhase == IntroPhase.done)
                 Positioned(
@@ -351,34 +253,5 @@ class _BodyPartsIntroScreenState extends State<BodyPartsIntroScreen>
         ),
       ),
     );
-  }
-
-  List<String> _getAcceptableWords(String part) {
-    switch (part.toLowerCase()) {
-      case 'feet':
-        return ['paa'];
-      case 'knee':
-        return ['tuhod'];
-      case 'shoulder':
-        return ['balikat'];
-      case 'head':
-        return ['ulo', 'olo'];
-      case 'lips':
-        return ['labi', 'labe'];
-      case 'nose':
-        return ['ilong'];
-      case 'eye':
-        return ['mata'];
-      case 'ear':
-        return ['tainga', 'tenga'];
-      case 'eyebrows':
-        return ['kilay', 'kilai'];
-      case 'hair':
-        return ['buhok', 'bukok'];
-      case 'hand':
-        return ['kamay', 'kamai'];
-      default:
-        return [part.toLowerCase()];
-    }
   }
 }

@@ -454,7 +454,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        final roxieH = h * 1.05;
+        final roxieH = h * 0.95;
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );

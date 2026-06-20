@@ -215,14 +215,19 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;                          // <-- add
     _roxieSlideCtrl.forward();
 
     _speechBubbleCtrl.forward(from: 0);
     await _playBgAudio(_audioIntro);
+    if (!mounted) return;                          // <-- add
 
     _speechBubbleCtrl.forward(from: 0);
     await _playBgAudio(_audioWelcome);
+    if (!mounted) return;                          // <-- add
+
     await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;                          // <-- add
 
     _gameEnterCtrl.forward();
     _startRound();
@@ -303,6 +308,7 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
 
       if (_slotContents.every((s) => s != -1)) {
         await Future.delayed(const Duration(milliseconds: 300));
+        if (!mounted) return;                        // <-- add
         setState(() => _roundComplete = true);
 
         unawaited(showRoxieReaction(RoxieState.correct));
@@ -312,10 +318,12 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
         _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
 
         await Future.delayed(const Duration(milliseconds: 1400));
+        if (!mounted) return;                        // <-- add
 
         if (_round >= _kTotalRounds) {
           await _bgPlayer.stop();
           await _sfxPlayer.stop();
+          if (!mounted) return;                       // <-- add
 
           final completer = Completer<void>();
           final sub = _completePlayer.onPlayerComplete.listen((_) {
@@ -326,6 +334,7 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
           );
           await completer.future.timeout(const Duration(seconds: 10));
           await sub.cancel();
+          if (!mounted) return;                        // <-- add
 
           await PuzzleProgressService.instance.markLevelComplete(5);
 
@@ -418,7 +427,7 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        final roxieH = h * 1.05;
+        final roxieH = h * 0.95;
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );
@@ -601,7 +610,7 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
       height: 220,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(28),
+      //  borderRadius: BorderRadius.circular(28),
         border: Border.all(
           color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.35),
           width: 2.5,
@@ -638,8 +647,8 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
               itemCount: 4,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: _kGridSize,
-                mainAxisSpacing: 6,
-                crossAxisSpacing: 6,
+                mainAxisSpacing: 0,
+                crossAxisSpacing: 0,
               ),
               itemBuilder: (_, slotIndex) => _buildDropSlot(slotIndex),
             ),
@@ -680,14 +689,13 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
               color: isDragOver
                   ? JarColorTheme.goldenyellow.withValues(alpha: 0.25)
                   : bgColor,
-              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: isDragOver ? JarColorTheme.sunnyhue : borderColor,
                 width: isDragOver ? 3.0 : 2.0,
               ),
             ),
             child: filled
-                ? _buildPlacedPieceTile(slotIndex)
+                ? ClipRect(child: _buildPlacedPieceTile(slotIndex))   // wrap with ClipRect
                 : const SizedBox.shrink(),
           ),
         );
@@ -707,7 +715,6 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
         final col = slotIndex % 2;
         final row = slotIndex ~/ 2;
         return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
           child: OverflowBox(
             maxWidth: size * 2,
             maxHeight: size * 2,
@@ -799,7 +806,6 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
                       color: JarColorTheme.darkdesaturatedblue.withValues(
                         alpha: 0.05,
                       ),
-                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: JarColorTheme.darkdesaturatedblue.withValues(
                           alpha: 0.10,
@@ -824,7 +830,7 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
     final col = slotIndex % 2;
     final row = slotIndex ~/ 2;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      // borderRadius: BorderRadius.circular(12),
       child: OverflowBox(
         maxWidth: size * 2,
         maxHeight: size * 2,
@@ -852,7 +858,7 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
         color: isHeld
             ? JarColorTheme.goldenyellow.withValues(alpha: 0.28)
             : Colors.white.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(14),
+        // borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isHeld
               ? JarColorTheme.sunnyhue

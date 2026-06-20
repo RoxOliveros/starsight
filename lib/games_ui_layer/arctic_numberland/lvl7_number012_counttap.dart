@@ -273,89 +273,92 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
             _buildIntroContent()
           else
             SafeArea(
-              child: Column(
-                children: [
-                  const SizedBox(height: 12),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 12),
 
-                  // ── Header ──────────────────────────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: ArcticBackButton(),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 8,
-                          ),
-
-                          decoration: BoxDecoration(
-                            color: ArcticColorTheme.pictonblue.withValues(
-                              alpha: 0.8,
-                            ),
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(color: Colors.white, width: 3),
-                          ),
-                          child: Text(
-                            'Tap and count the number of object/s needed',
-                            style: TextStyle(
-                              fontFamily: ArcticAppTextStyles.fredoka,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              shadows: const [
-                                Shadow(
-                                  color: Colors.black38,
-                                  blurRadius: 6,
-                                  offset: Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // ── Main game area ───────────────────────────────────────────────
-                  Expanded(
-                    child: FadeTransition(
-                      opacity: _enterAnim,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                    // ── Header ──────────────────────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Stack(
+                        alignment: Alignment.center,
                         children: [
-                          const Spacer(),
-                          // LEFT — Number card
-                          _buildNumberCard(),
-
-                          const SizedBox(width: 24),
-
-                          //Arrow
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            color: ArcticColorTheme.slateblue,
-                            size: 28,
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: ArcticBackButton(),
                           ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 8,
+                            ),
 
-                          const SizedBox(width: 12),
-
-                          _buildObjectArea(),
-
-                          const Spacer(),
+                            decoration: BoxDecoration(
+                              color: ArcticColorTheme.pictonblue.withValues(
+                                alpha: 0.8,
+                              ),
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(color: Colors.white, width: 3),
+                            ),
+                            child: Text(
+                              'Tap and count the number of object/s needed',
+                              style: TextStyle(
+                                fontFamily: ArcticAppTextStyles.fredoka,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                shadows: const [
+                                  Shadow(
+                                    color: Colors.black38,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ),
 
-                  _buildProgressDots(),
-                  const SizedBox(height: 10),
-                ],
+                    const SizedBox(height: 8),
+
+                    // ── Main game area ───────────────────────────────────────────────
+                    Expanded(
+                      child: FadeTransition(
+                        opacity: _enterAnim,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Spacer(),
+                            // LEFT — Number card
+                            _buildNumberCard(),
+
+                            const SizedBox(width: 24),
+
+                            //Arrow
+                            const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: ArcticColorTheme.slateblue,
+                              size: 28,
+                            ),
+
+                            const SizedBox(width: 12),
+
+                            _buildObjectArea(),
+
+                            const Spacer(),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    _buildProgressDots(),
+                    const SizedBox(height: 10),
+                  ],
+                ),
               ),
             ),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
@@ -601,53 +604,56 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   Widget _buildIntroContent() {
     return SafeArea(
-      child: Stack(
-        children: [
-          Positioned(top: 8, left: 12, child: ArcticBackButton()),
-          Positioned.fill(
-            top: 50,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Center(
-                    child: Image.asset(
-                      'assets/images/characters/doma_the_penguin.png',
-                      height: MediaQuery.of(context).size.height * 0.65,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          const Text('🐧', style: TextStyle(fontSize: 60)),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 20),
+        child: Stack(
+          children: [
+            Positioned(top: 8, left: 12, child: ArcticBackButton()),
+            Positioned.fill(
+              top: 50,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Image.asset(
+                        'assets/images/characters/doma_the_penguin.png',
+                        height: MediaQuery.of(context).size.height * 0.65,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            const Text('🐧', style: TextStyle(fontSize: 60)),
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Center(
-                    child: AnimatedBuilder(
-                      animation: _numberDanceCtrl,
-                      builder: (_, __) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(3, (i) {
-                            final angle =
-                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              child: Transform.rotate(
-                                angle: angle,
-                                child: _buildIntroNumberCard(i),
-                              ),
-                            );
-                          }),
-                        );
-                      },
+                  Expanded(
+                    child: Center(
+                      child: AnimatedBuilder(
+                        animation: _numberDanceCtrl,
+                        builder: (_, __) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(3, (i) {
+                              final angle =
+                                  _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Transform.rotate(
+                                  angle: angle,
+                                  child: _buildIntroNumberCard(i),
+                                ),
+                              );
+                            }),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

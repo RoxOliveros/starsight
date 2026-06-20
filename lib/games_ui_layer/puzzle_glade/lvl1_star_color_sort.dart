@@ -195,16 +195,21 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   // ── Intro flow ─────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;                      // <-- add
     _roxieSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
     _speechBubbleCtrl.forward(from: 0);
     await _playAudio(_audioIntro);
+    if (!mounted) return;                      // <-- add
 
     _setIntroPhase(_IntroPhase.playingWelcome);
     _speechBubbleCtrl.forward(from: 0);
     await _playAudio(_audioWelcome);
+    if (!mounted) return;                      // <-- add
+
     await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;                      // <-- add
 
     // Transition to game
     _setIntroPhase(_IntroPhase.done);
@@ -388,7 +393,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        final roxieH = h * 1.05;
+        final roxieH = h * 0.95;
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );

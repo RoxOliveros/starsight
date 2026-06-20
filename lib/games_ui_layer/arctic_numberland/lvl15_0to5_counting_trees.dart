@@ -30,8 +30,6 @@ class _Number0to5CountingTreesScreenState
 
   static const String _audioIntro =
       'assets/audio/arctic_numberland/level18/intro.wav';
-  static const String _audioCorrect =
-      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioQuestion =
       'assets/audio/arctic_numberland/level18/how_many.wav';
 
@@ -327,7 +325,10 @@ class _Number0to5CountingTreesScreenState
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
           SafeArea(
-            child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+            ),
           ),
 
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),

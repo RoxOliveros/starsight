@@ -36,7 +36,7 @@ class _NumberFiveIntroductionScreenState
   // ── Asset config ────────────────────────────────
   static const int _targetCount = 5;
   static const String _numberWord = 'FIVE';
-  static const String _instructions = ' 👆 Tap FIVE Hats!';
+  static const String _instructions = 'Tap FIVE Hats!';
   static const int _numberInt = 5;
   static const String _numberImagePath = 'assets/fonts/game_numbers/5.png';
   static const String _characterImage =
@@ -349,13 +349,16 @@ class _NumberFiveIntroductionScreenState
         children: [
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
           SafeArea(
-            child: Stack(
-              children: [
-                Positioned(top: 8, left: 12, child: ArcticBackButton()),
-                if (_screenPhase == _ScreenPhase.intro) _buildIntroContent(),
-                if (_screenPhase == _ScreenPhase.miniGame)
-                  FadeTransition(opacity: _mgFade, child: _buildMiniGame()),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: Stack(
+                children: [
+                  Positioned(top: 8, left: 12, child: ArcticBackButton()),
+                  if (_screenPhase == _ScreenPhase.intro) _buildIntroContent(),
+                  if (_screenPhase == _ScreenPhase.miniGame)
+                    FadeTransition(opacity: _mgFade, child: _buildMiniGame()),
+                ],
+              ),
             ),
           ),
 

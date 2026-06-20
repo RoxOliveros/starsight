@@ -289,13 +289,16 @@ class _NumberThreeIntroductionScreenState
             ),
           ),
           SafeArea(
-            child: Stack(
-              children: [
-                Positioned(top: 8, left: 12, child: ArcticBackButton()),
-                if (_screenPhase == _ScreenPhase.intro) _buildIntroContent(),
-                if (_screenPhase == _ScreenPhase.miniGame)
-                  FadeTransition(opacity: _mgFade, child: _buildMiniGame()),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: Stack(
+                children: [
+                  Positioned(top: 8, left: 12, child: ArcticBackButton()),
+                  if (_screenPhase == _ScreenPhase.intro) _buildIntroContent(),
+                  if (_screenPhase == _ScreenPhase.miniGame)
+                    FadeTransition(opacity: _mgFade, child: _buildMiniGame()),
+                ],
+              ),
             ),
           ),
 
@@ -498,7 +501,7 @@ class _NumberThreeIntroductionScreenState
                         border: Border.all(color: Colors.white, width: 3),
                       ),
                       child: Text(
-                        ' 👆 Tap THREE Tree!',
+                        'Tap THREE Tree!',
                         style: TextStyle(
                           fontFamily: ArcticAppTextStyles.fredoka,
                           fontSize: (h * 0.09).clamp(16.0, 26.0),

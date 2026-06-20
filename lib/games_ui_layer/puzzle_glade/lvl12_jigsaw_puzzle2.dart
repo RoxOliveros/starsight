@@ -23,7 +23,6 @@ const _kAllObjects = [
   'lamp',
   'magnifying_glass',
   'map',
-  'pen',
   'notebook',
   'puzzle_piece',
   'star',
@@ -90,6 +89,7 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
   bool _roundComplete = false;
   bool _showWinDialog = false;
   late List<int> _correctMapping;
+  final Set<String> _usedObjects = {};
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -251,8 +251,15 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
 
   void _startRound() {
     final rng = Random();
-    final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
-    _currentObject = shuffled[0];
+
+    var available = _kAllObjects.where((o) => !_usedObjects.contains(o)).toList();
+    if (available.isEmpty) {
+      _usedObjects.clear();
+      available = List<String>.from(_kAllObjects);
+    }
+    available.shuffle(rng);
+    _currentObject = available[0];
+    _usedObjects.add(_currentObject);
 
     _correctMapping = [0, 1, 2, 3, 4, 5, 6, 7, 8]..shuffle(rng);
 
@@ -415,7 +422,7 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        final roxieH = h * 1.05;
+        final roxieH = h * 0.95;
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );
@@ -596,10 +603,22 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
   }
 
   Widget _buildGameArea() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [_buildPuzzleBoard(), const SizedBox(width: 32), _buildTray()],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _buildPuzzleBoard(),
+              const SizedBox(width: 32),
+              _buildTray(),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -697,7 +716,7 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
               ),
             ),
             child: filled
-                ? _buildPlacedPieceTile(slotIndex)
+                ? ClipRect(child: _buildPlacedPieceTile(slotIndex))
                 : const SizedBox.shrink(),
           ),
         );
@@ -737,7 +756,7 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
               'assets/images/objects/puzzle/$_currentObject.png',
               width: size * 3,
               height: size * 3,
-              fit: BoxFit.contain,
+              fit: BoxFit.cover,
             ),
           ),
         );
@@ -843,7 +862,6 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
     final col = slotIndex % 3;
     final row = slotIndex ~/ 3;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
       child: OverflowBox(
         maxWidth: size * 3,
         maxHeight: size * 3,
@@ -863,7 +881,7 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
           'assets/images/objects/puzzle/$_currentObject.png',
           width: size * 3,
           height: size * 3,
-          fit: BoxFit.contain,
+          fit: BoxFit.cover,
           errorBuilder: (_, __, ___) =>
               Text('🧩', style: TextStyle(fontSize: size * 0.4)),
         ),
@@ -882,7 +900,6 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
         color: isHeld
             ? JarColorTheme.goldenyellow.withValues(alpha: 0.28)
             : Colors.white.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isHeld
               ? JarColorTheme.sunnyhue

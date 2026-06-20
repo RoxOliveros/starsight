@@ -98,6 +98,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
+  AudioPlayer? _introPlayer;
 
   // ── Animations ─────────────────────────────────────────────────────────────
 
@@ -146,6 +147,8 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _introPlayer?.stop();
+    _introPlayer?.dispose();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -234,11 +237,17 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;                       // <-- add
     _roxieSlideCtrl.forward();
 
     await _playAudio(_audioIntro);
+    if (!mounted) return;                       // <-- add
+
     await _playAudio(_audioWelcome);
+    if (!mounted) return;                       // <-- add
+
     await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;                       // <-- add
 
     _gameEnterCtrl.forward();
     _startRound();
@@ -248,6 +257,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
 
   Future<void> _playAudio(String asset) async {
     final player = AudioPlayer();
+    _introPlayer = player;                      // <-- track it
     try {
       await player.setReleaseMode(ReleaseMode.stop);
       final completer = Completer<void>();
@@ -262,6 +272,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
     } finally {
       await player.stop();
       await player.dispose();
+      if (_introPlayer == player) _introPlayer = null;  // <-- clear
     }
   }
 
@@ -337,9 +348,12 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
       showRoxieReaction(RoxieState.correct);
 
       await Future.delayed(const Duration(milliseconds: 1000));
+      if (!mounted) return;                        // <-- add
 
       if (_round >= _kTotalRounds) {
         await _sfxPlayer.stop();
+        if (!mounted) return;                       // <-- add
+
         final completer = Completer<void>();
         final sub = _completePlayer.onPlayerComplete.listen((_) {
           if (!completer.isCompleted) completer.complete();
@@ -349,6 +363,8 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
         );
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
+        if (!mounted) return;                        // <-- add
+
         await PuzzleProgressService.instance.markLevelComplete(8);
         if (mounted) setState(() => _showWinDialog = true);
       } else {
@@ -437,7 +453,7 @@ class _Lvl8WhatsMissingScreenState extends State<Lvl8WhatsMissingScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        final roxieH = h * 1.05;
+        final roxieH = h * 0.95;
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );

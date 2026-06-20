@@ -193,7 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       const SizedBox(height: 12),
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
                           child: _MainIslandCard(
                             activities: _activities,
                             floatAnimation: _floatAnimation,

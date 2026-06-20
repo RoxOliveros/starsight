@@ -494,7 +494,7 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
-        final roxieH = h * 1.05;
+        final roxieH = h * 0.95;
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );
@@ -642,43 +642,47 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
   Widget _buildGameArea() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Basket A
-            _buildBasket(
-              objectName: _basketObjectA,
-              placedCount: _placedA,
-              isFlashing: _flashA,
-              bounceAnim: _bounceAAnim,
-              bounceCtrl: _bounceACtrl,
-            ),
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Basket A
+              _buildBasket(
+                objectName: _basketObjectA,
+                placedCount: _placedA,
+                isFlashing: _flashA,
+                bounceAnim: _bounceAAnim,
+                bounceCtrl: _bounceACtrl,
+              ),
 
-            const SizedBox(width: 24),
+              const SizedBox(width: 24),
 
-            _buildCenterItem(),
+              _buildCenterItem(),
 
-            const SizedBox(width: 24),
-            // Basket B
-            _buildBasket(
-              objectName: _basketObjectB,
-              placedCount: _placedB,
-              isFlashing: _flashB,
-              bounceAnim: _bounceBAnim,
-              bounceCtrl: _bounceBCtrl,
-            ),
+              const SizedBox(width: 24),
+              // Basket B
+              _buildBasket(
+                objectName: _basketObjectB,
+                placedCount: _placedB,
+                isFlashing: _flashB,
+                bounceAnim: _bounceBAnim,
+                bounceCtrl: _bounceBCtrl,
+              ),
 
-            const SizedBox(width: 24),
-            // Basket C
-            _buildBasket(
-              objectName: _basketObjectC,
-              placedCount: _placedC,
-              isFlashing: _flashC,
-              bounceAnim: _bounceCAnim,
-              bounceCtrl: _bounceCCtrl,
-            ),
-          ],
+              const SizedBox(width: 24),
+              // Basket C
+              _buildBasket(
+                objectName: _basketObjectC,
+                placedCount: _placedC,
+                isFlashing: _flashC,
+                bounceAnim: _bounceCAnim,
+                bounceCtrl: _bounceCCtrl,
+              ),
+            ],
+          ),
         );
       },
     );

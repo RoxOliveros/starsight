@@ -288,55 +288,58 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
   // ── Intro ──────────────────────────────────────────────────────────────────
   Widget _buildIntroContent() {
     return SafeArea(
-      child: Stack(
-        children: [
-          Positioned(top: 8, left: 12, child: ArcticBackButton()),
-          Positioned.fill(
-            top: 40,
-            child: Row(
-              children: [
-                // Doma
-                Expanded(
-                  child: Center(
-                    child: Image.asset(
-                      _characterImage,
-                      height: MediaQuery.of(context).size.height * 0.65,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          const Text('🐧', style: TextStyle(fontSize: 60)),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 20),
+        child: Stack(
+          children: [
+            Positioned(top: 8, left: 12, child: ArcticBackButton()),
+            Positioned.fill(
+              top: 40,
+              child: Row(
+                children: [
+                  // Doma
+                  Expanded(
+                    child: Center(
+                      child: Image.asset(
+                        _characterImage,
+                        height: MediaQuery.of(context).size.height * 0.65,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            const Text('🐧', style: TextStyle(fontSize: 60)),
+                      ),
                     ),
                   ),
-                ),
-                // Dancing numbers 3, 4, 5
-                Expanded(
-                  child: Center(
-                    child: AnimatedBuilder(
-                      animation: _numberDanceCtrl,
-                      builder: (_, __) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(3, (i) {
-                            final angle =
-                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              child: Transform.rotate(
-                                angle: angle,
-                                child: _buildIntroNumberCard(i),
-                              ),
-                            );
-                          }),
-                        );
-                      },
+                  // Dancing numbers 3, 4, 5
+                  Expanded(
+                    child: Center(
+                      child: AnimatedBuilder(
+                        animation: _numberDanceCtrl,
+                        builder: (_, __) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(3, (i) {
+                              final angle =
+                                  _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Transform.rotate(
+                                  angle: angle,
+                                  child: _buildIntroNumberCard(i),
+                                ),
+                              );
+                            }),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -398,7 +401,7 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
 
         // ── HEADER ──────────────────────────────
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.only(top: 20),
           child: Stack(
             alignment: Alignment.center,
             children: [

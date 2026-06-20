@@ -273,54 +273,57 @@ class _Number345ReintroductionScreenState
 
           if (_introPlaying)
             SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return Stack(
-                    children: [
-                      Positioned(top: 8, left: 12, child: ArcticBackButton()),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Stack(
+                      children: [
+                        Positioned(top: 8, left: 12, child: ArcticBackButton()),
 
-                      // Center intro content
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Big animated penguin
-                            _buildDoma(constraints.maxHeight * 0.55),
+                        // Center intro content
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Big animated penguin
+                              _buildDoma(constraints.maxHeight * 0.55),
 
-                            const SizedBox(height: 20),
+                              const SizedBox(height: 20),
 
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 14,
-                              ),
-                              decoration: BoxDecoration(
-                                color: ArcticColorTheme.pictonblue.withValues(
-                                  alpha: 0.92,
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 14,
                                 ),
-                                borderRadius: BorderRadius.circular(30),
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 3,
+                                decoration: BoxDecoration(
+                                  color: ArcticColorTheme.pictonblue.withValues(
+                                    alpha: 0.92,
+                                  ),
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3,
+                                  ),
+                                ),
+                                child: Text(
+                                  'Let\'s Learn 3, 4, and 5!',
+                                  style: TextStyle(
+                                    fontFamily: ArcticAppTextStyles.fredoka,
+                                    fontSize: (constraints.maxHeight * 0.07)
+                                        .clamp(20.0, 34.0),
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
-                              child: Text(
-                                'Let\'s Learn 3, 4, and 5!',
-                                style: TextStyle(
-                                  fontFamily: ArcticAppTextStyles.fredoka,
-                                  fontSize: (constraints.maxHeight * 0.07)
-                                      .clamp(20.0, 34.0),
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                },
+                      ],
+                    );
+                  },
+                ),
               ),
             )
           else
@@ -397,6 +400,7 @@ class _Number345ReintroductionScreenState
     final isDone = _allTapped;
 
     return Container(
+      margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
       decoration: BoxDecoration(
         color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
@@ -414,7 +418,7 @@ class _Number345ReintroductionScreenState
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            isDone ? '⭐ Great job!' : '👆 Tap all the ${_stage.label}!',
+            isDone ? '⭐ Great job!' : 'Tap all the ${_stage.label}!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
               fontSize: (h * 0.07).clamp(16.0, 24.0),

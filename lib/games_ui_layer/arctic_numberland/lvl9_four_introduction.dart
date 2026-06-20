@@ -332,13 +332,16 @@ class _NumberFourIntroductionScreenState
         children: [
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
           SafeArea(
-            child: Stack(
-              children: [
-                Positioned(top: 8, left: 12, child: ArcticBackButton()),
-                if (_screenPhase == _ScreenPhase.intro) _buildIntroContent(),
-                if (_screenPhase == _ScreenPhase.miniGame)
-                  FadeTransition(opacity: _mgFade, child: _buildMiniGame()),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: Stack(
+                children: [
+                  Positioned(top: 8, left: 12, child: ArcticBackButton()),
+                  if (_screenPhase == _ScreenPhase.intro) _buildIntroContent(),
+                  if (_screenPhase == _ScreenPhase.miniGame)
+                    FadeTransition(opacity: _mgFade, child: _buildMiniGame()),
+                ],
+              ),
             ),
           ),
 
@@ -545,7 +548,7 @@ class _NumberFourIntroductionScreenState
                         border: Border.all(color: Colors.white, width: 3),
                       ),
                       child: Text(
-                        ' 👆 Tap FOUR Snowball!',
+                        'Tap FOUR Snowball!',
                         style: TextStyle(
                           fontFamily: ArcticAppTextStyles.fredoka,
                           fontSize: 24,

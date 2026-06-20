@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
@@ -18,16 +19,39 @@ class LumiLevelScreen extends StatefulWidget {
 }
 
 class _LumiLevelScreenState extends State<LumiLevelScreen> {
+  int _unlockedLevel = 1;
+  bool _isLoadingProgress = true;
+  StreamSubscription<int>? _progressSub;
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+    _listenToProgress();
+  }
+
+  void _listenToProgress() {
+    _progressSub = TownProgressService.instance.streamUnlockedLevel().listen((level) {
+      if (!mounted) return;
+      setState(() {
+        _unlockedLevel = level;
+        _isLoadingProgress = false;
+      });
+    });
   }
 
   @override
   void dispose() {
+    _progressSub?.cancel();
     OrientationService.setLandscape();
     super.dispose();
+  }
+
+  Future<void> _openLevel(Widget screen) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
   }
 
   @override
@@ -35,7 +59,6 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // 🌳 Background image
           Positioned.fill(
             child: Image.asset(
               'assets/images/backgrounds/bg_town.png',
@@ -43,153 +66,114 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
             ),
           ),
 
-          //back button
-          Positioned(top: 25, left: 25, child: LumiBackButton()),
+          Positioned(top: 20, left: 20, child: LumiBackButton()),
 
-          // 🌿 Content
           Center(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 40),
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.topCenter,
-                children: [
-                  SizedBox(height: 20),
-                  StreamBuilder<int>(
-                    stream: TownProgressService.instance.streamUnlockedLevel(),
-                    builder: (context, snapshot) {
-                      final unlockedLevel = snapshot.data ?? 1;
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final screenW = MediaQuery.of(context).size.width;
+                final screenH = MediaQuery.of(context).size.height;
 
-                      return Container(
-                        width: 650,
-                        height: 280,
+                final cardWidth = (screenW * 0.75).clamp(320.0, 700.0);
+                final cardHeight = (screenH * 0.75).clamp(220.0, 320.0);
+                final tileSize = (cardWidth / 4 - 24).clamp(48.0, 90.0);
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 40),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.topCenter,
+                    children: [
+                      Container(
+                        width: cardWidth,
+                        height: cardHeight,
                         padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF4EFE6),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: LumiColorTheme.darkbrown,
-                            width: 8,
-                          ),
+                          border: Border.all(color: LumiColorTheme.darkbrown, width: 8),
                         ),
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: List.generate(4, (index) {
-                                final level = index + 1;
-                                // Check if the level should be unlocked
-                                return level <= unlockedLevel
-                                    ? _LevelTile(level: level)
-                                    : const _LockedTile();
+                              children: List.generate(4, (i) {
+                                final level = i + 1;
+                                return level <= _unlockedLevel
+                                    ? _LevelTile(level: level, size: tileSize)
+                                    : _LockedTile(size: tileSize);
                               }),
                             ),
                             const SizedBox(height: 16),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: const [
-                                // Placeholder for levels 5-8 if you add them later
-                                _LockedTile(),
-                                _LockedTile(),
-                                _LockedTile(),
-                                _LockedTile(),
-                              ],
+                              children: List.generate(
+                                4,
+                                    (i) => _LockedTile(size: tileSize),
+                              ),
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                  // SELECT LEVEL badge on top border
-                  Positioned(
-                    top: -32,
-                    child: Stack(
-                      alignment: Alignment.topCenter,
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: LumiColorTheme.rust,
-                            borderRadius: BorderRadius.circular(25),
-                            border: Border.all(
-                              color: LumiColorTheme.darkbrown,
-                              width: 5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                offset: const Offset(0, 6),
-                                blurRadius: 8,
+                      ),
+
+                      Positioned(
+                        top: -32,
+                        child: Stack(
+                          alignment: Alignment.topCenter,
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: LumiColorTheme.rust,
+                                borderRadius: BorderRadius.circular(25),
+                                border: Border.all(color: LumiColorTheme.darkbrown, width: 5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    offset: const Offset(0, 6),
+                                    blurRadius: 8,
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: const Text(
-                            ' SELECT LEVEL ',
-                            style: TextStyle(
-                              fontFamily: LumiAppTextStyles.fredoka,
-                              fontSize: 25,
-                              color: LumiColorTheme.peach,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
+                              child: const Text(
+                                ' SELECT LEVEL ',
+                                style: TextStyle(
+                                  fontFamily: LumiAppTextStyles.fredoka,
+                                  fontSize: 25,
+                                  color: LumiColorTheme.peach,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        // Left star
-                        Positioned(
-                          top: -4,
-                          left: -35,
-                          child: Transform.rotate(
-                            angle: -0.2,
-                            child: Image.asset(
-                              'assets/images/night_star.png',
-                              width: 70,
+                            Positioned(
+                              top: -4,
+                              left: -35,
+                              child: Transform.rotate(
+                                angle: -0.2,
+                                child: Image.asset('assets/images/night_star.png', width: 70),
+                              ),
                             ),
-                          ),
-                        ),
-                        // Right star
-                        Positioned(
-                          top: -4,
-                          right: -35,
-                          child: Transform.rotate(
-                            angle: 0.2,
-                            child: Image.asset(
-                              'assets/images/night_star.png',
-                              width: 70,
+                            Positioned(
+                              top: -4,
+                              right: -35,
+                              child: Transform.rotate(
+                                angle: 0.2,
+                                child: Image.asset('assets/images/night_star.png', width: 70),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  // Left arrow
-                  Positioned(
-                    left: -35,
-                    top: 0,
-                    bottom: 0,
-                    child: Image.asset(
-                      'assets/images/arrows/bttn_town_arrow_left.png',
-                      width: 70,
-                    ),
-                  ),
-                  // Right arrow
-                  Positioned(
-                    right: -35,
-                    top: 0,
-                    bottom: 0,
-                    child: Image.asset(
-                      'assets/images/arrows/bttn_town_arrow_right.png',
-                      width: 70,
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
+
           Positioned(
             bottom: 15,
             right: 15,
@@ -200,6 +184,16 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
           ),
+
+          if (_isLoadingProgress)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.25),
+                child: const Center(
+                  child: CircularProgressIndicator(color: LumiColorTheme.rust),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -208,77 +202,69 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
 
 class _LevelTile extends StatelessWidget {
   final int level;
+  final double size;
 
-  const _LevelTile({required this.level});
+  const _LevelTile({required this.level, required this.size});
+
+  Widget? _screenForLevel() {
+    switch (level) {
+      case 1:
+        return Lumi1ValuesWakeup();
+      case 2:
+        return Lvl2BathroomGameScreen();
+      case 3:
+        return CleanBedroomGameScreen();
+      case 4:
+        return CookingGameScreen();
+      default:
+        return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        switch (level) {
-          case 1:
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => Lumi1ValuesWakeup()),
-            );
-            break;
-          case 2:
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => Lvl2BathroomGameScreen()),
-            );
-            break;
-          case 3:
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => CleanBedroomGameScreen()),
-            );
-            break;
-          case 4:
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => CookingGameScreen()),
-            );
-            break;
-        }
+        final screen = _screenForLevel();
+        if (screen == null) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => screen),
+        );
       },
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.bottomCenter,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: LumiColorTheme.robroy,
-              borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: LumiColorTheme.rust, width: 5),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              '$level',
-              style: const TextStyle(
-                fontFamily: LumiAppTextStyles.fredoka,
-                fontSize: 40,
-                color: LumiColorTheme.rust,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: LumiColorTheme.robroy,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: LumiColorTheme.rust, width: 5),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '$level',
+          style: TextStyle(
+            fontFamily: LumiAppTextStyles.fredoka,
+            fontSize: size * 0.5,
+            color: LumiColorTheme.rust,
+            fontWeight: FontWeight.bold,
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
 class _LockedTile extends StatelessWidget {
-  const _LockedTile();
+  final double size;
+
+  const _LockedTile({required this.size});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 79,
-      height: 79,
+      width: size - 1,
+      height: size - 1,
       child: DottedBorder(
         borderType: BorderType.RRect,
         radius: const Radius.circular(17),
@@ -286,8 +272,8 @@ class _LockedTile extends StatelessWidget {
         strokeWidth: 5,
         dashPattern: const [6, 3],
         child: Container(
-          width: 80,
-          height: 80,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             color: Colors.grey.shade300,
             borderRadius: BorderRadius.circular(17),
@@ -295,7 +281,7 @@ class _LockedTile extends StatelessWidget {
           child: Center(
             child: Image.asset(
               'assets/images/icons/lock.png',
-              width: 40,
+              width: size * 0.5,
               fit: BoxFit.contain,
             ),
           ),
