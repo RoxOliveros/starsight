@@ -6,9 +6,7 @@ class DatabaseService {
 
   Future<void> createParentAndChild({
     required String uid,
-    String email = '', // <-- Default empty string
-    String phoneNumber =
-        '', // <-- Default empty string // holds phone number for now
+    String email = '',
     required String parentBirthYear,
     required String childNickname,
     required List<String> childGoals,
@@ -16,8 +14,7 @@ class DatabaseService {
   }) async {
     // Save to Firestore
     await _db.collection('users').doc(uid).set({
-      'email': email, // Saves the SMS phone (if any)
-      'phoneNumber': phoneNumber, // Saves the SMS phone (if any)
+      'email': email,
       'parentBirthYear': parentBirthYear,
       'parentPin': parentPin,
       'createdAt': FieldValue.serverTimestamp(),
@@ -47,19 +44,6 @@ class DatabaseService {
       return querySnapshot.docs.isNotEmpty;
     } catch (e) {
       print("Error checking email: $e");
-      return false;
-    }
-  }
-
-  Future<bool> doesPhoneExist(String phone) async {
-    try {
-      final QuerySnapshot result = await FirebaseFirestore.instance
-          .collection('users')
-          .where('phoneNumber', isEqualTo: phone)
-          .limit(1)
-          .get();
-      return result.docs.isNotEmpty;
-    } catch (e) {
       return false;
     }
   }
