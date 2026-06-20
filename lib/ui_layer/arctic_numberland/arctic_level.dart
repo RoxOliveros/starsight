@@ -33,7 +33,6 @@ class ArcticLevelScreen extends StatefulWidget {
 class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   int _page = 0;
   int _unlockedLevel = 1;
-  bool _isLoadingProgress = true;
 
   @override
   void initState() {
@@ -47,7 +46,6 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
     if (!mounted) return;
     setState(() {
       _unlockedLevel = unlocked;
-      _isLoadingProgress = false;
     });
   }
 
@@ -96,7 +94,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                 final screenH = constraints.maxHeight;
 
                 final cardWidth = (screenW * 0.75).clamp(320.0, 700.0);
-                final cardHeight = (screenH * 0.75).clamp(220.0, 320.0);
+                final cardHeight = (screenH * 0.80).clamp(220.0, 320.0);
                 final tileSize = (cardWidth / 4 - 24).clamp(48.0, 90.0);
 
                 return Padding(
@@ -119,7 +117,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                           ),
                         ),
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,

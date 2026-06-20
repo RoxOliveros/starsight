@@ -99,7 +99,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                 final screenH = constraints.maxHeight;
 
                 final cardWidth = (screenW * 0.75).clamp(320.0, 700.0);
-                final cardHeight = (screenH * 0.75).clamp(220.0, 320.0);
+                final cardHeight = (screenH * 0.80).clamp(220.0, 320.0);
                 final tileSize = (cardWidth / 4 - 24).clamp(48.0, 90.0);
 
                 return Padding(
@@ -122,7 +122,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                           ),
                         ),
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,

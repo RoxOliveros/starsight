@@ -71,7 +71,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                 final screenH = constraints.maxHeight;
 
                 final cardWidth = (screenW * 0.75).clamp(320.0, 700.0);
-                final cardHeight = (screenH * 0.75).clamp(220.0, 320.0);
+                final cardHeight = (screenH * 0.80).clamp(220.0, 320.0);
                 final tileSize = (cardWidth / 4 - 24).clamp(48.0, 90.0);
 
                 return Padding(
@@ -103,18 +103,14 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                             // This helper decides whether to show an unlocked or locked tile!
                             Widget buildTile(int level) {
                               if (level <= unlockedLevel) {
-                                return _LevelTile(
-                                  level: level,
-                                  size: tileSize,
-                                );
+                                return _LevelTile(level: level, size: tileSize);
                               } else {
-                                return _LockedTile(
-                                  size: tileSize,
-                                );                              }
+                                return _LockedTile(size: tileSize);
+                              }
                             }
 
                             return Column(
-                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 // --- PAGE 0: LEVELS 1-8 ---
                                 if (_currentPage == 0) ...[
@@ -267,7 +263,9 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
-                            if (_currentPage > 0) setState(() => _currentPage--);
+                            if (_currentPage > 0) {
+                              setState(() => _currentPage--);
+                            }
                           },
                           child: Opacity(
                             opacity: _currentPage > 0 ? 1.0 : 0.3,
@@ -285,7 +283,9 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
-                            if (_currentPage < _maxPages) setState(() => _currentPage++);
+                            if (_currentPage < _maxPages) {
+                              setState(() => _currentPage++);
+                            }
                           },
                           child: Opacity(
                             opacity: _currentPage < _maxPages ? 1.0 : 0.3,
@@ -323,10 +323,7 @@ class _LevelTile extends StatelessWidget {
   final int level;
   final double size;
 
-  const _LevelTile({
-    required this.level,
-    required this.size,
-  });
+  const _LevelTile({required this.level, required this.size});
 
   @override
   Widget build(BuildContext context) {

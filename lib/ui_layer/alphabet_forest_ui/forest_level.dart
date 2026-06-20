@@ -131,7 +131,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                 final screenH = MediaQuery.of(context).size.height;
 
                 final cardWidth = (screenW * 0.75).clamp(320.0, 700.0);
-                final cardHeight = (screenH * 0.75).clamp(220.0, 320.0);
+                final cardHeight = (screenH * 0.80).clamp(220.0, 320.0);
                 final tileSize = (cardWidth / 4 - 24).clamp(48.0, 90.0);
                 final arrowSize = (tileSize * 0.85).clamp(40.0, 70.0);
 

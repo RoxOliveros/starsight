@@ -31,7 +31,9 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
   }
 
   void _listenToProgress() {
-    _progressSub = TownProgressService.instance.streamUnlockedLevel().listen((level) {
+    _progressSub = TownProgressService.instance.streamUnlockedLevel().listen((
+      level,
+    ) {
       if (!mounted) return;
       setState(() {
         _unlockedLevel = level;
@@ -75,7 +77,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                 final screenH = MediaQuery.of(context).size.height;
 
                 final cardWidth = (screenW * 0.75).clamp(320.0, 700.0);
-                final cardHeight = (screenH * 0.75).clamp(220.0, 320.0);
+                final cardHeight = (screenH * 0.80).clamp(220.0, 320.0);
                 final tileSize = (cardWidth / 4 - 24).clamp(48.0, 90.0);
 
                 return Padding(
@@ -91,7 +93,10 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFF4EFE6),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: LumiColorTheme.darkbrown, width: 8),
+                          border: Border.all(
+                            color: LumiColorTheme.darkbrown,
+                            width: 8,
+                          ),
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -110,7 +115,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: List.generate(
                                 4,
-                                    (i) => _LockedTile(size: tileSize),
+                                (i) => _LockedTile(size: tileSize),
                               ),
                             ),
                           ],
@@ -124,11 +129,17 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                           clipBehavior: Clip.none,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 10,
+                              ),
                               decoration: BoxDecoration(
                                 color: LumiColorTheme.rust,
                                 borderRadius: BorderRadius.circular(25),
-                                border: Border.all(color: LumiColorTheme.darkbrown, width: 5),
+                                border: Border.all(
+                                  color: LumiColorTheme.darkbrown,
+                                  width: 5,
+                                ),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.3),
@@ -153,7 +164,10 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                               left: -35,
                               child: Transform.rotate(
                                 angle: -0.2,
-                                child: Image.asset('assets/images/night_star.png', width: 70),
+                                child: Image.asset(
+                                  'assets/images/night_star.png',
+                                  width: 70,
+                                ),
                               ),
                             ),
                             Positioned(
@@ -161,7 +175,10 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                               right: -35,
                               child: Transform.rotate(
                                 angle: 0.2,
-                                child: Image.asset('assets/images/night_star.png', width: 70),
+                                child: Image.asset(
+                                  'assets/images/night_star.png',
+                                  width: 70,
+                                ),
                               ),
                             ),
                           ],
