@@ -1,7 +1,12 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/ai_summary_service.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
+import 'package:camera/camera.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -23,7 +28,7 @@ class Lvl1JarColorSortScreen extends StatefulWidget {
 }
 
 class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin, AiCameraMixin {
   // Required by the mixin — point it to your existing _player
   @override
   AudioPlayer get roxiePlayer => _player;
@@ -130,11 +135,13 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
+    startAiCamera();
     _startIntroFlow();
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _player.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
@@ -195,21 +202,21 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   // ── Intro flow ─────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;                      // <-- add
+    if (!mounted) return; // <-- add
     _roxieSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
     _speechBubbleCtrl.forward(from: 0);
     await _playAudio(_audioIntro);
-    if (!mounted) return;                      // <-- add
+    if (!mounted) return; // <-- add
 
     _setIntroPhase(_IntroPhase.playingWelcome);
     _speechBubbleCtrl.forward(from: 0);
     await _playAudio(_audioWelcome);
-    if (!mounted) return;                      // <-- add
+    if (!mounted) return; // <-- add
 
     await Future.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;                      // <-- add
+    if (!mounted) return; // <-- add
 
     // Transition to game
     _setIntroPhase(_IntroPhase.done);
@@ -297,6 +304,51 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
             AssetSource(_audioGameComplete.replaceFirst('assets/', '')),
           );
 
+          // ---> 1. GRAB THE EMOTIONS FROM THE CAMERA <---
+          List<String> finalEmotions = stopAiCamera();
+
+          // ---> 2. ASK GEMINI FOR THE SUMMARY <---
+          print("Sending data to Gemini... Please wait.");
+          String geminiSummary = await AiSummaryService.generateParentSummary(
+            childName: "Little Explorer",
+            activityName: "Star Color Sort",
+            emotionsList: finalEmotions,
+          );
+          print("GEMINI SAYS: $geminiSummary");
+
+          // ---> 3. SAVE TO YOUR EXISTING FIRESTORE ARCHITECTURE <---
+          print("Saving report to parent database...");
+          try {
+            // AUTOMATICALLY gets the ID of whoever is currently logged into the app!
+            String parentUid = FirebaseAuth.instance.currentUser!.uid;
+
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(parentUid)
+                .collection('reports')
+                .add({
+                  'activityName': "Star Color Sort",
+                  'summary': geminiSummary,
+                  'timestamp': FieldValue.serverTimestamp(),
+                });
+            print("Successfully saved to: $parentUid");
+
+            try {
+              var checkData = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(parentUid)
+                  .collection('reports')
+                  .get();
+              print(
+                "RADAR TEST: I can see ${checkData.docs.length} reports saved here!",
+              );
+            } catch (e) {
+              print("RADAR TEST ERROR: $e");
+            }
+          } catch (e) {
+            print("Database Error: $e");
+          }
+
           await Future.delayed(const Duration(milliseconds: 800));
 
           await PuzzleProgressService.instance.markLevelComplete(1);
@@ -359,6 +411,24 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                     child: _buildGameContent(),
                   ),
           ),
+          // ---> LIVE DEMO CAMERA <---
+          if (isCameraInitialized && aiCameraController != null)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Container(
+                width: 80,
+                height: 100,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white, width: 2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: CameraPreview(aiCameraController!),
+                ),
+              ),
+            ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
       ),
