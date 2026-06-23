@@ -6,7 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
-import '../goodjob_prompt.dart';
+import 'goodjob_doma_prompt.dart';
 import 'lvl14_012345_sequence.dart';
 
 class Number345OddOneOutScreen extends StatefulWidget {
@@ -607,7 +607,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
 
   // ── Win Overlay ────────────────────────────────────────────────────────────
   Widget _buildGoodJobOverlay() {
-    return GoodJobOverlay(
+    return DomaGoodJobOverlay(
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {

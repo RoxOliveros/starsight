@@ -6,7 +6,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
-import '../goodjob_prompt.dart';
+import 'goodjob_doma_prompt.dart';
 import 'lvl3_two_introduction.dart';
 import 'number_tracing_widget.dart';
 
@@ -640,7 +640,7 @@ class _NumberOneIntroductionScreenState
   // WIN DIALOG
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildGoodJobOverlay() {
-    return GoodJobOverlay(
+    return DomaGoodJobOverlay(
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {

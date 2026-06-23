@@ -6,7 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
-import '../goodjob_prompt.dart';
+import 'goodjob_doma_prompt.dart';
 import 'lvl17_0to5_match_snowglobe.dart';
 
 class Number0to5FillIglooScreen extends StatefulWidget {
@@ -901,7 +901,7 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
 
   // ── Win Overlay ────────────────────────────────────────────────────────────
   Widget _buildGoodJobOverlay() {
-    return GoodJobOverlay(
+    return DomaGoodJobOverlay(
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {

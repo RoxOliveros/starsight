@@ -6,7 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
-import '../goodjob_prompt.dart';
+import 'goodjob_doma_prompt.dart';
 import 'lvl12_345_counting.dart';
 
 class Number345ReintroductionScreen extends StatefulWidget {
@@ -679,7 +679,7 @@ class _Number345ReintroductionScreenState
   }
 
   Widget _buildGoodJobOverlay() {
-    return GoodJobOverlay(
+    return DomaGoodJobOverlay(
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {

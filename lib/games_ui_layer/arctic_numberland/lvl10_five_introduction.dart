@@ -6,7 +6,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
-import '../goodjob_prompt.dart';
+import 'goodjob_doma_prompt.dart';
 import 'lvl11_345_reintroduction.dart';
 import 'number_tracing_widget.dart';
 
@@ -853,7 +853,7 @@ class _NumberFiveIntroductionScreenState
   // WIN DIALOG
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildGoodJobOverlay() {
-    return GoodJobOverlay(
+    return DomaGoodJobOverlay(
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {

@@ -6,7 +6,7 @@
 // import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 // import '../../ui_layer/arctic_numberland/arctic_level.dart';
 // import '../../ui_layer/arctic_numberland/arctic_theme.dart';
-// import '../goodjob_prompt.dart';
+// import 'goodjob_doma_prompt.dart';
 // import 'lvl12_345_counting.dart';
 //
 // class Number345RecognitionScreen extends StatefulWidget {
@@ -647,7 +647,7 @@
 //   }
 //
 //   Widget _buildGoodJobOverlay() {
-//     return GoodJobOverlay(
+//     return DomaGoodJobOverlay(
 //       characterImage: _characterImage,
 //       closeButtonColor: ArcticColorTheme.slateblue,
 //       onNext: () {

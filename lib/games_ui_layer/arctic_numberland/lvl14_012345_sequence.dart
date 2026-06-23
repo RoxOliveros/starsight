@@ -6,7 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
-import '../goodjob_prompt.dart';
+import 'goodjob_doma_prompt.dart';
 
 class Number012345SequenceScreen extends StatefulWidget {
   const Number012345SequenceScreen({super.key});
@@ -724,7 +724,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
 
   // ── Win Overlay ────────────────────────────────────────────────────────────
   Widget _buildGoodJobOverlay() {
-    return GoodJobOverlay(
+    return DomaGoodJobOverlay(
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
