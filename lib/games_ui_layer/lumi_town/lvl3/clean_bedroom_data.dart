@@ -37,7 +37,7 @@ const List<ToyItem> kAllToys = [
   ToyItem(
     id: 'doll',
     imagePath: 'assets/images/objects/lumi/doll.png',
-    audioPath: 'assets/audio/lumi_town/level3/vo_doll.wav',
+    audioPath: 'assets/audio/lumi_town/level3/vo_queen.wav',
   ),
   ToyItem(
     id: 'jar',
@@ -50,9 +50,9 @@ const List<ToyItem> kAllToys = [
     audioPath: 'assets/audio/lumi_town/level3/vo_key.wav',
   ),
   ToyItem(
-    id: 'stacking_toy',
-    imagePath: 'assets/images/objects/lumi/stacking_toy.png',
-    audioPath: 'assets/audio/lumi_town/level3/vo_stacking_toy.wav',
+    id: 'ball',
+    imagePath: 'assets/images/objects/lumi/ball.png',
+    audioPath: 'assets/audio/lumi_town/level3/vo_ball.wav',
   ),
   ToyItem(
     id: 'train',
@@ -88,20 +88,20 @@ const List<List<String>> kRounds = [
   ['doll', 'cap', 'xylophone'],
   ['dinosaur', 'train', 'yarn'],
   ['airplane', 'yoyo', 'umbrella'],
-  ['jar', 'key', 'stacking_toy'],
+  ['jar', 'key', 'ball'],
 ];
 
 const List<List<String>> kRoundTargets = [
   ['doll', 'cap', 'xylophone'],      // round 1 targets
   ['dinosaur', 'train', 'yarn'],     // round 2 targets
   ['airplane', 'yoyo', 'umbrella'],  // round 3 targets
-  ['jar', 'key', 'stacking_toy'],    // round 4 targets
+  ['jar', 'key', 'ball'],    // round 4 targets
 ];
 
 // All toys start visible, removed as they're placed
 const List<String> kAllToyIds = [
   'airplane', 'cap', 'dinosaur', 'doll',
-  'jar', 'key', 'stacking_toy', 'train',
+  'jar', 'key', 'ball', 'train',
   'umbrella', 'xylophone', 'yarn', 'yoyo',
 ];
 

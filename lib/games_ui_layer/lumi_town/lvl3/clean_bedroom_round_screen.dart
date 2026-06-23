@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -39,6 +41,12 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
   // Scale pop controllers per slot (correct drop celebration)
   late List<AnimationController> _slotPopCtrl;
   late List<Animation<double>> _slotPopAnim;
+  late AnimationController _hintPulseCtrl;
+  late Animation<double> _hintPulseAnim;
+
+  // Add near the other state fields (around line 43)
+  Timer? _hintTimer;
+  String? _hintToyId; // toy currently highlighted as a hint
 
   bool _roundComplete = false;
 
@@ -84,6 +92,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
         duration: const Duration(milliseconds: 350),
       ),
     );
+
     _slotPopAnim = _slotPopCtrl
         .map(
           (ctrl) => TweenSequence([
@@ -92,10 +101,20 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
           ]).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOut)),
         )
         .toList();
+
+    _hintPulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat(reverse: true);
+    _hintPulseAnim = CurvedAnimation(parent: _hintPulseCtrl, curve: Curves.easeInOut);
+
+    _startHintTimer();
   }
 
   @override
   void dispose() {
+    _hintTimer?.cancel();
+    _hintPulseCtrl.dispose();
     _player.dispose();
     for (final c in _slotShakeCtrl) {
       c.dispose();
@@ -109,6 +128,8 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
   // ── Drag handlers ─────────────────────────────────────────────────────────
 
   Future<void> _onToyPickup(String toyId) async {
+    _startHintTimer();
+    setState(() => _hintToyId = null);
     if (_player.state == PlayerState.playing) {
       await waitForAudio(_player);
     }
@@ -153,6 +174,22 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
         _player,
         'assets/audio/lumi_town/level3/vo_wrong.wav',
       );
+    }
+  }
+
+  void _startHintTimer() {
+    _hintTimer?.cancel();
+    _hintTimer = Timer(const Duration(seconds: 5), _showHint);
+  }
+
+  void _showHint() {
+    if (!mounted || _roundComplete) return;
+    // Find the first unfilled slot's expected toy
+    for (int i = 0; i < _targetIds.length; i++) {
+      if (!_filledSlots.containsKey(i)) {
+        setState(() => _hintToyId = _targetIds[i]);
+        break;
+      }
     }
   }
 
@@ -248,18 +285,18 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
     double toySize,
   ) {
     const positions = [
-      Offset(0.73, 0.91), // airplane
+      Offset(0.83, 0.91), // airplane
       Offset(0.545, 0.65), // cap
-      Offset(0.35, 0.90), // dinosaur
+      Offset(0.12, 0.51), // dinosaur
       Offset(0.40, 0.48), // doll
       Offset(0.50, 0.45), // jar
       Offset(0.60, 0.55), // key
-      Offset(0.82, 0.42), // stacking_toy
+      Offset(0.82, 0.42), // ball
       Offset(0.47, 0.91), // train
-      Offset(0.29, 0.75), // umbrella
-      Offset(0.62, 0.95), // xylophone
+      Offset(0.32, 0.85), // umbrella
+      Offset(0.70, 0.93), // xylophone
       Offset(0.92, 0.47), // yarn
-      Offset(0.95, 0.80), // yoyo
+      Offset(0.95, 0.85), // yoyo
     ];
 
     return List.generate(_visibleToyIds.length, (i) {
@@ -273,11 +310,12 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
       return Positioned(
         left: dx,
         top: dy,
-        // No AnimatedBuilder, just the draggable directly
         child: _DraggableToy(
           toy: toyById(toyId),
           size: toySize,
           onPickup: () => _onToyPickup(toyId),
+          isHinted: toyId == _hintToyId,
+          pulse: _hintPulseAnim,
         ),
       );
     });
@@ -463,11 +501,15 @@ class _DraggableToy extends StatelessWidget {
   final ToyItem toy;
   final double size;
   final VoidCallback onPickup;
+  final bool isHinted;
+  final Animation<double> pulse;
 
   const _DraggableToy({
     required this.toy,
     required this.size,
     required this.onPickup,
+    required this.isHinted,
+    required this.pulse,
   });
 
   @override
@@ -480,12 +522,41 @@ class _DraggableToy extends StatelessWidget {
       opacity: 0.95,
     );
 
-    return Draggable<String>(
+    final draggable = Draggable<String>(
       data: toy.id,
       onDragStarted: onPickup,
       feedback: feedback,
       childWhenDragging: ghost,
       child: icon,
+    );
+
+    if (!isHinted) return draggable;
+
+    return AnimatedBuilder(
+      animation: pulse,
+      builder: (context, child) {
+        final t = pulse.value; // 0 → 1 → 0
+        final bounce = -10.0 * t; // lift up to 10px at peak
+        final glow = 0.3 + (0.5 * t); // glow strength 0.3 → 0.8
+
+        return Transform.translate(
+          offset: Offset(0, bounce),
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.yellowAccent.withValues(alpha: glow),
+                  blurRadius: 20 + (20 * t),
+                  spreadRadius: 4 + (6 * t),
+                ),
+              ],
+            ),
+            child: child,
+          ),
+        );
+      },
+      child: draggable,
     );
   }
 }
