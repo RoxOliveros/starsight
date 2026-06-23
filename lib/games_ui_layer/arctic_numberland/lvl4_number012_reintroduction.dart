@@ -21,8 +21,8 @@ class Number012ReintroductionScreen extends StatefulWidget {
 class _Number012ReintroductionScreenState
     extends State<Number012ReintroductionScreen>
     with TickerProviderStateMixin {
-  int _currentNumber = 0;
-  static const int _totalNumbers = 3;
+  int _currentNumber = 1;
+  static const int _totalNumbers = 2;
 
   // Which dots have been tapped
   late List<bool> _dotsTapped;
@@ -59,10 +59,6 @@ class _Number012ReintroductionScreenState
 
   // Pic & color theme per number
   static const _themes = [
-    _NumberTheme(
-      asset: 'assets/images/objects/arctic/earmuffs.png',
-      label: 'ZERO',
-    ),
     _NumberTheme(asset: 'assets/images/objects/arctic/ice.png', label: 'ONE'),
     _NumberTheme(
       asset: 'assets/images/objects/arctic/ice_skates.png',
@@ -70,7 +66,7 @@ class _Number012ReintroductionScreenState
     ),
   ];
 
-  _NumberTheme get _theme => _themes[_currentNumber];
+  _NumberTheme get _theme => _themes[_currentNumber - 1];
 
   @override
   void initState() {
@@ -124,12 +120,6 @@ class _Number012ReintroductionScreenState
     _dotOffsets = _generateDotOffsets(_currentNumber);
     _enterController.forward(from: 0);
     _bounceController.forward(from: 0);
-
-    if (_currentNumber == 0) {
-      _playAudio('assets/audio/arctic_numberland/0.wav').then((_) {
-        Future.delayed(const Duration(milliseconds: 600), _nextNumber);
-      });
-    }
   }
 
   Future<void> _startIntroFlow() async {
@@ -195,17 +185,21 @@ class _Number012ReintroductionScreenState
     if (_transitioning) return;
     setState(() => _transitioning = true);
 
-    if (_currentNumber >= _totalNumbers - 1) {
-      await ArcticProgressService.instance.markLevelComplete(4);
-      setState(() => _showWinDialog = true);
-      return;
-    }
+    _enterController.reverse().then((_) async {
+      if (_currentNumber >= _totalNumbers) {
+        await ArcticProgressService.instance.markLevelComplete(4);
+        if (mounted) {
+          setState(() => _showWinDialog = true);
+        }
+        return;
+      }
 
-    _enterController.reverse().then((_) {
-      setState(() {
-        _currentNumber++;
-        _setupRound();
-      });
+      if (_currentNumber < _totalNumbers) {
+        setState(() {
+          _currentNumber++;
+          _setupRound();
+        });
+      }
     });
   }
 
@@ -464,8 +458,8 @@ class _Number012ReintroductionScreenState
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(_totalNumbers, (i) {
-        final done = i < _currentNumber;
-        final current = i == _currentNumber;
+        final done = i < (_currentNumber - 1);
+        final current = i == (_currentNumber - 1);
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           margin: const EdgeInsets.symmetric(horizontal: 5),

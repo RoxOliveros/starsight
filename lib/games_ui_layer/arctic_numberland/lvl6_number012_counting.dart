@@ -95,16 +95,16 @@ class _Number012CountingObjectsScreenState
   }
 
   void _generateRound() {
-    final allNumbers = [0, 1, 2]..shuffle();
+    final allNumbers = [1, 2]..shuffle();
+
     _correctCount = allNumbers.first;
 
-    final wrong = allNumbers.skip(1).take(3).toList();
-    _choices = [...wrong, _correctCount]..shuffle();
+    _choices = List<int>.from(allNumbers)..shuffle();
 
     final obj = (_objects..shuffle()).first;
     _currentObject = obj['asset']!;
 
-    setState(() => _tappedIndex = null);
+    _tappedIndex = null;
   }
 
   void _onChoiceTap(int index) async {
@@ -187,7 +187,7 @@ class _Number012CountingObjectsScreenState
           else
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.only(top: 20),
+                padding: const EdgeInsets.only(top: 10),
                 child: Column(
                   children: [
                     const SizedBox(height: 12),
@@ -245,7 +245,7 @@ class _Number012CountingObjectsScreenState
                         children: [
                           // OBJECTS DISPLAY BOX
                           Expanded(
-                            flex: 4,
+                            flex: 3,
                             child: Container(
                               height: double.infinity,
                               margin: const EdgeInsets.only(
@@ -277,68 +277,45 @@ class _Number012CountingObjectsScreenState
 
                           // CHOICES
                           Expanded(
-                            flex: 3,
+                            flex: 2,
                             child: Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: 16,
-                                left: 12,
-                                right: 12,
-                              ),
-                              child: GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                      crossAxisSpacing: 14,
-                                      mainAxisSpacing: 14,
-                                      childAspectRatio: 1.4,
-                                    ),
-                                itemCount: _choices.length,
-                                itemBuilder: (context, index) {
-                                  return GestureDetector(
-                                    onTap: () => _onChoiceTap(index),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 300,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: _choiceColor(index),
-                                        borderRadius: BorderRadius.circular(18),
-                                        border: Border.all(
-                                          color: _choiceBorderColor(index),
-                                          width: 3,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: _choiceColor(
-                                              index,
-                                            ).withValues(alpha: 0.35),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(10),
-                                        child: Image.asset(
-                                          'assets/fonts/game_numbers/${_choices[index]}.png',
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (_, __, ___) => Center(
-                                            child: Text(
-                                              '${_choices[index]}',
-                                              style: const TextStyle(
-                                                fontFamily:
-                                                    ArcticAppTextStyles.fredoka,
-                                                fontSize: 36,
-                                                fontWeight: FontWeight.bold,
-                                                color: ArcticColorTheme.cotton,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+
+                                  return Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: List.generate(_choices.length, (index) {
+                                      return Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 7),
+                                          child: GestureDetector(
+                                            onTap: () => _onChoiceTap(index),
+                                            child: AnimatedContainer(
+                                              duration: const Duration(milliseconds: 250),
+                                              width: double.infinity,
+                                              decoration: BoxDecoration(
+                                                color: _choiceColor(index),
+                                                borderRadius: BorderRadius.circular(18),
+                                                border: Border.all(
+                                                  color: _choiceBorderColor(index),
+                                                  width: 3,
+                                                ),
+                                              ),
+                                              child: Center(
+                                                child: Padding(
+                                                  padding: const EdgeInsets.all(10),
+                                                  child: Image.asset(
+                                                    'assets/fonts/game_numbers/${_choices[index]}.png',
+                                                    fit: BoxFit.contain,
+                                                  ),
+                                                ),
                                               ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    ),
+                                      );
+                                    }),
                                   );
                                 },
                               ),
@@ -361,7 +338,7 @@ class _Number012CountingObjectsScreenState
   Widget _buildObjectGrid() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final objSize = (constraints.maxHeight * 0.28).clamp(40.0, 80.0);
+        final objSize = MediaQuery.of(context).size.height * 0.30;
         return Wrap(
           alignment: WrapAlignment.center,
           runAlignment: WrapAlignment.center,
