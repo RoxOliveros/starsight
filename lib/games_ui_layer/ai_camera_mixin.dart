@@ -9,6 +9,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   CameraController? aiCameraController;
   Timer? _analysisTimer;
   bool isCameraInitialized = false;
+  bool isFaceDetected = false;
 
   List<String> sessionEmotions = [];
 
@@ -66,8 +67,21 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         String responseBody = await response.stream.bytesToString();
         var jsonResponse = jsonDecode(responseBody);
 
-        sessionEmotions.add(jsonResponse['emotion']);
-        print("Live Emotion: ${jsonResponse['emotion']}");
+        String detectedEmotion = jsonResponse['emotion'];
+
+        // ---> NEW FACE TRACKING LOGIC <---
+        if (detectedEmotion == "NO FACE DETECTED") {
+          if (isFaceDetected) {
+            setState(() => isFaceDetected = false); // Show the prompt
+          }
+        } else {
+          if (!isFaceDetected) {
+            setState(() => isFaceDetected = true); // Hide the prompt
+          }
+        }
+
+        sessionEmotions.add(detectedEmotion);
+        print("Live Emotion: $detectedEmotion");
       }
     } catch (e) {
       // Clean up the file even if the network fails

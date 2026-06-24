@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:StarSight/business_layer/ai_summary_service.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -411,24 +412,20 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                     child: _buildGameContent(),
                   ),
           ),
-          // ---> LIVE DEMO CAMERA <---
+
           if (isCameraInitialized && aiCameraController != null)
-            Positioned(
-              top: 10,
-              right: 10,
-              child: Container(
-                width: 80,
-                height: 100,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white, width: 2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: CameraPreview(aiCameraController!),
-                ),
-              ),
+            const SizedBox.shrink(),
+
+          // ---> CONDITIONAL LIGHTING PROMPT <---
+          // Displays if the game just started OR if the face tracker loses visual tracking
+          if (!isCameraInitialized || !isFaceDetected)
+            const Positioned(
+              top: 40, // Keeps it comfortably near the upper-middle region
+              left: 0,
+              right: 0,
+              child: LightingPromptCard(),
             ),
+
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
       ),
