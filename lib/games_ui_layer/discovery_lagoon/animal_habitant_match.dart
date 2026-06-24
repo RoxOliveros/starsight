@@ -1,18 +1,8 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
 
-// --- GENERIC THEME ---
-abstract class ColorTheme {
-  static const Color background = Color(0xFFE8F4F8);
-  static const Color textDark = Color(0xFF5E463E);
-  static const Color primary = Color(0xFF75D5FF);
-  static const Color success = Color(0xFF82C84B);
-  static const Color accent = Color(0xFFEC8A20);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
+import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 
 class Habitat {
   final String id;
@@ -43,10 +33,19 @@ class AnimalHabitatMatchScreen extends StatefulWidget {
 }
 
 class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   bool _isMatched = false;
   int _currentAnimalIndex = 0;
   late final AnimationController _floatingController;
+
+  // Bounce-on-correct-drop animation (mirrors the basket bounce in Lvl6)
+  late AnimationController _bounceCtrl;
+  late Animation<double> _bounceAnim;
+
+  // Wrong-drop flash state, keyed by habitat id
+  final Map<String, bool> _flash = {};
+
+  bool _showWinDialog = false;
 
   final List<Habitat> _habitats = [
     Habitat(
@@ -91,70 +90,310 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
       ),
     ]..shuffle();
 
+    for (final h in _habitats) {
+      _flash[h.id] = false;
+    }
+
     _floatingController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+
+    _bounceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    _bounceAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.08,
+    ).animate(CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut));
   }
 
   @override
   void dispose() {
     _floatingController.dispose();
+    _bounceCtrl.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
 
-  void _showSuccessDialog() {
-    bool isLast = _currentAnimalIndex == _animals.length - 1;
-    final currentAnimal = _animals[_currentAnimalIndex];
-    final correctHabitat = _habitats.firstWhere(
-      (h) => h.id == currentAnimal.targetHabitatId,
-    );
+  bool get _isLast => _currentAnimalIndex == _animals.length - 1;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
-          "Correct!",
-          style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            color: ColorTheme.success,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
+  Future<void> _onCorrectDrop() async {
+    setState(() => _isMatched = true);
+    _bounceCtrl.forward(from: 0);
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    if (_isLast) {
+      setState(() => _showWinDialog = true);
+    } else {
+      setState(() {
+        _isMatched = false;
+        _currentAnimalIndex++;
+      });
+    }
+  }
+
+  Future<void> _onWrongDrop(String habitatId) async {
+    setState(() => _flash[habitatId] = true);
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    setState(() => _flash[habitatId] = false);
+  }
+
+  void _restart() {
+    setState(() {
+      _isMatched = false;
+      _showWinDialog = false;
+      _currentAnimalIndex = 0;
+      _animals.shuffle();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentAnimal = _animals[_currentAnimalIndex];
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double animalSize = screenHeight * 0.35;
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/bg_game_lagoon.png',
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
-        content: Text(
-          "The ${currentAnimal.name} lives in the ${correctHabitat.name}!",
-          style: const TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            fontSize: 22,
-            color: ColorTheme.textDark,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _isMatched = false;
-                if (isLast) {
-                  _currentAnimalIndex = 0;
-                  _animals.shuffle();
-                } else {
-                  _currentAnimalIndex++;
-                }
-              });
-            },
-            child: Text(
-              isLast ? "Play Again" : "Next Animal",
-              style: const TextStyle(
-                color: ColorTheme.accent,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
+          SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    _buildHeader(),
+                    // --- 3 HABITAT BACKGROUNDS (Drag Targets) ---
+                    Expanded(
+                      flex: 3,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          children: _habitats.map((habitat) {
+                            return Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8.0,
+                                ),
+                                child: ScaleTransition(
+                                  scale:
+                                      (currentAnimal.targetHabitatId ==
+                                              habitat.id &&
+                                          _isMatched)
+                                      ? _bounceAnim
+                                      : const AlwaysStoppedAnimation(1.0),
+                                  child: DragTarget<String>(
+                                    onWillAcceptWithDetails: (details) => true,
+                                    onAcceptWithDetails: (details) {
+                                      if (details.data == habitat.id) {
+                                        _onCorrectDrop();
+                                      } else {
+                                        _onWrongDrop(habitat.id);
+                                      }
+                                    },
+                                    builder: (context, candidateData, _) {
+                                      bool isHovering =
+                                          candidateData.isNotEmpty;
+                                      bool isFlashing =
+                                          _flash[habitat.id] ?? false;
+
+                                      return AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
+                                        padding: const EdgeInsets.fromLTRB(
+                                          10,
+                                          10,
+                                          10,
+                                          0,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          border: Border.all(
+                                            color: isFlashing
+                                                ? const Color(0xFFE05A5A)
+                                                : isHovering
+                                                ? LagoonColorTheme.ferngreen
+                                                : Colors.white,
+                                            width: isHovering || isFlashing
+                                                ? 4
+                                                : 2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: isHovering
+                                                  ? LagoonColorTheme.ferngreen
+                                                        .withValues(alpha: 0.55)
+                                                  : Colors.black.withValues(
+                                                      alpha: 0.30,
+                                                    ),
+                                              blurRadius: isHovering ? 18 : 12,
+                                              spreadRadius: isHovering ? 2 : 0,
+                                              offset: const Offset(0, 6),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // --- Photo area ---
+                                            Expanded(
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                child: Stack(
+                                                  fit: StackFit.expand,
+                                                  children: [
+                                                    ColorFiltered(
+                                                      colorFilter: isHovering
+                                                          ? const ColorFilter.mode(
+                                                              Colors
+                                                                  .transparent,
+                                                              BlendMode
+                                                                  .multiply,
+                                                            )
+                                                          : ColorFilter.mode(
+                                                              Colors.black
+                                                                  .withValues(
+                                                                    alpha: 0.10,
+                                                                  ),
+                                                              BlendMode.darken,
+                                                            ),
+                                                      child: Image.asset(
+                                                        habitat.imagePath,
+                                                        fit: BoxFit.cover,
+                                                      ),
+                                                    ),
+                                                    if (_isMatched &&
+                                                        currentAnimal
+                                                                .targetHabitatId ==
+                                                            habitat.id)
+                                                      Center(
+                                                        child: Image.asset(
+                                                          currentAnimal
+                                                              .imagePath,
+                                                          height:
+                                                              animalSize * 0.8,
+                                                        ),
+                                                      ),
+                                                    if (isFlashing)
+                                                      Positioned(
+                                                        bottom: 6,
+                                                        left: 0,
+                                                        right: 0,
+                                                        child: Center(
+                                                          child: Text(
+                                                            'Oops! ❌',
+                                                            style: TextStyle(
+                                                              fontFamily:
+                                                                  LagoonAppTextStyles
+                                                                      .fredoka,
+                                                              fontSize: 14,
+                                                              color:
+                                                                  const Color(
+                                                                    0xFFE05A5A,
+                                                                  ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            // --- Caption strip below photo ---
+                                            SizedBox(
+                                              height: 38,
+                                              child: Center(
+                                                child: Text(
+                                                  habitat.name,
+                                                  style: TextStyle(
+                                                    fontFamily:
+                                                        LagoonAppTextStyles
+                                                            .fredoka,
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: LagoonColorTheme
+                                                        .darkbrown,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+
+                    // --- DRAGGABLE ANIMAL AREA ---
+                    Expanded(
+                      flex: 2,
+                      child: Center(
+                        child: _isMatched
+                            ? const SizedBox.shrink()
+                            : AnimatedBuilder(
+                                animation: _floatingController,
+                                builder: (context, child) {
+                                  return Transform.translate(
+                                    offset: Offset(
+                                      0,
+                                      -10 * _floatingController.value,
+                                    ),
+                                    child: child,
+                                  );
+                                },
+                                child: Draggable<String>(
+                                  data: currentAnimal.targetHabitatId,
+                                  feedback: _DraggableAnimal(
+                                    imagePath: currentAnimal.imagePath,
+                                    size: animalSize,
+                                    isDragging: true,
+                                  ),
+                                  childWhenDragging: Opacity(
+                                    opacity: 0.0,
+                                    child: _DraggableAnimal(
+                                      imagePath: currentAnimal.imagePath,
+                                      size: animalSize,
+                                    ),
+                                  ),
+                                  child: _DraggableAnimal(
+                                    imagePath: currentAnimal.imagePath,
+                                    size: animalSize,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    _buildProgressDots(),
+                    const SizedBox(height: 10),
+                  ],
+                ),
+
+                if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+              ],
             ),
           ),
         ],
@@ -162,164 +401,197 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final currentAnimal = _animals[_currentAnimalIndex];
-    // Universal screen math
-    final double screenHeight = MediaQuery.of(context).size.height;
-    final double animalSize =
-        screenHeight * 0.35; // Animal will always be 35% of the screen height
+  // ── Header (pill-style title chip + back button, matches Lvl6) ──────────
 
-    return Scaffold(
-      backgroundColor: ColorTheme.background,
-      body: SafeArea(
-        child: Column(
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: SizedBox(
+        height: 50,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            const SizedBox(height: 12),
-            // --- HEADER ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Stack(
-                alignment: Alignment.center,
+            Align(alignment: Alignment.centerLeft, child: LagoonBackButton()),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: LagoonColorTheme.darkbrown.withValues(alpha: 0.15),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Text(
+                'Animal Habitats',
+                style: TextStyle(
+                  fontFamily: LagoonAppTextStyles.fredoka,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: LagoonColorTheme.darkbrown,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHabitatLabel(String name) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: LagoonColorTheme.darkbrown.withValues(alpha: 0.20),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        name,
+        style: TextStyle(
+          fontFamily: LagoonAppTextStyles.fredoka,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: LagoonColorTheme.darkbrown,
+        ),
+      ),
+    );
+  }
+
+  // ── Progress dots (mirrors Lvl6's round indicator) ───────────────────────
+
+  Widget _buildProgressDots() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_animals.length, (i) {
+        final done = i < _currentAnimalIndex;
+        final current = i == _currentAnimalIndex;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          width: current ? 28 : 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: done
+                ? LagoonColorTheme.darkbrown
+                : current
+                ? LagoonColorTheme.ferngreen
+                : LagoonColorTheme.darkbrown.withValues(alpha: 0.20),
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+      }),
+    );
+  }
+
+  // ── Win overlay (replaces the plain AlertDialog) ─────────────────────────
+
+  Widget _buildWinOverlay() {
+    return Container(
+      color: Colors.black.withValues(alpha: 0.45),
+      child: Center(
+        child: Container(
+          width: 340,
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 28),
+          decoration: BoxDecoration(
+            color: LagoonColorTheme.pastelorange,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: LagoonColorTheme.darkbrown.withValues(alpha: 0.20),
+              width: 3,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🎉', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 8),
+              Text(
+                'Great Job!',
+                style: TextStyle(
+                  fontFamily: LagoonAppTextStyles.fredoka,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: LagoonColorTheme.ferngreen,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'You matched every animal\nto its habitat!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: LagoonAppTextStyles.fredoka,
+                  fontSize: 18,
+                  color: LagoonColorTheme.darkbrown,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: ColorTheme.textDark,
-                        size: 32,
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Back',
+                      style: TextStyle(
+                        fontFamily: LagoonAppTextStyles.fredoka,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: LagoonColorTheme.gunmetalgreen,
                       ),
-                      onPressed: () => Navigator.pop(context),
                     ),
                   ),
-                  const Text(
-                    'Animal Habitats',
-                    style: TextStyle(
-                      fontFamily: AppTextStyles.fredoka,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: ColorTheme.textDark,
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: LagoonColorTheme.sagegreen,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 12,
+                      ),
+                    ),
+                    onPressed: _restart,
+                    child: Text(
+                      'Play Again',
+                      style: TextStyle(
+                        fontFamily: LagoonAppTextStyles.fredoka,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-
-            // --- 3 HABITAT BACKGROUNDS (Drag Targets) ---
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: _habitats.map((habitat) {
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: DragTarget<String>(
-                          onWillAcceptWithDetails: (details) =>
-                              details.data == habitat.id,
-                          onAcceptWithDetails: (details) {
-                            setState(() {
-                              _isMatched = true;
-                            });
-                            Future.delayed(
-                              const Duration(milliseconds: 300),
-                              _showSuccessDialog,
-                            );
-                          },
-                          builder: (context, candidateData, rejectedData) {
-                            bool isHovering = candidateData.isNotEmpty;
-
-                            return AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: isHovering
-                                      ? ColorTheme.success
-                                      : Colors.transparent,
-                                  width: isHovering ? 6 : 0,
-                                ),
-                                boxShadow: [
-                                  if (isHovering)
-                                    BoxShadow(
-                                      color: ColorTheme.success.withValues(
-                                        alpha: 0.6,
-                                      ),
-                                      blurRadius: 15,
-                                      spreadRadius: 2,
-                                    ),
-                                ],
-                                image: DecorationImage(
-                                  image: AssetImage(habitat.imagePath),
-                                  fit: BoxFit.cover,
-                                  colorFilter: isHovering
-                                      ? null
-                                      : ColorFilter.mode(
-                                          Colors.black.withValues(alpha: 0.1),
-                                          BlendMode.darken,
-                                        ),
-                                ),
-                              ),
-                              child:
-                                  _isMatched &&
-                                      currentAnimal.targetHabitatId ==
-                                          habitat.id
-                                  ? Center(
-                                      child: Image.asset(
-                                        currentAnimal.imagePath,
-                                        height: animalSize * 0.8,
-                                      ),
-                                    )
-                                  : null,
-                            );
-                          },
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-
-            // --- DRAGGABLE ANIMAL AREA ---
-            Expanded(
-              flex: 2,
-              child: Center(
-                child: _isMatched
-                    ? const SizedBox.shrink()
-                    : AnimatedBuilder(
-                        animation: _floatingController,
-                        builder: (context, child) {
-                          return Transform.translate(
-                            offset: Offset(0, -10 * _floatingController.value),
-                            child: child,
-                          );
-                        },
-                        child: Draggable<String>(
-                          data: currentAnimal.targetHabitatId,
-                          feedback: _DraggableAnimal(
-                            imagePath: currentAnimal.imagePath,
-                            size: animalSize,
-                            isDragging: true,
-                          ),
-                          childWhenDragging: Opacity(
-                            opacity: 0.0,
-                            child: _DraggableAnimal(
-                              imagePath: currentAnimal.imagePath,
-                              size: animalSize,
-                            ),
-                          ),
-                          child: _DraggableAnimal(
-                            imagePath: currentAnimal.imagePath,
-                            size: animalSize,
-                          ),
-                        ),
-                      ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

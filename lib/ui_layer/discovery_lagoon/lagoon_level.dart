@@ -6,6 +6,7 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
+import '../../games_ui_layer/discovery_lagoon/animal_habitant_match.dart';
 
 abstract class ColorTheme {
   static const Color wasteland = Color(0xFF5F5630);
@@ -526,6 +527,14 @@ class _LevelTile extends StatelessWidget {
               MaterialPageRoute(
                 builder: (context) =>
                     BodyPartsDragScreen(bodyPart: 'hand', level: level),
+              ),
+            );
+            break;
+          case 23:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AnimalHabitatMatchScreen(),
               ),
             );
             break;
