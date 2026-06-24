@@ -2,7 +2,9 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
 
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
+import '../goodjob_prompt.dart';
 
 class Habitat {
   final String id;
@@ -75,7 +77,7 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
     _animals = [
       Animal(
         name: 'Penguin',
-        imagePath: 'assets/images/characters/penguin.png',
+        imagePath: 'assets/images/characters/doma_the_penguin.png',
         targetHabitatId: 'arctic',
       ),
       Animal(
@@ -155,7 +157,7 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
   Widget build(BuildContext context) {
     final currentAnimal = _animals[_currentAnimalIndex];
     final double screenHeight = MediaQuery.of(context).size.height;
-    final double animalSize = screenHeight * 0.35;
+    final double animalSize = screenHeight * 0.25;
 
     return Scaffold(
       body: Stack(
@@ -174,7 +176,7 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
                     _buildHeader(),
                     // --- 3 HABITAT BACKGROUNDS (Drag Targets) ---
                     Expanded(
-                      flex: 3,
+                      flex: 4,
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Row(
@@ -386,16 +388,14 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
                               ),
                       ),
                     ),
-
                     _buildProgressDots(),
-                    const SizedBox(height: 10),
                   ],
                 ),
 
-                if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
               ],
             ),
           ),
+          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
     );
@@ -407,7 +407,6 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: SizedBox(
-        height: 50,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -415,12 +414,9 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: LagoonColorTheme.darkbrown.withValues(alpha: 0.15),
-                  width: 2,
-                ),
+                color: LagoonColorTheme.pastelorange,
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(color: LagoonColorTheme.wasteland, width: 5),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.15),
@@ -435,7 +431,7 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
                   fontFamily: LagoonAppTextStyles.fredoka,
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
-                  color: LagoonColorTheme.darkbrown,
+                  color: LagoonColorTheme.wasteland,
                 ),
               ),
             ),
@@ -445,37 +441,7 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
     );
   }
 
-  Widget _buildHabitatLabel(String name) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: LagoonColorTheme.darkbrown.withValues(alpha: 0.20),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Text(
-        name,
-        style: TextStyle(
-          fontFamily: LagoonAppTextStyles.fredoka,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: LagoonColorTheme.darkbrown,
-        ),
-      ),
-    );
-  }
-
-  // ── Progress dots (mirrors Lvl6's round indicator) ───────────────────────
+  // ── Progress dots ───────────────────────
 
   Widget _buildProgressDots() {
     return Row(
@@ -502,98 +468,24 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
   }
 
   // ── Win overlay (replaces the plain AlertDialog) ─────────────────────────
-
-  Widget _buildWinOverlay() {
-    return Container(
-      color: Colors.black.withValues(alpha: 0.45),
-      child: Center(
-        child: Container(
-          width: 340,
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 28),
-          decoration: BoxDecoration(
-            color: LagoonColorTheme.pastelorange,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: LagoonColorTheme.darkbrown.withValues(alpha: 0.20),
-              width: 3,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('🎉', style: TextStyle(fontSize: 48)),
-              const SizedBox(height: 8),
-              Text(
-                'Great Job!',
-                style: TextStyle(
-                  fontFamily: LagoonAppTextStyles.fredoka,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: LagoonColorTheme.ferngreen,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'You matched every animal\nto its habitat!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: LagoonAppTextStyles.fredoka,
-                  fontSize: 18,
-                  color: LagoonColorTheme.darkbrown,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      'Back',
-                      style: TextStyle(
-                        fontFamily: LagoonAppTextStyles.fredoka,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: LagoonColorTheme.gunmetalgreen,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: LagoonColorTheme.sagegreen,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 12,
-                      ),
-                    ),
-                    onPressed: _restart,
-                    child: Text(
-                      'Play Again',
-                      style: TextStyle(
-                        fontFamily: LagoonAppTextStyles.fredoka,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+  Widget _buildGoodJobOverlay() {
+    return GoodJobOverlay(
+      characterImage: 'assets/images/characters/cat_holding_fishbone.png',
+      closeButtonColor: LagoonColorTheme.darkbrown,
+      onNext: () {
+        // Navigator.of(context).pushReplacement(
+        //    MaterialPageRoute(builder: (_) => const NextLevelScreen()),
+        //  );
+      },
+      onRestart: () {
+        _restart();
+      },
+      onBack: () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LagoonLevelScreen()),
+          (route) => route.isFirst,
+        );
+      },
     );
   }
 }
