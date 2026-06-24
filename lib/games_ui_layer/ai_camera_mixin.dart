@@ -12,7 +12,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
 
   List<String> sessionEmotions = [];
 
-  final String pythonServerUrl = 'http://192.168.1.5:5000/analyze';
+  final String pythonServerUrl = 'http://13.68.159.132:8080/analyze';
 
   Future<void> startAiCamera() async {
     try {

@@ -22,8 +22,7 @@ class _ActivitySessionScreenState extends State<ActivitySessionScreen> {
   // This list collects the emotions to send to Gemini later!
   List<String> _sessionEmotions = [];
 
-  // Make sure this matches your laptop's Wi-Fi IPv4 address!
-  final String pythonServerUrl = 'http://192.168.1.5:5000/analyze';
+  final String pythonServerUrl = 'http://13.68.159.132:8080/analyze';
 
   @override
   void initState() {

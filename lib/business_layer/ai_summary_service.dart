@@ -13,7 +13,10 @@ class AiSummaryService {
       return "We didn't catch $childName's expressions this time, but they completed the activity!";
     }
 
-    final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: apiKey);
+    final model = GenerativeModel(
+      model: 'gemini-3.1-flash-lite',
+      apiKey: apiKey,
+    );
 
     final prompt =
         '''
