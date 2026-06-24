@@ -9,6 +9,9 @@ import '../../games_ui_layer/discovery_lagoon/animal_habitant_match.dart';
 import '../../games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
 import '../../games_ui_layer/discovery_lagoon/season_object_match_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
+import '../../games_ui_layer/discovery_lagoon/weather_dress_up_screen.dart';
+import '../../games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
+import '../../games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
 
 abstract class ColorTheme {
   static const Color wasteland = Color(0xFF5F5630);
@@ -452,7 +455,9 @@ class _LevelTile extends StatelessWidget {
           case 14:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => SeasonSceneTapScreen(level: 14)),
+              MaterialPageRoute(
+                builder: (context) => SeasonSceneTapScreen(level: 14),
+              ),
             );
             break;
           case 15:
@@ -460,6 +465,30 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => SeasonObjectMatchScreen(level: 15),
+              ),
+            );
+            break;
+          case 16:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => WeatherSceneBuilderScreen(level: 16),
+              ),
+            );
+            break;
+          case 17:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => WeatherDressUpScreen(level: 17),
+              ),
+            );
+            break;
+          case 18:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => WeatherTapSortScreen(level: 18),
               ),
             );
             break;
