@@ -42,16 +42,16 @@ class BodyPart {
 // the odd "next level" numbers to their body part identifier.
 const Map<int, String> _introBodyPartForLevel = {
   1: 'feet',
-  3: 'knee',
-  5: 'shoulder',
-  7: 'head',
-  9: 'lips',
-  11: 'nose',
-  13: 'eye',
-  15: 'ear',
-  17: 'eyebrows',
-  19: 'hair',
-  21: 'hand',
+  2: 'knee',
+  3: 'shoulder',
+  4: 'head',
+  5: 'lips',
+  6: 'nose',
+  7: 'eye',
+  8: 'ear',
+  9: 'eyebrows',
+  10: 'hair',
+  11: 'hand',
 };
 
 class BodyPartsDragScreen extends StatefulWidget {
@@ -245,8 +245,6 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
         child: SafeArea(
           child: Column(
             children: [
-              const SizedBox(height: 8),
-
               // --- HEADER ---
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -257,15 +255,6 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: LagoonBackButton(),
-                    ),
-                    const Text(
-                      'Body Parts',
-                      style: TextStyle(
-                        fontFamily: AppTextStyles.fredoka,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: LagoonTheme.wasteland,
-                      ),
                     ),
                   ],
                 ),
@@ -426,7 +415,7 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                               ),
                               childWhenDragging: Opacity(
                                 opacity: 0.0,
-                                child: Container(
+                                child: SizedBox(
                                   width: letterBoxSize,
                                   height: letterBoxSize,
                                 ),

@@ -1,5 +1,4 @@
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_drag.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_intro.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
@@ -7,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/discovery_lagoon/animal_habitant_match.dart';
+import '../../games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
+import '../../games_ui_layer/discovery_lagoon/season_object_match_screen.dart';
+import '../../games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 
 abstract class ColorTheme {
   static const Color wasteland = Color(0xFF5F5630);
@@ -346,7 +348,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    BodyPartsDragScreen(bodyPart: 'feet', level: level),
+                    BodyPartsIntroScreen(bodyPart: 'knee', level: level),
               ),
             );
             break;
@@ -355,7 +357,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'knee', level: level),
+                    BodyPartsIntroScreen(bodyPart: 'shoulder', level: level),
               ),
             );
             break;
@@ -364,7 +366,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    BodyPartsDragScreen(bodyPart: 'knee', level: level),
+                    BodyPartsIntroScreen(bodyPart: 'head', level: level),
               ),
             );
             break;
@@ -373,7 +375,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'shoulder', level: level),
+                    BodyPartsIntroScreen(bodyPart: 'lips', level: level),
               ),
             );
             break;
@@ -382,7 +384,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    BodyPartsDragScreen(bodyPart: 'shoulder', level: level),
+                    BodyPartsIntroScreen(bodyPart: 'nose', level: level),
               ),
             );
             break;
@@ -391,7 +393,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'head', level: level),
+                    BodyPartsIntroScreen(bodyPart: 'eye', level: level),
               ),
             );
             break;
@@ -400,7 +402,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    BodyPartsDragScreen(bodyPart: 'head', level: level),
+                    BodyPartsIntroScreen(bodyPart: 'ear', level: level),
               ),
             );
             break;
@@ -409,7 +411,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'lips', level: level),
+                    BodyPartsIntroScreen(bodyPart: 'eyebrows', level: level),
               ),
             );
             break;
@@ -418,7 +420,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    BodyPartsDragScreen(bodyPart: 'lips', level: level),
+                    BodyPartsIntroScreen(bodyPart: 'hair', level: level),
               ),
             );
             break;
@@ -427,7 +429,7 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'nose', level: level),
+                    BodyPartsIntroScreen(bodyPart: 'hand', level: level),
               ),
             );
             break;
@@ -435,8 +437,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsDragScreen(bodyPart: 'nose', level: level),
+                builder: (context) => BodyPartsAssemblyScreen(level: 12),
               ),
             );
             break;
@@ -444,103 +445,23 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'eye', level: level),
+                builder: (context) => AnimalHabitatMatchScreen(level: 13),
               ),
             );
             break;
           case 14:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsDragScreen(bodyPart: 'eye', level: level),
-              ),
+              MaterialPageRoute(builder: (context) => SeasonSceneTapScreen(level: 14)),
             );
             break;
           case 15:
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'ear', level: level),
+                builder: (context) => SeasonObjectMatchScreen(level: 15),
               ),
             );
-            break;
-          case 16:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsDragScreen(bodyPart: 'ear', level: level),
-              ),
-            );
-            break;
-          case 17:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'eyebrows', level: level),
-              ),
-            );
-            break;
-          case 18:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsDragScreen(bodyPart: 'eyebrows', level: level),
-              ),
-            );
-            break;
-          case 19:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'hair', level: level),
-              ),
-            );
-            break;
-          case 20:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsDragScreen(bodyPart: 'hair', level: level),
-              ),
-            );
-            break;
-          case 21:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'hand', level: level),
-              ),
-            );
-            break;
-          case 22:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsDragScreen(bodyPart: 'hand', level: level),
-              ),
-            );
-            break;
-          case 23:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AnimalHabitatMatchScreen(),
-              ),
-            );
-            break;
-
-          default:
-            print("Level $level is not linked up yet!");
             break;
         }
       },

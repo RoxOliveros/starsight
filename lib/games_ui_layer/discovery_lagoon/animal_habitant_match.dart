@@ -1,6 +1,8 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 import 'package:flutter/material.dart';
 
+import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
@@ -11,7 +13,11 @@ class Habitat {
   final String imagePath;
   final String name;
 
-  Habitat({required this.id, required this.imagePath, required this.name});
+  Habitat({
+    required this.id,
+    required this.imagePath,
+    required this.name,
+  });
 }
 
 class Animal {
@@ -27,7 +33,9 @@ class Animal {
 }
 
 class AnimalHabitatMatchScreen extends StatefulWidget {
-  const AnimalHabitatMatchScreen({super.key});
+  final int level;
+
+  const AnimalHabitatMatchScreen({super.key, required this.level});
 
   @override
   State<AnimalHabitatMatchScreen> createState() =>
@@ -391,7 +399,6 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
                     _buildProgressDots(),
                   ],
                 ),
-
               ],
             ),
           ),
@@ -415,7 +422,7 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               decoration: BoxDecoration(
                 color: LagoonColorTheme.pastelorange,
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(30),
                 border: Border.all(color: LagoonColorTheme.wasteland, width: 5),
                 boxShadow: [
                   BoxShadow(
@@ -469,13 +476,14 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
 
   // ── Win overlay (replaces the plain AlertDialog) ─────────────────────────
   Widget _buildGoodJobOverlay() {
+    LagoonProgressService.instance.markLevelComplete(widget.level);
     return GoodJobOverlay(
       characterImage: 'assets/images/characters/cat_holding_fishbone.png',
       closeButtonColor: LagoonColorTheme.darkbrown,
       onNext: () {
-        // Navigator.of(context).pushReplacement(
-        //    MaterialPageRoute(builder: (_) => const NextLevelScreen()),
-        //  );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const SeasonSceneTapScreen(level: 14)),
+        );
       },
       onRestart: () {
         _restart();
