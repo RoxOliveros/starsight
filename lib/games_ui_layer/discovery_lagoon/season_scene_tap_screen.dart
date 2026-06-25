@@ -7,6 +7,9 @@ import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'audio_helper.dart';
+import 'intro_phase.dart';
 
 /// A scene (image) the child must match to the correct [seasonId].
 class SeasonScene {
@@ -26,13 +29,27 @@ class SeasonSceneTapScreen extends StatefulWidget {
 }
 
 class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
-    with TickerProviderStateMixin {
-  // All four season names, keyed by id — used to build the choice buttons.
+    with TickerProviderStateMixin, LagoonIntroMixin {
+
+  final AudioPlayer _introPlayer = AudioPlayer();
+
+  @override
+  AudioPlayer get introAudioPlayer => _introPlayer;
+
+  LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
+
   static const Map<String, String> _seasonNames = {
     'spring': 'Spring',
     'summer': 'Summer',
     'fall': 'Fall',
     'winter': 'Winter',
+  };
+
+  static const Map<String, String> _seasonAudioKeys = {
+    'spring': 'spring',
+    'summer': 'summer',
+    'fall': 'autumn',
+    'winter': 'winter',
   };
 
   static final List<SeasonScene> _allScenes = [
@@ -71,6 +88,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+    initLagoonIntro();
 
     _rounds = List<SeasonScene>.from(_allScenes)..shuffle();
 
@@ -91,10 +109,19 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
       begin: 0,
       end: 1,
     ).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn));
+
+    startLagoonIntro(
+      introAudioAsset: 'assets/audio/discovery_lagoon/season_tap_intro.wav',
+      onGameStart: () {
+        if (mounted) setState(() => _screenPhase = LagoonScreenPhase.game);
+      },
+    );
   }
 
   @override
   void dispose() {
+    disposeLagoonIntro();
+    _introPlayer.dispose();
     _bounceCtrl.dispose();
     _shakeCtrl.dispose();
     OrientationService.setLandscape();
@@ -117,6 +144,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
 
     if (correct) {
       _bounceCtrl.forward(from: 0);
+      LagoonAudio.instance.play(_seasonAudioKeys[scene.seasonId]!);
     } else {
       _shakeCtrl.forward(from: 0);
     }
@@ -157,9 +185,6 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
 
   @override
   Widget build(BuildContext context) {
-    final scene = _rounds[_currentRound];
-    final choiceIds = _seasonNames.keys.toList();
-
     return Scaffold(
       body: Stack(
         children: [
@@ -170,58 +195,72 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
             ),
           ),
           SafeArea(
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    _buildHeader(),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 8.0,
-                        ),
-                        child: Row(
-                          children: [
-                            // --- LEFT: Scene Image ---
-                            Expanded(
-                              flex: 7,
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 12.0),
-                                child: _buildSceneCard(scene),
-                              ),
-                            ),
-
-                            // --- RIGHT: 2x2 Image Choices ---
-                            Expanded(
-                              flex: 3,
-                              child: GridView.count(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 10,
-                                crossAxisSpacing: 10,
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                children: choiceIds
-                                    .map((id) => _buildChoiceButton(id, scene))
-                                    .toList(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-                    _buildProgressDots(),
-                    const SizedBox(height: 10),
-                  ],
-                ),
-              ],
-            ),
+            child: _screenPhase == LagoonScreenPhase.intro
+                ? _buildIntroContent()
+                : _buildGameContent(),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
+    );
+  }
+
+  Widget _buildIntroContent() {
+    return Stack(
+      children: [
+        const Positioned(top: 8, left: 12, child: LagoonBackButton()),
+        Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
+      ],
+    );
+  }
+
+  Widget _buildGameContent() {
+    final scene = _rounds[_currentRound];
+    final choiceIds = _seasonNames.keys.toList();
+
+    return Stack(
+      children: [
+        Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 7,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 12.0),
+                        child: _buildSceneCard(scene),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: GridView.count(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: choiceIds
+                            .map((id) => _buildChoiceButton(id, scene))
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildProgressDots(),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ],
     );
   }
 
@@ -251,6 +290,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
               child: Image.asset(
                 scene.imagePath,
                 fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
                 width: double.infinity,
                 errorBuilder: (_, __, ___) => Container(
                   color: LagoonColorTheme.pastelorange,
