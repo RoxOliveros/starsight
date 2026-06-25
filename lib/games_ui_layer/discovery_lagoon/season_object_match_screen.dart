@@ -1,12 +1,14 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import 'package:flutter/material.dart';
-
+import 'package:audioplayers/audioplayers.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
+import 'audio_helper.dart';
+import 'intro_phase.dart';
 
 /// One of the four seasons, with its Polaroid-card background image.
 class Season {
@@ -41,7 +43,15 @@ class SeasonObjectMatchScreen extends StatefulWidget {
 }
 
 class _SeasonObjectMatchScreenState extends State<SeasonObjectMatchScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, LagoonIntroMixin {
+
+  final AudioPlayer _introPlayer = AudioPlayer();
+
+  @override
+  AudioPlayer get introAudioPlayer => _introPlayer;
+
+  LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
+
   bool _isMatched = false;
   int _currentItemIndex = 0;
   late final AnimationController _floatingController;
@@ -54,6 +64,9 @@ class _SeasonObjectMatchScreenState extends State<SeasonObjectMatchScreen>
   final Map<String, bool> _flash = {};
 
   bool _showWinDialog = false;
+
+  String _audioKeyForSeason(String seasonId) =>
+      seasonId == 'fall' ? 'autumn' : seasonId;
 
   final List<Season> _seasons = [
     Season(
@@ -125,6 +138,14 @@ class _SeasonObjectMatchScreenState extends State<SeasonObjectMatchScreen>
       begin: 1.0,
       end: 1.08,
     ).animate(CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut));
+
+    initLagoonIntro();
+    startLagoonIntro(
+      introAudioAsset: 'assets/audio/discovery_lagoon/season_object_match_intro.wav',
+      onGameStart: () {
+        if (mounted) setState(() => _screenPhase = LagoonScreenPhase.game);
+      },
+    );
   }
 
   @override
@@ -132,6 +153,8 @@ class _SeasonObjectMatchScreenState extends State<SeasonObjectMatchScreen>
     _floatingController.dispose();
     _bounceCtrl.dispose();
     OrientationService.setLandscape();
+    disposeLagoonIntro();
+    _introPlayer.dispose();
     super.dispose();
   }
 
@@ -140,12 +163,20 @@ class _SeasonObjectMatchScreenState extends State<SeasonObjectMatchScreen>
   Future<void> _onCorrectDrop() async {
     setState(() => _isMatched = true);
     _bounceCtrl.forward(from: 0);
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
+
+    final seasonKey = _audioKeyForSeason(_items[_currentItemIndex].targetSeasonId);
 
     if (_isLast) {
-      setState(() => _showWinDialog = true);
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      LagoonAudio.instance.playThenCallback(seasonKey, () {
+        if (!mounted) return;
+        setState(() => _showWinDialog = true);
+      });
     } else {
+      LagoonAudio.instance.play(seasonKey);
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
       setState(() {
         _isMatched = false;
         _currentItemIndex++;
@@ -171,10 +202,6 @@ class _SeasonObjectMatchScreenState extends State<SeasonObjectMatchScreen>
 
   @override
   Widget build(BuildContext context) {
-    final currentItem = _items[_currentItemIndex];
-    final double screenHeight = MediaQuery.of(context).size.height;
-    final double itemSize = screenHeight * 0.30;
-
     return Scaffold(
       body: Stack(
         children: [
@@ -185,111 +212,129 @@ class _SeasonObjectMatchScreenState extends State<SeasonObjectMatchScreen>
             ),
           ),
           SafeArea(
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    _buildHeader(),
-
-                    // --- 4 SEASON CARDS (Drag Targets) ---
-                    Expanded(
-                      flex: 7,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          children: _seasons.map((season) {
-                            return Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6.0,
-                                ),
-                                child: ScaleTransition(
-                                  scale:
-                                      (currentItem.targetSeasonId ==
-                                              season.id &&
-                                          _isMatched)
-                                      ? _bounceAnim
-                                      : const AlwaysStoppedAnimation(1.0),
-                                  child: DragTarget<String>(
-                                    onWillAcceptWithDetails: (details) => true,
-                                    onAcceptWithDetails: (details) {
-                                      if (details.data == season.id) {
-                                        _onCorrectDrop();
-                                      } else {
-                                        _onWrongDrop(season.id);
-                                      }
-                                    },
-                                    builder: (context, candidateData, _) {
-                                      bool isHovering =
-                                          candidateData.isNotEmpty;
-                                      bool isFlashing =
-                                          _flash[season.id] ?? false;
-
-                                      return _buildSeasonCard(
-                                        season: season,
-                                        currentItem: currentItem,
-                                        itemSize: itemSize,
-                                        isHovering: isHovering,
-                                        isFlashing: isFlashing,
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-
-                    // --- DRAGGABLE ITEM AREA ---
-                    Expanded(
-                      flex: 3,
-                      child: Center(
-                        child: _isMatched
-                            ? const SizedBox.shrink()
-                            : AnimatedBuilder(
-                                animation: _floatingController,
-                                builder: (context, child) {
-                                  return Transform.translate(
-                                    offset: Offset(
-                                      0,
-                                      -10 * _floatingController.value,
-                                    ),
-                                    child: child,
-                                  );
-                                },
-                                child: Draggable<String>(
-                                  data: currentItem.targetSeasonId,
-                                  feedback: _DraggableItem(
-                                    imagePath: currentItem.imagePath,
-                                    size: itemSize,
-                                    isDragging: true,
-                                  ),
-                                  childWhenDragging: Opacity(
-                                    opacity: 0.0,
-                                    child: _DraggableItem(
-                                      imagePath: currentItem.imagePath,
-                                      size: itemSize,
-                                    ),
-                                  ),
-                                  child: _DraggableItem(
-                                    imagePath: currentItem.imagePath,
-                                    size: itemSize,
-                                  ),
-                                ),
-                              ),
-                      ),
-                    ),
-                    _buildProgressDots(),
-                  ],
-                ),
-              ],
-            ),
+            child: _screenPhase == LagoonScreenPhase.intro
+                ? _buildIntroContent()
+                : _buildGameContent(),
           ),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
+    );
+  }
+
+  Widget _buildIntroContent() {
+    return Stack(
+      children: [
+        const Positioned(top: 8, left: 12, child: LagoonBackButton()),
+        Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
+      ],
+    );
+  }
+
+  Widget _buildGameContent() {
+    final currentItem = _items[_currentItemIndex];
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double itemSize = screenHeight * 0.30;
+
+    return Stack(
+      children: [
+        Column(
+          children: [
+            _buildHeader(),
+// --- 4 SEASON CARDS (Drag Targets) ---
+            Expanded(
+              flex: 7,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: _seasons.map((season) {
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6.0,
+                        ),
+                        child: ScaleTransition(
+                          scale:
+                          (currentItem.targetSeasonId ==
+                              season.id &&
+                              _isMatched)
+                              ? _bounceAnim
+                              : const AlwaysStoppedAnimation(1.0),
+                          child: DragTarget<String>(
+                            onWillAcceptWithDetails: (details) => true,
+                            onAcceptWithDetails: (details) {
+                              if (details.data == season.id) {
+                                _onCorrectDrop();
+                              } else {
+                                _onWrongDrop(season.id);
+                              }
+                            },
+                            builder: (context, candidateData, _) {
+                              bool isHovering =
+                                  candidateData.isNotEmpty;
+                              bool isFlashing =
+                                  _flash[season.id] ?? false;
+
+                              return _buildSeasonCard(
+                                season: season,
+                                currentItem: currentItem,
+                                itemSize: itemSize,
+                                isHovering: isHovering,
+                                isFlashing: isFlashing,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+
+            // --- DRAGGABLE ITEM AREA ---
+            Expanded(
+              flex: 3,
+              child: Center(
+                child: _isMatched
+                    ? const SizedBox.shrink()
+                    : AnimatedBuilder(
+                  animation: _floatingController,
+                  builder: (context, child) {
+                    return Transform.translate(
+                      offset: Offset(
+                        0,
+                        -10 * _floatingController.value,
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: Draggable<String>(
+                    data: currentItem.targetSeasonId,
+                    feedback: _DraggableItem(
+                      imagePath: currentItem.imagePath,
+                      size: itemSize,
+                      isDragging: true,
+                    ),
+                    childWhenDragging: Opacity(
+                      opacity: 0.0,
+                      child: _DraggableItem(
+                        imagePath: currentItem.imagePath,
+                        size: itemSize,
+                      ),
+                    ),
+                    child: _DraggableItem(
+                      imagePath: currentItem.imagePath,
+                      size: itemSize,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            _buildProgressDots(),
+          ],
+        ),
+      ],
     );
   }
 
