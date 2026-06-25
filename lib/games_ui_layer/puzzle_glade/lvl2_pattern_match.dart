@@ -1,7 +1,13 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/ai_summary_service.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/generating_summary_card.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -56,7 +62,7 @@ class Lvl2PatternMatchScreen extends StatefulWidget {
 }
 
 class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin, AiCameraMixin {
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
   @override
@@ -89,6 +95,11 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
   bool _rightFlash = false;
   bool _roundComplete = false;
   bool _showWinDialog = false;
+
+  // ── AI TRACKERS  ────────────────────────────────────────────────────────────
+  DateTime? _gameStartTime;
+  int _mistakeCount = 0;
+  bool _isGeneratingSummary = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -126,11 +137,13 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
+    startAiCamera();
     _startIntroFlow();
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _roxiePlayer.dispose();
     _bgPlayer.dispose();
     _sfxPlayer.dispose();
@@ -224,7 +237,12 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
 
     _gameEnterCtrl.forward();
     _buildRound();
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
+    if (mounted) {
+      setState(() {
+        _screenPhase = _ScreenPhase.game;
+        _gameStartTime = DateTime.now();
+      });
+    }
     await _playBgAudio(_audioInstructions);
   }
 
@@ -308,6 +326,66 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
       if (_round >= _totalRounds) {
         await _bgPlayer.stop();
         await _sfxPlayer.stop();
+        setState(() {
+          _isGeneratingSummary = true; // Shows the loading screen
+        });
+
+        // 1. Grab Emotions & Time
+        List<String> finalEmotions = stopAiCamera();
+
+        final int playedSeconds = DateTime.now()
+            .difference(_gameStartTime ?? DateTime.now())
+            .inSeconds;
+        final int mins = playedSeconds ~/ 60;
+        final int secs = playedSeconds % 60;
+        final String timePlayed = "${mins}m ${secs}s";
+
+        // 2. Get Child's Name
+        String parentUid = FirebaseAuth.instance.currentUser!.uid;
+        String actualChildName = "Little Explorer";
+        try {
+          var childrenSnapshot = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(parentUid)
+              .collection('children')
+              .limit(1)
+              .get();
+
+          if (childrenSnapshot.docs.isNotEmpty) {
+            var childData = childrenSnapshot.docs.first.data();
+            if (childData.containsKey('nickname')) {
+              actualChildName = childData['nickname'];
+            }
+          }
+        } catch (e) {
+          debugPrint("Could not fetch nickname: $e");
+        }
+
+        // 3. Ask Gemini for Summary
+        debugPrint("Sending data to Gemini... Please wait.");
+        String geminiSummary = await AiSummaryService.generateParentSummary(
+          childName: actualChildName,
+          activityName: "Star Pattern",
+          emotionsList: finalEmotions,
+          timePlayed: timePlayed,
+          mistakesMade: _mistakeCount,
+        );
+        debugPrint("GEMINI SAYS: $geminiSummary");
+
+        // 4. Save to Firestore
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(parentUid)
+              .collection('reports')
+              .add({
+                'activityName': "Star Pattern",
+                'summary': geminiSummary,
+                'timestamp': FieldValue.serverTimestamp(),
+              });
+        } catch (e) {
+          debugPrint("Database Error: $e");
+        }
 
         final completer = Completer<void>();
         final sub = _completePlayer.onPlayerComplete.listen((_) {
@@ -330,8 +408,10 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
         });
       }
     } else {
-      setState(() => _wrongFlash = true);
-
+      setState(() {
+        _wrongFlash = true;
+        _mistakeCount++;
+      });
       unawaited(showRoxieReaction(RoxieState.wrong));
 
       await Future.delayed(const Duration(milliseconds: 700));
@@ -370,6 +450,14 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
           ),
 
           if (_screenPhase == _ScreenPhase.game) buildRoxie(context),
+
+          // ---> CONDITIONAL LIGHTING PROMPT <---
+          if (!isCameraInitialized || !isFaceDetected)
+            const Positioned.fill(child: LightingPromptCard()),
+
+          // ---> LOADING SUMMARY PROMPT <---
+          if (_isGeneratingSummary)
+            const Positioned.fill(child: GeneratingSummaryCard()),
 
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
