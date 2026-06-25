@@ -29,10 +29,10 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
     with TickerProviderStateMixin {
 
   final List<Map<String, String>> _weathers = [
-    {'id': 'sunny',  'label': 'Build a Sunny Day! ☀️'},
-    {'id': 'rainy',  'label': 'Build a Rainy Day! 🌧️'},
-    {'id': 'cloudy', 'label': 'Build a Cloudy Day! ⛅'},
-    {'id': 'windy',  'label': 'Build a Windy Day! 💨'},
+    {'id': 'sunny',  'label': 'Build a Sunny Day!'},
+    {'id': 'rainy',  'label': 'Build a Rainy Day!'},
+    {'id': 'cloudy', 'label': 'Build a Cloudy Day!'},
+    {'id': 'windy',  'label': 'Build a Windy Day!'},
   ];
 
   final List<WeatherElement> _allElements = [
@@ -89,7 +89,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
       _itemCtrls[el.id]?.forward(from: 0);
 
       if (_placed.length == _currentElements.length) {
-        await Future.delayed(const Duration(milliseconds: 700));
+        await Future.delayed(const Duration(milliseconds: 400));
         if (!mounted) return;
         if (_roundIndex >= _weathers.length - 1) {
           _showSuccessDialog();
@@ -142,7 +142,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
           // Sky background gradient
           Positioned.fill(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 600),
+              duration: const Duration(milliseconds: 2000),
               layoutBuilder: (currentChild, previousChildren) {
                 return Stack(
                   fit: StackFit.expand,
@@ -170,9 +170,8 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
               children: [
                 // Header
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 0),
                   child: SizedBox(
-                    height: 50,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
@@ -180,14 +179,15 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            borderRadius: BorderRadius.circular(20),
+                            color: LagoonColorTheme.pastelorange,
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(color: LagoonColorTheme.wasteland, width: 5),
                           ),
                           child: Text(
                             _currentWeather['label']!,
                             style: TextStyle(
                               fontFamily: LagoonAppTextStyles.fredoka,
-                              fontSize: 16,
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: LagoonColorTheme.darkbrown,
                             ),
@@ -203,10 +203,6 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
                 // Choice buttons
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.65),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: _choices.map((el) {
@@ -244,7 +240,6 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
 
                 // Progress dots
                 Container(
-                  color: Colors.white.withValues(alpha: 0.65),
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
