@@ -30,6 +30,7 @@ class Lvl1JarColorSortScreen extends StatefulWidget {
 
 class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
     with TickerProviderStateMixin, RoxieReactionMixin, AiCameraMixin {
+  //wag tong AiCameraMixin tin
   // Required by the mixin — point it to your existing _player
   @override
   AudioPlayer get roxiePlayer => _player;
@@ -136,13 +137,13 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    startAiCamera();
+    startAiCamera(); //wag to tin
     _startIntroFlow();
   }
 
   @override
   void dispose() {
-    disposeAiCamera();
+    disposeAiCamera(); // Eto pa tin
     _player.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
@@ -305,6 +306,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
             AssetSource(_audioGameComplete.replaceFirst('assets/', '')),
           );
 
+          //Wag To
           // ---> 1. GRAB THE EMOTIONS FROM THE CAMERA <---
           List<String> finalEmotions = stopAiCamera();
 
@@ -412,7 +414,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                     child: _buildGameContent(),
                   ),
           ),
-
+          //wag to tin
           if (isCameraInitialized && aiCameraController != null)
             const SizedBox.shrink(),
 
