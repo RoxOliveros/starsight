@@ -1,4 +1,6 @@
 import 'package:StarSight/UI_Layer/signup_signin.dart';
+import 'package:StarSight/ui_layer/behavior_reports_screen.dart';
+import 'package:StarSight/ui_layer/parent_dashboard.dart';
 import 'package:StarSight/ui_layer/parents_pin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -99,9 +101,17 @@ class ProfileDayDialog extends StatelessWidget {
                 _ProfileOption(
                   icon: Icons.auto_awesome,
                   label: "Analysis and Reports",
-                  disabled: true,
-                ),
+                  onTap: () {
+                    Navigator.pop(context); // This closes the side menu
 
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ParentDashboard(),
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 14),
 
                 _ProfileOption(
@@ -125,7 +135,6 @@ class ProfileDayDialog extends StatelessWidget {
                   icon: Icons.logout,
                   label: "Log out",
                   onTap: () async {
-
                     final confirmed = await AppDialog.showConfirm(
                       context,
                       message: "Are you sure you want to log out?",
@@ -141,8 +150,10 @@ class ProfileDayDialog extends StatelessWidget {
 
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const SignUpSignInScreen()),
-                          (route) => false,
+                      MaterialPageRoute(
+                        builder: (context) => const SignUpSignInScreen(),
+                      ),
+                      (route) => false,
                     );
                   },
                 ),
