@@ -72,13 +72,25 @@ mixin LagoonIntroMixin<T extends StatefulWidget> on State<T>, TickerProviderStat
     StreamSubscription? sub;
     try {
       final completer = Completer<void>();
+
       sub = introAudioPlayer.onPlayerComplete.listen((_) {
         if (!completer.isCompleted) completer.complete();
       });
+
+      await introAudioPlayer.stop();
       await introAudioPlayer.play(
         AssetSource(asset.replaceFirst('assets/', '')),
       );
-      await completer.future.timeout(const Duration(seconds: 12));
+
+      await Future.delayed(const Duration(milliseconds: 200));
+      final duration = await introAudioPlayer.getDuration();
+      final safeTimeout = duration != null
+          ? duration + const Duration(seconds: 2)
+          : const Duration(seconds: 20);
+
+      await completer.future.timeout(safeTimeout);
+    } on TimeoutException {
+      debugPrint('Lagoon intro audio timed out: $asset');
     } catch (e) {
       debugPrint('Lagoon intro audio error ($asset): $e');
       await Future.delayed(const Duration(seconds: 2));
