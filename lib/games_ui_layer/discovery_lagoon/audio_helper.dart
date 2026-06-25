@@ -28,6 +28,15 @@ class LagoonAudio {
     'summer': 'assets/audio/discovery_lagoon/summer.wav',
     'winter': 'assets/audio/discovery_lagoon/winter.wav',
     'autumn': 'assets/audio/discovery_lagoon/autumn.wav',
+
+    'weather_q_sunny':  'assets/audio/discovery_lagoon/weather_q_sunny.wav',
+    'weather_win_sunny':'assets/audio/discovery_lagoon/weather_win_sunny.wav',
+    'weather_q_rainy':  'assets/audio/discovery_lagoon/weather_q_rainy.wav',
+    'weather_win_rainy':'assets/audio/discovery_lagoon/weather_win_rainy.wav',
+    'weather_q_cloudy': 'assets/audio/discovery_lagoon/weather_q_cloudy.wav',
+    'weather_win_cloudy':'assets/audio/discovery_lagoon/weather_win_cloudy.wav',
+    'weather_q_windy':  'assets/audio/discovery_lagoon/weather_q_windy.wav',
+    'weather_win_windy':'assets/audio/discovery_lagoon/weather_win_windy.wav',
   };
 
   Future<void> play(String key) async {
