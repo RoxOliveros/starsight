@@ -48,10 +48,6 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   @override
   AudioPlayer get introAudioPlayer => _player;
 
-  @override
-  String get introCharacterImage =>
-      'assets/images/characters/cat_holding_fishbone.png';
-
   // ── Screen phase ─────────────────────────────────────────────────────────
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 

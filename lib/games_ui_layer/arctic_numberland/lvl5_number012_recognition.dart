@@ -83,7 +83,6 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
       }
     } else {
       setState(() => _tappedIndex = index);
-      //TODO: @Tin if ever you wanna change wrong wav to doma vo
       _playAudio('assets/audio/sound_effects/bubble_pop.wav');
       await Future.delayed(const Duration(milliseconds: 600));
       setState(() => _tappedIndex = null);

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 class LagoonAudio {
   LagoonAudio._internal();
+
   static final LagoonAudio instance = LagoonAudio._internal();
 
   final AudioPlayer _player = AudioPlayer();
@@ -15,6 +16,18 @@ class LagoonAudio {
     'shoulder': 'assets/audio/discovery_lagoon/balikat.wav',
     'knee': 'assets/audio/discovery_lagoon/tuhod.wav',
     'feet': 'assets/audio/discovery_lagoon/paa.wav',
+
+    'q_penguin': 'assets/audio/discovery_lagoon/saan_nakatira_penguin.wav',
+    'q_aso': 'assets/audio/discovery_lagoon/saan_nakatira_aso.wav',
+    'q_bear': 'assets/audio/discovery_lagoon/saan_nakatira_bear.wav',
+    'a_bear': 'assets/audio/discovery_lagoon/a_bear.wav',
+    'a_aso': 'assets/audio/discovery_lagoon/a_aso.wav',
+    'a_penguin': 'assets/audio/discovery_lagoon/a_penguin.wav',
+
+    'spring': 'assets/audio/discovery_lagoon/spring.wav',
+    'summer': 'assets/audio/discovery_lagoon/summer.wav',
+    'winter': 'assets/audio/discovery_lagoon/winter.wav',
+    'autumn': 'assets/audio/discovery_lagoon/autumn.wav',
   };
 
   Future<void> play(String key) async {

@@ -126,7 +126,6 @@ class _Number012CountingObjectsScreenState
     } else {
       setState(() => _tappedIndex = index);
 
-      //TODO: @Tin change wrong wav to doma vo
       _playAudio('assets/audio/sound_effects/bubble_pop.wav');
       await Future.delayed(const Duration(milliseconds: 600));
       setState(() => _tappedIndex = null);

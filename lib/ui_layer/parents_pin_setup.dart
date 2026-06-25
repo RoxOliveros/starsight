@@ -52,7 +52,6 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
     }
   }
 
-  // TODO: @Tin navigate to signin signup after save Pin to db is done
   void _onComplete() {
     if (!_isConfirmStep) {
       // --- NEW: Check for repetitive numbers (e.g. 1111, 2222) ---

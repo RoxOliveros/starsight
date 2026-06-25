@@ -7,7 +7,6 @@ enum LagoonScreenPhase { intro, game }
 mixin LagoonIntroMixin<T extends StatefulWidget> on State<T>, TickerProviderStateMixin<T> {
   // ── Required overrides from the host screen ─────────────────────────────
   AudioPlayer get introAudioPlayer;
-  String get introCharacterImage;
 
   // ── Animation controllers (character slide + idle float) ────────────────
   late AnimationController introFloatCtrl;
@@ -111,7 +110,7 @@ mixin LagoonIntroMixin<T extends StatefulWidget> on State<T>, TickerProviderStat
                     child: child,
                   ),
                   child: Image.asset(
-                    introCharacterImage,
+                    'assets/images/characters/cat_holding_fishbone.png',
                     height: charH,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
