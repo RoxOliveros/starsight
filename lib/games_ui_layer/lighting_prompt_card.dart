@@ -49,7 +49,7 @@ class LightingPromptCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               const Text(
-                "Make sure your room is bright and hold the phone straight in front of your face!",
+                "Make sure your room is bright and place the phone straight in front of your face!",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Fredoka',

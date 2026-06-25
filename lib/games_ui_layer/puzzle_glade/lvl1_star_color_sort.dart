@@ -103,6 +103,8 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   late List<_Ball> _poolBalls;
   late List<_Ball> _jarABalls;
   late List<_Ball> _jarBBalls;
+  DateTime? _gameStartTime;
+  int _mistakeCount = 0;
   bool _wrongFlashA = false;
   bool _wrongFlashB = false;
   bool _roundComplete = false;
@@ -138,6 +140,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
+    _startRound();
     startAiCamera(); //wag to tin
     _startIntroFlow();
   }
@@ -223,9 +226,14 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
 
     // Transition to game
     _setIntroPhase(_IntroPhase.done);
-    _gameEnterCtrl.forward();
-    _startRound();
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
+    if (mounted) {
+      setState(() {
+        _screenPhase = _ScreenPhase.game;
+        _gameStartTime = DateTime.now();
+      });
+      _gameEnterCtrl.forward(); // <-- add this
+    }
+
     await _playAudio(_audioInstructions);
   }
 
@@ -318,28 +326,43 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
           String actualChildName = "Little Explorer";
 
           try {
-            var userDoc = await FirebaseFirestore.instance
+            var childrenSnapshot = await FirebaseFirestore.instance
                 .collection('users')
                 .doc(parentUid)
+                .collection('children')
+                .limit(1)
                 .get();
-            if (userDoc.exists && userDoc.data()!.containsKey('nickname')) {
-              actualChildName = userDoc.get('nickname');
+
+            if (childrenSnapshot.docs.isNotEmpty) {
+              var childData = childrenSnapshot.docs.first.data();
+              if (childData.containsKey('nickname')) {
+                actualChildName = childData['nickname'];
+              }
             }
           } catch (e) {
-            print("Could not fetch nickname: $e");
+            debugPrint("Could not fetch nickname: $e");
           }
+          // ---> CALCULATE EXACT TIME PLAYED <---
+          final int playedSeconds = DateTime.now()
+              .difference(_gameStartTime!)
+              .inSeconds;
+          final int mins = playedSeconds ~/ 60;
+          final int secs = playedSeconds % 60;
+          final String timePlayed = "${mins}m ${secs}s";
 
           // ---> 2. ASK GEMINI FOR THE SUMMARY <---
-          print("Sending data to Gemini... Please wait.");
+          debugPrint("Sending data to Gemini... Please wait.");
           String geminiSummary = await AiSummaryService.generateParentSummary(
             childName: actualChildName,
             activityName: "Star Color Sort",
             emotionsList: finalEmotions,
+            timePlayed: timePlayed,
+            mistakesMade: _mistakeCount,
           );
-          print("GEMINI SAYS: $geminiSummary");
+          debugPrint("GEMINI SAYS: $geminiSummary");
 
           // ---> 3. SAVE TO YOUR EXISTING FIRESTORE ARCHITECTURE <---
-          print("Saving report to parent database...");
+          debugPrint("Saving report to parent database...");
           try {
             // AUTOMATICALLY gets the ID of whoever is currently logged into the app!
             String parentUid = FirebaseAuth.instance.currentUser!.uid;
@@ -353,7 +376,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                   'summary': geminiSummary,
                   'timestamp': FieldValue.serverTimestamp(),
                 });
-            print("Successfully saved to: $parentUid");
+            debugPrint("Successfully saved to: $parentUid");
 
             try {
               var checkData = await FirebaseFirestore.instance
@@ -361,14 +384,14 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                   .doc(parentUid)
                   .collection('reports')
                   .get();
-              print(
+              debugPrint(
                 "RADAR TEST: I can see ${checkData.docs.length} reports saved here!",
               );
             } catch (e) {
-              print("RADAR TEST ERROR: $e");
+              debugPrint("RADAR TEST ERROR: $e");
             }
           } catch (e) {
-            print("Database Error: $e");
+            debugPrint("Database Error: $e");
           }
 
           await Future.delayed(const Duration(milliseconds: 800));
@@ -388,6 +411,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
       }
     } else {
       setState(() {
+        _mistakeCount++;
         if (jarIndex == 0) {
           _wrongFlashA = true;
         } else {

@@ -1,6 +1,5 @@
 import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:StarSight/ui_layer/behavior_reports_screen.dart';
-import 'package:StarSight/ui_layer/parent_dashboard.dart';
 import 'package:StarSight/ui_layer/parents_pin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -107,11 +106,12 @@ class ProfileDayDialog extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const ParentDashboard(),
+                        builder: (context) => const BehaviorReportsScreen(),
                       ),
                     );
                   },
                 ),
+
                 const SizedBox(height: 14),
 
                 _ProfileOption(

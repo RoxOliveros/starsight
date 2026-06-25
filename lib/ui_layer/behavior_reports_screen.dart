@@ -25,7 +25,7 @@ class BehaviorReportsScreen extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: ColorTheme.warmBrown),
         title: const Text(
-          "Behavior Reports",
+          "Behavior Reports & Child's Activities",
           style: TextStyle(
             fontFamily: 'Fredoka',
             color: ColorTheme.orange,
