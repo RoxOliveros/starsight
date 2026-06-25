@@ -7,6 +7,7 @@ import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/discovery_lagoon/animal_habitant_match.dart';
 import '../../games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
+import '../../games_ui_layer/discovery_lagoon/food_coloring.dart';
 import '../../games_ui_layer/discovery_lagoon/season_object_match_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/treeparts_assembly.dart';
@@ -507,6 +508,14 @@ class _LevelTile extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => TreePartsAssemblyScreen(level: 20),
+              ),
+            );
+            break;
+          case 21:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FoodColoringScreen(level: 21),
               ),
             );
             break;
