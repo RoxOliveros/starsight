@@ -8,7 +8,7 @@ import '../goodjob_prompt.dart';
 class FallingIcon {
   final String id;
   final String weatherId;
-  final String emoji;
+  final String imagePath;
   double x;
   double y;
   final double speed;
@@ -18,7 +18,7 @@ class FallingIcon {
   FallingIcon({
     required this.id,
     required this.weatherId,
-    required this.emoji,
+    required this.imagePath,
     required this.x,
     required this.y,
     required this.speed,
@@ -39,17 +39,48 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     with SingleTickerProviderStateMixin {
 
   final List<Map<String, dynamic>> _weathers = [
-    {'id': 'sunny',  'label': 'Tap all ☀️ Sunny things!', 'emojis': ['☀️', '🌤️', '😎'], 'color': const Color(0xFFFFE066)},
-    {'id': 'rainy',  'label': 'Tap all 🌧️ Rainy things!', 'emojis': ['🌧️', '☔', '💧'], 'color': const Color(0xFF90CAF9)},
-    {'id': 'cloudy', 'label': 'Tap all ⛅ Cloudy things!', 'emojis': ['☁️', '⛅', '🌥️'], 'color': const Color(0xFFCFD8DC)},
-    {'id': 'windy',  'label': 'Tap all 💨 Windy things!', 'emojis': ['💨', '🍃', '🪁'], 'color': const Color(0xFFB2EBF2)},
+    {'id': 'sunny',  'label': 'Tap all ☀️ Sunny things!', 'color': const Color(0xFFFFE066)},
+    {'id': 'rainy',  'label': 'Tap all 🌧️ Rainy things!', 'color': const Color(0xFF90CAF9)},
+    {'id': 'cloudy', 'label': 'Tap all ⛅ Cloudy things!', 'color': const Color(0xFFCFD8DC)},
+    {'id': 'windy',  'label': 'Tap all 💨 Windy things!', 'color': const Color(0xFFB2EBF2)},
   ];
 
-  final Map<String, List<String>> _decoyEmojis = {
-    'sunny':  ['🌧️', '☁️', '💨', '☔', '🍃'],
-    'rainy':  ['☀️', '💨', '🌤️', '😎', '🍃'],
-    'cloudy': ['☀️', '🌧️', '💨', '😎', '💧'],
-    'windy':  ['☀️', '🌧️', '☁️', '💧', '😎'],
+  final Map<String, String> _weatherBgImage = {
+    'sunny': 'assets/images/objects/lagoon/sunny_day_phase3.png',
+    'rainy': 'assets/images/objects/lagoon/rainy_day_phase2.png',
+    'cloudy': 'assets/images/objects/lagoon/cloudy_day_phase3.png',
+    'windy': 'assets/images/objects/lagoon/windy_day_phase3.png',
+  };
+
+  final Map<String, List<String>> _items = {
+    'sunny':  [
+      'assets/images/objects/lagoon/sunglasses.png',
+      'assets/images/objects/lagoon/rainbow.png',
+      'assets/images/objects/lagoon/sun.png',
+      'assets/images/objects/lagoon/sunny_cap.png',
+      'assets/images/objects/lagoon/sunny_minifan.png',
+    ],
+    'rainy':  [
+      'assets/images/objects/lagoon/raincloud.png',
+      'assets/images/objects/lagoon/rainy_window.png',
+      'assets/images/objects/lagoon/rainy_coat.png',
+      'assets/images/objects/lagoon/rainy_puddle.png',
+      'assets/images/objects/lagoon/rainy_umbrella_boots.png',
+    ],
+    'cloudy': [
+      'assets/images/objects/lagoon/graycloud.png',
+      'assets/images/objects/lagoon/cloudy_jacket.png',
+      'assets/images/objects/lagoon/cloudy_beanie.png',
+      'assets/images/objects/lagoon/cloudy_blanket.png',
+      'assets/images/objects/lagoon/cloudy_socks.png',
+    ],
+    'windy':  [
+      'assets/images/objects/lagoon/windy.png',
+      'assets/images/objects/lagoon/strong_wind.png',
+      'assets/images/objects/lagoon/windy_kite.png',
+      'assets/images/objects/lagoon/windy_pinwheel.png',
+      'assets/images/objects/lagoon/windy_scarf.png',
+    ],
   };
 
   int _roundIndex = 0;
@@ -76,29 +107,38 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     _icons.clear();
     _score = 0;
     _roundComplete = false;
-    _needed = (_currentWeather['emojis'] as List).length * 2;
+    _needed = _items[_currentWeather['id']]!.length;
     _spawnInitialIcons();
   }
 
   void _spawnInitialIcons() {
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 5; i++) {
       _spawnIcon();
     }
   }
 
   void _spawnIcon() {
     final isCorrect = _rng.nextBool();
-    final correctEmojis = _currentWeather['emojis'] as List<String>;
-    final decoys = _decoyEmojis[_currentWeather['id']]!;
+    final currentId = _currentWeather['id'] as String;
 
-    final emoji = isCorrect
-        ? correctEmojis[_rng.nextInt(correctEmojis.length)]
-        : decoys[_rng.nextInt(decoys.length)];
+    String chosenWeatherId;
+    String imagePath;
+
+    if (isCorrect) {
+      chosenWeatherId = currentId;
+      final pool = _items[currentId]!;
+      imagePath = pool[_rng.nextInt(pool.length)];
+    } else {
+      final otherWeatherIds = _items.keys.where((id) => id != currentId).toList();
+      chosenWeatherId = otherWeatherIds[_rng.nextInt(otherWeatherIds.length)];
+      final pool = _items[chosenWeatherId]!;
+      imagePath = pool[_rng.nextInt(pool.length)];
+    }
 
     _icons.add(FallingIcon(
       id: UniqueKey().toString(),
-      weatherId: isCorrect ? _currentWeather['id'] : 'other',
-      emoji: emoji,
+      weatherId: isCorrect ? currentId : 'other',
+      imagePath: imagePath,
       x: _rng.nextDouble() * 0.9 + 0.05,
       y: -0.1 - _rng.nextDouble() * 0.3,
       speed: 0.001 + _rng.nextDouble() * 0.002,
@@ -181,16 +221,19 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
             children: [
               // Background
               Positioned.fill(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        (_currentWeather['color'] as Color).withValues(alpha: 0.8),
-                        (_currentWeather['color'] as Color),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
+                child: Image.asset(
+                  _weatherBgImage[_currentWeather['id']]!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          (_currentWeather['color'] as Color).withValues(alpha: 0.8),
+                          (_currentWeather['color'] as Color),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
                     ),
                   ),
                 ),
@@ -205,8 +248,8 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
                     onTap: () => _onTap(icon),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      width: 60,
-                      height: 60,
+                      width: 100,
+                      height: 100,
                       decoration: icon.wrong
                           ? BoxDecoration(
                         color: Colors.red.withValues(alpha: 0.3),
@@ -214,9 +257,15 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
                       )
                           : null,
                       child: Center(
-                        child: Text(
-                          icon.emoji,
-                          style: TextStyle(fontSize: icon.wrong ? 28 : 36),
+                        child: Image.asset(
+                          icon.imagePath,
+                          width: icon.wrong ? 100 : 100,
+                          height: icon.wrong ? 100 : 100,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.image_not_supported,
+                            size: 28,
+                            color: Colors.grey,
+                          ),
                         ),
                       ),
                     ),
