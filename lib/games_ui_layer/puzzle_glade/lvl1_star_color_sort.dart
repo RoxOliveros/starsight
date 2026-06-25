@@ -3,9 +3,9 @@ import 'dart:math';
 import 'package:StarSight/business_layer/ai_summary_service.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/generating_summary_card.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -107,6 +107,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   bool _wrongFlashB = false;
   bool _roundComplete = false;
   bool _showWinDialog = false;
+  bool _isGeneratingSummary = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _player = AudioPlayer();
@@ -305,15 +306,33 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
           await _player.play(
             AssetSource(_audioGameComplete.replaceFirst('assets/', '')),
           );
-
           //Wag To
+          setState(() {
+            _isGeneratingSummary = true;
+          });
+
           // ---> 1. GRAB THE EMOTIONS FROM THE CAMERA <---
           List<String> finalEmotions = stopAiCamera();
+
+          String parentUid = FirebaseAuth.instance.currentUser!.uid;
+          String actualChildName = "Little Explorer";
+
+          try {
+            var userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(parentUid)
+                .get();
+            if (userDoc.exists && userDoc.data()!.containsKey('nickname')) {
+              actualChildName = userDoc.get('nickname');
+            }
+          } catch (e) {
+            print("Could not fetch nickname: $e");
+          }
 
           // ---> 2. ASK GEMINI FOR THE SUMMARY <---
           print("Sending data to Gemini... Please wait.");
           String geminiSummary = await AiSummaryService.generateParentSummary(
-            childName: "Little Explorer",
+            childName: actualChildName,
             activityName: "Star Color Sort",
             emotionsList: finalEmotions,
           );
@@ -357,6 +376,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
           await PuzzleProgressService.instance.markLevelComplete(1);
 
           if (mounted) {
+            _isGeneratingSummary = false;
             setState(() => _showWinDialog = true);
           }
         } else {
@@ -415,18 +435,16 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                   ),
           ),
           //wag to tin
+          // ---> LIVE DEMO CAMERA <---
           if (isCameraInitialized && aiCameraController != null)
             const SizedBox.shrink(),
 
           // ---> CONDITIONAL LIGHTING PROMPT <---
-          // Displays if the game just started OR if the face tracker loses visual tracking
           if (!isCameraInitialized || !isFaceDetected)
-            const Positioned(
-              top: 40, // Keeps it comfortably near the upper-middle region
-              left: 0,
-              right: 0,
-              child: LightingPromptCard(),
-            ),
+            const Positioned.fill(child: LightingPromptCard()),
+
+          if (_isGeneratingSummary)
+            const Positioned.fill(child: GeneratingSummaryCard()),
 
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
