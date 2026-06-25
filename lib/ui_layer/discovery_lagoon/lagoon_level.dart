@@ -10,6 +10,7 @@ import '../../games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
 import '../../games_ui_layer/discovery_lagoon/season_object_match_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_dress_up_screen.dart';
+import '../../games_ui_layer/discovery_lagoon/weather_clothes_match.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
 
@@ -491,6 +492,14 @@ class _LevelTile extends StatelessWidget {
                 builder: (context) => WeatherTapSortScreen(level: 18),
               ),
             );
+            break;
+          case 19:
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => WeatherClothesMatchScreen(level: 19)),
+            );
+            break;
+          case 20:
             break;
         }
       },
