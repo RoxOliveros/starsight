@@ -1,4 +1,5 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../../business_layer/lagoon_progress_service.dart';
@@ -456,12 +457,11 @@ class _SeasonObjectMatchScreenState extends State<SeasonObjectMatchScreen>
       characterImage: 'assets/images/characters/cat_holding_fishbone.png',
       closeButtonColor: LagoonColorTheme.darkbrown,
       onNext: () {
-        //TODO: @tin
-        // Navigator.of(context).pushReplacement(
-        //   MaterialPageRoute(
-        //     builder: (_) => const (level: 15),
-        //   ),
-        // );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const WeatherSceneBuilderScreen(level: 16),
+          ),
+        );
       },
       onRestart: () {
         _restart();
