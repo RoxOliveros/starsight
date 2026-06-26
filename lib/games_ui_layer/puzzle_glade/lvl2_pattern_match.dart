@@ -100,6 +100,7 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
   DateTime? _gameStartTime;
   int _mistakeCount = 0;
   bool _isGeneratingSummary = false;
+  bool _hideLightingPrompt = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -452,8 +453,17 @@ class _Lvl2PatternMatchScreenState extends State<Lvl2PatternMatchScreen>
           if (_screenPhase == _ScreenPhase.game) buildRoxie(context),
 
           // ---> CONDITIONAL LIGHTING PROMPT <---
-          if (!isCameraInitialized || !isFaceDetected)
-            const Positioned.fill(child: LightingPromptCard()),
+          if ((!isCameraInitialized || !isFaceDetected) && !_hideLightingPrompt)
+            Positioned.fill(
+              child: LightingPromptCard(
+                onClose: () {
+                  setState(() {
+                    _hideLightingPrompt =
+                        true; // This forces it to stay hidden!
+                  });
+                },
+              ),
+            ),
 
           // ---> LOADING SUMMARY PROMPT <---
           if (_isGeneratingSummary)

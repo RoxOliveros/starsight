@@ -105,6 +105,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   late List<_Ball> _jarBBalls;
   DateTime? _gameStartTime;
   int _mistakeCount = 0;
+  bool _hideLightingPrompt = false;
   bool _wrongFlashA = false;
   bool _wrongFlashB = false;
   bool _roundComplete = false;
@@ -464,8 +465,17 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
             const SizedBox.shrink(),
 
           // ---> CONDITIONAL LIGHTING PROMPT <---
-          if (!isCameraInitialized || !isFaceDetected)
-            const Positioned.fill(child: LightingPromptCard()),
+          if ((!isCameraInitialized || !isFaceDetected) && !_hideLightingPrompt)
+            Positioned.fill(
+              child: LightingPromptCard(
+                onClose: () {
+                  setState(() {
+                    _hideLightingPrompt =
+                        true; // This forces it to stay hidden!
+                  });
+                },
+              ),
+            ),
 
           if (_isGeneratingSummary)
             const Positioned.fill(child: GeneratingSummaryCard()),
