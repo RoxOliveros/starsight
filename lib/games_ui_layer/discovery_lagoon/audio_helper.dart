@@ -37,6 +37,24 @@ class LagoonAudio {
     'weather_win_cloudy':'assets/audio/discovery_lagoon/weather_win_cloudy.wav',
     'weather_q_windy':  'assets/audio/discovery_lagoon/weather_q_windy.wav',
     'weather_win_windy':'assets/audio/discovery_lagoon/weather_win_windy.wav',
+
+    'dressup_q_sunny':    'assets/audio/discovery_lagoon/dressup_q_sunny.wav',
+    'dressup_top':        'assets/audio/discovery_lagoon/dressup_top.wav',
+    'dressup_bottom':     'assets/audio/discovery_lagoon/dressup_bottom.wav',
+
+    'dressup_q_rainy':    'assets/audio/discovery_lagoon/dressup_q_rainy.wav',
+    'dressup_coat':       'assets/audio/discovery_lagoon/dressup_coat.wav',
+    'dressup_umbrella_boots': 'assets/audio/discovery_lagoon/dressup_umbrella_boots.wav',
+
+    'dressup_q_cloudy':   'assets/audio/discovery_lagoon/dressup_q_cloudy.wav',
+    'dressup_jacket':     'assets/audio/discovery_lagoon/dressup_jacket.wav',
+    'dressup_pants':      'assets/audio/discovery_lagoon/dressup_pants.wav',
+
+    'dressup_q_windy':    'assets/audio/discovery_lagoon/dressup_q_windy.wav',
+    'dressup_scarf':      'assets/audio/discovery_lagoon/dressup_scarf.wav',
+    'dressup_kite':       'assets/audio/discovery_lagoon/dressup_kite.wav',
+
+    'dressup_outro':      'assets/audio/discovery_lagoon/dressup_outro.wav',
   };
 
   Future<void> play(String key) async {

@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'dart:math';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
+import 'audio_helper.dart';
+import 'intro_phase.dart';
 
 /// ---------------------------------------------------------------------------
 /// MODELS
@@ -38,8 +43,7 @@ class WeatherInfo {
 /// ---------------------------------------------------------------------------
 
 class CharacterImageResolver {
-  static const String basePath =
-      'assets/images/objects/lagoon/boy.png';
+  static const String basePath = 'assets/images/objects/lagoon/boy.png';
   static const String folder = 'assets/images/objects/lagoon';
 
   /// Builds the path for whatever combination of items is currently matched
@@ -59,29 +63,26 @@ class WeatherDressUpData {
   static const List<WeatherInfo> weathers = [
     WeatherInfo(
       id: 'sunny',
-      label: 'Sunny ☀️',
+      label: 'Sunny',
       bgImage: 'assets/images/objects/lagoon/sunny_day_phase3.png',
     ),
     WeatherInfo(
       id: 'rainy',
-      label: 'Rainy 🌧️',
+      label: 'Rainy',
       bgImage: 'assets/images/objects/lagoon/rainy_day_phase2.png',
     ),
     WeatherInfo(
       id: 'cloudy',
-      label: 'Cloudy ⛅',
+      label: 'Cloudy',
       bgImage: 'assets/images/objects/lagoon/cloudy_day_phase3.png',
     ),
     WeatherInfo(
       id: 'windy',
-      label: 'Windy 💨',
-      bgImage: 'assets/images/objects/lagoon/windy_day_phase3.png',
+      label: 'Windy',
+      bgImage: 'assets/images/objects/lagoon/windy_day_phase2.png',
     ),
   ];
 
-  /// Every weather has exactly 2 correct items. Item ids are weather-specific
-  /// (e.g. sunny -> top/bottom) and are used directly in character image
-  /// filenames, so keep these ids in sync with your asset names.
   static final List<ClothingItem> allItems = [
     // Sunny
     ClothingItem(
@@ -132,6 +133,12 @@ class WeatherDressUpData {
     ),
   ];
 
+  /// Question line played when a weather round starts.
+  static String questionKey(String weatherId) => 'dressup_q_$weatherId';
+
+  /// Round-complete line played once both items for a weather are matched.
+  static String winKey(String weatherId) => 'dressup_win_$weatherId';
+
   static List<Color> gradientForWeather(String id) {
     switch (id) {
       case 'sunny':
@@ -151,17 +158,15 @@ class WeatherDressUpData {
 /// ---------------------------------------------------------------------------
 /// ROUND STATE (pure logic, no Flutter/animation concerns)
 /// ---------------------------------------------------------------------------
-///
-/// Pulling this out of the State class makes _startRound/_onDrop testable
-/// without spinning up widgets, and keeps the State class focused on
-/// animation + layout.
+
 class WeatherRound {
   final WeatherInfo weather;
   final List<ClothingItem> roundItems;
   final Set<String> targetIds;
   final Set<String> matched = {};
 
-  WeatherRound({required this.weather, required this.roundItems, required this.targetIds});
+  WeatherRound(
+      {required this.weather, required this.roundItems, required this.targetIds});
 
   bool get isComplete => matched.length == targetIds.length;
 
@@ -197,7 +202,18 @@ class WeatherDressUpScreen extends StatefulWidget {
 }
 
 class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, LagoonIntroMixin {
+  // ── Intro phase ────────────────────────────────────────────────────────
+
+  final AudioPlayer _introPlayer = AudioPlayer();
+
+  @override
+  AudioPlayer get introAudioPlayer => _introPlayer;
+
+  LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
+
+  // ── Game state ───────────────────────────────────────────────────────────
+
   late List<WeatherInfo> _weatherOrder;
   late WeatherRound _round;
   int _roundIndex = 0;
@@ -209,6 +225,7 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
   late AnimationController _floatCtrl;
 
   String? _lastWrongId;
+  bool _roundLocked = false; // prevents double-drops while win audio plays
 
   @override
   void initState() {
@@ -227,6 +244,16 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
 
     _weatherOrder = List.of(WeatherDressUpData.weathers)..shuffle();
     _round = WeatherRound.generate(_weatherOrder[0], WeatherDressUpData.allItems);
+
+    initLagoonIntro();
+    startLagoonIntro(
+      introAudioAsset: 'assets/audio/discovery_lagoon/dressup_intro.wav',
+      onGameStart: () {
+        if (!mounted) return;
+        setState(() => _screenPhase = LagoonScreenPhase.game);
+        LagoonAudio.instance.play(WeatherDressUpData.questionKey(_round.weather.id));
+      },
+    );
   }
 
   @override
@@ -234,11 +261,13 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
     _shakeCtrl.dispose();
     _bounceCtrl.dispose();
     _floatCtrl.dispose();
+    disposeLagoonIntro();
+    _introPlayer.dispose();
     super.dispose();
   }
 
   Future<void> _onDrop(ClothingItem item) async {
-    if (_round.matched.contains(item.id)) return;
+    if (_roundLocked || _round.matched.contains(item.id)) return;
 
     final wasCorrect = _round.tryMatch(item);
 
@@ -247,20 +276,29 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
       _bounceCtrl.forward(from: 0);
 
       if (_round.isComplete) {
-        await Future.delayed(const Duration(milliseconds: 600));
-        if (!mounted) return;
+        _roundLocked = true;
 
-        if (_roundIndex >= _weatherOrder.length - 1) {
-          _showSuccessDialog();
-        } else {
-          setState(() {
-            _roundIndex++;
-            _round = WeatherRound.generate(
-              _weatherOrder[_roundIndex],
-              WeatherDressUpData.allItems,
-            );
-          });
-        }
+        LagoonAudio.instance.playThenCallback('dressup_${item.id}', () async {
+          if (!mounted) return;
+          await Future.delayed(const Duration(milliseconds: 300));
+          if (!mounted) return;
+
+          if (_roundIndex >= _weatherOrder.length - 1) {
+            _showSuccessDialog();
+          } else {
+            setState(() {
+              _roundIndex++;
+              _round = WeatherRound.generate(
+                _weatherOrder[_roundIndex],
+                WeatherDressUpData.allItems,
+              );
+              _roundLocked = false;
+            });
+            LagoonAudio.instance.play(WeatherDressUpData.questionKey(_round.weather.id));
+          }
+        });
+      } else {
+        LagoonAudio.instance.play('dressup_${item.id}');
       }
     } else {
       setState(() => _lastWrongId = item.id);
@@ -271,32 +309,39 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
   }
 
   void _showSuccessDialog() {
-    LagoonProgressService.instance.markLevelComplete(widget.level);
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      useSafeArea: false,
-      barrierColor: Colors.black54,
-      builder: (_) => GoodJobOverlay(
-        characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-        closeButtonColor: LagoonColorTheme.darkbrown,
-        onNext: () => Navigator.pop(context),
-        onRestart: () {
-          Navigator.pop(context);
-          setState(() {
-            _roundIndex = 0;
-            _round = WeatherRound.generate(
-              _weatherOrder[_roundIndex],
-              WeatherDressUpData.allItems,
+    LagoonAudio.instance.playThenCallback('dressup_outro', () {
+      if (!mounted) return;
+      LagoonProgressService.instance.markLevelComplete(widget.level);
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        useSafeArea: false,
+        barrierColor: Colors.black54,
+        builder: (_) => GoodJobOverlay(
+          characterImage: 'assets/images/characters/cat_holding_fishbone.png',
+          closeButtonColor: LagoonColorTheme.darkbrown,
+          onNext: () => Navigator.pop(context),
+          onRestart: () {
+            Navigator.pop(context);
+            setState(() {
+              _roundIndex = 0;
+              _round = WeatherRound.generate(
+                _weatherOrder[_roundIndex],
+                WeatherDressUpData.allItems,
+              );
+              _roundLocked = false;
+            });
+            LagoonAudio.instance.play(WeatherDressUpData.questionKey(_round.weather.id));
+          },
+          onBack: () {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LagoonLevelScreen()),
+                  (route) => route.isFirst,
             );
-          });
-        },
-        onBack: () {
-          Navigator.pop(context);
-          Navigator.pop(context);
-        },
-      ),
-    );
+          },
+        ),
+      );
+    });
   }
 
   @override
@@ -304,36 +349,55 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
     return Scaffold(
       body: Stack(
         children: [
-          _Background(weather: _round.weather),
+          _Background(
+            weather: _screenPhase == LagoonScreenPhase.intro
+                ? _weatherOrder[0]
+                : _round.weather,
+          ),
           SafeArea(
-            child: Column(
-              children: [
-                _Header(weather: _round.weather),
-                Expanded(
-                  flex: 6,
-                  child: _DropZone(
-                    weatherId: _round.weather.id,
-                    matchedIds: _round.matched,
-                    bounceAnim: _bounceAnim,
-                    onAccept: _onDrop,
-                  ),
-                ),
-                Expanded(
-                  flex: 3,
-                  child: _ClothingTray(
-                    items: _round.roundItems,
-                    matchedIds: _round.matched,
-                    wrongId: _lastWrongId,
-                    shakeAnim: _shakeAnim,
-                    floatCtrl: _floatCtrl,
-                  ),
-                ),
-                _ProgressDots(total: _weatherOrder.length, currentIndex: _roundIndex),
-              ],
-            ),
+            child: _screenPhase == LagoonScreenPhase.intro
+                ? _buildIntroContent()
+                : _buildGameContent(),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildIntroContent() {
+    return Stack(
+      children: [
+        const Positioned(top: 8, left: 12, child: LagoonBackButton()),
+        Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
+      ],
+    );
+  }
+
+  Widget _buildGameContent() {
+    return Column(
+      children: [
+        _Header(weather: _round.weather),
+        Expanded(
+          flex: 6,
+          child: _DropZone(
+            weatherId: _round.weather.id,
+            matchedIds: _round.matched,
+            bounceAnim: _bounceAnim,
+            onAccept: _onDrop,
+          ),
+        ),
+        Expanded(
+          flex: 3,
+          child: _ClothingTray(
+            items: _round.roundItems,
+            matchedIds: _round.matched,
+            wrongId: _lastWrongId,
+            shakeAnim: _shakeAnim,
+            floatCtrl: _floatCtrl,
+          ),
+        ),
+        _ProgressDots(total: _weatherOrder.length, currentIndex: _roundIndex),
+      ],
     );
   }
 }
@@ -352,6 +416,7 @@ class _Background extends StatelessWidget {
       child: Image.asset(
         weather.bgImage,
         fit: BoxFit.cover,
+        alignment: Alignment.topCenter,
         errorBuilder: (_, __, ___) => Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -383,8 +448,9 @@ class _Header extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(20),
+                color: LagoonColorTheme.pastelorange,
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(color: LagoonColorTheme.wasteland, width: 5),
               ),
               child: Text(
                 weather.label,
