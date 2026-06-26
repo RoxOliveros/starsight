@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'arctic_numberland/arctic_level.dart';
 import 'alphabet_forest_ui/forest_level.dart';
+import 'avatar_picker_dialog.dart';
 import 'discovery_lagoon/lagoon_level.dart';
 import 'lumi_town/town_level.dart';
 import 'menu_dialog.dart';
@@ -43,6 +44,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   late Animation<double> _floatAnimation;
 
   bool _animationsReady = false;
+
+  final GlobalKey<_AvatarBadgeState> _avatarBadgeKey = GlobalKey();
 
   // Activity/island cards
   final List<_ActivityCard> _activities = const [
@@ -119,6 +122,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      onDrawerChanged: (isOpen) {
+        if (!isOpen) _avatarBadgeKey.currentState?.refresh();
+      },
       backgroundColor: ColorTheme.cream,
       drawer: Drawer(
         backgroundColor: const Color(0xFFE9C679),
@@ -189,7 +195,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   // ── All UI on top ─────────────────────────────────────────
                   Column(
                     children: [
-                      _TopBar(nickname: widget.nickname),
+                      _TopBar(nickname: widget.nickname, avatarBadgeKey: _avatarBadgeKey),
                       const SizedBox(height: 12),
                       Expanded(
                         child: Padding(
@@ -223,8 +229,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 // ══════════════════════════════════════════════════════════════════════════════
 class _TopBar extends StatelessWidget {
   final String nickname;
+  final GlobalKey<_AvatarBadgeState> avatarBadgeKey;
 
-  const _TopBar({required this.nickname});
+  const _TopBar({required this.nickname, required this.avatarBadgeKey});
 
   @override
   Widget build(BuildContext context) {
@@ -270,7 +277,7 @@ class _TopBar extends StatelessWidget {
           // ── Avatar pinned to the left ─────────────────────────────────
           Align(
             alignment: Alignment.centerLeft,
-            child: _AvatarBadge(name: nickname),
+            child: _AvatarBadge(key: avatarBadgeKey, name: nickname),
           ),
         ],
       ),
@@ -281,10 +288,28 @@ class _TopBar extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 // AVATAR
 // ══════════════════════════════════════════════════════════════════════════════
-class _AvatarBadge extends StatelessWidget {
+class _AvatarBadge extends StatefulWidget {
   final String name;
+  const _AvatarBadge({super.key, required this.name});
+  @override
+  State<_AvatarBadge> createState() => _AvatarBadgeState();
+}
 
-  const _AvatarBadge({required this.name});
+class _AvatarBadgeState extends State<_AvatarBadge> {
+  String _avatarPath = kDefaultAvatarPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final path = await AvatarStorage.getSelectedAvatarPath();
+    if (mounted) setState(() => _avatarPath = path);
+  }
+
+  void refresh() => _load();
 
   void _showProfileDialog(BuildContext context) {
     Scaffold.of(context).openDrawer();
@@ -294,7 +319,7 @@ class _AvatarBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     const double circleSize = 55;
     const double pillHeight = 22;
-    const double pillOverlap = 11;
+    const double pillOverlap = 7;
 
     return Builder(
       builder: (context) {
@@ -319,8 +344,7 @@ class _AvatarBadge extends StatelessWidget {
                     ),
                   ),
                   child: ClipOval(
-                    child: Image.asset(
-                      'assets/drafts/avatar.png',
+                    child: Image.asset(_avatarPath,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) =>
                           Container(color: const Color(0xFFD4C4F0)),
@@ -343,7 +367,7 @@ class _AvatarBadge extends StatelessWidget {
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        name,
+                        widget.name,
                         style: const TextStyle(
                           fontFamily: AppTextStyles.fredoka,
                           fontSize: 12,

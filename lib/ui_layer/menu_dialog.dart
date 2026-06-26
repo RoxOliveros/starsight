@@ -3,8 +3,8 @@ import 'package:StarSight/ui_layer/behavior_reports_screen.dart';
 import 'package:StarSight/ui_layer/parents_pin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import 'app_dialog.dart';
+import 'avatar_picker_dialog.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -18,10 +18,45 @@ abstract class AppTextStyles {
   static const String fredoka = 'Fredoka';
 }
 
-class ProfileDayDialog extends StatelessWidget {
+class ProfileDayDialog extends StatefulWidget {
   final String name;
 
   const ProfileDayDialog({super.key, required this.name});
+
+  @override
+  State<ProfileDayDialog> createState() => _ProfileDayDialogState();
+}
+
+class _ProfileDayDialogState extends State<ProfileDayDialog> {
+  String _avatarPath = kDefaultAvatarPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvatar();
+  }
+
+  Future<void> _loadAvatar() async {
+    final saved = await AvatarStorage.getSelectedAvatarPath();
+    if (!mounted) return;
+    setState(() => _avatarPath = saved);
+  }
+
+  Future<void> _openAvatarPicker() async {
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => AvatarPickerDialog(
+        selectedAssetPath: _avatarPath,
+      ),
+    );
+
+    if (selected == null) return; // user closed without confirming
+
+    await AvatarStorage.setSelectedAvatarPath(selected);
+
+    if (!mounted) return;
+    setState(() => _avatarPath = selected);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +68,6 @@ class ProfileDayDialog extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
 
-          // ✅ makes content scrollable if it overflows
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.max,
@@ -52,19 +86,25 @@ class ProfileDayDialog extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: ColorTheme.orange,
-                            width: 3,
+                      // 🐻 Tap avatar to open the picker
+                      InkWell(
+                        onTap: _openAvatarPicker,
+                        borderRadius: BorderRadius.circular(24),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: ColorTheme.orange,
+                              width: 3,
+                            ),
                           ),
-                        ),
-                        child: const CircleAvatar(
-                          backgroundImage: AssetImage(
-                            'assets/drafts/avatar.png',
+                          child: ClipOval(
+                            child: Image.asset(
+                              _avatarPath,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                       ),
@@ -73,7 +113,7 @@ class ProfileDayDialog extends StatelessWidget {
 
                       Expanded(
                         child: Text(
-                          name,
+                          widget.name,
                           style: const TextStyle(
                             fontFamily: AppTextStyles.fredoka,
                             fontSize: 18,
@@ -101,7 +141,7 @@ class ProfileDayDialog extends StatelessWidget {
                   icon: Icons.auto_awesome,
                   label: "Analysis and Reports",
                   onTap: () {
-                    Navigator.pop(context); // This closes the side menu
+                    Navigator.pop(context);
 
                     Navigator.push(
                       context,
@@ -153,7 +193,7 @@ class ProfileDayDialog extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => const SignUpSignInScreen(),
                       ),
-                      (route) => false,
+                          (route) => false,
                     );
                   },
                 ),
