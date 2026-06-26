@@ -41,25 +41,27 @@ class LagoonAudio {
     'dressup_q_sunny':    'assets/audio/discovery_lagoon/dressup_q_sunny.wav',
     'dressup_top':        'assets/audio/discovery_lagoon/dressup_top.wav',
     'dressup_bottom':     'assets/audio/discovery_lagoon/dressup_bottom.wav',
-
     'dressup_q_rainy':    'assets/audio/discovery_lagoon/dressup_q_rainy.wav',
     'dressup_coat':       'assets/audio/discovery_lagoon/dressup_coat.wav',
     'dressup_umbrella_boots': 'assets/audio/discovery_lagoon/dressup_umbrella_boots.wav',
-
     'dressup_q_cloudy':   'assets/audio/discovery_lagoon/dressup_q_cloudy.wav',
     'dressup_jacket':     'assets/audio/discovery_lagoon/dressup_jacket.wav',
     'dressup_pants':      'assets/audio/discovery_lagoon/dressup_pants.wav',
-
     'dressup_q_windy':    'assets/audio/discovery_lagoon/dressup_q_windy.wav',
     'dressup_scarf':      'assets/audio/discovery_lagoon/dressup_scarf.wav',
     'dressup_kite':       'assets/audio/discovery_lagoon/dressup_kite.wav',
-
     'dressup_outro':      'assets/audio/discovery_lagoon/dressup_outro.wav',
 
     'tapsort_q_sunny':  'assets/audio/discovery_lagoon/tapsort_q_sunny.wav',
     'tapsort_q_rainy':  'assets/audio/discovery_lagoon/tapsort_q_rainy.wav',
     'tapsort_q_cloudy': 'assets/audio/discovery_lagoon/tapsort_q_cloudy.wav',
     'tapsort_q_windy':  'assets/audio/discovery_lagoon/tapsort_q_windy.wav',
+
+    'leaves':  'assets/audio/discovery_lagoon/leaves.wav',
+    'branch':  'assets/audio/discovery_lagoon/branch.wav',
+    'trunk':   'assets/audio/discovery_lagoon/trunk.wav',
+    'roots':   'assets/audio/discovery_lagoon/roots.wav',
+    'treeparts_outro': 'assets/audio/discovery_lagoon/treeparts_outro.wav',
   };
 
   Future<void> play(String key) async {
@@ -69,7 +71,7 @@ class LagoonAudio {
       return;
     }
     try {
-      await _player.stop(); // ← add this
+      await _player.stop();
       await _player.play(AssetSource(path.replaceFirst('assets/', '')));
     } catch (e) {
       debugPrint('LagoonAudio: error playing "$key" ($path): $e');

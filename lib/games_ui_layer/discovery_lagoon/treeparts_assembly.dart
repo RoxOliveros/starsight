@@ -1,11 +1,14 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_background.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
+import 'audio_helper.dart';
 import 'bodyparts_drag.dart';
+import 'intro_phase.dart';
 
 class TreePartItem {
   final String id;
@@ -24,7 +27,19 @@ class TreePartsAssemblyScreen extends StatefulWidget {
       _TreePartsAssemblyScreenState();
 }
 
-class _TreePartsAssemblyScreenState extends State<TreePartsAssemblyScreen> {
+class _TreePartsAssemblyScreenState extends State<TreePartsAssemblyScreen>
+    with TickerProviderStateMixin, LagoonIntroMixin {
+  // ── Intro phase ────────────────────────────────────────────────────────
+
+  final AudioPlayer _introPlayer = AudioPlayer();
+
+  @override
+  AudioPlayer get introAudioPlayer => _introPlayer;
+
+  LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
+
+  // ── Game state ───────────────────────────────────────────────────────────
+
   final Set<String> _matchedParts = {};
   late List<TreePartItem> _availableParts;
 
@@ -52,11 +67,22 @@ class _TreePartsAssemblyScreenState extends State<TreePartsAssemblyScreen> {
     super.initState();
     OrientationService.setLandscape();
     _resetGame();
+
+    initLagoonIntro();
+    startLagoonIntro(
+      introAudioAsset: 'assets/audio/discovery_lagoon/treeparts_intro.wav',
+      onGameStart: () {
+        if (!mounted) return;
+        setState(() => _screenPhase = LagoonScreenPhase.game);
+      },
+    );
   }
 
   @override
   void dispose() {
     OrientationService.setLandscape();
+    disposeLagoonIntro();
+    _introPlayer.dispose();
     super.dispose();
   }
 
@@ -104,155 +130,170 @@ class _TreePartsAssemblyScreenState extends State<TreePartsAssemblyScreen> {
       backgroundColor: LagoonColorTheme.pastelorange,
       body: LagoonBackground(
         child: SafeArea(
-          child: Column(
-            children: [
-              // --- HEADER ---
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 0),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: const [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: LagoonBackButton(),
-                    ),
-                  ],
-                ),
-              ),
+          child: _screenPhase == LagoonScreenPhase.intro
+              ? _buildIntroContent()
+              : _buildGameContent(),
+        ),
+      ),
+    );
+  }
 
-              // --- MAIN PUZZLE AREA ---
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final double h = constraints.maxHeight;
-                    final double w = constraints.maxWidth;
-                    final double cx = w / 2;
-                    final double cy = h / 2;
-                    final double boxSize = h * 0.35;
+  Widget _buildIntroContent() {
+    return Stack(
+      children: [
+        const Positioned(top: 8, left: 12, child: LagoonBackButton()),
+        Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
+      ],
+    );
+  }
 
-                    final double treeHeight = h * 1;
-                    final double treeWidth = treeHeight * 0.6;
-                    final double treeLeft = cx - treeWidth / 2;
-                    final double treeTop = cy - treeHeight / 2;
-
-                    // Pointer targets ON the tree image
-                    final Offset leavesTarget = Offset(
-                      treeLeft + treeWidth * 0.05,
-                      treeTop + treeHeight * 0.30,
-                    );
-                    final Offset branchTarget = Offset(
-                      treeLeft + treeWidth * 0.75,
-                      treeTop + treeHeight * 0.57,
-                    );
-                    final Offset trunkTarget = Offset(
-                      treeLeft + treeWidth * 0.50,
-                      treeTop + treeHeight * 0.75,
-                    );
-                    final Offset rootsTarget = Offset(
-                      treeLeft + treeWidth * 0.20,
-                      treeTop + treeHeight * 0.87,
-                    );
-
-                    // Label box positions (left/right of tree)
-                    final Offset leavesBox = Offset(
-                      cx - h * 0.80,
-                      cy - h * 0.32,
-                    );
-                    final Offset branchBox = Offset(
-                      cx + h * 0.80,
-                      cy - h * 0.25,
-                    );
-                    final Offset trunkBox = Offset(
-                      cx + h * 0.80,
-                      cy + h * 0.22,
-                    );
-                    final Offset rootsBox = Offset(
-                      cx - h * 0.80,
-                      cy + h * 0.20,
-                    );
-
-                    return Stack(
-                      children: [
-                        // Tree image
-                        Center(
-                          child: Image.asset(
-                            'assets/images/objects/lagoon/tree.png',
-                            height: treeHeight,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-
-                        // Connecting lines
-                        CustomPaint(
-                          size: Size.infinite,
-                          painter: TreeLinesPainter(
-                            leavesBox: leavesBox,
-                            leavesTarget: leavesTarget,
-                            branchBox: branchBox,
-                            branchTarget: branchTarget,
-                            trunkBox: trunkBox,
-                            trunkTarget: trunkTarget,
-                            rootsBox: rootsBox,
-                            rootsTarget: rootsTarget,
-                          ),
-                        ),
-
-                        // Drop boxes
-                        Positioned(
-                          left: leavesBox.dx - boxSize / 2,
-                          top: leavesBox.dy - boxSize / 2,
-                          child: _buildTargetBox('leaves', boxSize),
-                        ),
-                        Positioned(
-                          left: branchBox.dx - boxSize / 2,
-                          top: branchBox.dy - boxSize / 2,
-                          child: _buildTargetBox('branch', boxSize),
-                        ),
-                        Positioned(
-                          left: trunkBox.dx - boxSize / 2,
-                          top: trunkBox.dy - boxSize / 2,
-                          child: _buildTargetBox('trunk', boxSize),
-                        ),
-                        Positioned(
-                          left: rootsBox.dx - boxSize / 2,
-                          top: rootsBox.dy - boxSize / 2,
-                          child: _buildTargetBox('roots', boxSize),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-
-              // --- DRAGGABLE PARTS ROW ---
-              Container(
-                height: 120,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: _availableParts.map((part) {
-                    if (_matchedParts.contains(part.id)) {
-                      return const SizedBox(width: 100);
-                    }
-                    return Draggable<String>(
-                      data: part.id,
-                      feedback: _DraggableImage(
-                        imagePath: part.imagePath,
-                        isDragging: true,
-                      ),
-                      childWhenDragging: Opacity(
-                        opacity: 0.3,
-                        child: _DraggableImage(imagePath: part.imagePath),
-                      ),
-                      child: _DraggableImage(imagePath: part.imagePath),
-                    );
-                  }).toList(),
-                ),
+  Widget _buildGameContent() {
+    return Column(
+      children: [
+        // --- HEADER ---
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 0),
+          child: Stack(
+            alignment: Alignment.center,
+            children: const [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: LagoonBackButton(),
               ),
             ],
           ),
         ),
-      ),
+
+        // --- MAIN PUZZLE AREA ---
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final double h = constraints.maxHeight;
+              final double w = constraints.maxWidth;
+              final double cx = w / 2;
+              final double cy = h / 2;
+              final double boxSize = h * 0.35;
+
+              final double treeHeight = h * 1;
+              final double treeWidth = treeHeight * 0.6;
+              final double treeLeft = cx - treeWidth / 2;
+              final double treeTop = cy - treeHeight / 2;
+
+              // Pointer targets ON the tree image
+              final Offset leavesTarget = Offset(
+                treeLeft + treeWidth * 0.05,
+                treeTop + treeHeight * 0.30,
+              );
+              final Offset branchTarget = Offset(
+                treeLeft + treeWidth * 0.75,
+                treeTop + treeHeight * 0.57,
+              );
+              final Offset trunkTarget = Offset(
+                treeLeft + treeWidth * 0.50,
+                treeTop + treeHeight * 0.75,
+              );
+              final Offset rootsTarget = Offset(
+                treeLeft + treeWidth * 0.20,
+                treeTop + treeHeight * 0.87,
+              );
+
+              // Label box positions (left/right of tree)
+              final Offset leavesBox = Offset(
+                cx - h * 0.80,
+                cy - h * 0.32,
+              );
+              final Offset branchBox = Offset(
+                cx + h * 0.80,
+                cy - h * 0.25,
+              );
+              final Offset trunkBox = Offset(
+                cx + h * 0.80,
+                cy + h * 0.22,
+              );
+              final Offset rootsBox = Offset(
+                cx - h * 0.80,
+                cy + h * 0.20,
+              );
+
+              return Stack(
+                children: [
+                  // Tree image
+                  Center(
+                    child: Image.asset(
+                      'assets/images/objects/lagoon/tree.png',
+                      height: treeHeight,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+
+                  // Connecting lines
+                  CustomPaint(
+                    size: Size.infinite,
+                    painter: TreeLinesPainter(
+                      leavesBox: leavesBox,
+                      leavesTarget: leavesTarget,
+                      branchBox: branchBox,
+                      branchTarget: branchTarget,
+                      trunkBox: trunkBox,
+                      trunkTarget: trunkTarget,
+                      rootsBox: rootsBox,
+                      rootsTarget: rootsTarget,
+                    ),
+                  ),
+
+                  // Drop boxes
+                  Positioned(
+                    left: leavesBox.dx - boxSize / 2,
+                    top: leavesBox.dy - boxSize / 2,
+                    child: _buildTargetBox('leaves', boxSize),
+                  ),
+                  Positioned(
+                    left: branchBox.dx - boxSize / 2,
+                    top: branchBox.dy - boxSize / 2,
+                    child: _buildTargetBox('branch', boxSize),
+                  ),
+                  Positioned(
+                    left: trunkBox.dx - boxSize / 2,
+                    top: trunkBox.dy - boxSize / 2,
+                    child: _buildTargetBox('trunk', boxSize),
+                  ),
+                  Positioned(
+                    left: rootsBox.dx - boxSize / 2,
+                    top: rootsBox.dy - boxSize / 2,
+                    child: _buildTargetBox('roots', boxSize),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+
+        // --- DRAGGABLE PARTS ROW ---
+        Container(
+          height: 120,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: _availableParts.map((part) {
+              if (_matchedParts.contains(part.id)) {
+                return const SizedBox(width: 100);
+              }
+              return Draggable<String>(
+                data: part.id,
+                feedback: _DraggableImage(
+                  imagePath: part.imagePath,
+                  isDragging: true,
+                ),
+                childWhenDragging: Opacity(
+                  opacity: 0.3,
+                  child: _DraggableImage(imagePath: part.imagePath),
+                ),
+                child: _DraggableImage(imagePath: part.imagePath),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -272,13 +313,28 @@ class _TreePartsAssemblyScreenState extends State<TreePartsAssemblyScreen> {
 
     return DragTarget<String>(
       onWillAcceptWithDetails: (details) =>
-          details.data == targetId && !isMatched,
+      details.data == targetId && !isMatched,
       onAcceptWithDetails: (details) {
         setState(() {
           _matchedParts.add(targetId);
         });
+
         if (_matchedParts.length == _allParts.length) {
-          Future.delayed(const Duration(milliseconds: 300), _showSuccessDialog);
+          // Last part placed — wait for its own line to finish, then play
+          // the outro before showing the success dialog.
+          LagoonAudio.instance.playThenCallback(targetId, () {
+            if (!mounted) return;
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (!mounted) return;
+              LagoonAudio.instance.playThenCallback('treeparts_outro', () {
+                if (!mounted) return;
+                _showSuccessDialog();
+              });
+            });
+          });
+        } else {
+          // Not the last part yet — fine to play normally.
+          LagoonAudio.instance.play(targetId);
         }
       },
       builder: (context, candidateData, _) {
@@ -310,12 +366,12 @@ class _TreePartsAssemblyScreenState extends State<TreePartsAssemblyScreen> {
               ),
               child: isMatched
                   ? Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Image.asset(
-                        matchedImagePath!,
-                        fit: BoxFit.contain,
-                      ),
-                    )
+                padding: const EdgeInsets.all(8.0),
+                child: Image.asset(
+                  matchedImagePath!,
+                  fit: BoxFit.contain,
+                ),
+              )
                   : null,
             ),
             const SizedBox(height: 4),
