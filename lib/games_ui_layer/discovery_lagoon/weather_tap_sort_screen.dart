@@ -1,9 +1,12 @@
 import 'dart:math';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
+import 'audio_helper.dart';
+import 'intro_phase.dart';
 
 class FallingIcon {
   final String id;
@@ -36,20 +39,30 @@ class WeatherTapSortScreen extends StatefulWidget {
 }
 
 class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin, LagoonIntroMixin {
+  // ── Intro phase ────────────────────────────────────────────────────────
+
+  final AudioPlayer _introPlayer = AudioPlayer();
+
+  @override
+  AudioPlayer get introAudioPlayer => _introPlayer;
+
+  LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
+
+  // ── Game data ────────────────────────────────────────────────────────────
 
   final List<Map<String, dynamic>> _weathers = [
-    {'id': 'sunny',  'label': 'Tap all ☀️ Sunny things!', 'color': const Color(0xFFFFE066)},
-    {'id': 'rainy',  'label': 'Tap all 🌧️ Rainy things!', 'color': const Color(0xFF90CAF9)},
-    {'id': 'cloudy', 'label': 'Tap all ⛅ Cloudy things!', 'color': const Color(0xFFCFD8DC)},
-    {'id': 'windy',  'label': 'Tap all 💨 Windy things!', 'color': const Color(0xFFB2EBF2)},
+    {'id': 'sunny',  'label': 'Tap all Sunny things!', 'color': const Color(0xFFFFE066)},
+    {'id': 'rainy',  'label': 'Tap all Rainy things!', 'color': const Color(0xFF90CAF9)},
+    {'id': 'cloudy', 'label': 'Tap all Cloudy things!', 'color': const Color(0xFFCFD8DC)},
+    {'id': 'windy',  'label': 'Tap allWindy things!', 'color': const Color(0xFFB2EBF2)},
   ];
 
   final Map<String, String> _weatherBgImage = {
     'sunny': 'assets/images/objects/lagoon/sunny_day_phase3.png',
     'rainy': 'assets/images/objects/lagoon/rainy_day_phase2.png',
     'cloudy': 'assets/images/objects/lagoon/cloudy_day_phase3.png',
-    'windy': 'assets/images/objects/lagoon/windy_day_phase3.png',
+    'windy': 'assets/images/objects/lagoon/windy_day_phase2.png',
   };
 
   final Map<String, List<String>> _items = {
@@ -57,31 +70,26 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
       'assets/images/objects/lagoon/sunglasses.png',
       'assets/images/objects/lagoon/rainbow.png',
       'assets/images/objects/lagoon/sun.png',
-      'assets/images/objects/lagoon/sunny_cap.png',
-      'assets/images/objects/lagoon/sunny_minifan.png',
     ],
     'rainy':  [
       'assets/images/objects/lagoon/raincloud.png',
-      'assets/images/objects/lagoon/rainy_window.png',
-      'assets/images/objects/lagoon/rainy_coat.png',
       'assets/images/objects/lagoon/rainy_puddle.png',
       'assets/images/objects/lagoon/rainy_umbrella_boots.png',
     ],
     'cloudy': [
       'assets/images/objects/lagoon/graycloud.png',
       'assets/images/objects/lagoon/cloudy_jacket.png',
-      'assets/images/objects/lagoon/cloudy_beanie.png',
       'assets/images/objects/lagoon/cloudy_blanket.png',
-      'assets/images/objects/lagoon/cloudy_socks.png',
     ],
     'windy':  [
-      'assets/images/objects/lagoon/windy.png',
       'assets/images/objects/lagoon/strong_wind.png',
       'assets/images/objects/lagoon/windy_kite.png',
       'assets/images/objects/lagoon/windy_pinwheel.png',
-      'assets/images/objects/lagoon/windy_scarf.png',
     ],
   };
+
+  /// Question line played when a weather round starts.
+  static String _questionKey(String weatherId) => 'tapsort_q_$weatherId';
 
   int _roundIndex = 0;
   late Map<String, dynamic> _currentWeather;
@@ -99,16 +107,30 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     _tickCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 16))
       ..addListener(_tick)
       ..repeat();
-    _startRound();
+    _startRound(playPrompt: false);
+
+    initLagoonIntro();
+    startLagoonIntro(
+      introAudioAsset: 'assets/audio/discovery_lagoon/tapsort_intro.wav',
+      onGameStart: () {
+        if (!mounted) return;
+        setState(() => _screenPhase = LagoonScreenPhase.game);
+        LagoonAudio.instance.play(_questionKey(_currentWeather['id'] as String));
+      },
+    );
   }
 
-  void _startRound() {
+  void _startRound({bool playPrompt = true}) {
     _currentWeather = _weathers[_roundIndex];
     _icons.clear();
     _score = 0;
     _roundComplete = false;
-    _needed = _items[_currentWeather['id']]!.length;
+    _needed = 5;
     _spawnInitialIcons();
+
+    if (playPrompt) {
+      LagoonAudio.instance.play(_questionKey(_currentWeather['id'] as String));
+    }
   }
 
   void _spawnInitialIcons() {
@@ -146,7 +168,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
   }
 
   void _tick() {
-    if (!mounted || _roundComplete) return;
+    if (!mounted || _roundComplete || _screenPhase != LagoonScreenPhase.game) return;
     setState(() {
       for (final icon in _icons) {
         if (!icon.tapped) icon.y += icon.speed;
@@ -166,6 +188,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
         icon.tapped = true;
         _score++;
       });
+      LagoonAudio.instance.play('correct');
       if (_score >= _needed) {
         setState(() => _roundComplete = true);
         await Future.delayed(const Duration(milliseconds: 800));
@@ -206,6 +229,8 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
   @override
   void dispose() {
     _tickCtrl.dispose();
+    disposeLagoonIntro();
+    _introPlayer.dispose();
     super.dispose();
   }
 
@@ -219,11 +244,11 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
 
           return Stack(
             children: [
-              // Background
               Positioned.fill(
                 child: Image.asset(
                   _weatherBgImage[_currentWeather['id']]!,
                   fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
                   errorBuilder: (_, __, ___) => Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -239,124 +264,141 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
                 ),
               ),
 
-              // Falling icons
-              ..._icons.where((i) => !i.tapped).map((icon) {
-                return Positioned(
-                  left: icon.x * w - 30,
-                  top: icon.y * h - 30,
-                  child: GestureDetector(
-                    onTap: () => _onTap(icon),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 100,
-                      height: 100,
-                      decoration: icon.wrong
-                          ? BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.3),
-                        shape: BoxShape.circle,
-                      )
-                          : null,
-                      child: Center(
-                        child: Image.asset(
-                          icon.imagePath,
-                          width: icon.wrong ? 100 : 100,
-                          height: icon.wrong ? 100 : 100,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.image_not_supported,
-                            size: 28,
-                            color: Colors.grey,
+              // Falling icons — only shown once the game phase starts.
+              if (_screenPhase == LagoonScreenPhase.game)
+                ..._icons.where((i) => !i.tapped).map((icon) {
+                  return Positioned(
+                    left: icon.x * w - 30,
+                    top: icon.y * h - 30,
+                    child: GestureDetector(
+                      onTap: () => _onTap(icon),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        width: 100,
+                        height: 100,
+                        decoration: icon.wrong
+                            ? BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.3),
+                          shape: BoxShape.circle,
+                        )
+                            : null,
+                        child: Center(
+                          child: Image.asset(
+                            icon.imagePath,
+                            width: icon.wrong ? 100 : 100,
+                            height: icon.wrong ? 100 : 100,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.image_not_supported,
+                              size: 28,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                }),
 
               // UI overlay
               SafeArea(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: SizedBox(
-                        height: 50,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Align(alignment: Alignment.centerLeft, child: LagoonBackButton()),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                _currentWeather['label']!,
-                                style: TextStyle(
-                                  fontFamily: LagoonAppTextStyles.fredoka,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: LagoonColorTheme.darkbrown,
-                                ),
-                              ),
-                            ),
-                            // Score badge
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: LagoonColorTheme.ferngreen,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  '$_score / $_needed',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    // Progress dots
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(_weathers.length, (i) {
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: const EdgeInsets.symmetric(horizontal: 5),
-                            width: i == _roundIndex ? 28 : 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: i < _roundIndex
-                                  ? LagoonColorTheme.darkbrown
-                                  : i == _roundIndex
-                                  ? LagoonColorTheme.ferngreen
-                                  : Colors.white.withValues(alpha: 0.4),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                  ],
-                ),
+                child: _screenPhase == LagoonScreenPhase.intro
+                    ? _buildIntroContent()
+                    : _buildGameContent(),
               ),
             ],
           );
         },
       ),
+    );
+  }
+
+  Widget _buildIntroContent() {
+    return Stack(
+      children: [
+        const Positioned(top: 8, left: 12, child: LagoonBackButton()),
+        Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
+      ],
+    );
+  }
+
+  Widget _buildGameContent() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SizedBox(
+            height: 50,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Align(alignment: Alignment.centerLeft, child: LagoonBackButton()),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: LagoonColorTheme.pastelorange,
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(color: LagoonColorTheme.wasteland, width: 5),
+                  ),
+                  child: Text(
+                    _currentWeather['label']!,
+                    style: TextStyle(
+                      fontFamily: LagoonAppTextStyles.fredoka,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: LagoonColorTheme.darkbrown,
+                    ),
+                  ),
+                ),
+                // Score badge
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: LagoonColorTheme.ferngreen,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '$_score / $_needed',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const Spacer(),
+
+        // Progress dots
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_weathers.length, (i) {
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 5),
+                width: i == _roundIndex ? 28 : 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: i < _roundIndex
+                      ? LagoonColorTheme.darkbrown
+                      : i == _roundIndex
+                      ? LagoonColorTheme.ferngreen
+                      : Colors.white.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
     );
   }
 }

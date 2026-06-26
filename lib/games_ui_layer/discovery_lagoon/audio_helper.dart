@@ -55,6 +55,11 @@ class LagoonAudio {
     'dressup_kite':       'assets/audio/discovery_lagoon/dressup_kite.wav',
 
     'dressup_outro':      'assets/audio/discovery_lagoon/dressup_outro.wav',
+
+    'tapsort_q_sunny':  'assets/audio/discovery_lagoon/tapsort_q_sunny.wav',
+    'tapsort_q_rainy':  'assets/audio/discovery_lagoon/tapsort_q_rainy.wav',
+    'tapsort_q_cloudy': 'assets/audio/discovery_lagoon/tapsort_q_cloudy.wav',
+    'tapsort_q_windy':  'assets/audio/discovery_lagoon/tapsort_q_windy.wav',
   };
 
   Future<void> play(String key) async {
