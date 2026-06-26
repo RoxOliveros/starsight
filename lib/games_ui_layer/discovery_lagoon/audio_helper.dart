@@ -62,6 +62,13 @@ class LagoonAudio {
     'trunk':   'assets/audio/discovery_lagoon/trunk.wav',
     'roots':   'assets/audio/discovery_lagoon/roots.wav',
     'treeparts_outro': 'assets/audio/discovery_lagoon/treeparts_outro.wav',
+
+    'clothesmatch_q_sunny':    'assets/audio/discovery_lagoon/clothesmatch_q_sunny.wav',
+    'clothesmatch_win_sunny':  'assets/audio/discovery_lagoon/clothesmatch_win_sunny.wav',
+    'clothesmatch_q_winter':   'assets/audio/discovery_lagoon/clothesmatch_q_winter.wav',
+    'clothesmatch_win_winter': 'assets/audio/discovery_lagoon/clothesmatch_win_winter.wav',
+    'clothesmatch_q_rainy':    'assets/audio/discovery_lagoon/clothesmatch_q_rainy.wav',
+    'clothesmatch_win_rainy':  'assets/audio/discovery_lagoon/clothesmatch_win_rainy.wav',
   };
 
   Future<void> play(String key) async {
