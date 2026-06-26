@@ -276,8 +276,8 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
               child: IgnorePointer(
                 child: Image.asset(
                   'assets/images/objects/lumi/towel.png',
-                  width: 60,
-                  height: 60,
+                  width: 130,
+                  height: 130,
                   fit: BoxFit.contain,
                 ),
               ),
