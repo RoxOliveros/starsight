@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../ui_layer/menu_dialog.dart';
 
-const String kAvatarPrefsKey = 'selected_avatar_path';
 const String kDefaultAvatarPath = 'assets/images/avatars/avatar_star.png';
 
 class AvatarStorage {
+  static String _keyForCurrentUser() {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+    return 'selected_avatar_path_$uid';
+  }
+
   static Future<String> getSelectedAvatarPath() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(kAvatarPrefsKey) ?? kDefaultAvatarPath;
+    return prefs.getString(_keyForCurrentUser()) ?? kDefaultAvatarPath;
   }
 
   static Future<void> setSelectedAvatarPath(String path) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(kAvatarPrefsKey, path);
+    await prefs.setString(_keyForCurrentUser(), path);
   }
 }
 

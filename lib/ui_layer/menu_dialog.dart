@@ -209,61 +209,45 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
 class _ProfileOption extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Widget? trailing;
   final VoidCallback? onTap;
-  final bool disabled;
 
   const _ProfileOption({
     required this.icon,
     required this.label,
-    this.trailing,
     this.onTap,
-    this.disabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: disabled ? null : onTap,
+      onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Opacity(
-          opacity: disabled ? 0.45 : 1.0,
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: disabled
-                      ? Colors.grey.shade400
-                      : const Color(0xFFF4DEB3),
-                ),
-                child: Icon(
-                  icon,
-                  color: disabled ? Colors.grey.shade700 : ColorTheme.orange,
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFF4DEB3),
+              ),
+              child: Icon(icon, color: ColorTheme.orange),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: AppTextStyles.fredoka,
+                  fontSize: 16,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontFamily: AppTextStyles.fredoka,
-                    fontSize: 16,
-                    color: disabled ? Colors.grey.shade300 : Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-
-              if (trailing != null) trailing!,
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
