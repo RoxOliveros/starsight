@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/lagoon_progress_service.dart';
@@ -320,7 +321,13 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
         builder: (_) => GoodJobOverlay(
           characterImage: 'assets/images/characters/cat_holding_fishbone.png',
           closeButtonColor: LagoonColorTheme.darkbrown,
-          onNext: () => Navigator.pop(context),
+          onNext: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const WeatherTapSortScreen(level: 19),
+              ),
+            );
+          },
           onRestart: () {
             Navigator.pop(context);
             setState(() {

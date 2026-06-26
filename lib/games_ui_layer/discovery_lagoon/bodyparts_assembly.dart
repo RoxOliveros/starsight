@@ -114,7 +114,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
         closeButtonColor: LagoonTheme.wasteland,
         onNext: () {
-          Navigator.pop(context); // Close the overlay
+          Navigator.pop(context);
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(

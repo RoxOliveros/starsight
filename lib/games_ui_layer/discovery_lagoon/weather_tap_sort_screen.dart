@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/treeparts_assembly.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/lagoon_progress_service.dart';
@@ -216,7 +217,13 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
       builder: (_) => GoodJobOverlay(
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
         closeButtonColor: LagoonColorTheme.darkbrown,
-        onNext: () => Navigator.pop(context),
+        onNext: (){
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const TreePartsAssemblyScreen(level: 20),
+            ),
+          );
+        },
         onRestart: () {
           Navigator.pop(context);
           setState(() { _roundIndex = 0; _startRound(); });

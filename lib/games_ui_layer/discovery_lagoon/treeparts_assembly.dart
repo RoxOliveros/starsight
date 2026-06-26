@@ -8,6 +8,7 @@ import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'audio_helper.dart';
 import 'bodyparts_drag.dart';
+import 'food_coloring.dart';
 import 'intro_phase.dart';
 
 class TreePartItem {
@@ -105,12 +106,12 @@ class _TreePartsAssemblyScreenState extends State<TreePartsAssemblyScreen>
         closeButtonColor: LagoonTheme.wasteland,
         onNext: () {
           Navigator.pop(context);
-          // Navigator.pushReplacement(
-          //   context,
-          //   MaterialPageRoute(
-          //     builder: (context) => WeatherLineMatchScreen(level: widget.level + 1),
-          //   ),
-          // );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FoodColoringScreen(level: 21),
+            ),
+          );
         },
         onRestart: () {
           Navigator.pop(context);

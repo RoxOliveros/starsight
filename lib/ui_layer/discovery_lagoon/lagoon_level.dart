@@ -483,7 +483,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => WeatherDressUpScreen(level: 17),
+                builder: (context) => WeatherClothesMatchScreen(level: 17),
               ),
             );
             break;
@@ -491,7 +491,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => WeatherTapSortScreen(level: 18),
+                builder: (context) => WeatherDressUpScreen(level: 18),
               ),
             );
             break;
@@ -499,7 +499,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => WeatherClothesMatchScreen(level: 19),
+                builder: (context) => WeatherTapSortScreen(level: 19),
               ),
             );
             break;

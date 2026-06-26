@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_clothes_match.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/lagoon_progress_service.dart';
@@ -182,7 +183,13 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
       builder: (_) => GoodJobOverlay(
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
         closeButtonColor: LagoonColorTheme.darkbrown,
-        onNext: () => Navigator.pop(context),
+        onNext: () {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const WeatherClothesMatchScreen(level: 17),
+            ),
+          );
+        },
         onRestart: () {
           Navigator.pop(context);
           setState(() {
