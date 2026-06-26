@@ -95,6 +95,7 @@ flutter:
     - assets/images/buttons/
     - assets/images/icons/
     - assets/images/objects/
+    - assets/images/avatars/
     - assets/images/objects/arctic/
     - assets/images/objects/puzzle/
     - assets/images/objects/lumi/
