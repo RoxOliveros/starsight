@@ -32,10 +32,9 @@ Emotions Detected: ${emotionsList.join(", ")}
 Time Played: $timePlayed
 Mistakes Made: $mistakesMade
 
-INSTRUCTIONS:
 1. First, provide exactly 4 bullet points. 
-   - Emotion: (The dominant emotion from the list)
-   - Focus: (High, Moderate, or Variable based on the emotions)
+   - Emotion: (The dominant emotion from the list. If the list mostly contains "Calibrating", output "Did not have enough time to calibrate")
+   - Focus: (High, Moderate, or if the list is mostly "Calibrating", output "Did not have enough time to calibrate")
    - Time: $timePlayed
    - Performance: (Do not say the exact number of mistakes. If 0 mistakes, say "Completed the activity smoothly!". If 1-3 mistakes, say "Made a few learning attempts but figured it out nicely". If more than 3, say "Showed great persistence through the tricky parts".)
 
