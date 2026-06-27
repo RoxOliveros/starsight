@@ -264,16 +264,16 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
             ),
           ),
 
-          Positioned(
-            bottom: 15,
-            right: 15,
-            child: Lottie.asset(
-              'assets/animations/movie_clapperboard.json',
-              width: 60,
-              height: 60,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            ),
-          ),
+          // Positioned(
+          //   bottom: 15,
+          //   right: 15,
+          //   child: Lottie.asset(
+          //     'assets/animations/movie_clapperboard.json',
+          //     width: 60,
+          //     height: 60,
+          //     errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          //   ),
+          // ),
         ],
       ),
     );

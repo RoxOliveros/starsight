@@ -152,22 +152,22 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                   },
                 ),
 
-                const SizedBox(height: 14),
+                // const SizedBox(height: 14),
 
-                _ProfileOption(
-                  icon: Icons.group,
-                  label: "Parent's Area",
-                  onTap: () {
-                    Navigator.pop(context);
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ParentPin(),
-                      ),
-                    );
-                  },
-                ),
+                // _ProfileOption(
+                //   icon: Icons.group,
+                //   label: "Parent's Area",
+                //   onTap: () {
+                //     Navigator.pop(context);
+                //
+                //     Navigator.push(
+                //       context,
+                //       MaterialPageRoute(
+                //         builder: (context) => const ParentPin(),
+                //       ),
+                //     );
+                //   },
+                // ),
 
                 const SizedBox(height: 14),
 

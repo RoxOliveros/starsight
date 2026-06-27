@@ -428,19 +428,19 @@ class _MainIslandCard extends StatelessWidget {
             ),
 
             // story mode button bottom-right
-            Positioned(
-              right: 5,
-              bottom: 5,
-              child: GestureDetector(
-                onTap: () {}, //TODO: @Tin Navigate to storymode
-                child: Lottie.asset(
-                  'assets/animations/movie_clapperboard.json',
-                  width: 60,
-                  height: 60,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-            ),
+            // Positioned(
+            //   right: 5,
+            //   bottom: 5,
+            //   child: GestureDetector(
+            //     onTap: () {}, //TODO: @Tin Navigate to storymode
+            //     child: Lottie.asset(
+            //       'assets/animations/movie_clapperboard.json',
+            //       width: 60,
+            //       height: 60,
+            //       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            //     ),
+            //   ),
+            // ),
           ],
         );
       },
