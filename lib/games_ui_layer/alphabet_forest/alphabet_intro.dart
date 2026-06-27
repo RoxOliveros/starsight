@@ -249,7 +249,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          "Next Level!",
+                          "Next!",
                           style: TextStyle(
                             fontFamily: ForestAppTextStyles.fredoka,
                             fontSize: 24,
