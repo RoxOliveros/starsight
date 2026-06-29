@@ -65,7 +65,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   // Submit feedback
   bool _submitFlashWrong = false;
-  bool _submitFlashCorrect = false;
   bool _locked = false;
 
   // Animations
@@ -90,8 +89,13 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     super.initState();
     OrientationService.setLandscape();
 
-    final extras = [0, 1, 2]..shuffle(Random());
-    _roundOrder = ([0, 1, 2] + extras.take(2).toList())..shuffle(Random());
+    final random = Random();
+
+    _roundOrder = [1, 2];
+    while (_roundOrder.length < _totalRounds) {
+      _roundOrder.add(random.nextBool() ? 1 : 2);
+    }
+    _roundOrder.shuffle(random);
 
     _numberDanceCtrl = AnimationController(
       vsync: this,
@@ -171,7 +175,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   void _startRound() {
     _selected = List.filled(_poolSize, false);
     _submitFlashWrong = false;
-    _submitFlashCorrect = false;
     _locked = false;
     _celebrationCtrl.reset();
     _enterCtrl.forward(from: 0);
@@ -224,7 +227,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     if (_selectedCount == _targetNumber) {
       // ✅ Correct
       _playAudio('assets/audio/arctic_numberland/$_targetNumber.wav');
-      setState(() => _submitFlashCorrect = true);
       _celebrationCtrl.forward(from: 0);
       _numberBounce.forward(from: 0);
 
@@ -241,8 +243,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         });
       }
     } else {
-      // ❌ Wrong
-      //TODO: replace wrong wav with doma vo
+
       _playAudio('assets/audio/sound_effects/bubble_pop.wav');
       setState(() => _submitFlashWrong = true);
       _wrongShakeCtrl.forward(from: 0);
@@ -379,9 +380,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         width: cardSize,
         height: cardSize,
         decoration: BoxDecoration(
-          color: _submitFlashWrong
-              ? const Color(0xFFFFB347)
-              : ArcticColorTheme.cadetblue,
+          color: ArcticColorTheme.cadetblue,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: ArcticColorTheme.slateblue, width: 3),
           boxShadow: [
@@ -418,27 +417,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Counter badge
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: ArcticColorTheme.cotton,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: ArcticColorTheme.pictonblue, width: 2),
-          ),
-          child: Text(
-            '$_selectedCount / $_poolSize tapped',
-            style: const TextStyle(
-              fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: 16,
-              color: ArcticColorTheme.slateblue,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
         // Object row (5 objects)
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -454,9 +432,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 12),
             decoration: BoxDecoration(
-              color: _submitFlashWrong
-                  ? const Color(0xFFFFB347)
-                  : ArcticColorTheme.cadetblue,
+              color: ArcticColorTheme.cadetblue,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -467,11 +443,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
               ],
             ),
             child: Text(
-              _submitFlashCorrect
-                  ? '✓ Correct!'
-                  : _submitFlashWrong
-                  ? 'Try again! 💛'
-                  : '✔',
+              'Submit',
               style: const TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: 22,

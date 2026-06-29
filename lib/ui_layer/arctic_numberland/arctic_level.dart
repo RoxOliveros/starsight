@@ -10,8 +10,8 @@ import '../../games_ui_layer/arctic_numberland/lvl10_five_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl11_345_reintroduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl12_345_counting.dart';
 import '../../games_ui_layer/arctic_numberland/lvl13_345_odd_one_out.dart';
-import '../../games_ui_layer/arctic_numberland/lvl14_012345_sequence.dart';
-import '../../games_ui_layer/arctic_numberland/lvl15_0to5_counting_trees.dart';
+import '../../games_ui_layer/arctic_numberland/lvl14_12345_sequence.dart';
+import '../../games_ui_layer/arctic_numberland/lvl15_1to5_counting_trees.dart';
 import '../../games_ui_layer/arctic_numberland/lvl16_0to5_building_igloo.dart';
 import '../../games_ui_layer/arctic_numberland/lvl17_0to5_match_snowglobe.dart';
 import '../../games_ui_layer/arctic_numberland/lvl4_number012_reintroduction.dart';
@@ -314,11 +314,11 @@ class _LevelTile extends StatelessWidget {
       case 14:
         return const Number012345SequenceScreen();
       case 15:
-        return const Number0to5CountingTreesScreen();
+        return const Number1to5CountingTreesScreen();
       case 16:
         return const Number0to5FillIglooScreen();
       case 17:
-        return const Number0to5MatchSnowglobesScreen();
+        return const Number1to5MatchSnowglobesScreen();
       default:
         return null;
     }

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
-import 'package:StarSight/games_ui_layer/arctic_numberland/lvl15_0to5_counting_trees.dart';
+import 'package:StarSight/games_ui_layer/arctic_numberland/lvl15_1to5_counting_trees.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -553,7 +553,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
                     ? Colors.red
                     : isHovered
                     ? ArcticColorTheme.pictonblue
-                    : Colors.white.withValues(alpha: 0.6),
+                    : Colors.blueGrey.withValues(alpha: 0.6),
                 width: isLocked || isHovered ? 3.5 : 2.5,
               ),
               boxShadow: isLocked
@@ -728,7 +728,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, const Number0to5CountingTreesScreen());
+        Navigator.pop(context, const Number1to5CountingTreesScreen());
       },
       onRestart: () {
         Navigator.pop(context, const Number012345SequenceScreen());

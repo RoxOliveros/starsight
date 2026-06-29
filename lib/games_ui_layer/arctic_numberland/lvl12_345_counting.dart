@@ -447,7 +447,7 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                flex: 5,
+                flex: 6,
                 child: ScaleTransition(
                   scale: _objectsEnter,
                   child: _buildObjectsBox(),
@@ -499,7 +499,7 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
   Widget _buildObjectGrid() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final objSize = (constraints.maxHeight * 0.38).clamp(50.0, 105.0);
+        final objSize = (constraints.maxHeight * 0.50).clamp(50.0, 105.0);
         return Wrap(
           alignment: WrapAlignment.center,
           runAlignment: WrapAlignment.center,

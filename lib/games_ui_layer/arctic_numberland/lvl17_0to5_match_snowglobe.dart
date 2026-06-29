@@ -8,16 +8,16 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'goodjob_doma_prompt.dart';
 
-class Number0to5MatchSnowglobesScreen extends StatefulWidget {
-  const Number0to5MatchSnowglobesScreen({super.key});
+class Number1to5MatchSnowglobesScreen extends StatefulWidget {
+  const Number1to5MatchSnowglobesScreen({super.key});
 
   @override
-  State<Number0to5MatchSnowglobesScreen> createState() =>
-      _Number0to5MatchSnowglobesScreenState();
+  State<Number1to5MatchSnowglobesScreen> createState() =>
+      _Number1to5MatchSnowglobesScreenState();
 }
 
-class _Number0to5MatchSnowglobesScreenState
-    extends State<Number0to5MatchSnowglobesScreen>
+class _Number1to5MatchSnowglobesScreenState
+    extends State<Number1to5MatchSnowglobesScreen>
     with TickerProviderStateMixin {
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -86,7 +86,7 @@ class _Number0to5MatchSnowglobesScreenState
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-    _roundPool = List.generate(6, (i) => i)..shuffle();
+    _roundPool = List.generate(5, (i) => i + 1)..shuffle();
     _initAnimations();
     _startIntroFlow();
   }
@@ -179,13 +179,13 @@ class _Number0to5MatchSnowglobesScreenState
     final rng = Random();
 
     if (_roundPool.isEmpty) {
-      _roundPool = List.generate(6, (i) => i)..shuffle();
+      _roundPool = List.generate(5, (i) => i + 1)..shuffle();
     }
 
     _targetNumber = _roundPool.removeLast();
 
     // Build globe counts: one must equal _targetNumber, others must differ
-    final allNums = List.generate(6, (i) => i);
+    final allNums = List.generate(5, (i) => i + 1);
     final distractors = [...allNums]..remove(_targetNumber);
     distractors.shuffle(rng);
     final otherCounts = distractors.take(_globeCount - 1).toList();
@@ -325,7 +325,7 @@ class _Number0to5MatchSnowglobesScreenState
               ),
               // Snowglobes 0–5 dancing
               Expanded(
-                flex: 6,
+                flex: 7,
                 child: Center(
                   child: AnimatedBuilder(
                     animation: _numberDanceCtrl,
@@ -333,12 +333,13 @@ class _Number0to5MatchSnowglobesScreenState
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
-                        children: List.generate(6, (i) {
+                        children: List.generate(5, (i) {
+                          final num = i + 1;
                           final angle =
                               _numberDance.value * ((i % 2 == 0) ? 1 : -1);
                           final globeH =
-                              MediaQuery.of(context).size.height * 0.11 +
-                              (i * 3.0);
+                              MediaQuery.of(context).size.height * 0.15 +
+                                  (i * 3.0);
                           return Transform.rotate(
                             angle: angle,
                             child: Padding(
@@ -365,7 +366,7 @@ class _Number0to5MatchSnowglobesScreenState
                                       Positioned(
                                         bottom: globeH * 0.22,
                                         child: Text(
-                                          '$i',
+                                          '$num',
                                           style: TextStyle(
                                             fontFamily:
                                                 ArcticAppTextStyles.fredoka,
@@ -388,7 +389,7 @@ class _Number0to5MatchSnowglobesScreenState
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
-                                      '$i',
+                                      '$num',
                                       style: TextStyle(
                                         fontFamily: ArcticAppTextStyles.fredoka,
                                         fontSize: globeH * 0.22,
@@ -483,13 +484,6 @@ class _Number0to5MatchSnowglobesScreenState
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              _snowglobeAsset,
-              height: (h * 0.08).clamp(24.0, 38.0),
-              errorBuilder: (_, __, ___) =>
-                  const Text('🔮', style: TextStyle(fontSize: 22)),
-            ),
-            const SizedBox(width: 10),
             Text(
               'Find the snowglobe with the matching number below',
               style: TextStyle(
@@ -516,7 +510,7 @@ class _Number0to5MatchSnowglobesScreenState
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             decoration: BoxDecoration(
-              color: ArcticColorTheme.cadetblue,
+              color: Color(0xFF97D9FA),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
@@ -530,17 +524,9 @@ class _Number0to5MatchSnowglobesScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Find',
-                  style: TextStyle(
-                    fontFamily: ArcticAppTextStyles.fredoka,
-                    fontSize: (h * 0.055).clamp(12.0, 18.0),
-                    color: Colors.white.withValues(alpha: 0.85),
-                  ),
-                ),
                 Image.asset(
                   'assets/fonts/game_numbers/$_targetNumber.png',
-                  height: (h * 0.14).clamp(40.0, 70.0),
+                  height: (h * 0.24).clamp(40.0, 70.0),
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Text(
                     '$_targetNumber',
@@ -649,35 +635,6 @@ class _Number0to5MatchSnowglobesScreenState
                   ),
                 ),
 
-                // Count badge at bottom of globe
-                Positioned(
-                  bottom: globeSize * 0.16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isTapped
-                          ? Colors.green
-                          : isShaking
-                          ? Colors.red
-                          : ArcticColorTheme.cadetblue,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white, width: 1.5),
-                    ),
-                    child: Text(
-                      '${_globeCounts[index]}',
-                      style: TextStyle(
-                        fontFamily: ArcticAppTextStyles.fredoka,
-                        fontSize: (globeSize * 0.12).clamp(13.0, 20.0),
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-
                 // Tick or cross overlay
                 if (isTapped)
                   Positioned(
@@ -722,26 +679,60 @@ class _Number0to5MatchSnowglobesScreenState
   }
 
   // Objects arranged in a neat grid/row inside the globe
+// Objects arranged in a neat grid/row inside the globe
   Widget _buildObjectsInsideGlobe(int count, String objectAsset, double size) {
-    if (count == 0) {
-      return const SizedBox.shrink();
-    }
-
-    return Wrap(
-      alignment: WrapAlignment.center,
-      runAlignment: WrapAlignment.center,
-      spacing: 3,
-      runSpacing: 3,
-      children: List.generate(count, (_) {
-        return Image.asset(
+    Widget buildItem() {
+      return Padding(
+        padding: const EdgeInsets.all(1.5),
+        child: Image.asset(
           objectAsset,
-          width: size,
-          height: size,
+          width: size + 8,
+          height: size + 8,
           fit: BoxFit.contain,
           errorBuilder: (_, __, ___) =>
               Text('❄️', style: TextStyle(fontSize: size * 0.7)),
+        ),
+      );
+    }
+
+    // Determine how many go on top row vs bottom row
+    int topCount;
+    int bottomCount;
+    switch (count) {
+      case 4:
+        topCount = 2;
+        bottomCount = 2;
+        break;
+      case 5:
+        topCount = 3;
+        bottomCount = 2;
+        break;
+      default:
+      // 1, 2, 3 (and any other count) — single centered row
+        return Wrap(
+          alignment: WrapAlignment.center,
+          runAlignment: WrapAlignment.center,
+          spacing: 3,
+          runSpacing: 3,
+          children: List.generate(count, (_) => buildItem()),
         );
-      }),
+    }
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(topCount, (_) => buildItem()),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(bottomCount, (_) => buildItem()),
+        ),
+      ],
     );
   }
 
@@ -779,7 +770,7 @@ class _Number0to5MatchSnowglobesScreenState
         // TODO: @tin navigate to next screen
       },
       onRestart: () {
-        Navigator.pop(context, const Number0to5MatchSnowglobesScreen());
+        Navigator.pop(context, const Number1to5MatchSnowglobesScreen());
       },
       onBack: () {
         Navigator.pop(context);

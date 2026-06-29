@@ -100,7 +100,7 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-    _roundPool = List.generate(_maxNumber + 1, (i) => i)..shuffle();
+    _roundPool = List.generate(_maxNumber, (i) => i + 1)..shuffle();
     _initAnimations();
     _startIntroFlow();
   }
@@ -200,7 +200,7 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
 
   void _setupRound() {
     if (_roundPool.isEmpty) {
-      _roundPool = List.generate(_maxNumber + 1, (i) => i)..shuffle();
+      _roundPool = List.generate(_maxNumber, (i) => i + 1)..shuffle();
     }
 
     _zeroRoundTriggered = false;
@@ -225,9 +225,9 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
     _sourceBlocks = List.generate(6, (i) {
       return _IceBlockData(
         id: i,
-        pileOffsetX: (rng.nextDouble() - 0.5) * 0.3,
-        pileOffsetY: (rng.nextDouble() - 0.5) * 0.2,
-        rotation: (rng.nextDouble() - 0.5) * 0.2,
+        pileOffsetX: (rng.nextDouble() - 0.5) * 1.0,
+        pileOffsetY: (rng.nextDouble() - 0.5) * 0.8,
+        rotation: (rng.nextDouble() - 0.5) * 0.4,
       );
     });
     _blockPlaced = List.filled(6, false);
@@ -405,12 +405,13 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
-                        children: List.generate(6, (i) {
+                        children: List.generate(5, (i) {
+                          final num = i + 1;
                           final angle =
                               _numberDance.value * ((i % 2 == 0) ? 1 : -1);
                           final blockH =
-                              MediaQuery.of(context).size.height * 0.14 +
-                              (i * 8.0);
+                              MediaQuery.of(context).size.height * 0.12 +
+                                  (i * 6.0);
                           return Transform.rotate(
                             angle: angle,
                             child: Padding(
@@ -420,21 +421,13 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // Stack of i ice blocks
-                                  ...List.generate(
-                                    i,
-                                    (j) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 2),
-                                      child: Image.asset(
-                                        _iceAsset,
-                                        height: blockH * 0.5,
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Text(
-                                              '🧊',
-                                              style: TextStyle(fontSize: 20),
-                                            ),
-                                      ),
+                                  Image.asset(
+                                    _iceAsset,
+                                    height: blockH,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const Text(
+                                      '🧊',
+                                      style: TextStyle(fontSize: 32),
                                     ),
                                   ),
                                   const SizedBox(height: 6),
@@ -448,10 +441,10 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
-                                      '$i',
+                                      '$num',
                                       style: TextStyle(
                                         fontFamily: ArcticAppTextStyles.fredoka,
-                                        fontSize: blockH * 0.3,
+                                        fontSize: blockH * 0.28,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
                                       ),
@@ -568,7 +561,7 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Put  ',
+              'Put',
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
                 fontSize: (h * 0.072).clamp(13.0, 21.0),
@@ -586,21 +579,23 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
             // Show the target number prominently
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-              decoration: BoxDecoration(
-                color: ArcticColorTheme.cadetblue,
-                borderRadius: BorderRadius.circular(12),
-              ),
               child: Text(
                 '$_targetCount',
                 style: TextStyle(
                   fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: (h * 0.085).clamp(16.0, 26.0),
+                  fontSize: (h * 0.072).clamp(13.0, 21.0),
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
+                  shadows: const [
+                    Shadow(
+                      color: Color(0x55003366),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(width: 10),
             Text(
               'blocks into the igloo!',
               style: TextStyle(
@@ -905,7 +900,7 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, const Number0to5MatchSnowglobesScreen());
+        Navigator.pop(context, const Number1to5MatchSnowglobesScreen());
       },
       onRestart: () {
         Navigator.pop(context, const Number0to5FillIglooScreen());

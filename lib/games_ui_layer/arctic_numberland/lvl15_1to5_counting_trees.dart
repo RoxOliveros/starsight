@@ -9,16 +9,16 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'goodjob_doma_prompt.dart';
 import 'lvl16_0to5_building_igloo.dart';
 
-class Number0to5CountingTreesScreen extends StatefulWidget {
-  const Number0to5CountingTreesScreen({super.key});
+class Number1to5CountingTreesScreen extends StatefulWidget {
+  const Number1to5CountingTreesScreen({super.key});
 
   @override
-  State<Number0to5CountingTreesScreen> createState() =>
-      _Number0to5CountingTreesScreenState();
+  State<Number1to5CountingTreesScreen> createState() =>
+      _Number1to5CountingTreesScreenState();
 }
 
-class _Number0to5CountingTreesScreenState
-    extends State<Number0to5CountingTreesScreen>
+class _Number1to5CountingTreesScreenState
+    extends State<Number1to5CountingTreesScreen>
     with TickerProviderStateMixin {
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -77,7 +77,7 @@ class _Number0to5CountingTreesScreenState
     super.initState();
     OrientationService.setLandscape();
 
-    _roundPool = [0, 1, 2, 3, 4, 5]..shuffle();
+    _roundPool = [1, 2, 3, 4, 5]..shuffle();
 
     _initAnimations();
     _startIntroFlow();
@@ -155,7 +155,7 @@ class _Number0to5CountingTreesScreenState
     final rng = Random();
 
     if (_roundPool.isEmpty) {
-      _roundPool = [0, 1, 2, 3, 4, 5]..shuffle();
+      _roundPool = [1, 2, 3, 4, 5]..shuffle();
     }
 
     _treeCount = _roundPool.removeLast();
@@ -166,7 +166,7 @@ class _Number0to5CountingTreesScreenState
     _treeTapOrder = List.filled(_treeCount, null);
     _tappedTreeCount = 0;
 
-    final allNums = List.generate(6, (i) => i);
+    final allNums = List.generate(5, (i) => i + 1);
 
     final distractors = [...allNums]..remove(_treeCount);
 
@@ -189,12 +189,10 @@ class _Number0to5CountingTreesScreenState
   }
 
   List<_TreeData> _generateTreePositions(int count, Random rng) {
-    // Scene area roughly 500×240 logical units (scaled at build time)
-    // Avoid bottom 20% (ground) and left 15% (Doma's space)
     const minX = 0.15;
     const maxX = 0.88;
     const minY = 0.05;
-    const maxY = 0.72;
+    const maxY = 0.62;
     const minDist = 0.18; // min distance between trees
 
     final List<_TreeData> placed = [];
@@ -229,6 +227,7 @@ class _Number0to5CountingTreesScreenState
   // ── Choice Tap ─────────────────────────────────────────────────────────────
   Future<void> _onChoiceTap(int index) async {
     if (_tappedIndex != null) return;
+
     setState(() => _tappedIndex = index);
 
     final isCorrect = _choices[index] == _treeCount;
@@ -236,17 +235,25 @@ class _Number0to5CountingTreesScreenState
     if (isCorrect) {
       _correctPulseCtrl.forward(from: 0);
       await _playAudio('assets/audio/arctic_numberland/$_treeCount.wav');
-    }
 
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
+      await Future.delayed(const Duration(milliseconds: 900));
+      if (!mounted) return;
 
-    if (_currentRound + 1 >= _totalRounds) {
-      await ArcticProgressService.instance.markLevelComplete(15);
-      setState(() => _showWinDialog = true);
+      if (_currentRound + 1 >= _totalRounds) {
+        await ArcticProgressService.instance.markLevelComplete(15);
+        setState(() => _showWinDialog = true);
+      } else {
+        setState(() => _currentRound++);
+        _setupRound();
+      }
     } else {
-      setState(() => _currentRound++);
-      _setupRound();
+      await Future.delayed(const Duration(milliseconds: 900));
+
+      if (!mounted) return;
+
+      setState(() {
+        _tappedIndex = null;
+      });
     }
   }
 
@@ -369,12 +376,13 @@ class _Number0to5CountingTreesScreenState
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
-                        children: List.generate(6, (i) {
+                        children: List.generate(5, (i) {
+                          final num = i + 1;
                           final angle =
                               _numberDance.value * ((i % 2 == 0) ? 1 : -1);
                           final treeH =
                               MediaQuery.of(context).size.height * 0.12 +
-                              (i * 6.0);
+                                  (i * 6.0);
                           return Transform.rotate(
                             angle: angle,
                             child: Padding(
@@ -384,18 +392,16 @@ class _Number0to5CountingTreesScreenState
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (i != 0)
-                                    Image.asset(
-                                      _treeAsset,
-                                      height: treeH,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) => const Text(
-                                        '🌲',
-                                        style: TextStyle(fontSize: 32),
-                                      ),
+                                  Image.asset(
+                                    _treeAsset,
+                                    height: treeH,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const Text(
+                                      '🌲',
+                                      style: TextStyle(fontSize: 32),
                                     ),
-
-                                  if (i != 0) const SizedBox(height: 6),
+                                  ),
+                                  const SizedBox(height: 6),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 8,
@@ -406,7 +412,7 @@ class _Number0to5CountingTreesScreenState
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
-                                      '$i',
+                                      '$num',
                                       style: TextStyle(
                                         fontFamily: ArcticAppTextStyles.fredoka,
                                         fontSize: treeH * 0.28,
@@ -515,15 +521,8 @@ class _Number0to5CountingTreesScreenState
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset(
-                _treeAsset,
-                height: (h * 0.08).clamp(24.0, 38.0),
-                errorBuilder: (_, __, ___) =>
-                    const Text('🌲', style: TextStyle(fontSize: 22)),
-              ),
-              const SizedBox(width: 10),
               Text(
-                'How many trees are there?  🔊',
+                'How many trees are there?',
                 style: TextStyle(
                   fontFamily: ArcticAppTextStyles.fredoka,
                   fontSize: (h * 0.075).clamp(14.0, 23.0),
@@ -537,6 +536,14 @@ class _Number0to5CountingTreesScreenState
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 10),
+              // Speaker hint
+              Image.asset(
+                'assets/images/icons/speaker.png',
+                height: (h * 0.25).clamp(18.0, 28.0),
+                width: (h * 0.25).clamp(18.0, 28.0),
+                fit: BoxFit.contain,
               ),
             ],
           ),
@@ -557,34 +564,6 @@ class _Number0to5CountingTreesScreenState
             // Doma bottom left
             Positioned(left: 0, bottom: 0, child: _buildDoma(sh * 0.68)),
 
-            // Counter badge (shows how many trees tapped)
-            if (_tappedTreeCount > 0 && _tappedIndex == null)
-              Positioned(
-                top: 8,
-                right: 12,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: ArcticColorTheme.cadetblue.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: Text(
-                    '$_tappedTreeCount / $_treeCount',
-                    style: const TextStyle(
-                      fontFamily: ArcticAppTextStyles.fredoka,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-
             // Trees scattered
             ...List.generate(_trees.length, (i) {
               final tree = _trees[i];
@@ -598,22 +577,23 @@ class _Number0to5CountingTreesScreenState
                 top: py,
                 child: GestureDetector(
                   onTap: () => _onTreeTap(i),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
+                  child: SizedBox(
+                    height: treeH + 24, // reserve space for badge so layout never shifts
                     child: Stack(
                       alignment: Alignment.topCenter,
                       children: [
                         // Glow when tapped
                         if (isTapped)
-                          Positioned.fill(
+                          Positioned(
+                            top: treeH * 0.15,
                             child: Container(
+                              width: treeH * 0.7,
+                              height: treeH * 0.7,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.yellowAccent.withValues(
-                                      alpha: 0.6,
-                                    ),
+                                    color: Colors.yellowAccent.withValues(alpha: 0.6),
                                     blurRadius: 18,
                                     spreadRadius: 4,
                                   ),
@@ -626,49 +606,17 @@ class _Number0to5CountingTreesScreenState
                         ColorFiltered(
                           colorFilter: isTapped
                               ? const ColorFilter.matrix([
-                                  0.6,
-                                  0,
-                                  0,
-                                  0,
-                                  80,
-                                  0,
-                                  0.9,
-                                  0,
-                                  0,
-                                  80,
-                                  0,
-                                  0,
-                                  0.4,
-                                  0,
-                                  0,
-                                  0,
-                                  0,
-                                  0,
-                                  1,
-                                  0,
-                                ])
+                            0.6, 0, 0, 0, 80,
+                            0, 0.9, 0, 0, 80,
+                            0, 0, 0.4, 0, 0,
+                            0, 0, 0, 1, 0,
+                          ])
                               : const ColorFilter.matrix([
-                                  1,
-                                  0,
-                                  0,
-                                  0,
-                                  0,
-                                  0,
-                                  1,
-                                  0,
-                                  0,
-                                  0,
-                                  0,
-                                  0,
-                                  1,
-                                  0,
-                                  0,
-                                  0,
-                                  0,
-                                  0,
-                                  1,
-                                  0,
-                                ]),
+                            1, 0, 0, 0, 0,
+                            0, 1, 0, 0, 0,
+                            0, 0, 1, 0, 0,
+                            0, 0, 0, 1, 0,
+                          ]),
                           child: Image.asset(
                             _treeAsset,
                             height: treeH,
@@ -680,10 +628,10 @@ class _Number0to5CountingTreesScreenState
                           ),
                         ),
 
-                        // Number badge on tapped tree
+                        // Number badge below the tree, fixed slot
                         if (isTapped)
                           Positioned(
-                            top: -2,
+                            top: treeH - 3,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 7,
@@ -841,7 +789,7 @@ class _Number0to5CountingTreesScreenState
         Navigator.pop(context, const Number0to5FillIglooScreen());
       },
       onRestart: () {
-        Navigator.pop(context, const Number0to5CountingTreesScreen());
+        Navigator.pop(context, const Number1to5CountingTreesScreen());
       },
       onBack: () {
         Navigator.pop(context);

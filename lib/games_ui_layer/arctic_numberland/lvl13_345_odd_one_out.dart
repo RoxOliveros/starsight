@@ -7,7 +7,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'goodjob_doma_prompt.dart';
-import 'lvl14_012345_sequence.dart';
+import 'lvl14_12345_sequence.dart';
 
 class Number345OddOneOutScreen extends StatefulWidget {
   const Number345OddOneOutScreen({super.key});
