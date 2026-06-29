@@ -42,7 +42,7 @@ mixin RoxieReactionMixin<T extends StatefulWidget> on State<T> {
 
   Widget buildRoxie(BuildContext context) {
     return Positioned(
-      left: 0,
+      left: -40,
       bottom: 0,
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.50,

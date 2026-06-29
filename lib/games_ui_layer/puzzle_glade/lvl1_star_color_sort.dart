@@ -58,7 +58,9 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
-  static const int _ballsPerColor = 3;
+
+  int _countA = 3;
+  int _countB = 3;
 
   static const _allPairs = [
     _JarPair(
@@ -261,14 +263,18 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
 
   // ── Round logic ────────────────────────────────────────────────────────────
   void _startRound() {
-    final shuffled = List<_JarPair>.from(_allPairs)..shuffle(Random());
+    final rng = Random();
+    final shuffled = List<_JarPair>.from(_allPairs)..shuffle(rng);
     _jarA = shuffled[0];
     _jarB = shuffled[1];
 
+    _countA = rng.nextInt(5) + 1;
+    _countB = 6 - _countA;
+
     final balls = [
-      ...List.generate(_ballsPerColor, (_) => _Ball(jarIndex: 0, pair: _jarA)),
-      ...List.generate(_ballsPerColor, (_) => _Ball(jarIndex: 1, pair: _jarB)),
-    ]..shuffle(Random());
+      ...List.generate(_countA, (_) => _Ball(jarIndex: 0, pair: _jarA)),
+      ...List.generate(_countB, (_) => _Ball(jarIndex: 1, pair: _jarB)),
+    ]..shuffle(rng);
 
     _poolBalls = balls;
     _jarABalls = [];
@@ -296,8 +302,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
       _player.play(AssetSource(_audioCorrect.replaceFirst('assets/', '')));
       showRoxieReaction(RoxieState.correct);
 
-      if (_jarABalls.length == _ballsPerColor &&
-          _jarBBalls.length == _ballsPerColor) {
+      if (_jarABalls.length == _countA && _jarBBalls.length == _countB) {
         _player.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
 
         // small delay so success feels “acknowledged”
@@ -683,7 +688,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
 
   Widget _buildBallPool() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      margin: const EdgeInsets.fromLTRB(150, 10, 12, 10),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       decoration: BoxDecoration(
         color: JarColorTheme.vandecane,
@@ -765,7 +770,9 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
     List<_Ball> contents,
     bool wrongFlash,
   ) {
-    final isFull = contents.length == _ballsPerColor;
+    final isFull = jarIndex == 0
+        ? contents.length == _countA
+        : contents.length == _countB;
 
     return RepaintBoundary(
       child: DragTarget<_Ball>(
@@ -822,22 +829,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                   if (contents.isNotEmpty)
                     Positioned(
                       bottom: 20,
-                      child: Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 0,
-                        runSpacing: 2,
-                        children: contents
-                            .map(
-                              (b) => Image.asset(
-                                _starImage,
-                                width: 26,
-                                height: 26,
-                                color: b.pair.ballColor,
-                                colorBlendMode: BlendMode.modulate,
-                              ),
-                            )
-                            .toList(),
-                      ),
+                      child: _buildStarsInJar(contents),
                     ),
                   if (isHovering && !isFull)
                     Positioned(
@@ -886,6 +878,44 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
         },
       ),
     );
+  }
+
+  Widget _buildStarsInJar(List<_Ball> contents) {
+    Widget star(_Ball b) => Image.asset(
+      _starImage,
+      width: 24,
+      height: 24,
+      color: b.pair.ballColor,
+      colorBlendMode: BlendMode.modulate,
+    );
+
+    Widget row(List<_Ball> items) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: items.map(star).toList(),
+    );
+
+    final count = contents.length;
+
+    if (count <= 3) {
+      return row(contents);
+    } else if (count == 4) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          row(contents.sublist(0, 1)), // 1 above
+          row(contents.sublist(1, 4)), // 3 below
+        ],
+      );
+    } else { // 5 or 6
+      final topCount = count - 3;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          row(contents.sublist(0, topCount)),      // 2 above (for 5), 3 above (for 6)
+          row(contents.sublist(topCount, count)),  // 3 below
+        ],
+      );
+    }
   }
 
   Widget _buildProgressDots() {

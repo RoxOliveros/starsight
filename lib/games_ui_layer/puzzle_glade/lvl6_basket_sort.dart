@@ -83,6 +83,9 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
   int _placedA = 0;
   int _placedB = 0;
 
+  int _countA = 2;
+  int _countB = 2;
+
   /// Flash state for wrong-drop highlight
   bool _flashA = false;
   bool _flashB = false;
@@ -283,12 +286,13 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
     _basketObjectA = shuffled[0];
     _basketObjectB = shuffled[1];
 
-    // 2 of each, shuffled
+    // Random split instead of fixed 2-2 (e.g. 1-3 or 3-1)
+    _countA = rng.nextInt(3) + 1; // 1, 2, or 3
+    _countB = 4 - _countA;
+
     _itemQueue = [
-      _basketObjectA,
-      _basketObjectA,
-      _basketObjectB,
-      _basketObjectB,
+      ...List.generate(_countA, (_) => _basketObjectA),
+      ...List.generate(_countB, (_) => _basketObjectB),
     ]..shuffle(rng);
 
     _currentItemIndex = 0;
@@ -617,6 +621,7 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
             _buildBasket(
               objectName: _basketObjectA,
               placedCount: _placedA,
+              targetCount: _countA,
               isFlashing: _flashA,
               bounceAnim: _bounceAAnim,
               bounceCtrl: _bounceACtrl,
@@ -629,6 +634,7 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
             _buildBasket(
               objectName: _basketObjectB,
               placedCount: _placedB,
+              targetCount: _countB,
               isFlashing: _flashB,
               bounceAnim: _bounceBAnim,
               bounceCtrl: _bounceBCtrl,
@@ -658,8 +664,9 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
       );
     }
 
-    if (_currentItemIndex >= _itemQueue.length)
+    if (_currentItemIndex >= _itemQueue.length) {
       return const SizedBox(width: 90);
+    }
 
     final currentObject = _itemQueue[_currentItemIndex];
     final remaining = _itemQueue.length - _currentItemIndex;
@@ -768,6 +775,7 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
   Widget _buildBasket({
     required String objectName,
     required int placedCount,
+    required int targetCount,
     required bool isFlashing,
     required Animation<double> bounceAnim,
     required AnimationController bounceCtrl,
@@ -826,19 +834,7 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
                       if (placedCount > 0)
                         Positioned(
                           bottom: 18,
-                          child: Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: 2,
-                            children: List.generate(
-                              placedCount,
-                              (_) => Image.asset(
-                                'assets/images/objects/puzzle/$objectName.png',
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ),
+                          child: _buildPlacedItems(objectName, placedCount),
                         ),
                       // Wrong flash label
                       if (isFlashing)
@@ -855,7 +851,7 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
                           ),
                         ),
                       // Full checkmark
-                      if (placedCount >= 2)
+                      if (placedCount >= targetCount)
                         Positioned(
                           top: 0,
                           right: 0,
@@ -881,6 +877,33 @@ class _Lvl6BasketSortScreenState extends State<Lvl6BasketSortScreen>
         );
       },
     );
+  }
+
+  Widget _buildPlacedItems(String objectName, int count) {
+    Widget item() => Image.asset(
+      'assets/images/objects/puzzle/$objectName.png',
+      width: 60,
+      height: 60,
+      fit: BoxFit.contain,
+    );
+
+    Widget row(int n) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(n, (_) => item()),
+    );
+
+    if (count <= 2) {
+      return row(count);
+    } else {
+      // 3: 1 above, 2 below
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          row(count - 2), // top
+          row(2),         // bottom
+        ],
+      );
+    }
   }
 
   // ── Progress dots ──────────────────────────────────────────────────────────

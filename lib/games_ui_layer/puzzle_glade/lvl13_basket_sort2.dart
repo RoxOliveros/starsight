@@ -74,6 +74,7 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
   /// The two object types used as baskets this round
   late String _basketObjectA;
   late String _basketObjectB;
+  late String _basketObjectC;
 
   /// Queue of object names to sort (4 items: 2×A + 2×B, shuffled)
   late List<String> _itemQueue;
@@ -82,10 +83,12 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
   /// How many items have been correctly placed per basket
   int _placedA = 0;
   int _placedB = 0;
+  int _placedC = 0;
 
   /// Flash state for wrong-drop highlight
   bool _flashA = false;
   bool _flashB = false;
+  bool _flashC = false;
 
   bool _roundComplete = false;
   bool _showWinDialog = false;
@@ -93,11 +96,14 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
   /// Whether the current item is being held / dragged
   bool _itemHeld = false;
 
-  late String _basketObjectC;
-  int _placedC = 0;
-  bool _flashC = false;
+  /// Randomized number of items per basket this round
+  int _targetA = 3;
+  int _targetB = 3;
+  int _targetC = 3;
+
   late AnimationController _bounceCCtrl;
   late Animation<double> _bounceCAnim;
+
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -300,17 +306,15 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
     _basketObjectB = shuffled[1];
     _basketObjectC = shuffled[2];
 
-    // 3 of each, shuffled
+    // Randomized counts per basket (2-4 each)
+    _targetA = rng.nextInt(3) + 2;
+    _targetB = rng.nextInt(3) + 2;
+    _targetC = rng.nextInt(3) + 2;
+
     _itemQueue = [
-      _basketObjectA,
-      _basketObjectA,
-      _basketObjectA,
-      _basketObjectB,
-      _basketObjectB,
-      _basketObjectB,
-      _basketObjectC,
-      _basketObjectC,
-      _basketObjectC,
+      ...List.filled(_targetA, _basketObjectA),
+      ...List.filled(_targetB, _basketObjectB),
+      ...List.filled(_targetC, _basketObjectC),
     ]..shuffle(rng);
 
     _currentItemIndex = 0;
@@ -649,34 +653,33 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              const SizedBox(width: 120),
+
               // Basket A
               _buildBasket(
                 objectName: _basketObjectA,
                 placedCount: _placedA,
+                targetCount: _targetA,
                 isFlashing: _flashA,
                 bounceAnim: _bounceAAnim,
                 bounceCtrl: _bounceACtrl,
               ),
 
-              const SizedBox(width: 24),
-
               _buildCenterItem(),
 
-              const SizedBox(width: 24),
-              // Basket B
               _buildBasket(
                 objectName: _basketObjectB,
                 placedCount: _placedB,
+                targetCount: _targetB,
                 isFlashing: _flashB,
                 bounceAnim: _bounceBAnim,
                 bounceCtrl: _bounceBCtrl,
               ),
 
-              const SizedBox(width: 24),
-              // Basket C
               _buildBasket(
                 objectName: _basketObjectC,
                 placedCount: _placedC,
+                targetCount: _targetC,
                 isFlashing: _flashC,
                 bounceAnim: _bounceCAnim,
                 bounceCtrl: _bounceCCtrl,
@@ -818,6 +821,7 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
   Widget _buildBasket({
     required String objectName,
     required int placedCount,
+    required int targetCount,
     required bool isFlashing,
     required Animation<double> bounceAnim,
     required AnimationController bounceCtrl,
@@ -876,23 +880,11 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
                       if (placedCount > 0)
                         Positioned(
                           bottom: 18,
-                          child: Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: 2,
-                            children: List.generate(
-                              placedCount,
-                              (_) => Image.asset(
-                                'assets/images/objects/puzzle/$objectName.png',
-                                width: 50,
-                                height: 50,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ),
+                          child: _buildPlacedItems(objectName, placedCount),
                         ),
 
                       // Full checkmark
-                      if (placedCount >= 3)
+                      if (placedCount >= targetCount)
                         Positioned(
                           top: 0,
                           right: 0,
@@ -918,6 +910,33 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
         );
       },
     );
+  }
+
+  Widget _buildPlacedItems(String objectName, int count) {
+    Widget item() => Image.asset(
+      'assets/images/objects/puzzle/$objectName.png',
+      width: 50,
+      height: 50,
+      fit: BoxFit.contain,
+    );
+
+    Widget row(int n) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(n, (_) => item()),
+    );
+
+    if (count <= 2) {
+      return row(count);
+    } else {
+      // 3+: overflow above, 2 below
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          row(count - 2), // top
+          row(2),         // bottom
+        ],
+      );
+    }
   }
 
   // ── Progress dots ──────────────────────────────────────────────────────────
