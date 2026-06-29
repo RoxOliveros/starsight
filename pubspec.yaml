@@ -156,6 +156,7 @@ flutter:
     - assets/audio/discovery_lagoon/
     - assets/audio/alphabet_forest/sound_effects/
     - .env
+    - assets/audio/lumi_town/level5/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

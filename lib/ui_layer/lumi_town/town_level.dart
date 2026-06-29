@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/town_progress_service.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl5/sharing_1.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -113,10 +114,12 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                             const SizedBox(height: 16),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: List.generate(
-                                4,
-                                (i) => _LockedTile(size: tileSize),
-                              ),
+                              children: List.generate(4, (i) {
+                                final level = i + 5;
+                                return level <= _unlockedLevel
+                                    ? _LevelTile(level: level, size: tileSize)
+                                    : _LockedTile(size: tileSize);
+                              }),
                             ),
                           ],
                         ),
@@ -201,7 +204,6 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
           //     errorBuilder: (_, __, ___) => const SizedBox.shrink(),
           //   ),
           // ),
-
           if (_isLoadingProgress)
             Positioned.fill(
               child: Container(
@@ -233,6 +235,8 @@ class _LevelTile extends StatelessWidget {
         return CleanBedroomGameScreen();
       case 4:
         return CookingGameScreen();
+      case 5:
+        return Sharing1();
       default:
         return null;
     }
