@@ -64,7 +64,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   late List<bool> _selected;
 
   // Submit feedback
-  bool _submitFlashWrong = false;
   bool _locked = false;
 
   // Animations
@@ -174,7 +173,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   void _startRound() {
     _selected = List.filled(_poolSize, false);
-    _submitFlashWrong = false;
     _locked = false;
     _celebrationCtrl.reset();
     _enterCtrl.forward(from: 0);
@@ -245,12 +243,10 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     } else {
 
       _playAudio('assets/audio/sound_effects/bubble_pop.wav');
-      setState(() => _submitFlashWrong = true);
       _wrongShakeCtrl.forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 2000));
       _wrongShakeCtrl.reset();
       setState(() {
-        _submitFlashWrong = false;
         _locked = false;
       });
     }
