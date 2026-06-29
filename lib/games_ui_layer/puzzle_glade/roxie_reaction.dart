@@ -20,7 +20,7 @@ mixin RoxieReactionMixin<T extends StatefulWidget> on State<T> {
       await _playRoxieAudio('assets/audio/puzzle_glade/try_again.wav');
     }
 
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => roxieState = RoxieState.normal);
   }
 
@@ -45,7 +45,7 @@ mixin RoxieReactionMixin<T extends StatefulWidget> on State<T> {
       left: 0,
       bottom: 0,
       child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.35,
+        height: MediaQuery.of(context).size.height * 0.50,
         child: switch (roxieState) {
           RoxieState.correct => Image.asset(
             'assets/animations/characters/roxie_clapping.webp',

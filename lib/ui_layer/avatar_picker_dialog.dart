@@ -29,6 +29,7 @@ const List<String> kAvatarAssetPaths = [
   'assets/images/avatars/avatar_dog.png',
   'assets/images/avatars/avatar_owl.png',
   'assets/images/avatars/avatar_penguin.png',
+  'assets/images/avatars/avatar_fox.png',
   'assets/images/avatars/avatar_star.png',
 ];
 
