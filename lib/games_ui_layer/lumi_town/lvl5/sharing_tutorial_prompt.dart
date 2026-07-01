@@ -42,36 +42,23 @@ class _SharingDemoVisual extends StatelessWidget {
 
         final foodWidth = (availableWidth * 0.17).clamp(40.0, 65.0);
         final waterWidth = foodWidth * 0.5;
-        final itemSpacing = (availableWidth * 0.04).clamp(8.0, 14.0);
         final spacing = (availableWidth * 0.09).clamp(16.0, 32.0);
         final characterHeight = (availableWidth * 0.28).clamp(60.0, 95.0);
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Draggable items moving right (simulated drag-and-drop demo).
-            // Pancake sits on the left, water glass on the right.
+            // Pancake on the left, sliding right towards the character
             Flexible(
               child:
-                  Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Image.asset(
-                            'assets/images/objects/lumi/pancke_maple_syrup_butter.png',
-                            width: foodWidth,
-                          ),
-                          SizedBox(width: itemSpacing),
-                          Image.asset(
-                            'assets/images/objects/lumi/water_glass.png',
-                            width: waterWidth,
-                          ),
-                        ],
+                  Image.asset(
+                        'assets/images/objects/lumi/pancke_maple_syrup_butter.png',
+                        width: foodWidth,
                       )
                       .animate(onPlay: (c) => c.repeat())
                       .moveX(
                         begin: 0,
-                        end: 70,
+                        end: 50,
                         duration: const Duration(seconds: 2),
                         curve: Curves.easeInOut,
                       )
@@ -83,7 +70,7 @@ class _SharingDemoVisual extends StatelessWidget {
 
             SizedBox(width: spacing),
 
-            // Receiving character (e.g. Roxie)
+            // Receiving character in the center
             Flexible(
               child: Image.asset(
                 'assets/images/characters/roxie_standing.png',
@@ -94,6 +81,28 @@ class _SharingDemoVisual extends StatelessWidget {
                   color: Colors.grey,
                 ),
               ),
+            ),
+
+            SizedBox(width: spacing),
+
+            // Water glass on the right, sliding left towards the character
+            Flexible(
+              child:
+                  Image.asset(
+                        'assets/images/objects/lumi/water_glass.png',
+                        width: waterWidth,
+                      )
+                      .animate(onPlay: (c) => c.repeat())
+                      .moveX(
+                        begin: 0,
+                        end: -50,
+                        duration: const Duration(seconds: 2),
+                        curve: Curves.easeInOut,
+                      )
+                      .fadeOut(
+                        delay: const Duration(milliseconds: 1500),
+                        duration: const Duration(milliseconds: 500),
+                      ),
             ),
           ],
         );

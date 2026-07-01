@@ -22,6 +22,9 @@ class _Sharing2State extends State<Sharing2> {
   bool _showCancelBtn = false;
   Timer? _cancelBtnTimer;
   bool _readyForEntrance = false;
+  bool _showSadBearFailedUI = false;
+  bool _showAllCharactersSuccessUI = false;
+  bool _showTryAgainButton = false;
 
   // Whether the "How to Play" tutorial overlay is currently showing.
   // Starts true so new players see it before the round begins.
@@ -40,7 +43,7 @@ class _Sharing2State extends State<Sharing2> {
   int _retryCount = 0;
 
   static const Map<String, String> characters = {
-    'roxie': 'assets/images/characters/roxie_standing.png',
+    'bunny': 'assets/images/characters/roxie_standing.png',
     'cat': 'assets/images/characters/kiki_smiling.png',
     'fox': 'assets/images/characters/jack_smilling.png',
     'penguin': 'assets/images/characters/doma_the_penguin.png',
@@ -48,9 +51,18 @@ class _Sharing2State extends State<Sharing2> {
     'dog': 'assets/images/characters/doby_standing_armsonhips.png',
   };
 
+  static const Map<String, String> characterVoiceovers = {
+    'bunny': 'audio/lumi_town/level5/bunny_thankyou.wav',
+    'cat': 'audio/lumi_town/level5/cat_thankyou.wav',
+    'fox': 'audio/lumi_town/level5/fox_thankyou.wav',
+    'penguin': 'audio/lumi_town/level5/penguin_thankyou.wav',
+    'owl': 'audio/lumi_town/level5/owl_thankyou.wav',
+    'dog': 'audio/lumi_town/level5/dog_thankyou.wav',
+  };
+
   // The exact sequence requested
   final List<String> _sequence = [
-    'roxie',
+    'bunny',
     'cat',
     'fox',
     'penguin',
@@ -60,7 +72,7 @@ class _Sharing2State extends State<Sharing2> {
   ];
 
   String get currentCharacterImage =>
-      characters[_sequence[_charIndex]] ?? characters['roxie']!;
+      characters[_sequence[_charIndex]] ?? characters['bunny']!;
 
   @override
   void initState() {
@@ -125,27 +137,52 @@ class _Sharing2State extends State<Sharing2> {
     super.dispose();
   }
 
-  // Called when both pancake and water are successfully given
   void _checkNextCharacter() {
     if (_hasGivenPancake && _hasGivenWater) {
-      _audioPlayer.play(AssetSource('audio/lumi_town/level5/share_yes.wav'));
+      String currentCharKey = _sequence[_charIndex];
+
+      String audioPath =
+          characterVoiceovers[currentCharKey] ??
+          'audio/lumi_town/level5/share_yes.wav';
+
+      _audioPlayer.play(AssetSource(audioPath));
 
       Future.delayed(const Duration(milliseconds: 1500), () {
         if (!mounted) return;
 
         if (_charIndex < _sequence.length - 1) {
+          // Normal progression to the next character (e.g., to the Dog)
           setState(() {
-            _readyForEntrance = false; // Hide current character
+            _readyForEntrance = false;
             _charIndex++;
             _hasGivenPancake = false;
             _hasGivenWater = false;
           });
 
-          // Wait a moment before walking the next character in
           Future.delayed(const Duration(milliseconds: 200), () {
             if (!mounted) return;
             setState(() {
               _readyForEntrance = true;
+            });
+          });
+        } else {
+          // End of the sequence reached (Dog was fed).
+          // If they are here, they didn't cancel the Fox, so Bear gets nothing!
+          setState(() {
+            _readyForEntrance = false;
+            _showSadBearFailedUI = true;
+          });
+
+          // Play the sad bear narration
+          _audioPlayer.play(
+            AssetSource('audio/lumi_town/level5/sharing_wrong.wav'),
+          );
+
+          // Wait 12 seconds for the audio to finish before showing the button
+          Future.delayed(const Duration(seconds: 12), () {
+            if (!mounted) return;
+            setState(() {
+              _showTryAgainButton = true;
             });
           });
         }
@@ -156,10 +193,29 @@ class _Sharing2State extends State<Sharing2> {
   // Called when the cancel button is tapped
   void _handleCancel() {
     _audioPlayer.play(AssetSource('audio/lumi_town/level5/share_no.wav'));
+
+    // NEW: User correctly canceled the 2nd Fox!
+    if (_charIndex == 5) {
+      setState(() {
+        _readyForEntrance = false;
+      });
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (!mounted) return;
+        setState(() {
+          _showAllCharactersSuccessUI = true; // Show all characters
+        });
+        // Play the success audio
+        _audioPlayer.play(
+          AssetSource('audio/lumi_town/level5/success_narration.wav'),
+        );
+      });
+      return; // Stop the standard retry logic
+    }
+
+    // Standard cancel logic for other characters
     setState(() {
       _readyForEntrance = false; // Triggers exit
 
-      // Return food to the table if the user changes their mind
       if (_hasGivenPancake) _pancakesLeft++;
       if (_hasGivenWater) _waterLeft++;
 
@@ -167,7 +223,6 @@ class _Sharing2State extends State<Sharing2> {
       _hasGivenWater = false;
     });
 
-    // Re-trigger the same character entrance (e.g. Fox repeats)
     Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
       setState(() {
@@ -477,8 +532,195 @@ class _Sharing2State extends State<Sharing2> {
             Positioned.fill(
               child: SharingTutorialPrompt(onClose: _handleTutorialClose),
             ),
-        ],
-      ),
-    );
+          // ── 9. Sad Bear Failure UI (Ran out of food) ─────────────────
+          if (_showSadBearFailedUI)
+            Positioned.fill(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 1. Background Park
+                  Image.asset(
+                    'assets/images/backgrounds/bg_lumi_park.png',
+                    fit: BoxFit.cover,
+                  ),
+
+                  // 2. Sad Bear — big and close, same "half body" framing as
+                  // the bear in Sharing1 (tall image, bottom-anchored, so
+                  // the top of the screen crops him instead of shrinking him).
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Image.asset(
+                        'assets/images/characters/bear_sad.png', // Change to .jpg if needed
+                        height: sh * 0.95,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+
+                  // 3. Table in the foreground
+                  Positioned(
+                    bottom: tableBottom,
+                    left: 0,
+                    right: 0,
+                    child: Image.asset(
+                      'assets/images/objects/lumi/table.png',
+                      width: tableWidth,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+
+                  // 4. Empty Plate centered on the table
+                  Positioned(
+                    bottom: stackBaseOffset,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Image.asset(
+                        'assets/images/objects/lumi/plate.png',
+                        width: plateWidth,
+                      ),
+                    ),
+                  ),
+
+                  // 5. Try Again Button (Appears ONLY after audio finishes)
+                  if (_showTryAgainButton)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black45, // Slight dim to pop the button
+                        child: Center(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFE8A037),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: sw * 0.06,
+                                vertical: sh * 0.04,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            onPressed: () {
+                              // Reset the game completely
+                              setState(() {
+                                _showSadBearFailedUI = false;
+                                _showTryAgainButton = false;
+                                _charIndex = 0;
+                                _pancakesLeft = 7;
+                                _waterLeft = 7;
+                                _hasGivenPancake = false;
+                                _hasGivenWater = false;
+                                _readyForEntrance = true;
+                              });
+                            },
+                            child: const Text(
+                              'Subukan Ulit', // Try Again
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontFamily: 'Fredoka',
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+          // ── 10. Success UI (Canceled the 2nd Fox) ──────────────────────
+          if (_showAllCharactersSuccessUI)
+            Positioned.fill(
+              child: Container(
+                decoration: const BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage(
+                      'assets/images/backgrounds/bg_lumi_park.png',
+                    ),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Lahat ay pantay-pantay!',
+                      style: TextStyle(
+                        fontFamily: 'Fredoka',
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            blurRadius: 6,
+                            color: Colors.black54,
+                            offset: Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Display every character in a row — each one gets an
+                    // equal Expanded slot and fills all the vertical space
+                    // between the title and the button, so they read as
+                    // "big" while still all fitting side-by-side.
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: characters.values.map((imagePath) {
+                          return Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: sw * 0.005,
+                              ),
+                              child: Image.asset(imagePath, fit: BoxFit.contain)
+                                  .animate(
+                                    onPlay: (c) => c.repeat(reverse: true),
+                                  )
+                                  .moveY(
+                                    begin: 0,
+                                    end: -20,
+                                    duration: const Duration(milliseconds: 500),
+                                    curve: Curves.easeInOut,
+                                  ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF90D060),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: sw * 0.05,
+                          vertical: sh * 0.03,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      child: const Text(
+                        'Next Level',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontFamily: 'Fredoka',
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ], // <-- This closes the main Stack's children array
+      ), // <-- This closes the main Stack
+    ); // <-- This closes the Scaffold
   }
 }

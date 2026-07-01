@@ -127,6 +127,7 @@ class _TutorialPromptCardState extends State<TutorialPromptCard> {
               ],
             ),
             child: Stack(
+              alignment: Alignment.center,
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(
