@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import 'character_entrance.dart';
+import 'sharing_tutorial_prompt.dart';
 
 class Sharing2 extends StatefulWidget {
   const Sharing2({super.key});
@@ -17,24 +18,27 @@ class Sharing2 extends StatefulWidget {
 class _Sharing2State extends State<Sharing2> {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // Key used to re-trigger the same character's walk-in animation later
-  // (e.g. the fox walking in a second time).
-  final GlobalKey<CharacterEntranceState> _entranceKey =
-      GlobalKey<CharacterEntranceState>();
-
   // ── State Variables ──────────────────────────────────────────────────
   bool _showCancelBtn = false;
   Timer? _cancelBtnTimer;
-
-  // The forced landscape rotation is heavy enough to skip frames for a
-  // moment. If the character's walk-in animation starts at the same time,
-  // it gets "eaten" by that jank and only the final frame is ever shown.
-  // We gate building CharacterEntrance behind this so its entrance
-  // animation only starts once the rotation has actually settled.
   bool _readyForEntrance = false;
 
-  // All 6 characters that can appear in this scene. Swap which one shows
-  // by changing `currentCharacter` below to any key from this map.
+  // Whether the "How to Play" tutorial overlay is currently showing.
+  // Starts true so new players see it before the round begins.
+  bool _showTutorial = true;
+
+  // Inventory state
+  int _pancakesLeft = 7;
+  int _waterLeft = 7;
+
+  // Turn state
+  bool _hasGivenPancake = false;
+  bool _hasGivenWater = false;
+
+  // Character sequence tracking
+  int _charIndex = 0;
+  int _retryCount = 0;
+
   static const Map<String, String> characters = {
     'roxie': 'assets/images/characters/roxie_standing.png',
     'cat': 'assets/images/characters/kiki_smiling.png',
@@ -44,19 +48,35 @@ class _Sharing2State extends State<Sharing2> {
     'dog': 'assets/images/characters/doby_standing_armsonhips.png',
   };
 
-  // Change this to swap which character appears in the scene.
-  String currentCharacterKey = 'fox';
+  // The exact sequence requested
+  final List<String> _sequence = [
+    'roxie',
+    'cat',
+    'fox',
+    'penguin',
+    'owl',
+    'fox',
+    'dog',
+  ];
 
   String get currentCharacterImage =>
-      characters[currentCharacterKey] ?? characters['roxie']!;
+      characters[_sequence[_charIndex]] ?? characters['roxie']!;
 
   @override
   void initState() {
     super.initState();
     _lockOrientationThenStartEntrance();
 
-    // Start a 7-second countdown before showing the cancel button
-    _cancelBtnTimer = Timer(const Duration(seconds: 7), () {
+    // If the tutorial is showing, hold off on the game's own audio and the
+    // cancel-button reveal timer until the player dismisses it — otherwise
+    // the tutorial narration and the game's "sharing.wav" would overlap.
+    if (!_showTutorial) {
+      _startRoundAudioAndTimers();
+    }
+  }
+
+  void _startRoundAudioAndTimers() {
+    _cancelBtnTimer = Timer(const Duration(seconds: 8), () {
       if (mounted) {
         setState(() {
           _showCancelBtn = true;
@@ -64,8 +84,15 @@ class _Sharing2State extends State<Sharing2> {
       }
     });
 
-    // Play the sharing audio as soon as the screen loads
-    _audioPlayer.play(AssetSource('audio/lumi_town/level5/sharing.wav'));
+    // Note: the round's narration audio ('sharing.wav') is now played by
+    // SharingTutorialPrompt itself, as soon as it appears — not here.
+  }
+
+  void _handleTutorialClose() {
+    setState(() {
+      _showTutorial = false;
+    });
+    _startRoundAudioAndTimers();
   }
 
   Future<void> _lockOrientationThenStartEntrance() async {
@@ -74,10 +101,6 @@ class _Sharing2State extends State<Sharing2> {
       DeviceOrientation.landscapeLeft,
     ]);
 
-    // The orientation change can still cause a few janky frames after the
-    // platform reports it's done. Wait one extra frame + a short buffer so
-    // the layout has actually settled before we start the walk-in — this
-    // is what prevents the entrance animation from being "skipped".
     await WidgetsBinding.instance.endOfFrame;
     await Future.delayed(const Duration(milliseconds: 250));
 
@@ -102,11 +125,56 @@ class _Sharing2State extends State<Sharing2> {
     super.dispose();
   }
 
-  /// Re-plays the current character's walk-in entrance from off-screen.
-  /// Call this for e.g. the fox walking back in a second time:
-  ///   `_replayEntrance()`
-  void _replayEntrance() {
-    _entranceKey.currentState?.replay();
+  // Called when both pancake and water are successfully given
+  void _checkNextCharacter() {
+    if (_hasGivenPancake && _hasGivenWater) {
+      _audioPlayer.play(AssetSource('audio/lumi_town/level5/share_yes.wav'));
+
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (!mounted) return;
+
+        if (_charIndex < _sequence.length - 1) {
+          setState(() {
+            _readyForEntrance = false; // Hide current character
+            _charIndex++;
+            _hasGivenPancake = false;
+            _hasGivenWater = false;
+          });
+
+          // Wait a moment before walking the next character in
+          Future.delayed(const Duration(milliseconds: 200), () {
+            if (!mounted) return;
+            setState(() {
+              _readyForEntrance = true;
+            });
+          });
+        }
+      });
+    }
+  }
+
+  // Called when the cancel button is tapped
+  void _handleCancel() {
+    _audioPlayer.play(AssetSource('audio/lumi_town/level5/share_no.wav'));
+    setState(() {
+      _readyForEntrance = false; // Triggers exit
+
+      // Return food to the table if the user changes their mind
+      if (_hasGivenPancake) _pancakesLeft++;
+      if (_hasGivenWater) _waterLeft++;
+
+      _hasGivenPancake = false;
+      _hasGivenWater = false;
+    });
+
+    // Re-trigger the same character entrance (e.g. Fox repeats)
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() {
+        _readyForEntrance = true;
+        _retryCount++;
+      });
+    });
   }
 
   @override
@@ -123,11 +191,11 @@ class _Sharing2State extends State<Sharing2> {
     final double pancakeWidth = sw * 0.20;
     final double stackBaseOffset = sh * 0.055;
     final double pancakeThickness = sh * 0.055;
-    const int plainPancakeCount = 6;
 
+    // Seeded random for consistent jitter across state rebuilds
     final rng = math.Random(7);
     final List<double> jitterDx = List.generate(
-      plainPancakeCount + 1,
+      10, // Max capacity
       (_) => (rng.nextDouble() - 0.5) * pancakeWidth * 0.18,
     );
 
@@ -149,29 +217,70 @@ class _Sharing2State extends State<Sharing2> {
                 Container(color: const Color(0xFF90D060)),
           ),
 
-          // ── 2. Character Entrance (walks in from the right, holding a
-          //       plate, behind the table). Reusable for all 6 characters
-          //       by just changing currentCharacterKey above.
+          // ── 2. Drag Target & Character Entrance ──────────────────────
           Positioned(
-            bottom:
-                0, // Same anchor as the bear in Sharing1 — table crops the lower half
+            bottom: 0,
             left: 0,
             right: 0,
-            child: Center(
-              child: _readyForEntrance
-                  ? CharacterEntrance(
-                      key: _entranceKey,
-                      characterImagePath: currentCharacterImage,
-                      characterHeightFraction:
-                          0.95, // matches bear's height in Sharing1
-                      plateWidthFraction: 0.12,
-                      plateHeightFraction: 0.42,
-                      plateOffsetXFraction: -0.07,
-                      from: AxisDirection.right,
-                      walkDuration: const Duration(milliseconds: 3000),
-                      stepDuration: const Duration(milliseconds: 380),
-                    )
-                  : const SizedBox.shrink(),
+            child: DragTarget<String>(
+              onWillAcceptWithDetails: (details) {
+                if (details.data == 'pancake' && !_hasGivenPancake) return true;
+                if (details.data == 'water' && !_hasGivenWater) return true;
+                return false;
+              },
+              onAcceptWithDetails: (details) {
+                if (details.data == 'pancake') {
+                  setState(() {
+                    _pancakesLeft--;
+                    _hasGivenPancake = true;
+                  });
+                } else if (details.data == 'water') {
+                  setState(() {
+                    _waterLeft--;
+                    _hasGivenWater = true;
+                  });
+                }
+                _checkNextCharacter();
+              },
+              builder: (context, candidateData, rejectedData) {
+                return Center(
+                  child: Stack(
+                    alignment: Alignment.bottomCenter,
+                    clipBehavior: Clip.none,
+                    children: [
+                      // The Character — carries the plate (pancake) on its
+                      // right arm (screen-left, user's POV) and the water
+                      // glass on its left arm (screen-right, user's POV).
+                      if (_readyForEntrance)
+                        CharacterEntrance(
+                          key: ValueKey('$_charIndex-$_retryCount'),
+                          characterImagePath: currentCharacterImage,
+                          characterHeightFraction: 0.95,
+                          plateWidthFraction: 0.12,
+                          plateHeightFraction:
+                              0.24, // arm height, not cheek height
+                          plateOffsetXFraction:
+                              -0.55, // right arm — screen-left
+                          primaryItemOverlayImagePath: _hasGivenPancake
+                              ? 'assets/images/objects/lumi/pancke_maple_syrup_butter.png'
+                              : null,
+                          secondaryItemImagePath: _hasGivenWater
+                              ? 'assets/images/objects/lumi/water_glass.png'
+                              : null,
+                          secondaryItemWidthFraction: 0.06,
+                          // secondaryItemOffsetXFraction is left unset, so it
+                          // defaults to the mirror of plateOffsetXFraction:
+                          // left arm — screen-right.
+                          from: AxisDirection.right,
+                          walkDuration: const Duration(milliseconds: 3000),
+                          stepDuration: const Duration(milliseconds: 380),
+                        )
+                      else
+                        const SizedBox.shrink(),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
 
@@ -180,12 +289,17 @@ class _Sharing2State extends State<Sharing2> {
             bottom: tableBottom,
             left: 0,
             right: 0,
-            child: Image.asset(
-              'assets/images/objects/lumi/table.png',
-              width: tableWidth,
-              fit: BoxFit.contain,
-              errorBuilder: (ctx, err, st) =>
-                  Container(height: sh * 0.22, color: const Color(0xFFCD853F)),
+            child: IgnorePointer(
+              // IgnorePointer allows drops to pass through to the DragTarget
+              child: Image.asset(
+                'assets/images/objects/lumi/table.png',
+                width: tableWidth,
+                fit: BoxFit.contain,
+                errorBuilder: (ctx, err, st) => Container(
+                  height: sh * 0.22,
+                  color: const Color(0xFFCD853F),
+                ),
+              ),
             ),
           ),
 
@@ -209,71 +323,49 @@ class _Sharing2State extends State<Sharing2> {
                       errorBuilder: (ctx, err, st) => Container(
                         width: plateWidth,
                         height: 14,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
+                        decoration: BoxDecoration(color: Colors.white),
                       ),
                     ),
                   ),
 
-                  // Plain pancakes
-                  ...List.generate(plainPancakeCount, (index) {
+                  // Dynamic Pancake Stack
+                  ...List.generate(_pancakesLeft, (index) {
                     final dx = jitterDx[index];
-                    return Positioned(
+                    final isTop =
+                        index ==
+                        _pancakesLeft -
+                            1; // Ensures butter/syrup is always on top
+
+                    final pancakeWidget = Image.asset(
+                      isTop
+                          ? 'assets/images/objects/lumi/pancke_maple_syrup_butter.png'
+                          : 'assets/images/objects/lumi/pancake.png',
+                      width: pancakeWidth,
+                    );
+
+                    final positionedPancake = Positioned(
                       bottom: stackBaseOffset + (index * pancakeThickness),
                       left: plateWidth / 2 - pancakeWidth / 2 + dx,
-                      child: Image.asset(
-                        'assets/images/objects/lumi/pancake.png',
-                        width: pancakeWidth,
-                        errorBuilder: (ctx, err, st) => Container(
-                          width: pancakeWidth,
-                          height: pancakeThickness * 0.55,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8A037),
-                            borderRadius: BorderRadius.circular(
-                              pancakeWidth / 2,
-                            ),
-                            border: Border.all(
-                              color: const Color(0xFFB8641A),
-                              width: 1.5,
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: isTop
+                          ? Draggable<String>(
+                              data: 'pancake',
+                              feedback: Material(
+                                color: Colors.transparent,
+                                child: pancakeWidget,
+                              ),
+                              childWhenDragging: Opacity(
+                                opacity: 0.3,
+                                child: pancakeWidget,
+                              ),
+                              child: pancakeWidget,
+                            )
+                          : pancakeWidget,
                     );
+                    return positionedPancake;
                   }),
-
-                  // Top pancake — butter & syrup
-                  Positioned(
-                    bottom:
-                        stackBaseOffset +
-                        (plainPancakeCount * pancakeThickness),
-                    left:
-                        plateWidth / 2 -
-                        pancakeWidth / 2 +
-                        jitterDx[plainPancakeCount],
-                    child: Image.asset(
-                      'assets/images/objects/lumi/pancke_maple_syrup_butter.png',
-                      width: pancakeWidth,
-                      errorBuilder: (ctx, err, st) => Container(
-                        width: pancakeWidth,
-                        height: pancakeThickness * 0.55,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD4843A),
-                          borderRadius: BorderRadius.circular(pancakeWidth / 2),
-                          border: Border.all(
-                            color: const Color(0xFFB8641A),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
-            ).animate().fadeIn(duration: const Duration(milliseconds: 500)),
+            ),
           ),
 
           // ── 5. Water Glasses Cluster (Right side) ──────────────────
@@ -286,57 +378,53 @@ class _Sharing2State extends State<Sharing2> {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Back Row (4 Glasses)
-                  ...List.generate(4, (index) {
-                    return Positioned(
-                      bottom: glassBackRowOffset,
-                      left: index * glassSpacing,
-                      child: Image.asset(
-                        'assets/images/objects/lumi/water_glass.png',
-                        width: glassWidth,
-                        errorBuilder: (ctx, err, st) => Container(
-                          width: glassWidth,
-                          height: glassWidth * 1.2,
-                          color: Colors.lightBlueAccent.withOpacity(0.5),
-                        ),
-                      ),
-                    );
-                  }),
+                  ...List.generate(7, (index) {
+                    // Hide glasses dynamically as they are given away
+                    if (index >= _waterLeft) return const SizedBox.shrink();
 
-                  // Front Row (3 Glasses, staggered)
-                  ...List.generate(3, (index) {
+                    bool isFrontRow = index >= 4;
+                    int rowIdx = isFrontRow ? index - 4 : index;
+                    double bottom = isFrontRow
+                        ? glassFrontRowOffset
+                        : glassBackRowOffset;
+                    double left = isFrontRow
+                        ? (glassSpacing / 2) + (rowIdx * glassSpacing)
+                        : rowIdx * glassSpacing;
+
+                    final glassWidget = Image.asset(
+                      'assets/images/objects/lumi/water_glass.png',
+                      width: glassWidth,
+                    );
+
                     return Positioned(
-                      bottom: glassFrontRowOffset,
-                      left: (glassSpacing / 2) + (index * glassSpacing),
-                      child: Image.asset(
-                        'assets/images/objects/lumi/water_glass.png',
-                        width: glassWidth,
-                        errorBuilder: (ctx, err, st) => Container(
-                          width: glassWidth,
-                          height: glassWidth * 1.2,
-                          color: Colors.lightBlueAccent.withOpacity(0.8),
+                      bottom: bottom,
+                      left: left,
+                      child: Draggable<String>(
+                        data: 'water',
+                        feedback: Material(
+                          color: Colors.transparent,
+                          child: glassWidget,
                         ),
+                        childWhenDragging: Opacity(
+                          opacity: 0.3,
+                          child: glassWidget,
+                        ),
+                        child: glassWidget,
                       ),
                     );
                   }),
                 ],
               ),
-            ).animate().fadeIn(duration: const Duration(milliseconds: 700)),
+            ),
           ),
 
-          // ── 6. Cancel Button (Appears after 7 seconds) ───────────────────
+          // ── 6. Cancel Button ─────────────────────────────────────────
           if (_showCancelBtn)
             Positioned(
               bottom: sh * 0.05,
               right: sw * 0.02,
               child: GestureDetector(
-                onTap: () {
-                  debugPrint("Cancel Tapped!");
-                  // Add rejection logic here.
-                  // If the design calls for the character to walk back in
-                  // again after a cancel (e.g. the fox retrying), call:
-                  //   _replayEntrance();
-                },
+                onTap: _handleCancel,
                 child:
                     Image.asset(
                           'assets/images/objects/lumi/cancel_btn.png',
@@ -381,6 +469,14 @@ class _Sharing2State extends State<Sharing2> {
               ),
             ),
           ),
+
+          // ── 8. "How to Play" Tutorial Overlay ─────────────────────────
+          // Sits above everything else so it's the first thing the player
+          // sees; closing it starts the round's own audio/timers.
+          if (_showTutorial)
+            Positioned.fill(
+              child: SharingTutorialPrompt(onClose: _handleTutorialClose),
+            ),
         ],
       ),
     );
