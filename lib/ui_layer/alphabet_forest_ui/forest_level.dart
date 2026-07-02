@@ -54,7 +54,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
 
       final elapsed = DateTime.now().difference(_loadStart);
       // Loading time
-      final remaining = const Duration(seconds: 1) - elapsed;
+      final remaining = const Duration(milliseconds: 1500) - elapsed;
       if (remaining > Duration.zero) {
         await Future.delayed(remaining);
       }

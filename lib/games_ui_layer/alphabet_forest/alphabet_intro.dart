@@ -70,7 +70,8 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     ]);
 
     final elapsed = DateTime.now().difference(_loadStart);
-    final remaining = const Duration(seconds: 2) - elapsed;
+    // Loading time
+    final remaining = const Duration(milliseconds: 1500) - elapsed;
     if (remaining > Duration.zero) {
       await Future.delayed(remaining);
     }

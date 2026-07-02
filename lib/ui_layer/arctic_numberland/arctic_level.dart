@@ -2,7 +2,6 @@ import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:StarSight/ui_layer/arctic_numberland/arctic_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/arctic_numberland/lvl8_three_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl9_four_introduction.dart';
@@ -21,6 +20,7 @@ import '../../games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl3_two_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl6_number012_counting.dart';
 import '../../games_ui_layer/arctic_numberland/lvl7_number012_counttap.dart';
+import '../loading_screen.dart';
 import 'arctic_theme.dart';
 
 class ArcticLevelScreen extends StatefulWidget {
@@ -33,6 +33,8 @@ class ArcticLevelScreen extends StatefulWidget {
 class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   int _page = 0;
   int _unlockedLevel = 1;
+  bool _isLoading = true;
+  final DateTime _loadStart = DateTime.now();
 
   @override
   void initState() {
@@ -43,9 +45,18 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
 
   Future<void> _loadProgress() async {
     final unlocked = await ArcticProgressService.instance.getUnlockedLevel();
+
+    final elapsed = DateTime.now().difference(_loadStart);
+    // Loading time
+    final remaining = const Duration(milliseconds: 1500) - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
+
     if (!mounted) return;
     setState(() {
       _unlockedLevel = unlocked;
+      _isLoading = false;
     });
   }
 
@@ -72,6 +83,12 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        body: LoadingScreen.arctic(),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         children: [

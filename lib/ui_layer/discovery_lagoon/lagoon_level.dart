@@ -1,9 +1,9 @@
+import 'dart:async';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_intro.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/discovery_lagoon/animal_habitant_match.dart';
 import '../../games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
@@ -15,6 +15,7 @@ import '../../games_ui_layer/discovery_lagoon/weather_dress_up_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_clothes_match.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
+import '../loading_screen.dart';
 
 abstract class ColorTheme {
   static const Color wasteland = Color(0xFF5F5630);
@@ -44,20 +45,58 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
   int _currentPage = 0;
   final int _maxPages = 2; // Increase number when adding more pages!
 
+  int _unlockedLevel = 1;
+  bool _isLoading = true;
+  StreamSubscription<int>? _progressSub;
+  final DateTime _loadStart = DateTime.now();
+
+  static const Duration _minLoadingTime = Duration(milliseconds: 1500);
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+    _listenToProgress();
+  }
+
+  void _listenToProgress() {
+    _progressSub = LagoonProgressService.instance
+        .streamUnlockedLevel()
+        .listen((level) async {
+      if (!mounted) return;
+
+      if (_isLoading) {
+        // only enforce the minimum wait on the very first value
+        final elapsed = DateTime.now().difference(_loadStart);
+        final remaining = _minLoadingTime - elapsed;
+        if (remaining > Duration.zero) {
+          await Future.delayed(remaining);
+        }
+        if (!mounted) return;
+      }
+
+      setState(() {
+        _unlockedLevel = level;
+        _isLoading = false;
+      });
+    });
   }
 
   @override
   void dispose() {
+    _progressSub?.cancel();
     OrientationService.setLandscape();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        body: LoadingScreen.discoveryLagoon(),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         children: [
@@ -83,6 +122,14 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                 final cardHeight = (screenH * 0.80).clamp(220.0, 320.0);
                 final tileSize = (cardWidth / 4 - 24).clamp(48.0, 90.0);
 
+                Widget buildTile(int level) {
+                  if (level <= _unlockedLevel) {
+                    return _LevelTile(level: level, size: tileSize);
+                  } else {
+                    return _LockedTile(size: tileSize);
+                  }
+                }
+
                 return Padding(
                   padding: const EdgeInsets.only(top: 40),
                   child: Stack(
@@ -102,102 +149,84 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                             width: 8,
                           ),
                         ),
-                        child: StreamBuilder<int>(
-                          stream: LagoonProgressService.instance
-                              .streamUnlockedLevel(),
-                          builder: (context, snapshot) {
-                            // If it hasn't loaded yet, assume level 1 is unlocked
-                            final unlockedLevel = snapshot.data ?? 1;
-
-                            // This helper decides whether to show an unlocked or locked tile!
-                            Widget buildTile(int level) {
-                              if (level <= unlockedLevel) {
-                                return _LevelTile(level: level, size: tileSize);
-                              } else {
-                                return _LockedTile(size: tileSize);
-                              }
-                            }
-
-                            return Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                // --- PAGE 0: LEVELS 1-8 ---
-                                if (_currentPage == 0) ...[
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      buildTile(1),
-                                      buildTile(2),
-                                      buildTile(3),
-                                      buildTile(4),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      buildTile(5),
-                                      buildTile(6),
-                                      buildTile(7),
-                                      buildTile(8),
-                                    ],
-                                  ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // --- PAGE 0: LEVELS 1-8 ---
+                            if (_currentPage == 0) ...[
+                              Row(
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(1),
+                                  buildTile(2),
+                                  buildTile(3),
+                                  buildTile(4),
                                 ],
-
-                                // --- PAGE 1: LEVELS 9-16 ---
-                                if (_currentPage == 1) ...[
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      buildTile(9),
-                                      buildTile(10),
-                                      buildTile(11),
-                                      buildTile(12),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      buildTile(13),
-                                      buildTile(14),
-                                      buildTile(15),
-                                      buildTile(16),
-                                    ],
-                                  ),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(5),
+                                  buildTile(6),
+                                  buildTile(7),
+                                  buildTile(8),
                                 ],
+                              ),
+                            ],
 
-                                // --- PAGE 2: LEVELS 17-24 ---
-                                if (_currentPage == 2) ...[
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      buildTile(17),
-                                      buildTile(18),
-                                      buildTile(19),
-                                      buildTile(20),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      buildTile(21),
-                                      buildTile(22),
-                                      buildTile(23),
-                                      buildTile(24),
-                                    ],
-                                  ),
+                            // --- PAGE 1: LEVELS 9-16 ---
+                            if (_currentPage == 1) ...[
+                              Row(
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(9),
+                                  buildTile(10),
+                                  buildTile(11),
+                                  buildTile(12),
                                 ],
-                              ],
-                            );
-                          },
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(13),
+                                  buildTile(14),
+                                  buildTile(15),
+                                  buildTile(16),
+                                ],
+                              ),
+                            ],
+
+                            // --- PAGE 2: LEVELS 17-24 ---
+                            if (_currentPage == 2) ...[
+                              Row(
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(17),
+                                  buildTile(18),
+                                  buildTile(19),
+                                  buildTile(20),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  buildTile(21),
+                                  buildTile(22),
+                                  buildTile(23),
+                                  buildTile(24),
+                                ],
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                       // SELECT LEVEL badge on top border

@@ -1,6 +1,5 @@
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/puzzle_progress_service.dart';
 import '../../games_ui_layer/puzzle_glade/lvl10_memory_match2.dart';
@@ -23,6 +22,7 @@ import '../../games_ui_layer/puzzle_glade/lvl6_basket_sort.dart';
 import '../../games_ui_layer/puzzle_glade/lvl7_size_sort.dart';
 import '../../games_ui_layer/puzzle_glade/lvl8_whats_missing.dart';
 import '../../games_ui_layer/puzzle_glade/lvl9_pattern_match2.dart';
+import '../loading_screen.dart';
 import 'puzzle_buttons.dart';
 import 'Puzzle_theme.dart';
 
@@ -37,21 +37,36 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
   int _page = 0;
   int _unlockedLevel = 1;
   bool _isLoadingProgress = true;
+  final DateTime _loadStart = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-    _loadProgress();
+    _loadInitialProgress();
   }
 
-  Future<void> _loadProgress() async {
+  Future<void> _loadInitialProgress() async {
     final unlocked = await PuzzleProgressService.instance.getUnlockedLevel();
+
+    final elapsed = DateTime.now().difference(_loadStart);
+    //Loading time
+    final remaining = const Duration(milliseconds: 1500) - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
+
     if (!mounted) return;
     setState(() {
       _unlockedLevel = unlocked;
       _isLoadingProgress = false;
     });
+  }
+
+  Future<void> _refreshProgress() async {
+    final unlocked = await PuzzleProgressService.instance.getUnlockedLevel();
+    if (!mounted) return;
+    setState(() => _unlockedLevel = unlocked);
   }
 
   Future<void> _openLevel(Widget screen) async {
@@ -62,7 +77,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
 
     if (!mounted) return;
 
-    await _loadProgress();
+    await _refreshProgress();
 
     if (nextScreen is Widget) {
       _openLevel(nextScreen);
@@ -77,6 +92,12 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingProgress) {
+      return Scaffold(
+        body: LoadingScreen.puzzleGlade(),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         children: [

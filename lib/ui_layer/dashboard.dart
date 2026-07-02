@@ -115,7 +115,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         AssetLottie('assets/animations/lagoon.json').load(),
         AssetLottie('assets/animations/puzzle.json').load(),
       ]),
-      Future.delayed(const Duration(seconds: 2)),
+      // Loading time
+      Future.delayed(const Duration(milliseconds: 1500)),
     ]);
     if (mounted) {
       setState(() => _animationsReady = true);

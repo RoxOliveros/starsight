@@ -3,12 +3,12 @@ import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl5/sharing_1.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/lumi_town/1/wakeup1.dart';
 import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl3/clean_bedroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl4_cooking/game_screen.dart';
+import '../loading_screen.dart';
 import 'lumi_buttons.dart';
 import 'lumi_theme.dart';
 
@@ -23,6 +23,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
   int _unlockedLevel = 1;
   bool _isLoadingProgress = true;
   StreamSubscription<int>? _progressSub;
+  final DateTime _loadStart = DateTime.now();
 
   @override
   void initState() {
@@ -33,9 +34,20 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
 
   void _listenToProgress() {
     _progressSub = TownProgressService.instance.streamUnlockedLevel().listen((
-      level,
-    ) {
+        level,
+        ) async {
       if (!mounted) return;
+
+      if (_isLoadingProgress) {
+        final elapsed = DateTime.now().difference(_loadStart);
+        //Loading time
+        final remaining = const Duration(milliseconds: 1500) - elapsed;
+        if (remaining > Duration.zero) {
+          await Future.delayed(remaining);
+        }
+        if (!mounted) return;
+      }
+
       setState(() {
         _unlockedLevel = level;
         _isLoadingProgress = false;
@@ -59,6 +71,12 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingProgress) {
+      return Scaffold(
+        body: LoadingScreen.lumiTown(),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         children: [

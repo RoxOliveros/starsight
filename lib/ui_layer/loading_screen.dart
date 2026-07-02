@@ -5,15 +5,15 @@ class LoadingScreen extends StatefulWidget {
   final Color dotColor;
   final Color overlayColor;
   final Color cardColor;
-  final double imageWidth;
+  final double cardWidth;
 
   const LoadingScreen({
     super.key,
     required this.imagePath,
     required this.dotColor,
-    this.overlayColor = const Color(0x99000000), // translucent black
+    this.overlayColor = const Color(0x99000000),
     this.cardColor = Colors.white,
-    this.imageWidth = 130,
+    this.cardWidth = 220,
   });
 
   // ── 1. Alphabet Forest ─────────────────────────────────────────────────
@@ -63,10 +63,14 @@ class LoadingScreen extends StatefulWidget {
 class _LoadingScreenState extends State<LoadingScreen> {
   @override
   Widget build(BuildContext context) {
+    final imageSize = widget.cardWidth * 0.6;
+
     return Container(
       color: widget.overlayColor,
       alignment: Alignment.center,
       child: Container(
+        width: widget.cardWidth,
+        height: widget.cardWidth,
         padding: const EdgeInsets.fromLTRB(28, 28, 28, 22),
         decoration: BoxDecoration(
           color: widget.cardColor,
@@ -81,13 +85,13 @@ class _LoadingScreenState extends State<LoadingScreen> {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,   // ADD: centers content in fixed height
           children: [
-            Image.asset(
-              widget.imagePath,
-              width: widget.imageWidth,
-              errorBuilder: (_, __, ___) => SizedBox(
-                width: widget.imageWidth,
-                height: widget.imageWidth,
+            Expanded(                                     // ADD: image takes remaining space
+              child: Image.asset(
+                widget.imagePath,
+                fit: BoxFit.contain,                      // ADD: scales to fit available space
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
             ),
             const SizedBox(height: 18),
