@@ -43,12 +43,12 @@ class _Sharing2State extends State<Sharing2> {
   int _retryCount = 0;
 
   static const Map<String, String> characters = {
-    'bunny': 'assets/images/characters/roxie_standing.png',
-    'cat': 'assets/images/characters/kiki_smiling.png',
-    'fox': 'assets/images/characters/jack_smilling.png',
-    'penguin': 'assets/images/characters/doma_the_penguin.png',
+    'bunny': 'assets/images/characters/roxie_the_rabbit.png',
+    'cat': 'assets/images/characters/kiki_the_cat.png',
+    'fox': 'assets/images/characters/jack_the_fox.png',
+    'penguin': 'assets/images/characters/doma_the_penguin2.png',
     'owl': 'assets/images/characters/dr.woo_the_owl.png',
-    'dog': 'assets/images/characters/doby_standing_armsonhips.png',
+    'dog': 'assets/images/characters/doby_the_dog.png',
   };
 
   static const Map<String, String> characterVoiceovers = {
@@ -311,7 +311,7 @@ class _Sharing2State extends State<Sharing2> {
                           key: ValueKey('$_charIndex-$_retryCount'),
                           characterImagePath: currentCharacterImage,
                           characterHeightFraction: 0.95,
-                          plateWidthFraction: 0.12,
+                          plateWidthFraction: 0.18,
                           plateHeightFraction:
                               0.24, // arm height, not cheek height
                           plateOffsetXFraction:
@@ -322,8 +322,9 @@ class _Sharing2State extends State<Sharing2> {
                           secondaryItemImagePath: _hasGivenWater
                               ? 'assets/images/objects/lumi/water_glass.png'
                               : null,
-                          secondaryItemWidthFraction: 0.06,
+                          secondaryItemWidthFraction: 0.10,
                           // secondaryItemOffsetXFraction is left unset, so it
+                          secondaryItemOffsetXFraction: 0.40,
                           // defaults to the mirror of plateOffsetXFraction:
                           // left arm — screen-right.
                           from: AxisDirection.right,
