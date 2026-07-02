@@ -7,6 +7,8 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../ui_layer/loading_screen.dart';
+
 enum ScreenPhase { intro, tracing }
 
 enum IntroPhase { entering, playingIntro, showingLetter, done }
@@ -26,7 +28,9 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
   late Animation<double> _float;
   IntroPhase _introPhase = IntroPhase.entering;
 
-  // THE AUDIO PLAYER
+  bool _isLoadingAssets = true;
+  final DateTime _loadStart = DateTime.now();
+
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   // --- ANIMATION CONTROLLERS ---
@@ -44,7 +48,36 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _startIntroFlow(); // Start the magic!
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prepareAssets());
+  }
+
+  Future<void> _prepareAssets() async {
+    await Future.wait([
+      precacheImage(
+        const AssetImage('assets/images/characters/dog.png'),
+        context,
+      ),
+      precacheImage(
+        AssetImage(
+          'assets/fonts/game_letters/intro_${widget.startingLetter.toLowerCase()}.png',
+        ),
+        context,
+      ),
+      precacheImage(
+        AssetImage(_getObjectImage(widget.startingLetter)),
+        context,
+      ),
+    ]);
+
+    final elapsed = DateTime.now().difference(_loadStart);
+    final remaining = const Duration(seconds: 2) - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
+    if (!mounted) return;
+
+    setState(() => _isLoadingAssets = false);
+    _startIntroFlow(); // start the magic only once everything's ready
   }
 
   void _initAnimations() {
@@ -159,8 +192,13 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
 
   @override
   Widget build(BuildContext context) {
-    final Size screenSize = MediaQuery.of(context).size;
+    if (_isLoadingAssets) {
+      return Scaffold(
+        body: LoadingScreen.alphabetForest(),
+      );
+    }
 
+    final Size screenSize = MediaQuery.of(context).size;
     return Scaffold(
       body: ForestBackground(
         child: Stack(

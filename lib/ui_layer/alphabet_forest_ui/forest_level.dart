@@ -10,6 +10,8 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
+import '../loading_screen.dart';
+
 abstract class ColorTheme {
   static const Color darkbrown = Color(0xFF4E360D);
   static const Color darkgreen = Color(0xFF3C5729);
@@ -35,6 +37,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   int _unlockedLevel = 1;
   bool _isLoadingProgress = true;
   StreamSubscription<int>? _progressSub;
+  final DateTime _loadStart = DateTime.now();
 
   @override
   void initState() {
@@ -45,9 +48,18 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
 
   void _listenToProgress() {
     _progressSub = ForestProgressService.instance.streamUnlockedLevel().listen((
-      level,
-    ) {
+        level,
+        ) async {
       if (!mounted) return;
+
+      final elapsed = DateTime.now().difference(_loadStart);
+      // Loading time
+      final remaining = const Duration(seconds: 1) - elapsed;
+      if (remaining > Duration.zero) {
+        await Future.delayed(remaining);
+      }
+      if (!mounted) return;
+
       setState(() {
         _unlockedLevel = level;
         _isLoadingProgress = false;
@@ -112,6 +124,12 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingProgress) {
+      return Scaffold(
+        body: LoadingScreen.alphabetForest(),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         children: [
@@ -278,18 +296,6 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
           //     errorBuilder: (_, __, ___) => const SizedBox.shrink(),
           //   ),
           // ),
-
-          if (_isLoadingProgress)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.25),
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    color: ColorTheme.flaxengold,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

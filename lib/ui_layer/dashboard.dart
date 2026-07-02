@@ -6,6 +6,7 @@ import 'arctic_numberland/arctic_level.dart';
 import 'alphabet_forest_ui/forest_level.dart';
 import 'avatar_picker_dialog.dart';
 import 'discovery_lagoon/lagoon_level.dart';
+import 'loading_screen.dart';
 import 'lumi_town/town_level.dart';
 import 'menu_dialog.dart';
 
@@ -105,17 +106,20 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _loadAnimations() async {
     await Future.wait([
-      AssetLottie('assets/animations/white_clouds_mirrored.json').load(),
-      AssetLottie('assets/animations/white_cloud.json').load(),
-      AssetLottie('assets/animations/forest.json').load(),
-      AssetLottie('assets/animations/town.json').load(),
-      AssetLottie('assets/animations/arctic.json').load(),
-      AssetLottie('assets/animations/lagoon.json').load(),
-      AssetLottie('assets/animations/puzzle.json').load(),
+      Future.wait([
+        AssetLottie('assets/animations/white_clouds_mirrored.json').load(),
+        AssetLottie('assets/animations/white_cloud.json').load(),
+        AssetLottie('assets/animations/forest.json').load(),
+        AssetLottie('assets/animations/town.json').load(),
+        AssetLottie('assets/animations/arctic.json').load(),
+        AssetLottie('assets/animations/lagoon.json').load(),
+        AssetLottie('assets/animations/puzzle.json').load(),
+      ]),
+      Future.delayed(const Duration(seconds: 2)),
     ]);
     if (mounted) {
       setState(() => _animationsReady = true);
-      _floatController.repeat(reverse: true); // start float AFTER ready
+      _floatController.repeat(reverse: true);
     }
   }
 
@@ -130,9 +134,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         backgroundColor: const Color(0xFFE9C679),
         child: ProfileDayDialog(name: widget.nickname),
       ),
-      body: SafeArea(
-        child: _animationsReady
-            ? Stack(
+      body: _animationsReady
+          ? SafeArea(
+              child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   // ── Full-screen cloud background ──────────────────────────
@@ -195,7 +199,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                   // ── All UI on top ─────────────────────────────────────────
                   Column(
                     children: [
-                      _TopBar(nickname: widget.nickname, avatarBadgeKey: _avatarBadgeKey),
+                      _TopBar(
+                        nickname: widget.nickname,
+                        avatarBadgeKey: _avatarBadgeKey,
+                      ),
                       const SizedBox(height: 12),
                       Expanded(
                         child: Padding(
@@ -212,14 +219,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ],
                   ),
                 ],
-              )
-            : Center(
-                child: Image.asset(
-                  'assets/images/characters/doma_writing_on_board.png',
-                  width: 150,
-                ),
               ),
-      ),
+            )
+          : LoadingScreen.arctic(),
     );
   }
 }
@@ -290,7 +292,9 @@ class _TopBar extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 class _AvatarBadge extends StatefulWidget {
   final String name;
+
   const _AvatarBadge({super.key, required this.name});
+
   @override
   State<_AvatarBadge> createState() => _AvatarBadgeState();
 }
@@ -344,7 +348,8 @@ class _AvatarBadgeState extends State<_AvatarBadge> {
                     ),
                   ),
                   child: ClipOval(
-                    child: Image.asset(_avatarPath,
+                    child: Image.asset(
+                      _avatarPath,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) =>
                           Container(color: const Color(0xFFD4C4F0)),
