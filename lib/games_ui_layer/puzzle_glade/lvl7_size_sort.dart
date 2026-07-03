@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl8_whats_missing.dart';
 
@@ -470,7 +470,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
                       color: Colors.white.withValues(alpha: 0.88),
                       borderRadius: BorderRadius.circular(size * 0.25),
                       border: Border.all(
-                        color: JarColorTheme.darkdesaturatedblue.withValues(
+                        color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                           alpha: 0.25,
                         ),
                         width: 2.5,
@@ -546,7 +546,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
               child: Text(
                 'Fix the Size',
                 style: TextStyle(
-                  fontFamily: JarAppTextStyles.fredoka,
+                  fontFamily: PuzzleAppTextStyles.fredoka,
                   fontSize: 22,
                   color: Colors.black87,
                   fontWeight: FontWeight.w600,
@@ -603,7 +603,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
               color: Colors.white.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: JarColorTheme.darkdesaturatedblue.withValues(
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                   alpha: 0.25,
                 ),
                 width: 1.5,
@@ -612,10 +612,10 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
             child: Text(
               label,
               style: TextStyle(
-                fontFamily: JarAppTextStyles.fredoka,
+                fontFamily: PuzzleAppTextStyles.fredoka,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: JarColorTheme.darkdesaturatedblue.withValues(
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                   alpha: 0.75,
                 ),
               ),
@@ -643,7 +643,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
                           color: Colors.white.withValues(alpha: 0.95),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: JarColorTheme.sunnyhue,
+                            color: PuzzleColorTheme.sunnyhue,
                             width: 3,
                           ),
                           boxShadow: [
@@ -675,7 +675,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
                       color: Colors.white.withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: JarColorTheme.darkdesaturatedblue.withValues(
+                        color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                           alpha: 0.20,
                         ),
                         width: 2,
@@ -688,13 +688,13 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
                     height: slotSize,
                     decoration: BoxDecoration(
                       color: isHovered
-                          ? JarColorTheme.sunnyhue.withValues(alpha: 0.25)
+                          ? PuzzleColorTheme.sunnyhue.withValues(alpha: 0.25)
                           : Colors.white.withValues(alpha: 0.90),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: isHovered
-                            ? JarColorTheme.sunnyhue
-                            : JarColorTheme.darkdesaturatedblue.withValues(
+                            ? PuzzleColorTheme.sunnyhue
+                            : PuzzleColorTheme.darkdesaturatedblue.withValues(
                                 alpha: 0.30,
                               ),
                         width: isHovered ? 3 : 2,
@@ -736,10 +736,10 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
           height: 12,
           decoration: BoxDecoration(
             color: done
-                ? JarColorTheme.darkdesaturatedblue
+                ? PuzzleColorTheme.darkdesaturatedblue
                 : current
-                ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                ? PuzzleColorTheme.sunnyhue
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -752,7 +752,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      closeButtonColor: JarColorTheme.darkdesaturatedblue,
+      closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
         Navigator.pop(context, const Lvl8WhatsMissingScreen());
       },

@@ -24,7 +24,7 @@ import '../../games_ui_layer/puzzle_glade/lvl8_whats_missing.dart';
 import '../../games_ui_layer/puzzle_glade/lvl9_pattern_match2.dart';
 import '../loading_screen.dart';
 import 'puzzle_buttons.dart';
-import 'Puzzle_theme.dart';
+import 'puzzle_theme.dart';
 
 class PuzzleLevelScreen extends StatefulWidget {
   const PuzzleLevelScreen({super.key});
@@ -135,10 +135,10 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                         height: cardHeight,
                         padding: const EdgeInsets.fromLTRB(20, 40, 20, 20),
                         decoration: BoxDecoration(
-                          color: JarColorTheme.vandecane,
+                          color: PuzzleColorTheme.vandecane,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: JarColorTheme.darkbrown,
+                            color: PuzzleColorTheme.darkbrown,
                             width: 8,
                           ),
                         ),
@@ -186,10 +186,10 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                                 vertical: 10,
                               ),
                               decoration: BoxDecoration(
-                                color: JarColorTheme.darkdesaturatedblue,
+                                color: PuzzleColorTheme.darkdesaturatedblue,
                                 borderRadius: BorderRadius.circular(25),
                                 border: Border.all(
-                                  color: JarColorTheme.verydarkdesaturatedblue,
+                                  color: PuzzleColorTheme.verydarkdesaturatedblue,
                                   width: 5,
                                 ),
                                 boxShadow: [
@@ -203,9 +203,9 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                               child: const Text(
                                 ' SELECT LEVEL ',
                                 style: TextStyle(
-                                  fontFamily: JarAppTextStyles.fredoka,
+                                  fontFamily: PuzzleAppTextStyles.fredoka,
                                   fontSize: 25,
-                                  color: JarColorTheme.peach,
+                                  color: PuzzleColorTheme.peach,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1,
                                 ),
@@ -390,10 +390,10 @@ class _LevelTile extends StatelessWidget {
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: JarColorTheme.goldenyellow,
+              color: PuzzleColorTheme.goldenyellow,
               borderRadius: BorderRadius.circular(17),
               border: Border.all(
-                color: JarColorTheme.darkdesaturatedblue,
+                color: PuzzleColorTheme.darkdesaturatedblue,
                 width: 5,
               ),
             ),
@@ -401,9 +401,9 @@ class _LevelTile extends StatelessWidget {
             child: Text(
               '$level',
               style: TextStyle(
-                fontFamily: JarAppTextStyles.fredoka,
+                fontFamily: PuzzleAppTextStyles.fredoka,
                 fontSize: size * 0.5,
-                color: JarColorTheme.darkdesaturatedblue,
+                color: PuzzleColorTheme.darkdesaturatedblue,
                 fontWeight: FontWeight.bold,
               ),
             ),

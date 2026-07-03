@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class JarColorTheme {
-  const JarColorTheme();
+class PuzzleColorTheme {
+  const PuzzleColorTheme();
 
   static const Color darkbrown = Color(0xFF4E360D);
   static const Color verydarkdesaturatedblue  = Color(0xFF24334D);
@@ -13,8 +13,8 @@ class JarColorTheme {
   static const Color lightgrayishyellow  = Color(0xFFFEFAD3);
 }
 
-class JarAppTextStyles {
-  const JarAppTextStyles();
+class PuzzleAppTextStyles {
+  const PuzzleAppTextStyles();
 
   static const String fredoka = 'Fredoka';
 }

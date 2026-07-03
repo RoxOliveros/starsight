@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl10_memory_match2.dart';
 
@@ -439,12 +439,12 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
                         width: 68,
                         height: 68,
                         decoration: BoxDecoration(
-                          color: JarColorTheme.goldenyellow.withValues(
+                          color: PuzzleColorTheme.goldenyellow.withValues(
                             alpha: 0.25,
                           ),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: JarColorTheme.sunnyhue,
+                            color: PuzzleColorTheme.sunnyhue,
                             width: 2.5,
                           ),
                           boxShadow: [
@@ -459,10 +459,10 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
                           child: Text(
                             '?',
                             style: TextStyle(
-                              fontFamily: JarAppTextStyles.fredoka,
+                              fontFamily: PuzzleAppTextStyles.fredoka,
                               fontSize: 30,
                               fontWeight: FontWeight.bold,
-                              color: JarColorTheme.sunnyhue,
+                              color: PuzzleColorTheme.sunnyhue,
                             ),
                           ),
                         ),
@@ -474,7 +474,7 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
                           color: Colors.white.withValues(alpha: 0.88),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: JarColorTheme.darkdesaturatedblue.withValues(
+                            color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                               alpha: 0.30,
                             ),
                             width: 2.5,
@@ -549,7 +549,7 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
               child: Text(
                 'Object Pattern',
                 style: TextStyle(
-                  fontFamily: JarAppTextStyles.fredoka,
+                  fontFamily: PuzzleAppTextStyles.fredoka,
                   fontSize: 22,
                   color: Colors.black87,
                   fontWeight: FontWeight.w600,
@@ -583,12 +583,12 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
         color: Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.45),
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.45),
           width: 2.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -609,7 +609,7 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
               '→',
               style: TextStyle(
                 fontSize: 28,
-                color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.5),
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.5),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -632,18 +632,18 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
         width: 58,
         height: 58,
         decoration: BoxDecoration(
-          color: JarColorTheme.goldenyellow.withValues(alpha: 0.25),
+          color: PuzzleColorTheme.goldenyellow.withValues(alpha: 0.25),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: JarColorTheme.sunnyhue, width: 2.5),
+          border: Border.all(color: PuzzleColorTheme.sunnyhue, width: 2.5),
         ),
         child: Center(
           child: Text(
             '?',
             style: TextStyle(
-              fontFamily: JarAppTextStyles.fredoka,
+              fontFamily: PuzzleAppTextStyles.fredoka,
               fontSize: 30,
               fontWeight: FontWeight.bold,
-              color: JarColorTheme.sunnyhue,
+              color: PuzzleColorTheme.sunnyhue,
             ),
           ),
         ),
@@ -670,11 +670,11 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
     final showWrong = _wrongFlash && !isAnswer;
     final showRight = _rightFlash && isAnswer;
 
-    Color borderColor = JarColorTheme.darkdesaturatedblue.withValues(
+    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
       alpha: 0.30,
     );
     if (showWrong) borderColor = const Color(0xFFE05A5A);
-    if (showRight) borderColor = JarColorTheme.sunnyhue;
+    if (showRight) borderColor = PuzzleColorTheme.sunnyhue;
 
     return GestureDetector(
       onTap: () => _onChoiceTapped(choice),
@@ -684,7 +684,7 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
         height: 88,
         decoration: BoxDecoration(
           color: showRight
-              ? JarColorTheme.goldenyellow.withValues(alpha: 0.35)
+              ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.35)
               : showWrong
               ? const Color(0xFFE05A5A).withValues(alpha: 0.12)
               : Colors.white.withValues(alpha: 0.85),
@@ -718,7 +718,7 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
         color: Colors.white.withValues(alpha: 0.90),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
           width: 2,
         ),
       ),
@@ -747,10 +747,10 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
           height: 12,
           decoration: BoxDecoration(
             color: done
-                ? JarColorTheme.darkdesaturatedblue
+                ? PuzzleColorTheme.darkdesaturatedblue
                 : current
-                ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                ? PuzzleColorTheme.sunnyhue
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -763,7 +763,7 @@ class _Lvl9PatternMatch2ScreenState extends State<Lvl9PatternMatch2Screen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      closeButtonColor: JarColorTheme.darkdesaturatedblue,
+      closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
         Navigator.pop(context, const Lvl10JarMemoryMatch2Screen());
       },

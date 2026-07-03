@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl14_size_sort2.dart';
 
@@ -555,7 +555,7 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
                     color: Colors.white.withValues(alpha: 0.88),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: JarColorTheme.darkdesaturatedblue.withValues(
+                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                         alpha: 0.25,
                       ),
                       width: 2.5,
@@ -630,7 +630,7 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
               child: Text(
                 'Basket Sort',
                 style: TextStyle(
-                  fontFamily: JarAppTextStyles.fredoka,
+                  fontFamily: PuzzleAppTextStyles.fredoka,
                   fontSize: 22,
                   color: Colors.black87,
                   fontWeight: FontWeight.w600,
@@ -701,9 +701,9 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
           width: 90,
           height: 90,
           decoration: BoxDecoration(
-            color: JarColorTheme.goldenyellow.withValues(alpha: 0.25),
+            color: PuzzleColorTheme.goldenyellow.withValues(alpha: 0.25),
             shape: BoxShape.circle,
-            border: Border.all(color: JarColorTheme.sunnyhue, width: 3),
+            border: Border.all(color: PuzzleColorTheme.sunnyhue, width: 3),
           ),
           child: const Center(child: Text('⭐', style: TextStyle(fontSize: 40))),
         ),
@@ -763,9 +763,9 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
           child: Text(
             '$remaining left',
             style: TextStyle(
-              fontFamily: JarAppTextStyles.fredoka,
+              fontFamily: PuzzleAppTextStyles.fredoka,
               fontSize: 14,
-              color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.65),
+              color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.65),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -786,19 +786,19 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
       height: size,
       decoration: BoxDecoration(
         color: isHeld || isDragging
-            ? JarColorTheme.goldenyellow.withValues(alpha: 0.28)
+            ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.28)
             : Colors.white.withValues(alpha: 0.90),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: isHeld || isDragging
-              ? JarColorTheme.sunnyhue
-              : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+              ? PuzzleColorTheme.sunnyhue
+              : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
           width: isHeld || isDragging ? 3 : 2.5,
         ),
         boxShadow: [
           BoxShadow(
             color: isHeld || isDragging
-                ? JarColorTheme.sunnyhue.withValues(alpha: 0.40)
+                ? PuzzleColorTheme.sunnyhue.withValues(alpha: 0.40)
                 : Colors.black.withValues(alpha: 0.10),
             blurRadius: isHeld || isDragging ? 14 : 8,
             spreadRadius: isHeld || isDragging ? 2 : 0,
@@ -862,7 +862,7 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
                             color: Colors.white.withValues(alpha: 0.92),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: JarColorTheme.darkdesaturatedblue
+                              color: PuzzleColorTheme.darkdesaturatedblue
                                   .withValues(alpha: 0.25),
                               width: 2,
                             ),
@@ -954,10 +954,10 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
           height: 12,
           decoration: BoxDecoration(
             color: done
-                ? JarColorTheme.darkdesaturatedblue
+                ? PuzzleColorTheme.darkdesaturatedblue
                 : current
-                ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                ? PuzzleColorTheme.sunnyhue
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -970,7 +970,7 @@ class _Lvl13BasketSort2ScreenState extends State<Lvl13BasketSort2Screen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      closeButtonColor: JarColorTheme.darkdesaturatedblue,
+      closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
         Navigator.pop(context, const Lvl14SizeSort2Screen());
       },

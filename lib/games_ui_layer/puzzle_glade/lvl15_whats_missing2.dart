@@ -504,13 +504,13 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
                     height: 76,
                     decoration: BoxDecoration(
                       color: isMiddle
-                          ? JarColorTheme.goldenyellow.withValues(alpha: 0.25)
+                          ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.25)
                           : Colors.white.withValues(alpha: 0.88),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isMiddle
-                            ? JarColorTheme.sunnyhue
-                            : JarColorTheme.darkdesaturatedblue.withValues(
+                            ? PuzzleColorTheme.sunnyhue
+                            : PuzzleColorTheme.darkdesaturatedblue.withValues(
                                 alpha: 0.25,
                               ),
                         width: 2.5,
@@ -531,7 +531,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
                               style: TextStyle(
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,
-                                color: JarColorTheme.sunnyhue,
+                                color: PuzzleColorTheme.sunnyhue,
                               ),
                             ),
                           )
@@ -599,7 +599,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
               child: Text(
                 'What\'s Missing?',
                 style: TextStyle(
-                  fontFamily: JarAppTextStyles.fredoka,
+                  fontFamily: PuzzleAppTextStyles.fredoka,
                   fontSize: 22,
                   color: Colors.black87,
                   fontWeight: FontWeight.w600,
@@ -635,7 +635,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
           decoration: BoxDecoration(
             color: _gamePhase == _GamePhase.showing
-                ? JarColorTheme.sunnyhue.withValues(alpha: 0.90)
+                ? PuzzleColorTheme.sunnyhue.withValues(alpha: 0.90)
                 : Colors.white.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(14),
           ),
@@ -644,12 +644,12 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
                 ? 'Remember this!'
                 : 'What\'s missing?',
             style: TextStyle(
-              fontFamily: JarAppTextStyles.fredoka,
+              fontFamily: PuzzleAppTextStyles.fredoka,
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: _gamePhase == _GamePhase.showing
                   ? Colors.white
-                  : JarColorTheme.darkdesaturatedblue,
+                  : PuzzleColorTheme.darkdesaturatedblue,
             ),
           ),
         ),
@@ -678,7 +678,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
         color: Colors.white.withValues(alpha: 0.90),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
           width: 2.5,
         ),
         boxShadow: [
@@ -706,12 +706,12 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
         width: 96,
         height: 96,
         decoration: BoxDecoration(
-          color: JarColorTheme.goldenyellow.withValues(alpha: 0.18),
+          color: PuzzleColorTheme.goldenyellow.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: JarColorTheme.sunnyhue, width: 3),
+          border: Border.all(color: PuzzleColorTheme.sunnyhue, width: 3),
           boxShadow: [
             BoxShadow(
-              color: JarColorTheme.sunnyhue.withValues(alpha: 0.25),
+              color: PuzzleColorTheme.sunnyhue.withValues(alpha: 0.25),
               blurRadius: 12,
               spreadRadius: 2,
               offset: const Offset(0, 4),
@@ -724,7 +724,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
             style: TextStyle(
               fontSize: 44,
               fontWeight: FontWeight.bold,
-              color: JarColorTheme.sunnyhue,
+              color: PuzzleColorTheme.sunnyhue,
             ),
           ),
         ),
@@ -746,8 +746,8 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
     final Color ringColor = _countdown <= 1
         ? const Color(0xFFE05A5A)
         : _countdown <= 2
-        ? JarColorTheme.sunnyhue
-        : JarColorTheme.darkdesaturatedblue;
+        ? PuzzleColorTheme.sunnyhue
+        : PuzzleColorTheme.darkdesaturatedblue;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -767,7 +767,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
                     child: CircularProgressIndicator(
                       value: 1.0 - _countdownRingCtrl.value,
                       strokeWidth: 7,
-                      backgroundColor: JarColorTheme.darkdesaturatedblue
+                      backgroundColor: PuzzleColorTheme.darkdesaturatedblue
                           .withValues(alpha: 0.15),
                       valueColor: AlwaysStoppedAnimation<Color>(ringColor),
                     ),
@@ -775,7 +775,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
                   AnimatedDefaultTextStyle(
                     duration: const Duration(milliseconds: 200),
                     style: TextStyle(
-                      fontFamily: JarAppTextStyles.fredoka,
+                      fontFamily: PuzzleAppTextStyles.fredoka,
                       fontSize: _countdown <= 1 ? 42 : 36,
                       fontWeight: FontWeight.bold,
                       color: ringColor,
@@ -791,7 +791,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
         Text(
           'Get ready!',
           style: TextStyle(
-            fontFamily: JarAppTextStyles.fredoka,
+            fontFamily: PuzzleAppTextStyles.fredoka,
             fontSize: 15,
             color: Colors.white.withValues(alpha: 0.85),
             fontWeight: FontWeight.w600,
@@ -808,7 +808,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
         Text(
           'Pick the missing one!',
           style: TextStyle(
-            fontFamily: JarAppTextStyles.fredoka,
+            fontFamily: PuzzleAppTextStyles.fredoka,
             fontSize: 15,
             color: Colors.white.withValues(alpha: 0.90),
             fontWeight: FontWeight.w600,
@@ -826,7 +826,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
     final isWrongTap = isTapped && !isCorrect;
     final isCorrectTap = isTapped && isCorrect;
 
-    Color borderColor = JarColorTheme.darkdesaturatedblue.withValues(
+    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
       alpha: 0.28,
     );
     Color bgColor = Colors.white.withValues(alpha: 0.90);
@@ -909,10 +909,10 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
           height: 12,
           decoration: BoxDecoration(
             color: done
-                ? JarColorTheme.darkdesaturatedblue
+                ? PuzzleColorTheme.darkdesaturatedblue
                 : current
-                ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                ? PuzzleColorTheme.sunnyhue
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -925,7 +925,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      closeButtonColor: JarColorTheme.darkdesaturatedblue,
+      closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
         Navigator.pop(context, const Lvl16CopyPatternScreen());
       },

@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl5_jigsaw_puzzle.dart';
 
@@ -59,7 +59,7 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
   static const String _audioWelcome =
       'assets/audio/puzzle_glade/level4/welcome.wav';
   static const String _audioInstructions =
-      'assets/audio/puzzle_glade/level4/instruction.wav';
+      'assets/audio/puzzle_glade/level4/shadow_match_instruction.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioComplete =
@@ -264,10 +264,8 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
 
   // ── Choice tap ─────────────────────────────────────────────────────────────
 
-  Future<void> _onChoiceTapped(int index) async {
+  Future<void> _onChoiceDropped(String tapped, int index) async {
     if (_roundComplete || _wrongFlash) return;
-
-    final tapped = _choices[index];
 
     if (tapped == _answerObject) {
       _pulseCtrl.stop();
@@ -442,11 +440,11 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
                   height: 80,
                   decoration: BoxDecoration(
                     color: isShadow
-                        ? JarColorTheme.vandecane
+                        ? PuzzleColorTheme.vandecane
                         : Colors.white.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: JarColorTheme.darkdesaturatedblue.withValues(
+                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                         alpha: 0.30,
                       ),
                       width: 2.5,
@@ -465,7 +463,7 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
                       width: 60,
                       height: 60,
                       color: isShadow
-                          ? JarColorTheme.verydarkdesaturatedblue.withValues(
+                          ? PuzzleColorTheme.verydarkdesaturatedblue.withValues(
                               alpha: 0.80,
                             )
                           : null,
@@ -531,7 +529,7 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
               child: Text(
                 'Shadow Match',
                 style: TextStyle(
-                  fontFamily: JarAppTextStyles.fredoka,
+                  fontFamily: PuzzleAppTextStyles.fredoka,
                   fontSize: 22,
                   color: Colors.black87,
                   fontWeight: FontWeight.w600,
@@ -559,25 +557,37 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
   // ── Silhouette card ────────────────────────────────────────────────────────
 
   Widget _buildSilhouetteCard() {
-    return Container(
-      width: 148,
-      height: 148,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.35),
-          width: 2.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (details) => !_roundComplete,
+      onAcceptWithDetails: (details) {
+        final index = _choices.indexOf(details.data);
+        _onChoiceDropped(details.data, index);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovering = candidateData.isNotEmpty;
+        return Container(
+          width: 148,
+          height: 148,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: isHovering ? 0.95 : 0.85),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: isHovering
+                  ? PuzzleColorTheme.sunnyhue
+                  : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.35),
+              width: isHovering ? 3.5 : 2.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Center(child: _buildSilhouetteImage()),
+          child: Center(child: _buildSilhouetteImage()),
+        );
+      },
     );
   }
 
@@ -606,7 +616,7 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
         'assets/images/objects/puzzle/$_answerObject.png',
         width: 110,
         height: 110,
-        color: JarColorTheme.verydarkdesaturatedblue.withValues(alpha: 0.85),
+        color: PuzzleColorTheme.verydarkdesaturatedblue.withValues(alpha: 0.85),
         colorBlendMode: BlendMode.srcIn,
         errorBuilder: (_, __, ___) =>
             Text('🔍', style: TextStyle(fontSize: 60)),
@@ -617,14 +627,17 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
   // ── Choices ────────────────────────────────────────────────────────────────
 
   Widget _buildChoicesRow() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(_kChoices, (i) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+    return Wrap(
+      spacing: 14,
+      runSpacing: 14,
+      alignment: WrapAlignment.center,
+      children: List.generate(
+        _kChoices,
+            (i) => KeyedSubtree(
+          key: ValueKey(_choices[i]),
           child: _buildChoiceButton(i),
-        );
-      }),
+        ),
+      ),
     );
   }
 
@@ -634,19 +647,42 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
     final isWrong = _wrongFlash && _tappedIndex == index;
     final isCorrect = _roundComplete && isAnswer;
 
-    Color borderColor = JarColorTheme.darkdesaturatedblue.withValues(
+    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
       alpha: 0.28,
     );
     Color bgColor = Colors.white.withValues(alpha: 0.85);
 
+    if (_roundComplete && isAnswer) {
+      return Container(
+        key: ValueKey('${object}_done'),
+        width: 82,
+        height: 82,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+            width: 2.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+      );
+    }
     if (isWrong) {
       borderColor = const Color(0xFFE05A5A);
       bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.10);
     }
     if (isCorrect) {
-      borderColor = JarColorTheme.sunnyhue;
-      bgColor = JarColorTheme.goldenyellow.withValues(alpha: 0.28);
+      borderColor = PuzzleColorTheme.sunnyhue;
+      bgColor = PuzzleColorTheme.goldenyellow.withValues(alpha: 0.28);
     }
+
 
     Widget child = Image.asset(
       'assets/images/objects/puzzle/$object.png',
@@ -654,7 +690,7 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
       height: 60,
       fit: BoxFit.contain,
       color: (_roundComplete && !isAnswer)
-          ? JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.25)
+          ? PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25)
           : null,
       colorBlendMode: BlendMode.modulate,
       errorBuilder: (_, __, ___) => Text('🖼️', style: TextStyle(fontSize: 36)),
@@ -664,24 +700,37 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
       child = ScaleTransition(scale: _bounceAnim, child: child);
     }
 
-    return GestureDetector(
-      onTap: () => _onChoiceTapped(index),
+    final cardDecoration = BoxDecoration(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: borderColor, width: 2.5),
+      boxShadow: [
+        BoxShadow(
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+
+    return Draggable<String>(
+      key: ValueKey(object),
+      data: object,
+      maxSimultaneousDrags: (_roundComplete || _wrongFlash) ? 0 : 1,
+      feedback: Material(
+        color: Colors.transparent,
+        child: child,
+      ),
+      childWhenDragging: Container(
+        width: 82,
+        height: 82,
+        decoration: cardDecoration,
+      ),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        width: 96,
-        height: 96,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: borderColor, width: 2.5),
-          boxShadow: [
-            BoxShadow(
-              color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+        width: 82,
+        height: 82,
+        decoration: cardDecoration,
         child: Center(child: child),
       ),
     );
@@ -702,10 +751,10 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
           height: 12,
           decoration: BoxDecoration(
             color: done
-                ? JarColorTheme.darkdesaturatedblue
+                ? PuzzleColorTheme.darkdesaturatedblue
                 : current
-                ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                ? PuzzleColorTheme.sunnyhue
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -718,7 +767,7 @@ class _Lvl4ShadowMatchScreenState extends State<Lvl4ShadowMatchScreen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      closeButtonColor: JarColorTheme.darkdesaturatedblue,
+      closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
         Navigator.pop(context, const Lvl5JigsawPuzzleScreen());
       },

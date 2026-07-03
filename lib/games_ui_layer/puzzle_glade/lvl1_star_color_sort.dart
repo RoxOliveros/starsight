@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl2_pattern_match.dart';
 
@@ -590,7 +590,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                     Text(
                       pair.label,
                       style: TextStyle(
-                        fontFamily: JarAppTextStyles.fredoka,
+                        fontFamily: PuzzleAppTextStyles.fredoka,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: pair.jarColor,
@@ -671,7 +671,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                     'Star Color Sort',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontFamily: JarAppTextStyles.fredoka,
+                      fontFamily: PuzzleAppTextStyles.fredoka,
                       fontSize: 22,
                       color: Colors.black87,
                       fontWeight: FontWeight.w600,
@@ -691,20 +691,20 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
       margin: const EdgeInsets.fromLTRB(150, 10, 12, 10),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       decoration: BoxDecoration(
-        color: JarColorTheme.vandecane,
+        color: PuzzleColorTheme.vandecane,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.55),
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.55),
           width: 2.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
           BoxShadow(
-            color: JarColorTheme.goldenyellow.withValues(alpha: 0.20),
+            color: PuzzleColorTheme.goldenyellow.withValues(alpha: 0.20),
             blurRadius: 0,
             spreadRadius: 3,
             offset: Offset.zero,
@@ -716,7 +716,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
               child: Icon(
                 Icons.star_rounded,
                 size: 50,
-                color: JarColorTheme.sunnyhue,
+                color: PuzzleColorTheme.sunnyhue,
               ),
             )
           : Wrap(
@@ -802,7 +802,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                 child: Text(
                   pair.label,
                   style: TextStyle(
-                    fontFamily: JarAppTextStyles.fredoka,
+                    fontFamily: PuzzleAppTextStyles.fredoka,
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: pair.jarColor,
@@ -821,7 +821,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                       _jarImage,
                       fit: BoxFit.fill,
                       color: wrongFlash
-                          ? JarColorTheme.goldenyellow.withValues(alpha: 0.6)
+                          ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.6)
                           : pair.jarColor.withValues(alpha: 0.85),
                       colorBlendMode: BlendMode.modulate,
                     ),
@@ -846,9 +846,9 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                       child: Text(
                         'Oops! 💛',
                         style: TextStyle(
-                          fontFamily: JarAppTextStyles.fredoka,
+                          fontFamily: PuzzleAppTextStyles.fredoka,
                           fontSize: 13,
-                          color: JarColorTheme.darkbrown,
+                          color: PuzzleColorTheme.darkbrown,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -931,10 +931,10 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
           height: 12,
           decoration: BoxDecoration(
             color: done
-                ? JarColorTheme.darkdesaturatedblue
+                ? PuzzleColorTheme.darkdesaturatedblue
                 : current
-                ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                ? PuzzleColorTheme.sunnyhue
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -946,7 +946,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      closeButtonColor: JarColorTheme.darkdesaturatedblue,
+      closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
         Navigator.pop(context, const Lvl2PatternMatchScreen());
       },

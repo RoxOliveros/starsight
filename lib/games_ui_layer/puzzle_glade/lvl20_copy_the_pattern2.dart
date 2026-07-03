@@ -7,7 +7,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_level.dart';
-import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
@@ -523,10 +523,10 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
           child: Text(
             revealed ? 'Memorize!' : 'Recall!',
             style: TextStyle(
-              fontFamily: JarAppTextStyles.fredoka,
+              fontFamily: PuzzleAppTextStyles.fredoka,
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: JarColorTheme.darkdesaturatedblue,
+              color: PuzzleColorTheme.darkdesaturatedblue,
             ),
           ),
         ),
@@ -541,7 +541,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
                 color: Colors.white.withValues(alpha: revealed ? 0.9 : 0.4),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: JarColorTheme.darkdesaturatedblue.withValues(
+                  color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                     alpha: 0.3,
                   ),
                   width: 2,
@@ -557,7 +557,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
                     )
                   : Icon(
                       Icons.question_mark_rounded,
-                      color: JarColorTheme.darkdesaturatedblue.withValues(
+                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                         alpha: 0.4,
                       ),
                       size: 28,
@@ -618,7 +618,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
               child: Text(
                 'Remember the Pattern',
                 style: TextStyle(
-                  fontFamily: JarAppTextStyles.fredoka,
+                  fontFamily: PuzzleAppTextStyles.fredoka,
                   fontSize: 20,
                   color: Colors.black87,
                   fontWeight: FontWeight.w600,
@@ -634,7 +634,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
                 ),
                 decoration: BoxDecoration(
                   color: _phase == _ScreenPhase.memorize
-                      ? JarColorTheme.sunnyhue.withValues(alpha: 0.9)
+                      ? PuzzleColorTheme.sunnyhue.withValues(alpha: 0.9)
                       : _roundCorrect
                       ? Colors.green.withValues(alpha: 0.85)
                       : Colors.white.withValues(alpha: 0.75),
@@ -643,7 +643,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
                 child: Text(
                   phaseLabel,
                   style: TextStyle(
-                    fontFamily: JarAppTextStyles.fredoka,
+                    fontFamily: PuzzleAppTextStyles.fredoka,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: _phase == _ScreenPhase.memorize
@@ -701,7 +701,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
                   color: Colors.white.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                    color: JarColorTheme.sunnyhue.withValues(alpha: 0.6),
+                    color: PuzzleColorTheme.sunnyhue.withValues(alpha: 0.6),
                     width: 3,
                   ),
                 ),
@@ -720,7 +720,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
         Text(
           'Tandaan ang pagkakasunod!',
           style: TextStyle(
-            fontFamily: JarAppTextStyles.fredoka,
+            fontFamily: PuzzleAppTextStyles.fredoka,
             fontSize: 15,
             color: Colors.white.withValues(alpha: 0.9),
           ),
@@ -735,7 +735,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
         Text(
           '$_memorizeCountdown',
           style: TextStyle(
-            fontFamily: JarAppTextStyles.fredoka,
+            fontFamily: PuzzleAppTextStyles.fredoka,
             fontSize: 28,
             color: Colors.white,
             fontWeight: FontWeight.w700,
@@ -754,7 +754,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
             widthFactor: _memorizeCountdown / _kMemorizeSeconds,
             child: Container(
               decoration: BoxDecoration(
-                color: JarColorTheme.sunnyhue,
+                color: PuzzleColorTheme.sunnyhue,
                 borderRadius: BorderRadius.circular(6),
               ),
             ),
@@ -786,7 +786,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
               ? (_roundCorrect ? '🌟 Tama! Magaling!' : '')
               : 'Piliin sa tamang pagkakasunod',
           style: TextStyle(
-            fontFamily: JarAppTextStyles.fredoka,
+            fontFamily: PuzzleAppTextStyles.fredoka,
             fontSize: 14,
             color: Colors.white.withValues(alpha: 0.85),
           ),
@@ -842,8 +842,8 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
                   : isWrong
                   ? Colors.red
                   : item != null
-                  ? JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.4)
-                  : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.2),
+                  ? PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.4)
+                  : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.2),
               width: isCorrect || isWrong ? 3 : 2,
             ),
           ),
@@ -858,9 +858,9 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
                   child: Text(
                     '${index + 1}',
                     style: TextStyle(
-                      fontFamily: JarAppTextStyles.fredoka,
+                      fontFamily: PuzzleAppTextStyles.fredoka,
                       fontSize: 28,
-                      color: JarColorTheme.darkdesaturatedblue.withValues(
+                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                         alpha: 0.3,
                       ),
                     ),
@@ -889,7 +889,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
                 color: Colors.white.withValues(alpha: isUsed ? 0.4 : 0.92),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: JarColorTheme.darkdesaturatedblue.withValues(
+                  color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                     alpha: 0.3,
                   ),
                   width: 2,
@@ -923,10 +923,10 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
           height: 12,
           decoration: BoxDecoration(
             color: done
-                ? JarColorTheme.darkdesaturatedblue
+                ? PuzzleColorTheme.darkdesaturatedblue
                 : current
-                ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                ? PuzzleColorTheme.sunnyhue
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -939,7 +939,7 @@ class _Lvl20CopyPattern2ScreenState extends State<Lvl20CopyPattern2Screen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      closeButtonColor: JarColorTheme.darkdesaturatedblue,
+      closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
         // Navigator.of(context).pushReplacement(
         //   MaterialPageRoute(builder: (_) => const ()),

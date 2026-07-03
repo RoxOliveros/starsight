@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl18_star_color_sort2.dart';
 
@@ -469,10 +469,10 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
           child: Text(
             label,
             style: TextStyle(
-              fontFamily: JarAppTextStyles.fredoka,
+              fontFamily: PuzzleAppTextStyles.fredoka,
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: JarColorTheme.darkdesaturatedblue,
+              color: PuzzleColorTheme.darkdesaturatedblue,
             ),
           ),
         ),
@@ -483,7 +483,7 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
             color: Colors.white.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.3),
+              color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.3),
               width: 2,
             ),
           ),
@@ -505,7 +505,7 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
                       border: Border.all(
                         color: isMarkCell
                             ? Colors.amber
-                            : JarColorTheme.darkdesaturatedblue.withValues(
+                            : PuzzleColorTheme.darkdesaturatedblue.withValues(
                                 alpha: 0.2,
                               ),
                         width: isMarkCell ? 2 : 1,
@@ -519,7 +519,7 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
                           )
                         : Icon(
                             Icons.image_outlined,
-                            color: JarColorTheme.darkdesaturatedblue.withValues(
+                            color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                               alpha: 0.3,
                             ),
                             size: 20,
@@ -575,7 +575,7 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
               child: Text(
                 'Spot the Difference',
                 style: TextStyle(
-                  fontFamily: JarAppTextStyles.fredoka,
+                  fontFamily: PuzzleAppTextStyles.fredoka,
                   fontSize: 20,
                   color: Colors.black87,
                   fontWeight: FontWeight.w600,
@@ -596,7 +596,7 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
                 child: Text(
                   'Round $_round / $_kTotalRounds',
                   style: TextStyle(
-                    fontFamily: JarAppTextStyles.fredoka,
+                    fontFamily: PuzzleAppTextStyles.fredoka,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
@@ -622,7 +622,7 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
                 ? '🌟 Nakita mo!'
                 : 'Hanapin ang pagkakaiba!',
             style: TextStyle(
-              fontFamily: JarAppTextStyles.fredoka,
+              fontFamily: PuzzleAppTextStyles.fredoka,
               fontSize: 15,
               color: Colors.white.withValues(alpha: 0.9),
               fontWeight: FontWeight.w600,
@@ -650,7 +650,7 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
                   Text(
                     'VS',
                     style: TextStyle(
-                      fontFamily: JarAppTextStyles.fredoka,
+                      fontFamily: PuzzleAppTextStyles.fredoka,
                       fontSize: 13,
                       color: Colors.white.withValues(alpha: 0.7),
                       fontWeight: FontWeight.w700,
@@ -742,7 +742,7 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
                     ? Colors.green
                     : isWrongFlash
                     ? Colors.red
-                    : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
+                    : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
                 width: isHighlighted || isWrongFlash ? 3 : 2,
               ),
               boxShadow: isHighlighted
@@ -773,9 +773,9 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
               errorBuilder: (_, __, ___) => Text(
                 objectName[0].toUpperCase(),
                 style: TextStyle(
-                  fontFamily: JarAppTextStyles.fredoka,
+                  fontFamily: PuzzleAppTextStyles.fredoka,
                   fontSize: 28,
-                  color: JarColorTheme.darkdesaturatedblue,
+                  color: PuzzleColorTheme.darkdesaturatedblue,
                 ),
               ),
             ),
@@ -819,10 +819,10 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
           height: 12,
           decoration: BoxDecoration(
             color: done
-                ? JarColorTheme.darkdesaturatedblue
+                ? PuzzleColorTheme.darkdesaturatedblue
                 : current
-                ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                ? PuzzleColorTheme.sunnyhue
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -835,7 +835,7 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      closeButtonColor: JarColorTheme.darkdesaturatedblue,
+      closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
         Navigator.pop(context, const Lvl18JarColorSort2Screen());
       },

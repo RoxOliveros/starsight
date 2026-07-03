@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl20_copy_the_pattern2.dart';
 
@@ -493,10 +493,10 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: JarColorTheme.vandecane,
+                    color: PuzzleColorTheme.vandecane,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: JarColorTheme.darkdesaturatedblue.withValues(
+                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                         alpha: 0.35,
                       ),
                       width: 2.5,
@@ -513,10 +513,10 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
                     child: Text(
                       '?',
                       style: TextStyle(
-                        fontFamily: JarAppTextStyles.fredoka,
+                        fontFamily: PuzzleAppTextStyles.fredoka,
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
-                        color: JarColorTheme.sunnyhue,
+                        color: PuzzleColorTheme.sunnyhue,
                       ),
                     ),
                   ),
@@ -574,7 +574,7 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
               child: Text(
                 'Memory Match',
                 style: TextStyle(
-                  fontFamily: JarAppTextStyles.fredoka,
+                  fontFamily: PuzzleAppTextStyles.fredoka,
                   fontSize: 22,
                   color: Colors.black87,
                   fontWeight: FontWeight.w600,
@@ -624,8 +624,8 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
 
   Widget _cardBack() {
     return _cardShell(
-      color: JarColorTheme.vandecane,
-      borderColor: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.35),
+      color: PuzzleColorTheme.vandecane,
+      borderColor: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.35),
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -633,17 +633,17 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
             _starImage,
             width: 36,
             height: 36,
-            color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.12),
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.12),
             colorBlendMode: BlendMode.modulate,
             errorBuilder: (_, __, ___) => const SizedBox.shrink(),
           ),
           Text(
             '?',
             style: TextStyle(
-              fontFamily: JarAppTextStyles.fredoka,
+              fontFamily: PuzzleAppTextStyles.fredoka,
               fontSize: 34,
               fontWeight: FontWeight.bold,
-              color: JarColorTheme.sunnyhue,
+              color: PuzzleColorTheme.sunnyhue,
             ),
           ),
         ],
@@ -654,11 +654,11 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
   Widget _cardFront(_CardModel card) {
     return _cardShell(
       color: card.isMatched
-          ? JarColorTheme.goldenyellow.withValues(alpha: 0.30)
-          : JarColorTheme.vandecane,
+          ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.30)
+          : PuzzleColorTheme.vandecane,
       borderColor: card.isMatched
-          ? JarColorTheme.sunnyhue
-          : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
+          ? PuzzleColorTheme.sunnyhue
+          : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -699,7 +699,7 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
         border: Border.all(color: borderColor, width: 2.5),
         boxShadow: [
           BoxShadow(
-            color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -722,10 +722,10 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
           height: 12,
           decoration: BoxDecoration(
             color: done
-                ? JarColorTheme.darkdesaturatedblue
+                ? PuzzleColorTheme.darkdesaturatedblue
                 : current
-                ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                ? PuzzleColorTheme.sunnyhue
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -737,7 +737,7 @@ class _Lvl19JarMemoryMatch3ScreenState extends State<Lvl19JarMemoryMatch3Screen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      closeButtonColor: JarColorTheme.darkdesaturatedblue,
+      closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
         Navigator.pop(context, const Lvl20CopyPattern2Screen());
       },

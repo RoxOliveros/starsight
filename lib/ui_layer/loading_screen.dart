@@ -5,7 +5,7 @@ class LoadingScreen extends StatefulWidget {
   final Color dotColor;
   final Color overlayColor;
   final Color cardColor;
-  final double cardWidth;
+  final double? cardHeight;
 
   const LoadingScreen({
     super.key,
@@ -13,46 +13,46 @@ class LoadingScreen extends StatefulWidget {
     required this.dotColor,
     this.overlayColor = const Color(0x99000000),
     this.cardColor = Colors.white,
-    this.cardWidth = 220,
+    this.cardHeight,
   });
 
   // ── 1. Alphabet Forest ─────────────────────────────────────────────────
   factory LoadingScreen.alphabetForest() {
     return const LoadingScreen(
-      imagePath: 'assets/images/characters/doby_standing_armsonhips.png',
-      dotColor: Color(0xFF4C89C3), // blue
+      imagePath: 'assets/animations/characters/doby_reading.webp',
+      dotColor: Color(0xFF3B873B), // green
     );
   }
 
   // ── 2. Lumi Town ────────────────────────────────────────────────────────
   factory LoadingScreen.lumiTown() {
     return const LoadingScreen(
-      imagePath: 'assets/images/characters/dr.woo_the_owl.png',
-      dotColor: Color(0xFFEC8A20), // orange
+      imagePath: 'assets/animations/characters/drwoo_teaching.webp',
+      dotColor: Color(0xFFECC06C), // orange
     );
   }
 
   // ── 3. Arctic Numberland ────────────────────────────────────────────────
   factory LoadingScreen.arctic() {
     return const LoadingScreen(
-      imagePath: 'assets/images/characters/doma_writing_on_board.png',
-      dotColor: Color(0xFF6FD3E3), // light blue
+      imagePath: 'assets/animations/characters/doma_writing_on_board.webp',
+      dotColor: Color(0xFF6288B0), // blue
     );
   }
 
   // ── 4. Discovery Lagoon ─────────────────────────────────────────────────
   factory LoadingScreen.discoveryLagoon() {
     return const LoadingScreen(
-      imagePath: 'assets/images/characters/cat_holding_fishbone.png',
-      dotColor: Color(0xFF5F7199), // deep navy blue
+      imagePath: 'assets/animations/characters/kiki_fishing.webp',
+      dotColor: Color(0xFF6B6A41), // dark green
     );
   }
 
   // ── 5. Puzzle Glade ─────────────────────────────────────────────────────
   factory LoadingScreen.puzzleGlade() {
     return const LoadingScreen(
-      imagePath: 'assets/images/characters/bunny_holding_star.png',
-      dotColor: Color(0xFFF9D552), // yellow
+      imagePath: 'assets/animations/characters/roxie_puzzle.webp',
+      dotColor: Color(0xFFFDCE57), // yellow
     );
   }
 
@@ -63,14 +63,15 @@ class LoadingScreen extends StatefulWidget {
 class _LoadingScreenState extends State<LoadingScreen> {
   @override
   Widget build(BuildContext context) {
-    final imageSize = widget.cardWidth * 0.6;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final effectiveHeight = widget.cardHeight ?? screenHeight * 0.8;
 
     return Container(
       color: widget.overlayColor,
       alignment: Alignment.center,
       child: Container(
-        width: widget.cardWidth,
-        height: widget.cardWidth,
+        width: effectiveHeight,
+        height: effectiveHeight, // remove this line if you don't want it square anymore
         padding: const EdgeInsets.fromLTRB(28, 28, 28, 22),
         decoration: BoxDecoration(
           color: widget.cardColor,
@@ -85,12 +86,12 @@ class _LoadingScreenState extends State<LoadingScreen> {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,   // ADD: centers content in fixed height
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Expanded(                                     // ADD: image takes remaining space
+            Expanded(
               child: Image.asset(
                 widget.imagePath,
-                fit: BoxFit.contain,                      // ADD: scales to fit available space
+                fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
             ),
@@ -106,6 +107,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
 // ══════════════════════════════════════════════════════════════════════════════
 // DANCING DOTS
 // ══════════════════════════════════════════════════════════════════════════════
+
 class _DancingDots extends StatefulWidget {
   final Color color;
   final int dotCount;
@@ -113,7 +115,7 @@ class _DancingDots extends StatefulWidget {
 
   const _DancingDots({
     required this.color,
-    this.dotCount = 3,
+    this.dotCount = 4,
     this.dotSize = 12,
   });
 
@@ -148,10 +150,8 @@ class _DancingDotsState extends State<_DancingDots>
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(widget.dotCount, (index) {
-            // stagger each dot's bounce by a fraction of the cycle
             final delay = index / widget.dotCount;
             final t = (_controller.value - delay) % 1.0;
-            // bounce curve: 0 -> up -> 0
             final bounce = (t < 0.5)
                 ? Curves.easeOut.transform(t * 2)
                 : Curves.easeIn.transform(1 - (t - 0.5) * 2);

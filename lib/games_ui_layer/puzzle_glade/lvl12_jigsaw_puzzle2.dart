@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
-import '../../ui_layer/puzzle_glade/Puzzle_theme.dart';
+import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lvl13_basket_sort2.dart';
 
@@ -494,7 +494,7 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
                     color: Colors.white.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: JarColorTheme.darkdesaturatedblue.withValues(
+                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                         alpha: 0.30,
                       ),
                       width: 2.5,
@@ -589,7 +589,7 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
               child: Text(
                 'Jigsaw Puzzle',
                 style: TextStyle(
-                  fontFamily: JarAppTextStyles.fredoka,
+                  fontFamily: PuzzleAppTextStyles.fredoka,
                   fontSize: 22,
                   color: Colors.black87,
                   fontWeight: FontWeight.w600,
@@ -632,12 +632,12 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
         color: Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.35),
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.35),
           width: 2.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
             blurRadius: 14,
             offset: const Offset(0, 5),
           ),
@@ -686,13 +686,13 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
     Color borderColor = isHighlightWrong
         ? const Color(0xFFE05A5A)
         : isHolding && !filled
-        ? JarColorTheme.sunnyhue.withValues(alpha: 0.70)
-        : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20);
+        ? PuzzleColorTheme.sunnyhue.withValues(alpha: 0.70)
+        : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20);
 
     Color bgColor = isHighlightWrong
         ? const Color(0xFFE05A5A).withValues(alpha: 0.10)
         : isHolding && !filled
-        ? JarColorTheme.goldenyellow.withValues(alpha: 0.15)
+        ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.15)
         : Colors.transparent;
 
     return DragTarget<int>(
@@ -707,11 +707,11 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
             duration: const Duration(milliseconds: 180),
             decoration: BoxDecoration(
               color: isDragOver
-                  ? JarColorTheme.goldenyellow.withValues(alpha: 0.25)
+                  ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.25)
                   : bgColor,
               borderRadius: BorderRadius.zero,
               border: Border.all(
-                color: isDragOver ? JarColorTheme.sunnyhue : borderColor,
+                color: isDragOver ? PuzzleColorTheme.sunnyhue : borderColor,
                 width: isDragOver ? 3.0 : 2.0,
               ),
             ),
@@ -783,12 +783,12 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
         color: Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
           width: 2.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
             blurRadius: 14,
             offset: const Offset(0, 5),
           ),
@@ -800,10 +800,10 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
           Text(
             'Pieces',
             style: TextStyle(
-              fontFamily: JarAppTextStyles.fredoka,
+              fontFamily: PuzzleAppTextStyles.fredoka,
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.55),
+              color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.55),
             ),
           ),
           const SizedBox(height: 8),
@@ -813,9 +813,9 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
               child: Text(
                 '⭐',
                 style: TextStyle(
-                  fontFamily: JarAppTextStyles.fredoka,
+                  fontFamily: PuzzleAppTextStyles.fredoka,
                   fontSize: 15,
-                  color: JarColorTheme.sunnyhue,
+                  color: PuzzleColorTheme.sunnyhue,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -836,12 +836,12 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
                 if (piece == null) {
                   return Container(
                     decoration: BoxDecoration(
-                      color: JarColorTheme.darkdesaturatedblue.withValues(
+                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                         alpha: 0.05,
                       ),
                       borderRadius: BorderRadius.zero,
                       border: Border.all(
-                        color: JarColorTheme.darkdesaturatedblue.withValues(
+                        color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                           alpha: 0.10,
                         ),
                         width: 2,
@@ -898,25 +898,25 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
       height: 48,
       decoration: BoxDecoration(
         color: isHeld
-            ? JarColorTheme.goldenyellow.withValues(alpha: 0.28)
+            ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.28)
             : Colors.white.withValues(alpha: 0.85),
         border: Border.all(
           color: isHeld
-              ? JarColorTheme.sunnyhue
-              : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+              ? PuzzleColorTheme.sunnyhue
+              : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
           width: isHeld ? 3 : 2.5,
         ),
         boxShadow: isHeld
             ? [
                 BoxShadow(
-                  color: JarColorTheme.sunnyhue.withValues(alpha: 0.35),
+                  color: PuzzleColorTheme.sunnyhue.withValues(alpha: 0.35),
                   blurRadius: 10,
                   spreadRadius: 1,
                 ),
               ]
             : [
                 BoxShadow(
-                  color: JarColorTheme.darkdesaturatedblue.withValues(
+                  color: PuzzleColorTheme.darkdesaturatedblue.withValues(
                     alpha: 0.09,
                   ),
                   blurRadius: 10,
@@ -940,12 +940,12 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
             width: 68,
             height: 68,
             decoration: BoxDecoration(
-              color: JarColorTheme.goldenyellow.withValues(alpha: 0.28),
+              color: PuzzleColorTheme.goldenyellow.withValues(alpha: 0.28),
               borderRadius: BorderRadius.zero,
-              border: Border.all(color: JarColorTheme.sunnyhue, width: 3),
+              border: Border.all(color: PuzzleColorTheme.sunnyhue, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: JarColorTheme.sunnyhue.withValues(alpha: 0.45),
+                  color: PuzzleColorTheme.sunnyhue.withValues(alpha: 0.45),
                   blurRadius: 14,
                   spreadRadius: 2,
                 ),
@@ -984,10 +984,10 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
           height: 12,
           decoration: BoxDecoration(
             color: done
-                ? JarColorTheme.darkdesaturatedblue
+                ? PuzzleColorTheme.darkdesaturatedblue
                 : current
-                ? JarColorTheme.sunnyhue
-                : JarColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
+                ? PuzzleColorTheme.sunnyhue
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
             borderRadius: BorderRadius.circular(8),
           ),
         );
@@ -1000,7 +1000,7 @@ class _Lvl12JigsawPuzzle2ScreenState extends State<Lvl12JigsawPuzzle2Screen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      closeButtonColor: JarColorTheme.darkdesaturatedblue,
+      closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
         Navigator.pop(context, const Lvl13BasketSort2Screen());
       },
