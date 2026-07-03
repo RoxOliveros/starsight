@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:StarSight/games_ui_layer/lumi_town/lvl5/sharing_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -219,9 +220,25 @@ class _Sharing1State extends State<Sharing1> {
                       debugPrint('Thumbs Up Tapped!');
                       // Stop the intro audio before playing the success track
                       await _audioPlayer.stop();
+
+                      // Start playing the success track
                       await _audioPlayer.play(
                         AssetSource('audio/lumi_town/level5/share_yes.wav'),
                       );
+
+                      // --- PERFECT TIMING NAVIGATION ---
+                      // Wait exactly until this specific audio file finishes playing
+                      await _audioPlayer.onPlayerComplete.first;
+
+                      // Ensure the widget is still on screen before navigating
+                      if (!mounted) return;
+
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (context) => const Sharing2(),
+                        ),
+                      );
+                      // ---------------------------------
                     },
                     child: _ThumbButton(
                       imagePath: 'assets/images/objects/lumi/thumbs_up.png',

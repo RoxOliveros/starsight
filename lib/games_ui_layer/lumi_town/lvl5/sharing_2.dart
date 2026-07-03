@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -24,6 +25,7 @@ class _Sharing2State extends State<Sharing2> {
   bool _readyForEntrance = false;
   bool _showSadBearFailedUI = false;
   bool _showAllCharactersSuccessUI = false;
+  bool _showGoodJobOverlay = false;
   bool _showTryAgainButton = false;
   bool _showTutorial = true;
   bool _secondFoxCanceled = false;
@@ -204,6 +206,12 @@ class _Sharing2State extends State<Sharing2> {
             _audioPlayer.play(
               AssetSource('audio/lumi_town/level5/success_narration.wav'),
             );
+            Future.delayed(const Duration(seconds: 2), () {
+              if (!mounted) return;
+              setState(() {
+                _showGoodJobOverlay = true;
+              });
+            });
           } else {
             // FAILURE! We fed the 2nd fox, so the bear gets nothing.
             setState(() {
@@ -275,6 +283,103 @@ class _Sharing2State extends State<Sharing2> {
         _retryCount++;
       });
     });
+  }
+
+  // Back-row character slot (dog / cat): positioned by horizontal fraction
+  // of the stack's width, filling the FULL height of the stack (top:0,
+  // bottom:0) so that FractionallySizedBox has a real height to size
+  // against. Bottom-anchored just like the front row, so it shares the same
+  // "ground" line — the only difference is it's taller and painted
+  // *underneath* the front row (declared earlier in the Stack), so the
+  // front-row characters naturally cover its lower body, exactly like the
+  // reference photo where the dog/cat peek in from behind the group instead
+  // of floating alone above a gap.
+
+  /*
+  Widget _backCharacterSlot(
+    String imagePath, {
+    required double leftFraction,
+    required double widthFraction,
+    required double heightFraction,
+    required double sw,
+    required int delayMs,
+  }) {
+    return Positioned(
+      top: 0,
+      bottom: 0,
+      left: sw * leftFraction,
+      width: sw * widthFraction,
+      child: FractionallySizedBox(
+        heightFactor: heightFraction,
+        alignment: Alignment.bottomCenter,
+        child: Image.asset(imagePath, fit: BoxFit.contain)
+            .animate(
+              onPlay: (c) => c.repeat(reverse: true),
+              delay: Duration(milliseconds: delayMs),
+            )
+            .moveY(
+              begin: 0,
+              end: -14,
+              duration: const Duration(milliseconds: 900),
+              curve: Curves.easeInOut,
+            ),
+      ),
+    );
+  }
+
+  // Front-row character slot: an Expanded column sized to heightFraction of
+  // the available row height, bottom-anchored, so characters line up like a
+  // real group photo with the bear standing tallest in the center.
+  Widget _frontCharacterSlot(
+    String imagePath, {
+    required double heightFraction,
+    required int delayMs,
+  }) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: FractionallySizedBox(
+          heightFactor: heightFraction,
+          alignment: Alignment.bottomCenter,
+          child: Image.asset(imagePath, fit: BoxFit.contain)
+              .animate(
+                onPlay: (c) => c.repeat(reverse: true),
+                delay: Duration(milliseconds: delayMs),
+              )
+              .moveY(
+                begin: 0,
+                end: -16,
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeInOut,
+              ),
+        ),
+      ),
+    );
+  }
+*/
+  Widget _positionedCharacter(
+    String imagePath, {
+    required double left,
+    required double bottom,
+    required double width,
+    required int delayMs,
+  }) {
+    return Positioned(
+      left: left,
+      bottom: bottom,
+      width: width,
+      child: Image.asset(imagePath, fit: BoxFit.contain)
+          .animate(
+            onPlay: (c) => c.repeat(reverse: true),
+            delay: Duration(milliseconds: delayMs),
+          )
+          .moveY(
+            begin: 0,
+            end: -14, // Subtle bobbing animation
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeInOut,
+          ),
+    );
   }
 
   @override
@@ -683,103 +788,106 @@ class _Sharing2State extends State<Sharing2> {
           // ── 10. Success UI (Canceled the 2nd Fox) ──────────────────────
           if (_showAllCharactersSuccessUI)
             Positioned.fill(
-              child: Container(
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage(
-                      'assets/images/backgrounds/bg_lumi_park.png',
+              child: Stack(
+                children: [
+                  // Layer 1: Background and the Cropped Group Photo
+                  Container(
+                    decoration: const BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage(
+                          'assets/images/backgrounds/bg_lumi_park.png',
+                        ),
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                    fit: BoxFit.cover,
+                    child: Stack(
+                      clipBehavior: Clip.hardEdge,
+                      alignment: Alignment.bottomCenter,
+                      children: [
+                        // ── Back Row ──
+                        _positionedCharacter(
+                          charactersSmiling['dog']!,
+                          left: -sw * 0.02,
+                          bottom: -sh * 0.15,
+                          width: sw * 0.38,
+                          delayMs: 0,
+                        ),
+                        _positionedCharacter(
+                          charactersSmiling['cat']!,
+                          left: sw * 0.62,
+                          bottom: -sh * 0.12,
+                          width: sw * 0.40,
+                          delayMs: 150,
+                        ),
+
+                        // ── Mid/Front Row ──
+                        _positionedCharacter(
+                          charactersSmiling['bunny']!,
+                          left: -sw * 0.01,
+                          bottom: -sh * 0.22,
+                          width: sw * 0.26,
+                          delayMs: 300,
+                        ),
+                        _positionedCharacter(
+                          charactersSmiling['penguin']!,
+                          left: sw * 0.18,
+                          bottom: -sh * 0.20,
+                          width: sw * 0.26,
+                          delayMs: 450,
+                        ),
+                        _positionedCharacter(
+                          charactersSmiling['owl']!,
+                          left: sw * 0.55,
+                          bottom: -sh * 0.18,
+                          width: sw * 0.28,
+                          delayMs: 750,
+                        ),
+                        _positionedCharacter(
+                          charactersSmiling['fox']!,
+                          left: sw * 0.74,
+                          bottom: -sh * 0.20,
+                          width: sw * 0.28,
+                          delayMs: 900,
+                        ),
+
+                        // ── Front Center ──
+                        _positionedCharacter(
+                          'assets/images/characters/little_bear_uniform.png',
+                          left: sw * 0.33,
+                          bottom: -sh * 0.28,
+                          width: sw * 0.35,
+                          delayMs: 600,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Lahat ay pantay-pantay!',
-                      style: TextStyle(
-                        fontFamily: 'Fredoka',
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(
-                            blurRadius: 6,
-                            color: Colors.black54,
-                            offset: Offset(0, 3),
-                          ),
-                        ],
-                      ),
+
+                  // Layer 2: The Good Job Overlay (Delayed)
+                  if (_showGoodJobOverlay)
+                    GoodJobOverlay(
+                      characterImage:
+                          'assets/images/characters/dr.woo_smiling.png',
+                      closeButtonColor: const Color(0xFF266589),
+                      onNext: () {
+                        // Add your navigation to the next level here
+                      },
+                      onRestart: () {
+                        setState(() {
+                          _showAllCharactersSuccessUI = false;
+                          _showGoodJobOverlay = false; // Reset this too!
+                          _charIndex = 0;
+                          _pancakesLeft = 7;
+                          _waterLeft = 7;
+                          _hasGivenPancake = false;
+                          _hasGivenWater = false;
+                          _readyForEntrance = true;
+                          _secondFoxCanceled = false;
+                          _currentMood = 'normal';
+                        });
+                      },
+                      onBack: () => Navigator.of(context).maybePop(),
                     ),
-                    const SizedBox(height: 16),
-                    // Display every character in a row — each one gets an
-                    // equal Expanded slot. Instead of shrinking the whole
-                    // body to fit (BoxFit.contain), we crop in tight on the
-                    // upper half: ClipRect + Align(topCenter) + BoxFit.cover
-                    // zooms the image so it fills the slot's width and lets
-                    // the legs get cropped off the bottom, giving a
-                    // "half-body close-up" look instead of a tiny full body.
-                    Expanded(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: charactersSmiling.values.map((imagePath) {
-                          return Expanded(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: sw * 0.005,
-                              ),
-                              child:
-                                  ClipRect(
-                                        child: Align(
-                                          alignment: Alignment.topCenter,
-                                          child: Image.asset(
-                                            imagePath,
-                                            fit: BoxFit.cover,
-                                            alignment: Alignment.topCenter,
-                                          ),
-                                        ),
-                                      )
-                                      .animate(
-                                        onPlay: (c) => c.repeat(reverse: true),
-                                      )
-                                      .moveY(
-                                        begin: 0,
-                                        end: -20,
-                                        duration: const Duration(
-                                          milliseconds: 500,
-                                        ),
-                                        curve: Curves.easeInOut,
-                                      ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF90D060),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: sw * 0.05,
-                          vertical: sh * 0.03,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      child: const Text(
-                        'Next Level',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontFamily: 'Fredoka',
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
             ),
         ], // <-- This closes the main Stack's children array
