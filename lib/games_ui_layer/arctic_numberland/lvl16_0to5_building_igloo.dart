@@ -726,11 +726,6 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
         final areaW = constraints.maxWidth;
         final areaH = constraints.maxHeight;
 
-        // Special case: 0 blocks — show "empty igloo" and auto-advance
-        if (_targetCount == 0) {
-          return _buildZeroIglooCase(areaW, areaH);
-        }
-
         return AnimatedBuilder(
           animation: _iglooShakeCtrl,
           builder: (_, child) => Transform.translate(
@@ -809,45 +804,6 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
         );
       },
     );
-  }
-
-  // Zero special case
-  Widget _buildZeroIglooCase(double w, double h) {
-    // Auto-advance after showing "0 blocks!"
-    if (!_zeroRoundTriggered) {
-      _zeroRoundTriggered = true;
-
-      Future.delayed(const Duration(milliseconds: 1200), () async {
-        if (!mounted || _roundComplete) return;
-
-        await _playAudio(_audioBuild);
-
-        if (!mounted) return;
-
-        setState(() => _roundComplete = true);
-
-        _correctPulseCtrl.forward(from: 0);
-
-        await _playAudio(_audioComplete);
-
-        await Future.delayed(const Duration(milliseconds: 700));
-
-        if (!mounted) return;
-
-        if (_currentRound + 1 >= _totalRounds) {
-          await ArcticProgressService.instance.markLevelComplete(16);
-          setState(() => _showWinDialog = true);
-        } else {
-          setState(() {
-            _currentRound++;
-          });
-
-          _setupRound();
-        }
-      });
-    }
-
-    return Stack(children: [Positioned.fill(child: _buildIglooOutline(w, h))]);
   }
 
   // ── Igloo Outline (custom painted) ─────────────────────────────────────────
