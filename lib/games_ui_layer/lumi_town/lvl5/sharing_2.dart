@@ -25,10 +25,9 @@ class _Sharing2State extends State<Sharing2> {
   bool _showSadBearFailedUI = false;
   bool _showAllCharactersSuccessUI = false;
   bool _showTryAgainButton = false;
-
-  // Whether the "How to Play" tutorial overlay is currently showing.
-  // Starts true so new players see it before the round begins.
   bool _showTutorial = true;
+  bool _secondFoxCanceled = false;
+  String _currentMood = 'normal';
 
   // Inventory state
   int _pancakesLeft = 7;
@@ -43,12 +42,21 @@ class _Sharing2State extends State<Sharing2> {
   int _retryCount = 0;
 
   static const Map<String, String> characters = {
-    'bunny': 'assets/images/characters/roxie_standing.png',
-    'cat': 'assets/images/characters/kiki_smiling.png',
-    'fox': 'assets/images/characters/jack_smilling.png',
-    'penguin': 'assets/images/characters/doma_the_penguin.png',
+    'bunny': 'assets/images/characters/roxie_the_rabbit.png',
+    'cat': 'assets/images/characters/kiki_the_cat.png',
+    'fox': 'assets/images/characters/jack_the_fox.png',
+    'penguin': 'assets/images/characters/doma_the_penguin2.png',
     'owl': 'assets/images/characters/dr.woo_the_owl.png',
-    'dog': 'assets/images/characters/doby_standing_armsonhips.png',
+    'dog': 'assets/images/characters/doby_the_dog.png',
+  };
+
+  static const Map<String, String> charactersSmiling = {
+    'bunny': 'assets/images/characters/roxie_try_again.png',
+    'cat': 'assets/images/characters/kiki_smiling.png',
+    'fox': 'assets/images/characters/jack_smiling.png',
+    'penguin': 'assets/images/characters/doma_smiling.png',
+    'owl': 'assets/images/characters/dr.woo_smiling.png',
+    'dog': 'assets/images/characters/doby_smiling.png',
   };
 
   static const Map<String, String> characterVoiceovers = {
@@ -71,8 +79,18 @@ class _Sharing2State extends State<Sharing2> {
     'dog',
   ];
 
-  String get currentCharacterImage =>
-      characters[_sequence[_charIndex]] ?? characters['bunny']!;
+  String get currentCharacterImage {
+    String charKey = _sequence[_charIndex];
+
+    if (_currentMood == 'smiling') {
+      return charactersSmiling[charKey] ?? characters[charKey]!;
+    } else if (_currentMood == 'sad' && charKey == 'fox') {
+      // Make sure this path points to your sad fox image
+      return 'assets/images/characters/jack_sad.png';
+    }
+
+    return characters[charKey] ?? characters['bunny']!;
+  }
 
   @override
   void initState() {
@@ -141,6 +159,11 @@ class _Sharing2State extends State<Sharing2> {
     if (_hasGivenPancake && _hasGivenWater) {
       String currentCharKey = _sequence[_charIndex];
 
+      // 1. Make the character smile!
+      setState(() {
+        _currentMood = 'smiling';
+      });
+
       String audioPath =
           characterVoiceovers[currentCharKey] ??
           'audio/lumi_town/level5/share_yes.wav';
@@ -151,12 +174,13 @@ class _Sharing2State extends State<Sharing2> {
         if (!mounted) return;
 
         if (_charIndex < _sequence.length - 1) {
-          // Normal progression to the next character (e.g., to the Dog)
+          // Normal progression to the next character
           setState(() {
             _readyForEntrance = false;
             _charIndex++;
             _hasGivenPancake = false;
             _hasGivenWater = false;
+            _currentMood = 'normal'; // Reset mood for next character
           });
 
           Future.delayed(const Duration(milliseconds: 200), () {
@@ -166,25 +190,35 @@ class _Sharing2State extends State<Sharing2> {
             });
           });
         } else {
-          // End of the sequence reached (Dog was fed).
-          // If they are here, they didn't cancel the Fox, so Bear gets nothing!
+          // End of the sequence reached (Dog was just fed).
           setState(() {
             _readyForEntrance = false;
-            _showSadBearFailedUI = true;
           });
 
-          // Play the sad bear narration
-          _audioPlayer.play(
-            AssetSource('audio/lumi_town/level5/sharing_wrong.wav'),
-          );
-
-          // Wait 12 seconds for the audio to finish before showing the button
-          Future.delayed(const Duration(seconds: 12), () {
-            if (!mounted) return;
+          // Check if we saved enough food by denying the 2nd fox
+          if (_secondFoxCanceled) {
+            // SUCCESS! Everyone gets a share.
             setState(() {
-              _showTryAgainButton = true;
+              _showAllCharactersSuccessUI = true;
             });
-          });
+            _audioPlayer.play(
+              AssetSource('audio/lumi_town/level5/success_narration.wav'),
+            );
+          } else {
+            // FAILURE! We fed the 2nd fox, so the bear gets nothing.
+            setState(() {
+              _showSadBearFailedUI = true;
+            });
+            _audioPlayer.play(
+              AssetSource('audio/lumi_town/level5/sharing_wrong.wav'),
+            );
+            Future.delayed(const Duration(seconds: 12), () {
+              if (!mounted) return;
+              setState(() {
+                _showTryAgainButton = true;
+              });
+            });
+          }
         }
       });
     }
@@ -192,29 +226,40 @@ class _Sharing2State extends State<Sharing2> {
 
   // Called when the cancel button is tapped
   void _handleCancel() {
-    _audioPlayer.play(AssetSource('audio/lumi_town/level5/share_no.wav'));
+    // _audioPlayer.play(AssetSource('audio/lumi_town/level5/share_no.wav'));
 
-    // NEW: User correctly canceled the 2nd Fox!
+    // 1. User canceled the 2nd Fox!
     if (_charIndex == 5) {
       setState(() {
-        _readyForEntrance = false;
+        _secondFoxCanceled = true; // Mark as successfully bypassed
+        _currentMood = 'sad'; // Make the fox sad
       });
-      Future.delayed(const Duration(milliseconds: 800), () {
+
+      // Wait a moment so the user sees the sad fox, then move to the dog
+      Future.delayed(const Duration(milliseconds: 1500), () {
         if (!mounted) return;
         setState(() {
-          _showAllCharactersSuccessUI = true; // Show all characters
+          _readyForEntrance = false;
+          _charIndex++; // Move to the dog
+          _hasGivenPancake = false;
+          _hasGivenWater = false;
+          _currentMood = 'normal'; // Reset mood for the dog
         });
-        // Play the success audio
-        _audioPlayer.play(
-          AssetSource('audio/lumi_town/level5/success_narration.wav'),
-        );
+
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (!mounted) return;
+          setState(() {
+            _readyForEntrance = true; // Bring the dog in
+          });
+        });
       });
       return; // Stop the standard retry logic
     }
 
-    // Standard cancel logic for other characters
+    // 2. Standard cancel logic for other characters
     setState(() {
-      _readyForEntrance = false; // Triggers exit
+      _readyForEntrance = false;
+      _currentMood = 'normal';
 
       if (_hasGivenPancake) _pancakesLeft++;
       if (_hasGivenWater) _waterLeft++;
@@ -311,7 +356,7 @@ class _Sharing2State extends State<Sharing2> {
                           key: ValueKey('$_charIndex-$_retryCount'),
                           characterImagePath: currentCharacterImage,
                           characterHeightFraction: 0.95,
-                          plateWidthFraction: 0.12,
+                          plateWidthFraction: 0.18,
                           plateHeightFraction:
                               0.24, // arm height, not cheek height
                           plateOffsetXFraction:
@@ -322,8 +367,9 @@ class _Sharing2State extends State<Sharing2> {
                           secondaryItemImagePath: _hasGivenWater
                               ? 'assets/images/objects/lumi/water_glass.png'
                               : null,
-                          secondaryItemWidthFraction: 0.06,
+                          secondaryItemWidthFraction: 0.10,
                           // secondaryItemOffsetXFraction is left unset, so it
+                          secondaryItemOffsetXFraction: 0.40,
                           // defaults to the mirror of plateOffsetXFraction:
                           // left arm — screen-right.
                           from: AxisDirection.right,
@@ -613,6 +659,8 @@ class _Sharing2State extends State<Sharing2> {
                                 _hasGivenPancake = false;
                                 _hasGivenWater = false;
                                 _readyForEntrance = true;
+                                _secondFoxCanceled = false;
+                                _currentMood = 'normal';
                               });
                             },
                             child: const Text(
@@ -665,28 +713,43 @@ class _Sharing2State extends State<Sharing2> {
                     ),
                     const SizedBox(height: 16),
                     // Display every character in a row — each one gets an
-                    // equal Expanded slot and fills all the vertical space
-                    // between the title and the button, so they read as
-                    // "big" while still all fitting side-by-side.
+                    // equal Expanded slot. Instead of shrinking the whole
+                    // body to fit (BoxFit.contain), we crop in tight on the
+                    // upper half: ClipRect + Align(topCenter) + BoxFit.cover
+                    // zooms the image so it fills the slot's width and lets
+                    // the legs get cropped off the bottom, giving a
+                    // "half-body close-up" look instead of a tiny full body.
                     Expanded(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
-                        children: characters.values.map((imagePath) {
+                        children: charactersSmiling.values.map((imagePath) {
                           return Expanded(
                             child: Padding(
                               padding: EdgeInsets.symmetric(
                                 horizontal: sw * 0.005,
                               ),
-                              child: Image.asset(imagePath, fit: BoxFit.contain)
-                                  .animate(
-                                    onPlay: (c) => c.repeat(reverse: true),
-                                  )
-                                  .moveY(
-                                    begin: 0,
-                                    end: -20,
-                                    duration: const Duration(milliseconds: 500),
-                                    curve: Curves.easeInOut,
-                                  ),
+                              child:
+                                  ClipRect(
+                                        child: Align(
+                                          alignment: Alignment.topCenter,
+                                          child: Image.asset(
+                                            imagePath,
+                                            fit: BoxFit.cover,
+                                            alignment: Alignment.topCenter,
+                                          ),
+                                        ),
+                                      )
+                                      .animate(
+                                        onPlay: (c) => c.repeat(reverse: true),
+                                      )
+                                      .moveY(
+                                        begin: 0,
+                                        end: -20,
+                                        duration: const Duration(
+                                          milliseconds: 500,
+                                        ),
+                                        curve: Curves.easeInOut,
+                                      ),
                             ),
                           );
                         }).toList(),
