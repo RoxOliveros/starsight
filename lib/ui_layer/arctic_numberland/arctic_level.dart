@@ -3,6 +3,8 @@ import 'package:StarSight/ui_layer/arctic_numberland/arctic_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
+import '../../games_ui_layer/arctic_numberland/addition_delivery_game.dart';
+import '../../games_ui_layer/arctic_numberland/addition_rescue_bridge_game.dart';
 import '../../games_ui_layer/arctic_numberland/lvl8_three_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl9_four_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl10_five_introduction.dart';
@@ -84,9 +86,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        body: LoadingScreen.arctic(),
-      );
+      return Scaffold(body: LoadingScreen.arctic());
     }
 
     return Scaffold(
@@ -336,6 +336,10 @@ class _LevelTile extends StatelessWidget {
         return const Number0to5FillIglooScreen();
       case 17:
         return const Number1to5MatchSnowglobesScreen();
+      case 18:
+        return const DomaRescueBridgeGame();
+      case 19:
+        return const AdditionDeliveryGame();
       default:
         return null;
     }
