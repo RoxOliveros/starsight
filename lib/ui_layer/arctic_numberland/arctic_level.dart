@@ -22,6 +22,7 @@ import '../../games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl3_two_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl6_number012_counting.dart';
 import '../../games_ui_layer/arctic_numberland/lvl7_number012_counttap.dart';
+import '../../games_ui_layer/arctic_numberland/subtraction_melting_ice_game.dart';
 import '../loading_screen.dart';
 import 'arctic_theme.dart';
 
@@ -337,9 +338,11 @@ class _LevelTile extends StatelessWidget {
       case 17:
         return const Number1to5MatchSnowglobesScreen();
       case 18:
-        return const DomaRescueBridgeGame();
+        return const AdditionRescueBridgeGame();
       case 19:
         return const AdditionDeliveryGame();
+      case 20:
+        return const SubtractionMeltingIceGame();
       default:
         return null;
     }

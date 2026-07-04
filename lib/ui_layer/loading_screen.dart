@@ -1,5 +1,24 @@
 import 'package:flutter/material.dart';
 
+//──────────────────────────────────────────────────────────────────────────────────────────────────
+//──────────────────────────────────────────────────────────────────────────────────────────────────
+//
+// add in class
+// GameLoadingMixin
+//
+// in init
+// _startIntroFlow to finishLoading(_startIntroFlow);
+//
+// in build
+// return Scaffold( body: buildWithLoading(
+// loadingScreen: LoadingScreen.arctic(), gameBuilder: () =>
+// Stack (...),
+// ),
+//
+//──────────────────────────────────────────────────────────────────────────────────────────────────
+//──────────────────────────────────────────────────────────────────────────────────────────────────
+
+
 class LoadingScreen extends StatefulWidget {
   final String imagePath;
   final Color dotColor;

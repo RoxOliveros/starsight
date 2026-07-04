@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import 'goodjob_doma_prompt.dart';
 import 'lvl5_number012_recognition.dart';
 
@@ -20,7 +22,7 @@ class Number012ReintroductionScreen extends StatefulWidget {
 
 class _Number012ReintroductionScreenState
     extends State<Number012ReintroductionScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, GameLoadingMixin {
   int _currentNumber = 1;
   static const int _totalNumbers = 2;
 
@@ -110,7 +112,7 @@ class _Number012ReintroductionScreenState
       CurvedAnimation(parent: _numberDanceCtrl, curve: Curves.easeInOut),
     );
 
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
   }
 
   void _setupRound() {
@@ -217,47 +219,50 @@ class _Number012ReintroductionScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Arctic background
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/backgrounds/bg_game_arctic.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-          if (_screenPhase == _ScreenPhase.intro)
-            _buildIntroContent()
-          else
-            SafeArea(
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  Expanded(
-                    child: FadeTransition(
-                      opacity: _enterAnim,
-                      child: Row(
-                        children: [
-                          // LEFT: Doma + Number showcase
-                          Expanded(flex: 4, child: _buildNumberShowcase()),
-                          Container(
-                            width: 2,
-                            margin: const EdgeInsets.symmetric(vertical: 16),
-                            color: Colors.white.withValues(alpha: 0.3),
-                          ),
-                          // RIGHT: Dot tapping area
-                          Expanded(flex: 6, child: _buildDotArea()),
-                        ],
-                      ),
-                    ),
-                  ),
-                  _buildProgressDots(),
-                  const SizedBox(height: 12),
-                ],
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.arctic(),
+        gameBuilder: () => Stack(
+          children: [
+            // Arctic background
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/backgrounds/bg_game_arctic.png',
+                fit: BoxFit.cover,
               ),
             ),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
+            if (_screenPhase == _ScreenPhase.intro)
+              _buildIntroContent()
+            else
+              SafeArea(
+                child: Column(
+                  children: [
+                    _buildHeader(),
+                    Expanded(
+                      child: FadeTransition(
+                        opacity: _enterAnim,
+                        child: Row(
+                          children: [
+                            // LEFT: Doma + Number showcase
+                            Expanded(flex: 4, child: _buildNumberShowcase()),
+                            Container(
+                              width: 2,
+                              margin: const EdgeInsets.symmetric(vertical: 16),
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
+                            // RIGHT: Dot tapping area
+                            Expanded(flex: 6, child: _buildDotArea()),
+                          ],
+                        ),
+                      ),
+                    ),
+                    _buildProgressDots(),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+          ],
+        ),
       ),
     );
   }

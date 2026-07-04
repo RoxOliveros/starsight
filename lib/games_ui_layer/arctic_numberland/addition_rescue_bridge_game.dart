@@ -6,17 +6,23 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
+import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
-class DomaRescueBridgeGame extends StatefulWidget {
-  const DomaRescueBridgeGame({super.key});
+class AdditionRescueBridgeGame extends StatefulWidget {
+  const AdditionRescueBridgeGame({super.key});
 
   @override
-  State<DomaRescueBridgeGame> createState() => _DomaRescueBridgeGameState();
+  State<AdditionRescueBridgeGame> createState() => _AdditionRescueBridgeGameState();
 }
 
-class _DomaRescueBridgeGameState extends State<DomaRescueBridgeGame>
-    with TickerProviderStateMixin {
+class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
+    with TickerProviderStateMixin, DomaReactionMixin<AdditionRescueBridgeGame>, GameLoadingMixin<AdditionRescueBridgeGame> {  // ADD GameLoadingMixin
+  @override
+  AudioPlayer get domaPlayer => _voicePlayer;
+
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_river.png';
   static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
@@ -24,12 +30,10 @@ class _DomaRescueBridgeGameState extends State<DomaRescueBridgeGame>
   static const String _sealPupAsset = 'assets/images/characters/baby_seal.png';
   static const String _beamAsset = 'assets/images/objects/arctic/beam.png';
 
-  static const String _audioBase = 'assets/audio/doma_rescue_bridge';
+  static const String _audioBase = 'assets/audio/arctic_numberland/';
   static const String _audioIntro = '$_audioBase/intro.wav';
   static const String _audioRoundPrompt = '$_audioBase/round_prompt.wav';
   static const String _audioWeightAdded = '$_audioBase/weight_added.wav';
-  static const String _audioTooHeavy = '$_audioBase/too_heavy.wav';
-  static const String _audioBalanced = '$_audioBase/balanced.wav';
   static const String _audioWrongRetry = '$_audioBase/round_wrong_retry.wav';
   static const String _audioWin = '$_audioBase/win.wav';
 
@@ -52,11 +56,11 @@ class _DomaRescueBridgeGameState extends State<DomaRescueBridgeGame>
   ];
 
   static const List<List<double>> _pupScatter = [
-    [-26, 10, 1.15],
+    [-26, 0, 1.15],
     [140, 50, 0.85],
-    [0, 90, 1.0],
+    [0, 60, 1.0],
     [80, 118, 0.75],
-    [-16, 200, 1.05],
+    [60, 50, 1.05],
   ];
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -104,7 +108,7 @@ class _DomaRescueBridgeGameState extends State<DomaRescueBridgeGame>
     super.initState();
     _roundPool = [..._factPool]..shuffle();
     _initAnimations();
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
   }
 
   void _initAnimations() {
@@ -240,7 +244,7 @@ class _DomaRescueBridgeGameState extends State<DomaRescueBridgeGame>
     setState(() => _resolvingRound = true);
     HapticFeedback.mediumImpact();
     _balancePulseCtrl.forward(from: 0);
-    await _playVoice(_audioBalanced);
+    showDomaReaction(DomaState.correct);
     if (!mounted) return;
 
     // fly a pup from the ice floe to the safe camp
@@ -273,7 +277,7 @@ class _DomaRescueBridgeGameState extends State<DomaRescueBridgeGame>
   Future<void> _onTooHeavy() async {
     setState(() => _resolvingRound = true);
     HapticFeedback.heavyImpact();
-    await _playVoice(_audioTooHeavy);
+    await showDomaReaction(DomaState.wrong);
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     setState(() {
@@ -324,24 +328,27 @@ class _DomaRescueBridgeGameState extends State<DomaRescueBridgeGame>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              _bgImage,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Container(color: const Color(0xFFDCEFFA)),
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.arctic(),
+        gameBuilder: () => Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                _bgImage,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
+              ),
             ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+              ),
             ),
-          ),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
+            if (!_introPlaying) buildDoma(context),
+            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+          ],
+        ),
       ),
     );
   }
@@ -371,7 +378,7 @@ class _DomaRescueBridgeGameState extends State<DomaRescueBridgeGame>
               ),
               child: Image.asset(
                 _characterImage,
-                height: screenH * 0.5,
+                height: screenH * 0.7,
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) =>
                     const Text('🐧', style: TextStyle(fontSize: 70)),
@@ -383,38 +390,12 @@ class _DomaRescueBridgeGameState extends State<DomaRescueBridgeGame>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('🦭', style: TextStyle(fontSize: 70)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  margin: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: ArcticColorTheme.pictonblue.withValues(
-                          alpha: 0.4,
-                        ),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Text(
-                    "A blizzard stranded seal pups on the ice!\nLoad the rescue scale with the right\nweight to bring each one home!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      height: 1.3,
-                    ),
-                  ),
+                Image.asset(
+                  _sealPupAsset,
+                  height: screenH * 0.4,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                  const Text('🦭', style: TextStyle(fontSize: 70)),
                 ),
               ],
             ),

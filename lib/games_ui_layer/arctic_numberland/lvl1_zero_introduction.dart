@@ -5,6 +5,8 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import 'goodjob_doma_prompt.dart';
 import 'number_tracing_widget.dart';
 
@@ -28,7 +30,8 @@ class NumberZeroIntroductionScreen extends StatefulWidget {
 
 class _NumberZeroIntroductionScreenState
     extends State<NumberZeroIntroductionScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, GameLoadingMixin<NumberZeroIntroductionScreen>
+{
   // ── Top-level phase ────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   _IntroPhase _introPhase = _IntroPhase.domaEntering;
@@ -63,7 +66,7 @@ class _NumberZeroIntroductionScreenState
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
   }
 
   void _initAnimations() {
@@ -203,32 +206,37 @@ class _NumberZeroIntroductionScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/backgrounds/bg_game_arctic.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 20),
-              child: Stack(
-                children: [
-                  Positioned(top: 8, left: 12, child: ArcticBackButton()),
-                  if (_screenPhase == _ScreenPhase.intro) _buildIntroContent(),
-                  if (_screenPhase == _ScreenPhase.tracing)
-                    FadeTransition(
-                      opacity: _mgFade,
-                      child: _buildTracingScreen(),
-                    ),
-                ],
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.arctic(),
+        gameBuilder: () => Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/backgrounds/bg_game_arctic.png',
+                fit: BoxFit.cover,
               ),
             ),
-          ),
-          if (_showWinDialog) Positioned.fill(child: _buildDomaGoodJobOverlay()),
-        ],
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: Stack(
+                  children: [
+                    Positioned(top: 8, left: 12, child: ArcticBackButton()),
+                    if (_screenPhase == _ScreenPhase.intro)
+                      _buildIntroContent(),
+                    if (_screenPhase == _ScreenPhase.tracing)
+                      FadeTransition(
+                        opacity: _mgFade,
+                        child: _buildTracingScreen(),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            if (_showWinDialog)
+              Positioned.fill(child: _buildDomaGoodJobOverlay()),
+          ],
+        ),
       ),
     );
   }

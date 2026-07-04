@@ -6,18 +6,23 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
+import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
 class AdditionDeliveryGame extends StatefulWidget {
   const AdditionDeliveryGame({super.key});
 
   @override
-  State<AdditionDeliveryGame> createState() =>
-      _AdditionDeliveryGameState();
+  State<AdditionDeliveryGame> createState() => _AdditionDeliveryGameState();
 }
 
 class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DomaReactionMixin<AdditionDeliveryGame>, GameLoadingMixin<AdditionDeliveryGame> {
+  @override
+  AudioPlayer get domaPlayer => _voicePlayer;
+
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
   static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
@@ -26,16 +31,16 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
   static const String _sledAsset = 'assets/images/objects/arctic/sled.png';
   static const String _houseAsset = 'assets/images/objects/arctic/house.png';
 
-  static const String _audioBase = 'assets/audio/signboard_delivery';
+  static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/intro.wav';
   static const String _audioRoundPrompt = '$_audioBase/round_prompt.wav';
   static const String _audioPackageAdded = '$_audioBase/package_added.wav';
-  static const String _audioTooMany = '$_audioBase/too_many.wav';
-  static const String _audioDelivered = '$_audioBase/delivered.wav';
   static const String _audioPackageRemoved = '$_audioBase/package_removed.wav';
   static const String _audioWin = '$_audioBase/win.wav';
 
-  static final Animation<double> _kZeroAnim = AlwaysStoppedAnimation<double>(0.0);
+  static final Animation<double> _kZeroAnim = AlwaysStoppedAnimation<double>(
+    0.0,
+  );
 
   // ── Game constants ───────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -77,7 +82,7 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
   late List<int> _sledLoad;
 
   bool _resolvingRound =
-  false; // locks input while delivered/overloaded plays out
+      false; // locks input while delivered/overloaded plays out
 
   // ── Audio ────────────────────────────────────────────────────────────────
   final AudioPlayer _voicePlayer = AudioPlayer();
@@ -103,7 +108,7 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
     super.initState();
     _roundPool = [..._factPool]..shuffle();
     _initAnimations();
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
   }
 
   void _initAnimations() {
@@ -169,7 +174,10 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
-    _sledTravel = CurvedAnimation(parent: _sledTravelCtrl, curve: Curves.easeInOut);
+    _sledTravel = CurvedAnimation(
+      parent: _sledTravelCtrl,
+      curve: Curves.easeInOut,
+    );
   }
 
   // ── Flow ─────────────────────────────────────────────────────────────────
@@ -257,7 +265,7 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
     setState(() => _resolvingRound = true);
     HapticFeedback.mediumImpact();
     _deliveredPulseCtrl.forward(from: 0);
-    await _playVoice(_audioDelivered);
+    showDomaReaction(DomaState.correct);
     if (!mounted) return;
 
     // slide the loaded sled over to the house to deliver
@@ -288,7 +296,7 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
     });
     HapticFeedback.heavyImpact();
     _tipCtrl.forward(from: 0);
-    await _playVoice(_audioTooMany);
+    await showDomaReaction(DomaState.wrong);
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
     setState(() {
@@ -318,8 +326,8 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
 
   void _playSfx(String asset) {
     _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
-        e,
-        ) {
+      e,
+    ) {
       debugPrint('SFX audio error ($asset): $e');
     });
   }
@@ -342,24 +350,28 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              _bgImage,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Container(color: const Color(0xFFDCEFFA)),
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.arctic(),
+        gameBuilder: () => Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                _bgImage,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    Container(color: const Color(0xFFDCEFFA)),
+              ),
             ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+              ),
             ),
-          ),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
+            if (!_introPlaying) buildDoma(context),
+            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+          ],
+        ),
       ),
     );
   }
@@ -389,10 +401,10 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
               ),
               child: Image.asset(
                 _characterImage,
-                height: screenH * 0.5,
+                height: screenH * 0.7,
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) =>
-                const Text('🐧', style: TextStyle(fontSize: 70)),
+                    const Text('🐧', style: TextStyle(fontSize: 70)),
               ),
             ),
           ),
@@ -401,38 +413,12 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('📋', style: TextStyle(fontSize: 70)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  margin: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: ArcticColorTheme.pictonblue.withValues(
-                          alpha: 0.4,
-                        ),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Text(
-                    "Doma has packages to deliver, but each\nhouse only wants the right amount! Add\nthem up and load the sled to match!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      height: 1.3,
-                    ),
-                  ),
+                Image.asset(
+                  _miniPackageAsset,
+                  height: screenH * 0.4,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      const Text('📋', style: TextStyle(fontSize: 70)),
                 ),
               ],
             ),
@@ -454,11 +440,17 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
             Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: ArcticBackButton(),
+                      ),
                       Center(child: _buildInstructionBanner(h)),
                     ],
                   ),
@@ -469,11 +461,17 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
                     children: [
                       Expanded(
                         flex: 3,
-                        child: Align(alignment: Alignment.bottomLeft, child: _buildPackageTray(h)),
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: _buildPackageTray(h),
+                        ),
                       ),
                       Expanded(
                         flex: 3,
-                        child: ScaleTransition(scale: _sceneEnter, child: _buildDeliveryScene(w, h)),
+                        child: ScaleTransition(
+                          scale: _sceneEnter,
+                          child: _buildDeliveryScene(w, h),
+                        ),
                       ),
                       Expanded(flex: 3, child: _buildDestinationHouse(h)),
                     ],
@@ -542,7 +540,9 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
       child: Padding(
         padding: EdgeInsets.only(top: h * 0.02),
         child: ScaleTransition(
-          scale: delivered ? _deliveredPulse : const AlwaysStoppedAnimation(1.0),
+          scale: delivered
+              ? _deliveredPulse
+              : const AlwaysStoppedAnimation(1.0),
           child: _buildEquationDisplay(equationSize),
         ),
       ),
@@ -619,7 +619,10 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
   /// Signboard showing the addition problem for this house's order.
   Widget _buildEquationDisplay(double size) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: size * 0.25, vertical: size * 0.05),
+      padding: EdgeInsets.symmetric(
+        horizontal: size * 0.25,
+        vertical: size * 0.05,
+      ),
       decoration: BoxDecoration(
         color: ArcticColorTheme.cotton.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(20),
@@ -686,28 +689,25 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
   Widget _buildSledCargo(double size) {
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) =>
-      !_resolvingRound && !_packageUsed[details.data],
+          !_resolvingRound && !_packageUsed[details.data],
       onAcceptWithDetails: (details) => _onPackageDropped(details.data),
       builder: (context, candidateData, rejectedData) {
         return SizedBox(
           width: size * 1.4,
           height: size * 0.8,
           child: _sledLoad.isEmpty
-              ? SizedBox(
-            width: size * 1.4,
-            height: size * 0.8,
-          )
+              ? SizedBox(width: size * 1.4, height: size * 0.8)
               : Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            alignment: WrapAlignment.center,
-            children: _sledLoad.map((idx) {
-              return GestureDetector(
-                onTap: () => _onPackageRemoved(idx),
-                child: _packageChipVisual(_packagePool[idx], size * 0.44),
-              );
-            }).toList(),
-          ),
+                  spacing: 4,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.center,
+                  children: _sledLoad.map((idx) {
+                    return GestureDetector(
+                      onTap: () => _onPackageRemoved(idx),
+                      child: _packageChipVisual(_packagePool[idx], size * 0.44),
+                    );
+                  }).toList(),
+                ),
         );
       },
     );
@@ -807,7 +807,7 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
 
   // ── Package tray ─────────────────────────────────────────────────────────
   Widget _buildPackageTray(double h) {
-    final chipSize = (h * 0.16).clamp(70.0, 100.0);
+    final chipSize = (h * 0.15);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -846,7 +846,10 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         ScaleTransition(
-          scale: CurvedAnimation(parent: _houseStampCtrl, curve: Curves.elasticOut),
+          scale: CurvedAnimation(
+            parent: _houseStampCtrl,
+            curve: Curves.elasticOut,
+          ),
           child: Image.asset(
             _houseAsset,
             height: houseSize,
