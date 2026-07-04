@@ -317,7 +317,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
                                     Image.asset(
                                       ball.isPopped
                                           ? 'assets/images/objects/forest/ball_popped.png'
-                                          : 'assets/images/objects/forest/ball_normal.png',
+                                          : 'assets/images/objects/forest/ball.png',
                                       fit: BoxFit.contain,
                                     ),
                                     if (!ball.isPopped)
