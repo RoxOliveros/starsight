@@ -23,6 +23,7 @@ import '../../games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl3_two_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl6_number012_counting.dart';
 import '../../games_ui_layer/arctic_numberland/lvl7_number012_counttap.dart';
+import '../../games_ui_layer/arctic_numberland/snowman_shape_hunt.dart';
 import '../../games_ui_layer/arctic_numberland/subtraction_compare_game.dart';
 import '../../games_ui_layer/arctic_numberland/subtraction_melting_ice_game.dart';
 import '../loading_screen.dart';
@@ -349,6 +350,8 @@ class _LevelTile extends StatelessWidget {
         return const SubtractionCompareGame();
       case 22:
         return const SignboardMathGame();
+      case 23:
+        return const SnowmanShapeHuntGame();
       default:
         return null;
     }
