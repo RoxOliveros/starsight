@@ -55,7 +55,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     'assets/images/objects/arctic/winter_hat.png',
   ];
 
-  static const String _audioBase = 'assets/audio/arctic_numberland/';
+  static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/signboard_intro.wav';
   static const String _audioRoundPromptAdd = '$_audioBase/signboard_add_instruction.wav';
   static const String _audioRoundPromptSub = '$_audioBase/signboard_sub_instruction.wav';
@@ -480,8 +480,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
   // ── Signboard scene ──────────────────────────────────────────────────────
   Widget _buildSignboardScene(double w, double h) {
-    final boardWidth = (w * 0.50);
-    final boardHeight = h * 0.80;
+    final boardWidth = (w * 0.55);
+    final boardHeight = h * 0.85;
     final itemSize = (h * 0.15);
 
     return Align(
@@ -520,7 +520,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
               ),
             ),
             Positioned(
-              bottom: boardHeight * 0.35,
+              bottom: boardHeight * 0.30,
               right: boardWidth * 0.06,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
