@@ -11,15 +11,15 @@ import '../../ui_layer/loading_screen.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
-class AdditionDeliveryGame extends StatefulWidget {
-  const AdditionDeliveryGame({super.key});
+class AdditionPackageDeliveryGame extends StatefulWidget {
+  const AdditionPackageDeliveryGame({super.key});
 
   @override
-  State<AdditionDeliveryGame> createState() => _AdditionDeliveryGameState();
+  State<AdditionPackageDeliveryGame> createState() => _AdditionPackageDeliveryGameState();
 }
 
-class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
-    with TickerProviderStateMixin, DomaReactionMixin<AdditionDeliveryGame>, GameLoadingMixin<AdditionDeliveryGame> {
+class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGame>
+    with TickerProviderStateMixin, DomaReactionMixin<AdditionPackageDeliveryGame>, GameLoadingMixin<AdditionPackageDeliveryGame> {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
@@ -32,11 +32,10 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
   static const String _houseAsset = 'assets/images/objects/arctic/house.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
-  static const String _audioIntro = '$_audioBase/intro.wav';
-  static const String _audioRoundPrompt = '$_audioBase/round_prompt.wav';
-  static const String _audioPackageAdded = '$_audioBase/package_added.wav';
-  static const String _audioPackageRemoved = '$_audioBase/package_removed.wav';
-  static const String _audioWin = '$_audioBase/win.wav';
+  static const String _audioIntro = '$_audioBase/package_delivery_intro.wav';
+  static const String _audioPackageAdded = 'assets/audio/sound_effects/thump.wav';
+  static const String _audioPackageRemoved = 'assets/audio/sound_effects/thump.wav';
+  static const String _audioWin = '$_audioBase/package_delivery_win.wav';
 
   static final Animation<double> _kZeroAnim = AlwaysStoppedAnimation<double>(
     0.0,
@@ -66,6 +65,7 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
   bool _showWinDialog = false;
   int _deliveredCount = 0;
   bool _tipping = false;
+  bool _showEquation = true;
 
   late List<List<int>> _roundPool;
   late int _addendA;
@@ -202,13 +202,10 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
     _packageUsed = List.filled(_packagePool.length, false);
     _sledLoad = [];
     _resolvingRound = false;
+    _showEquation = true;
 
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) _playVoice(_audioRoundPrompt);
-    });
 
     setState(() {});
   }
@@ -233,16 +230,16 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
   }
 
   // ── Drag handlers ────────────────────────────────────────────────────────
-  void _onPackageDropped(int poolIndex) {
+  void _onPackageDropped(int poolIndex) async {
     if (_resolvingRound || _packageUsed[poolIndex]) return;
-
-    HapticFeedback.selectionClick();
-    _playSfx(_audioPackageAdded);
 
     setState(() {
       _packageUsed[poolIndex] = true;
       _sledLoad.add(poolIndex);
     });
+
+    HapticFeedback.selectionClick();
+    await _playSfxAndWait(_audioPackageAdded);
 
     final total = _currentTotal;
     if (total == _target) {
@@ -265,6 +262,10 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
     setState(() => _resolvingRound = true);
     HapticFeedback.mediumImpact();
     _deliveredPulseCtrl.forward(from: 0);
+
+    HapticFeedback.selectionClick();
+    _playSfx(_audioPackageAdded);
+
     showDomaReaction(DomaState.correct);
     if (!mounted) return;
 
@@ -280,6 +281,10 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
     if (!mounted) return;
 
     if (_currentRound + 1 >= _totalRounds) {
+      setState(() {
+        _sledLoad = [];
+        _showEquation = false;
+      });
       await _playVoice(_audioWin);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -296,8 +301,7 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
     });
     HapticFeedback.heavyImpact();
     _tipCtrl.forward(from: 0);
-    await showDomaReaction(DomaState.wrong);
-    await Future.delayed(const Duration(milliseconds: 300));
+    showDomaReaction(DomaState.wrong);
     if (!mounted) return;
     setState(() {
       _packageUsed = List.filled(_packagePool.length, false);
@@ -316,7 +320,7 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
         if (!completer.isCompleted) completer.complete();
       });
       await _voicePlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
+      await completer.future.timeout(const Duration(seconds: 18));
     } catch (e) {
       debugPrint('Voice audio error ($asset): $e');
     } finally {
@@ -330,6 +334,22 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
     ) {
       debugPrint('SFX audio error ($asset): $e');
     });
+  }
+
+  Future<void> _playSfxAndWait(String asset) async {
+    StreamSubscription? sub;
+    try {
+      final completer = Completer<void>();
+      sub = _sfxPlayer.onPlayerComplete.listen((_) {
+        if (!completer.isCompleted) completer.complete();
+      });
+      await _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
+      await completer.future.timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('SFX audio error ($asset): $e');
+    } finally {
+      await sub?.cancel();
+    }
   }
 
   @override
@@ -494,7 +514,6 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
     return ScaleTransition(
       scale: _instructionBounce,
       child: GestureDetector(
-        onTap: () => _playVoice(_audioRoundPrompt),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
           decoration: BoxDecoration(
@@ -532,6 +551,8 @@ class _AdditionDeliveryGameState extends State<AdditionDeliveryGame>
 
   // ── Delivery scene: signboard + sled ─────────────────────────────────────
   Widget _buildDeliveryScene(double w, double h) {
+    if (!_showEquation) return const SizedBox.shrink();
+
     final equationSize = (h * 0.35);
     final delivered = _currentTotal == _target;
 

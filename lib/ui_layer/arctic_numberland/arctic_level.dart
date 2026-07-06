@@ -1,9 +1,9 @@
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
+import 'package:StarSight/games_ui_layer/arctic_numberland/addition_package_delivery_game.dart';
 import 'package:StarSight/ui_layer/arctic_numberland/arctic_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
-import '../../games_ui_layer/arctic_numberland/addition_delivery_game.dart';
 import '../../games_ui_layer/arctic_numberland/addition_rescue_bridge_game.dart';
 import '../../games_ui_layer/arctic_numberland/lvl8_three_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl9_four_introduction.dart';
@@ -341,7 +341,7 @@ class _LevelTile extends StatelessWidget {
       case 18:
         return const AdditionRescueBridgeGame();
       case 19:
-        return const AdditionDeliveryGame();
+        return const AdditionPackageDeliveryGame();
       case 20:
         return const SubtractionMeltingIceGame();
       case 21:
