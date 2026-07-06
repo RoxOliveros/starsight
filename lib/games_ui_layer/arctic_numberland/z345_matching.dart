@@ -47,7 +47,7 @@
 //   static const List<String> _objectAssets = [
 //     'assets/images/objects/arctic/candy_cane.png',
 //     'assets/images/objects/arctic/earmuffs.png',
-//     'assets/images/objects/arctic/ice.png',
+//     'assets/images/objects/arctic/ice_1.png',
 //     'assets/images/objects/arctic/ice_skates.png',
 //     'assets/images/objects/arctic/icecream.png',
 //     'assets/images/objects/arctic/igloo.png',

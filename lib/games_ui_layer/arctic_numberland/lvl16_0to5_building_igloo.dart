@@ -25,7 +25,7 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
   static const String _characterImage =
       'assets/images/characters/doma_the_penguin.png';
-  static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
+  static const String _iceAsset = 'assets/images/objects/arctic/ice_1.png';
 
   static const String _audioIntro =
       'assets/audio/arctic_numberland/level19/intro.wav';

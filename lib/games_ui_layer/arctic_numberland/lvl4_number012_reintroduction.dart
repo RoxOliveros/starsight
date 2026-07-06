@@ -61,7 +61,7 @@ class _Number012ReintroductionScreenState
 
   // Pic & color theme per number
   static const _themes = [
-    _NumberTheme(asset: 'assets/images/objects/arctic/ice.png', label: 'ONE'),
+    _NumberTheme(asset: 'assets/images/objects/arctic/ice_1.png', label: 'ONE'),
     _NumberTheme(
       asset: 'assets/images/objects/arctic/ice_skates.png',
       label: 'TWO',

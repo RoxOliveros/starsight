@@ -24,18 +24,19 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   AudioPlayer get domaPlayer => _voicePlayer;
 
   // ── Asset paths (swap to match your project) ────────────────────────────
+  static const String _iceAssetBase = 'assets/images/objects/arctic/ice_';
+  static const String _iceAsset = 'assets/images/objects/arctic/ice_1.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_river.png';
   static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _crystalAsset = 'assets/images/objects/arctic/ice.png';
-  static const String _sealPupAsset = 'assets/images/characters/baby_seal.png';
+  static const String _babyFoxAsset = 'assets/images/characters/baby_arctic_fox.png';
   static const String _beamAsset = 'assets/images/objects/arctic/beam.png';
 
-  static const String _audioBase = 'assets/audio/arctic_numberland/';
-  static const String _audioIntro = '$_audioBase/intro.wav';
-  static const String _audioRoundPrompt = '$_audioBase/round_prompt.wav';
-  static const String _audioWeightAdded = '$_audioBase/weight_added.wav';
-  static const String _audioWrongRetry = '$_audioBase/round_wrong_retry.wav';
-  static const String _audioWin = '$_audioBase/win.wav';
+  static const String _audioBase = 'assets/audio/arctic_numberland';
+  static const String _audioIntro = '$_audioBase/rescue_bridge_intro.wav';
+  static const String _audioInstructionPrompt = '$_audioBase/rescue_bridge_instruction.wav';
+  static const String _audioWeightAdded = 'assets/audio/sound_effects/clack.wav';
+  static const String _audioWrongRemove = 'assets/audio/sound_effects/clack.wav';
+  static const String _audioWin = '$_audioBase/rescue_bridge_win.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -68,8 +69,9 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   int _currentRound = 0;
   bool _showWinDialog = false;
   int _rescuedCount = 0;
-  bool _pupFlying = false;
+  bool _pupCrossing = false;
   bool _pupWaitingVisible = true;
+  bool _showEquation = true;
 
   late List<List<int>> _roundPool;
   late int _addendA;
@@ -85,8 +87,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   /// Indices (into _weightPool) currently sitting on the pan, in drop order.
   late List<int> _panLoad;
 
-  bool _resolvingRound =
-      false; // locks input while balanced/overloaded plays out
+  bool _resolvingRound = false; // locks input while balanced/overloaded plays out
 
   // ── Audio ────────────────────────────────────────────────────────────────
   final AudioPlayer _voicePlayer = AudioPlayer();
@@ -101,6 +102,20 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   late AnimationController _balancePulseCtrl;
   late Animation<double> _balancePulse;
   late AnimationController _campPupCtrl;
+
+  final List<GlobalKey> _pupKeys = List.generate(_totalRounds, (_) => GlobalKey());
+  final GlobalKey _campAnchorKey = GlobalKey();
+  final GlobalKey _crossingLayerKey = GlobalKey();
+  final GlobalKey _beamKey = GlobalKey();
+  int? _crossingIndex;
+  Offset? _crossingStart;
+  Offset? _crossingMid;
+  Offset? _crossingEnd;
+
+  String _crystalAssetForValue(int value) {
+    final clamped = value.clamp(1, 5);
+    return '$_iceAssetBase$clamped.png';
+  }
 
   @override
   void initState() {
@@ -180,13 +195,16 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     _weightUsed = List.filled(_weightPool.length, false);
     _panLoad = [];
     _resolvingRound = false;
+    _showEquation = true;
+    _crossingIndex = null;
+    _crossingMid = null;
     _pupWaitingVisible = _rescuedCount < _totalRounds;
 
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) _playVoice(_audioRoundPrompt);
+      if (mounted && _currentRound == 0) _playVoice(_audioInstructionPrompt);
     });
 
     setState(() {});
@@ -212,16 +230,16 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   }
 
   // ── Drag handlers ────────────────────────────────────────────────────────
-  void _onWeightDropped(int poolIndex) {
+  void _onWeightDropped(int poolIndex) async {
     if (_resolvingRound || _weightUsed[poolIndex]) return;
-
-    HapticFeedback.selectionClick();
-    _playSfx(_audioWeightAdded);
 
     setState(() {
       _weightUsed[poolIndex] = true;
       _panLoad.add(poolIndex);
     });
+
+    HapticFeedback.selectionClick();
+    await _playSfxAndWait(_audioWeightAdded);
 
     final total = _currentTotal;
     if (total == _target) {
@@ -237,7 +255,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       _weightUsed[poolIndex] = false;
       _panLoad.remove(poolIndex);
     });
-    _playVoice(_audioWrongRetry);
+    _playSfx(_audioWrongRemove);
   }
 
   Future<void> _onBalanced() async {
@@ -247,16 +265,42 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     showDomaReaction(DomaState.correct);
     if (!mounted) return;
 
-    // fly a pup from the ice floe to the safe camp
+    final crossingIndex = _rescuedCount;
+
+    Offset? start;
+    Offset? mid;
+    Offset? end;
+    final layerBox = _crossingLayerKey.currentContext?.findRenderObject() as RenderBox?;
+    final pupBox = _pupKeys[crossingIndex].currentContext?.findRenderObject() as RenderBox?;
+    final campBox = _campAnchorKey.currentContext?.findRenderObject() as RenderBox?;
+    final beamBox = _beamKey.currentContext?.findRenderObject() as RenderBox?;
+    if (layerBox != null && pupBox != null && campBox != null) {
+      final pupCenter = pupBox.localToGlobal(Offset(pupBox.size.width / 2, pupBox.size.height / 2));
+      final campCenter = campBox.localToGlobal(Offset(campBox.size.width / 2, campBox.size.height / 2));
+      start = layerBox.globalToLocal(pupCenter);
+      end = layerBox.globalToLocal(campCenter);
+
+      if (beamBox != null) {
+        final beamCenter = beamBox.localToGlobal(Offset(beamBox.size.width / 2, beamBox.size.height / 2));
+        mid = layerBox.globalToLocal(beamCenter);
+      }
+    }
+
     setState(() {
-      _pupFlying = true;
+      _pupCrossing = true;
+      _crossingIndex = crossingIndex;
+      _crossingStart = start;
+      _crossingMid = mid;
+      _crossingEnd = end;
       _pupWaitingVisible = false;
     });
-    await Future.delayed(const Duration(milliseconds: 700));
+
+    await Future.delayed(const Duration(milliseconds: 2400));
     if (!mounted) return;
 
     setState(() {
-      _pupFlying = false;
+      _pupCrossing = false;
+      _crossingIndex = null;
       _rescuedCount++;
     });
     _campPupCtrl.forward(from: 0);
@@ -265,6 +309,10 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     if (!mounted) return;
 
     if (_currentRound + 1 >= _totalRounds) {
+      setState(() {
+        _panLoad = [];
+        _showEquation = false;
+      });
       await _playVoice(_audioWin);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -277,7 +325,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   Future<void> _onTooHeavy() async {
     setState(() => _resolvingRound = true);
     HapticFeedback.heavyImpact();
-    await showDomaReaction(DomaState.wrong);
+
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     setState(() {
@@ -285,6 +333,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       _panLoad = [];
       _resolvingRound = false;
     });
+    showDomaReaction(DomaState.wrong);
   }
 
   // ── Audio ────────────────────────────────────────────────────────────────
@@ -310,6 +359,22 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     ) {
       debugPrint('SFX audio error ($asset): $e');
     });
+  }
+
+  Future<void> _playSfxAndWait(String asset) async {
+    StreamSubscription? sub;
+    try {
+      final completer = Completer<void>();
+      sub = _sfxPlayer.onPlayerComplete.listen((_) {
+        if (!completer.isCompleted) completer.complete();
+      });
+      await _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
+      await completer.future.timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('SFX audio error ($asset): $e');
+    } finally {
+      await sub?.cancel();
+    }
   }
 
   @override
@@ -391,7 +456,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Image.asset(
-                  _sealPupAsset,
+                  _babyFoxAsset,
                   height: screenH * 0.4,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
@@ -412,55 +477,101 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         final h = constraints.maxHeight;
         final w = constraints.maxWidth;
 
-        return Column(
+        return Stack(
+          key: _crossingLayerKey,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: ArcticBackButton(),
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: ArcticBackButton(),
+                      ),
+                      Center(child: _buildInstructionBanner(h)),
+                    ],
                   ),
-                  Center(child: _buildInstructionBanner(h)),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(flex: 3, child: _buildIceFloe(h)),
-                  Expanded(
-                    flex: 5,
-                    child: ScaleTransition(
-                      scale: _sceneEnter,
-                      child: _buildScaleScene(w, h),
-                    ),
+                ),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(flex: 3, child: _buildIceFloe(h)),
+                      Expanded(
+                        flex: 5,
+                        child: ScaleTransition(
+                          scale: _sceneEnter,
+                          child: _buildScaleScene(w, h),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 70),
+                            _buildSafeCamp(h),
+                            const Spacer(),
+                            _buildWeightTray(h),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 70),
-                        _buildSafeCamp(h),
-                        const Spacer(),
-                        _buildWeightTray(h),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 0, bottom: 5),
+                  child: _buildRoundIndicator(),
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.only(top: 0, bottom: 5),
-              child: _buildRoundIndicator(),
-            ),
+            _buildPupCrossing(w, h),
           ],
         );
       },
+    );
+  }
+
+  /// Full-width overlay: animates the rescued pup walking from the ice floe
+  Widget _buildPupCrossing(double w, double h) {
+    if (!_pupCrossing) return const SizedBox.shrink();
+
+    final pupSize = (h * 0.13).clamp(32.0, 52.0);
+    final start = _crossingStart ?? Offset(w * (1.5 / 11), h * 0.42);
+    final end = _crossingEnd ?? Offset(w * (9.5 / 11), h * 0.42);
+    final mid = _crossingMid != null
+        ? _crossingMid! + const Offset(0, -25)
+        : Offset((start.dx + end.dx) / 2, (start.dy + end.dy) / 2);
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 2400),
+      curve: Curves.linear,
+      builder: (_, t, child) {
+        Offset pos;
+        if (t < 0.5) {
+          final segT = t / 0.5;
+          pos = Offset.lerp(start, mid, segT)!;
+        } else {
+          final segT = (t - 0.5) / 0.5;
+          pos = Offset.lerp(mid, end, segT)!;
+        }
+
+        final bounce = sin(t * pi * 10) * 14;
+        return Positioned(
+          left: pos.dx - pupSize / 2,
+          top: pos.dy - pupSize / 2 - bounce.abs(),
+          child: child!,
+        );
+      },
+      child: Image.asset(
+        _babyFoxAsset,
+        height: pupSize,
+        errorBuilder: (_, __, ___) => Text('🦭', style: TextStyle(fontSize: pupSize * 0.7)),
+      ),
     );
   }
 
@@ -468,7 +579,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     return ScaleTransition(
       scale: _instructionBounce,
       child: GestureDetector(
-        onTap: () => _playVoice(_audioRoundPrompt),
+        onTap: () => _playVoice(_audioInstructionPrompt),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
           decoration: BoxDecoration(
@@ -505,7 +616,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   }
 
   // ── Ice floe with waiting pups ───────────────────────────────────────────
-// ── Ice floe with waiting pups ───────────────────────────────────────────
   Widget _buildIceFloe(double h) {
     final baseSize = (h * 0.13).clamp(32.0, 52.0);
 
@@ -518,7 +628,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           child: Stack(
             clipBehavior: Clip.none,
             children: List.generate(_totalRounds, (i) {
-              final rescued = i < _rescuedCount;
+              final hidden = i < _rescuedCount || i == _crossingIndex;
               final scatter = _pupScatter[i % _pupScatter.length];
               final pupSize = baseSize * scatter[2];
 
@@ -526,10 +636,11 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                 left: (h * 0.22) + scatter[0] - pupSize / 2,
                 top: scatter[1],
                 child: AnimatedOpacity(
-                  opacity: rescued ? 0 : 1,
-                  duration: const Duration(milliseconds: 300),
+                  key: _pupKeys[i],
+                  opacity: hidden ? 0 : 1,
+                  duration: const Duration(milliseconds: 200),
                   child: Image.asset(
-                    _sealPupAsset,
+                    _babyFoxAsset,
                     height: pupSize,
                     errorBuilder: (_, __, ___) =>
                         Text('🦭', style: TextStyle(fontSize: pupSize * 0.7)),
@@ -545,6 +656,8 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
   // ── Balance scale scene ──────────────────────────────────────────────────
   Widget _buildScaleScene(double w, double h) {
+    if (!_showEquation) return const SizedBox.shrink();
+
     final panSize = (h * 0.3).clamp(70.0, 120.0);
     final beamWidth = (w * 0.9).clamp(230.0, 370.0);
     final balanced = _currentTotal == _target;
@@ -569,14 +682,14 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           ),
 
           // beam
-          // beam
           Stack(
             alignment: Alignment.center,
             children: [
               SizedBox(
                 width: beamWidth + panSize,
-                height: panSize * 1.9,
+                height: panSize * 2.3,
                 child: Stack(
+                  clipBehavior: Clip.none,          // ← add this
                   alignment: Alignment.bottomCenter,
                   children: [
                     // rotating beam with pans
@@ -591,10 +704,12 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                           width: beamWidth,
                           height: panSize * 1.4,
                           child: Stack(
+                            clipBehavior: Clip.none,
                             alignment: Alignment.center,
                             children: [
                               Image.asset(
                                 _beamAsset,
+                                key: _beamKey,
                                 width: beamWidth,
                                 height: 30,
                                 fit: BoxFit.fill,
@@ -604,8 +719,8 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                                   color: ArcticColorTheme.slateblue,
                                 ),
                               ),
-                              Positioned(left: 0, top: -panSize * 0.0001, child: _buildLeftPan(panSize)),
-                              Positioned(right: 0, top: -panSize * 0.0001, child: _buildRightPan(panSize)),
+                              Positioned(left: 0, top: -panSize * 0.22, child: _buildLeftPan(panSize)),
+                              Positioned(right: 0, top: -panSize * 0.22, child: _buildRightPan(panSize)),
                             ],
                           ),
                         ),
@@ -614,27 +729,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                   ],
                 ),
               ),
-
-              if (_pupFlying)
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  duration: const Duration(milliseconds: 1000),
-                  curve: Curves.linear,
-                  builder: (_, t, child) {
-                    final xOffset = (t * beamWidth) - beamWidth / 2;
-                    final yOffset = -panSize * 0.35 - sin(t * pi * 4) * 12;
-                    return Transform.translate(
-                      offset: Offset(xOffset, yOffset),
-                      child: child,
-                    );
-                  },
-                  child: Image.asset(
-                    _sealPupAsset,
-                    height: panSize * 0.3,
-                    errorBuilder: (_, __, ___) =>
-                        Text('🦭', style: TextStyle(fontSize: panSize * 0.2)),
-                  ),
-                ),
             ],
           ),
         ],
@@ -644,9 +738,25 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
   /// Fixed "target load" area showing the addition problem.
   Widget _buildLeftPan(double size) {
-    return SizedBox(
-      width: size * 1.6,
-      height: size * 0.6,
+    return Container(
+      width: size * 1.9,
+      height: size * 0.8,
+      padding: EdgeInsets.symmetric(
+        horizontal: size * 0.12,
+        vertical: size * 0.04,
+      ),
+      decoration: BoxDecoration(
+        color: ArcticColorTheme.cotton.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.001),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       child: Center(
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -707,11 +817,11 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       onAcceptWithDetails: (details) => _onWeightDropped(details.data),
       builder: (context, candidateData, rejectedData) {
         return SizedBox(
-          width: size,
+          width: size * 1.6,
           height: size * 0.8,
           child: _panLoad.isEmpty
               ? Container(
-            width: size,
+            width: size * 1.6,
             height: size * 0.8,
             decoration: BoxDecoration(
               color: ArcticColorTheme.cotton.withValues(alpha: 0.8),
@@ -734,16 +844,22 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
               ),
             ),
           )
-              : Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            alignment: WrapAlignment.center,
-            children: _panLoad.map((idx) {
-              return GestureDetector(
-                onTap: () => _onWeightRemoved(idx),
-                child: _weightChipVisual(_weightPool[idx], size * 0.48),
-              );
-            }).toList(),
+              : Align(
+            alignment: Alignment.bottomCenter,
+            child: Transform.translate(
+              offset: Offset(0, size * 0.10),
+              child: Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                alignment: WrapAlignment.center,
+                children: _panLoad.map((idx) {
+                  return GestureDetector(
+                    onTap: () => _onWeightRemoved(idx),
+                    child: _weightChipVisual(_weightPool[idx], size * 0.48),
+                  );
+                }).toList(),
+              ),
+            ),
           ),
         );
       },
@@ -752,7 +868,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
   Widget _miniCrystal(double size) {
     return Image.asset(
-      _crystalAsset,
+      _iceAsset,
       width: size,
       height: size,
       errorBuilder: (_, __, ___) =>
@@ -761,34 +877,70 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   }
 
   Widget _weightChipVisual(int value, double size) {
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFEAF8FD), Color(0xFF9FDCEF), Color(0xFF48CAE4)],
-          stops: [0.0, 0.55, 1.0],
-        ),
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-            blurRadius: 6,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              _crystalAssetForValue(value),
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFEAF8FD), Color(0xFF9FDCEF), Color(0xFF48CAE4)],
+                    stops: [0.0, 0.55, 1.0],
+                  ),
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '$value',
+                  style: TextStyle(
+                    fontFamily: ArcticAppTextStyles.fredoka,
+                    color: ArcticColorTheme.cadetblue,
+                    fontWeight: FontWeight.bold,
+                    fontSize: size * 0.5,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -4,
+            top: -4,
+            child: Container(
+              width: size * 0.36,
+              height: size * 0.36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: ArcticColorTheme.pictonblue,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$value',
+                style: TextStyle(
+                  fontFamily: ArcticAppTextStyles.fredoka,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: size * 0.22,
+                ),
+              ),
+            ),
           ),
         ],
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        '$value',
-        style: TextStyle(
-          fontFamily: ArcticAppTextStyles.fredoka,
-          color: ArcticColorTheme.cadetblue,
-          fontWeight: FontWeight.bold,
-          fontSize: size * 0.5,
-        ),
       ),
     );
   }
@@ -831,6 +983,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     final pupSize = (h * 0.1).clamp(24.0, 40.0);
 
     return Column(
+      key: _campAnchorKey,          // ← add
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Wrap(
@@ -841,13 +994,10 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
             final isNewest = i == _rescuedCount - 1;
             return ScaleTransition(
               scale: isNewest
-                  ? CurvedAnimation(
-                      parent: _campPupCtrl,
-                      curve: Curves.elasticOut,
-                    )
+                  ? CurvedAnimation(parent: _campPupCtrl, curve: Curves.elasticOut)
                   : const AlwaysStoppedAnimation(1.0),
               child: Image.asset(
-                _sealPupAsset,
+                _babyFoxAsset,
                 height: pupSize,
                 errorBuilder: (_, __, ___) =>
                     Text('🦭', style: TextStyle(fontSize: pupSize * 0.7)),

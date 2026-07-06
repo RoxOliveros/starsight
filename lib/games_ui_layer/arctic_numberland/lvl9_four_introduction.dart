@@ -49,7 +49,7 @@ class _NumberFourIntroductionScreenState
 
   // Decoy options
   static const String _decoyOptionAsset1 =
-      'assets/images/objects/arctic/ice.png';
+      'assets/images/objects/arctic/ice_1.png';
   static const String _decoyOptionEmoji1 = '🧊';
   static const String _decoyOptionAsset2 =
       'assets/images/objects/arctic/winter_hat.png';
