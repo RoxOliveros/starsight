@@ -19,12 +19,8 @@ class SubtractionCompareGame extends StatefulWidget {
       _SubtractionCompareGameState();
 }
 
-class _SubtractionCompareGameState
-    extends State<SubtractionCompareGame>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin<SubtractionCompareGame>,
-        GameLoadingMixin<SubtractionCompareGame> {
+class _SubtractionCompareGameState extends State<SubtractionCompareGame>
+    with TickerProviderStateMixin, DomaReactionMixin<SubtractionCompareGame>, GameLoadingMixin<SubtractionCompareGame> {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
@@ -34,12 +30,11 @@ class _SubtractionCompareGameState
   static const String _candyCaneAsset = 'assets/images/objects/arctic/candy_cane.png';
   static const String _iceCreamAsset = 'assets/images/objects/arctic/icecream.png';
 
-  static const String _audioBase = 'assets/audio/arctic_numberland/';
-  static const String _audioIntro = '$_audioBase/intro.wav';
-  static const String _audioRoundPrompt = '$_audioBase/round_prompt.wav';
-  static const String _audioTreatPlaced = '$_audioBase/treat_placed.wav';
-  static const String _audioTreatRemoved = '$_audioBase/treat_removed.wav';
-  static const String _audioWin = '$_audioBase/win.wav';
+  static const String _audioBase = 'assets/audio/arctic_numberland';
+  static const String _audioIntro = '$_audioBase/treat_compare_intro.wav';
+  static const String _audioInstruction = '$_audioBase/treat_compare_instruction.wav';
+  static const String _audioTreatPlaceRemove = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioWin = '$_audioBase/mahusay.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -166,7 +161,7 @@ class _SubtractionCompareGameState
     _instructionCtrl.forward(from: 0);
 
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) _playVoice(_audioRoundPrompt);
+      if (mounted) _playVoice(_audioInstruction);
     });
 
     setState(() {});
@@ -187,7 +182,7 @@ class _SubtractionCompareGameState
     }
 
     HapticFeedback.selectionClick();
-    _playSfx(_audioTreatPlaced);
+    _playSfx(_audioTreatPlaceRemove);
 
     setState(() {
       _pairedSlot[slotIndex] = trayIndex;
@@ -198,7 +193,7 @@ class _SubtractionCompareGameState
   void _onCupRemoved(int slotIndex) {
     if (_resolvingRound || _pairedSlot[slotIndex] == null) return;
     final trayIndex = _pairedSlot[slotIndex]!;
-    _playVoice(_audioTreatRemoved);
+    _playVoice(_audioTreatPlaceRemove);
     setState(() {
       _pairedSlot[slotIndex] = null;
       _trayUsed[trayIndex] = false;
@@ -234,7 +229,7 @@ class _SubtractionCompareGameState
       }
     } else {
       HapticFeedback.heavyImpact();
-      await showDomaReaction(DomaState.wrong);
+      showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
       setState(() => _tappedChoiceIndex = null);
@@ -339,9 +334,15 @@ class _SubtractionCompareGameState
               children: [
                 Image.asset(
                   _candyCaneAsset,
-                  height: screenH * 0.35,
+                  height: screenH * 0.25,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => const Text('🍬', style: TextStyle(fontSize: 70)),
+                ),
+                Image.asset(
+                  _iceCreamAsset,
+                  height: screenH * 0.25,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Text('🍧', style: TextStyle(fontSize: 70)),
                 ),
               ],
             ),
@@ -415,7 +416,7 @@ class _SubtractionCompareGameState
     return ScaleTransition(
       scale: _instructionBounce,
       child: GestureDetector(
-        onTap: () => _playVoice(_audioRoundPrompt),
+        onTap: () => _playVoice(_audioInstruction),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
           decoration: BoxDecoration(
