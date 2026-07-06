@@ -28,10 +28,7 @@ class SignboardMathGame extends StatefulWidget {
 }
 
 class _SignboardMathGameState extends State<SignboardMathGame>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin<SignboardMathGame>,
-        GameLoadingMixin<SignboardMathGame> {
+    with TickerProviderStateMixin, DomaReactionMixin<SignboardMathGame>, GameLoadingMixin<SignboardMathGame> {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
@@ -59,7 +56,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   static const String _audioIntro = '$_audioBase/signboard_intro.wav';
   static const String _audioRoundPromptAdd = '$_audioBase/signboard_add_instruction.wav';
   static const String _audioRoundPromptSub = '$_audioBase/signboard_sub_instruction.wav';
-  static const String _audioBuryPlace = 'assets/audio/sound_effects/erase.wav';
+  static const String _audioBury = 'assets/audio/sound_effects/erase.wav';
+  static const String _audioPlace = 'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioWin = '$_audioBase/signboard_win.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
@@ -228,7 +226,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     }
     if (!_buried[index]) {
       HapticFeedback.selectionClick();
-      _playSfx(_audioBuryPlace);
+      _playSfx(_audioBury);
       setState(() => _buried[index] = true);
     }
   }
@@ -243,7 +241,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     if (isCorrect) {
       setState(() => _resolvingRound = true);
       HapticFeedback.mediumImpact();
-      _playSfx(_audioBuryPlace);
+      await _playSfxAndWait(_audioPlace);
+      if (!mounted) return;
       _snapPulseCtrl.forward(from: 0);
       showDomaReaction(DomaState.correct);
       if (!mounted) return;
@@ -295,6 +294,22 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((e) {
       debugPrint('SFX audio error ($asset): $e');
     });
+  }
+
+  Future<void> _playSfxAndWait(String asset) async {
+    StreamSubscription? sub;
+    try {
+      final completer = Completer<void>();
+      sub = _sfxPlayer.onPlayerComplete.listen((_) {
+        if (!completer.isCompleted) completer.complete();
+      });
+      await _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
+      await completer.future.timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('SFX audio error ($asset): $e');
+    } finally {
+      await sub?.cancel();
+    }
   }
 
   @override
