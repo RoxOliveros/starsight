@@ -33,8 +33,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/package_delivery_intro.wav';
-  static const String _audioPackageAdded = 'assets/audio/sound_effects/thump.wav';
-  static const String _audioPackageRemoved = 'assets/audio/sound_effects/thump.wav';
+  static const String _audioPackageAddRemove = 'assets/audio/sound_effects/thump.wav';
   static const String _audioWin = '$_audioBase/package_delivery_win.wav';
 
   static final Animation<double> _kZeroAnim = AlwaysStoppedAnimation<double>(
@@ -239,7 +238,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
     });
 
     HapticFeedback.selectionClick();
-    await _playSfxAndWait(_audioPackageAdded);
+    await _playSfxAndWait(_audioPackageAddRemove);
 
     final total = _currentTotal;
     if (total == _target) {
@@ -255,7 +254,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
       _packageUsed[poolIndex] = false;
       _sledLoad.remove(poolIndex);
     });
-    _playVoice(_audioPackageRemoved);
+    _playVoice(_audioPackageAddRemove);
   }
 
   Future<void> _onDelivered() async {
@@ -264,7 +263,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
     _deliveredPulseCtrl.forward(from: 0);
 
     HapticFeedback.selectionClick();
-    _playSfx(_audioPackageAdded);
+    _playSfx(_audioPackageAddRemove);
 
     showDomaReaction(DomaState.correct);
     if (!mounted) return;

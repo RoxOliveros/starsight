@@ -34,8 +34,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/rescue_bridge_intro.wav';
   static const String _audioInstructionPrompt = '$_audioBase/rescue_bridge_instruction.wav';
-  static const String _audioWeightAdded = 'assets/audio/sound_effects/clack.wav';
-  static const String _audioWrongRemove = 'assets/audio/sound_effects/clack.wav';
+  static const String _audioWeightAddRemove = 'assets/audio/sound_effects/clack.wav';
   static const String _audioWin = '$_audioBase/rescue_bridge_win.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
@@ -239,7 +238,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     });
 
     HapticFeedback.selectionClick();
-    await _playSfxAndWait(_audioWeightAdded);
+    await _playSfxAndWait(_audioWeightAddRemove);
 
     final total = _currentTotal;
     if (total == _target) {
@@ -255,7 +254,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       _weightUsed[poolIndex] = false;
       _panLoad.remove(poolIndex);
     });
-    _playSfx(_audioWrongRemove);
+    _playSfx(_audioWeightAddRemove);
   }
 
   Future<void> _onBalanced() async {

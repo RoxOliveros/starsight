@@ -19,7 +19,11 @@ class SubtractionMeltingIceGame extends StatefulWidget {
 }
 
 class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
-    with TickerProviderStateMixin, DomaReactionMixin<SubtractionMeltingIceGame>, GameLoadingMixin<SubtractionMeltingIceGame> {  // ADD GameLoadingMixin
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin<SubtractionMeltingIceGame>,
+        GameLoadingMixin<SubtractionMeltingIceGame> {
+  // ADD GameLoadingMixin
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
@@ -28,12 +32,10 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _iceAsset = 'assets/images/objects/arctic/ice_1.png';
 
-  static const String _audioBase = 'assets/audio/arctic_numberland/';
-  static const String _audioIntro = '$_audioBase/intro.wav';
-  static const String _audioRoundPrompt = '$_audioBase/round_prompt.wav';
-  static const String _audioMelt = '$_audioBase/melt.wav';
-  static const String _audioRefreeze = '$_audioBase/refreeze.wav';
-  static const String _audioWin = '$_audioBase/win.wav';
+  static const String _audioBase = 'assets/audio/arctic_numberland';
+  static const String _audioIntro = '$_audioBase/melting_ice_intro.wav';
+  static const String _audioInstructionPrompt = '$_audioBase/melting_ice_instruction.wav';
+  static const String _audioMeltRefreeze = 'assets/audio/sound_effects/plip.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -177,9 +179,13 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) _playVoice(_audioRoundPrompt);
-    });
+    if (_currentRound == 0) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _playVoice(_audioInstructionPrompt);
+        }
+      });
+    }
 
     setState(() {});
   }
@@ -192,7 +198,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
 
     final wasPopped = _popped[index];
     HapticFeedback.selectionClick();
-    _playSfx(wasPopped ? _audioRefreeze : _audioMelt);
+    _playSfx(wasPopped ? _audioMeltRefreeze : _audioMeltRefreeze);
 
     setState(() => _popped[index] = !wasPopped);
     _solveTimer?.cancel();
@@ -211,7 +217,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   Future<void> _onSolved() async {
     setState(() => _resolvingRound = true);
     HapticFeedback.mediumImpact();
-    await showDomaReaction(DomaState.correct);
+    showDomaReaction(DomaState.correct);
     if (!mounted) return;
 
     setState(() => _solvedCount++);
@@ -220,7 +226,6 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     if (!mounted) return;
 
     if (_currentRound + 1 >= _totalRounds) {
-      await _playVoice(_audioWin);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
     } else {
@@ -236,7 +241,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     });
     HapticFeedback.heavyImpact();
     _shatterCtrl.forward(from: 0);
-    await showDomaReaction(DomaState.wrong);
+
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     setState(() {
@@ -244,6 +249,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
       _resolvingRound = false;
       _shattering = false;
     });
+    showDomaReaction(DomaState.wrong);
   }
 
   // ── Audio ────────────────────────────────────────────────────────────────
@@ -255,7 +261,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
         if (!completer.isCompleted) completer.complete();
       });
       await _voicePlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
+      await completer.future.timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint('Voice audio error ($asset): $e');
     } finally {
@@ -265,8 +271,8 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
 
   void _playSfx(String asset) {
     _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
-        e,
-        ) {
+      e,
+    ) {
       debugPrint('SFX audio error ($asset): $e');
     });
   }
@@ -296,7 +302,8 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
               child: Image.asset(
                 _bgImage,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
+                errorBuilder: (_, __, ___) =>
+                    Container(color: const Color(0xFFDCEFFA)),
               ),
             ),
             SafeArea(
@@ -341,7 +348,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
                 height: screenH * 0.7,
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) =>
-                const Text('🐧', style: TextStyle(fontSize: 70)),
+                    const Text('🐧', style: TextStyle(fontSize: 70)),
               ),
             ),
           ),
@@ -355,7 +362,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
                   height: screenH * 0.3,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
-                  const Text('🧊', style: TextStyle(fontSize: 70)),
+                      const Text('🧊', style: TextStyle(fontSize: 70)),
                 ),
               ],
             ),
@@ -415,7 +422,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     return ScaleTransition(
       scale: _instructionBounce,
       child: GestureDetector(
-        onTap: () => _playVoice(_audioRoundPrompt),
+        onTap: () => _playVoice(_audioInstructionPrompt),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
           decoration: BoxDecoration(
@@ -456,8 +463,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     final beamWidth = (w * 0.85).clamp(220.0, 380.0);
     final equationSize = (h * 0.3).clamp(70.0, 110.0);
     final iceAreaHeight = h * 0.4;
-    final waitingForConfirm =
-        !_resolvingRound && _poppedCount == _subtrahend;
+    final waitingForConfirm = !_resolvingRound && _poppedCount == _subtrahend;
 
     return Center(
       child: Column(
@@ -498,11 +504,16 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     );
   }
 
-  static final Animation<double> _kZeroAnim = AlwaysStoppedAnimation<double>(0.0);
+  static final Animation<double> _kZeroAnim = AlwaysStoppedAnimation<double>(
+    0.0,
+  );
 
   Widget _buildEquationDisplay(double size) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: size * 0.25, vertical: size * 0.08),
+      padding: EdgeInsets.symmetric(
+        horizontal: size * 0.25,
+        vertical: size * 0.08,
+      ),
       decoration: BoxDecoration(
         color: ArcticColorTheme.cotton.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(20),
@@ -532,8 +543,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   /// and fade out; tapping a melted ice re-freezes it.
   Widget _buildIce(int index, double areaHeight) {
     final popped = _popped[index];
-    final lengthScale =
-    _iceLengthScale[index % _iceLengthScale.length];
+    final lengthScale = _iceLengthScale[index % _iceLengthScale.length];
     final baseHeight = areaHeight * 0.85 * lengthScale;
     final width = baseHeight * 0.34;
 
