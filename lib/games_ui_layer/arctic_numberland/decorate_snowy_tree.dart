@@ -11,7 +11,6 @@ import 'arctic_audio_helper.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
-
 enum _OrnamentColor { red, blue, green, yellow, purple }
 
 extension on _OrnamentColor {
