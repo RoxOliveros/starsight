@@ -234,13 +234,21 @@ class _Sharing2State extends State<Sharing2> {
 
   // Called when the cancel button is tapped
   void _handleCancel() {
-    // _audioPlayer.play(AssetSource('audio/lumi_town/level5/share_no.wav'));
-
     // 1. User canceled the 2nd Fox!
     if (_charIndex == 5) {
       setState(() {
         _secondFoxCanceled = true; // Mark as successfully bypassed
         _currentMood = 'sad'; // Make the fox sad
+
+        // --- NEW FIX ---
+        // Restore items to the table if they were accidentally dragged
+        if (_hasGivenPancake) _pancakesLeft++;
+        if (_hasGivenWater) _waterLeft++;
+
+        // Remove the items from the Fox's hands immediately
+        _hasGivenPancake = false;
+        _hasGivenWater = false;
+        // ---------------
       });
 
       // Wait a moment so the user sees the sad fox, then move to the dog
@@ -249,8 +257,6 @@ class _Sharing2State extends State<Sharing2> {
         setState(() {
           _readyForEntrance = false;
           _charIndex++; // Move to the dog
-          _hasGivenPancake = false;
-          _hasGivenWater = false;
           _currentMood = 'normal'; // Reset mood for the dog
         });
 
