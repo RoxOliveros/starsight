@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/arctic_numberland/addition_rescue_bridge_game.dart';
 import '../../games_ui_layer/arctic_numberland/addition_subtraction_signboard.dart';
+import '../../games_ui_layer/arctic_numberland/decorate_snowy_tree.dart';
 import '../../games_ui_layer/arctic_numberland/lvl8_three_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl9_four_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl10_five_introduction.dart';
@@ -352,6 +353,8 @@ class _LevelTile extends StatelessWidget {
         return const SignboardMathGame();
       case 23:
         return const SnowmanShapeHuntGame();
+      case 24:
+        return const DecorateSnowyTreeGame();
       default:
         return null;
     }

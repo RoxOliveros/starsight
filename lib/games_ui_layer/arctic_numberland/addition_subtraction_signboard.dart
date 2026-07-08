@@ -495,7 +495,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
   // ── Signboard scene ──────────────────────────────────────────────────────
   Widget _buildSignboardScene(double w, double h) {
-    final boardWidth = (w * 0.55);
+    final boardWidth = (w * 0.60);
     final boardHeight = h * 0.85;
     final itemSize = (h * 0.15);
 

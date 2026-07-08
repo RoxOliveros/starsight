@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:math' as math;
-import 'package:audioplayers/audioplayers.dart';
+import 'dart:async';
 
 class Emotion2 extends StatefulWidget {
   const Emotion2({super.key});
@@ -10,114 +9,59 @@ class Emotion2 extends StatefulWidget {
   State<Emotion2> createState() => _Emotion2State();
 }
 
-class _Emotion2State extends State<Emotion2>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _fadeController;
-  late Animation<double> _opacityAnimation;
-  late AudioPlayer _audioPlayer;
+class _Emotion2State extends State<Emotion2> {
+  final ScrollController _scrollController = ScrollController();
+  Timer? _scrollTimer;
+
+  // List of your 6 scenario images
+  final List<String> _scenarioImages = [
+    'assets/images/objects/lumi/e1_wrong.png',
+    'assets/images/objects/lumi/e2_wrong.png',
+    'assets/images/objects/lumi/e3_wrong.png',
+    'assets/images/objects/lumi/e4_wrong.png',
+    'assets/images/objects/lumi/e5_wrong.png',
+    'assets/images/objects/lumi/e6_wrong.png',
+  ];
 
   @override
   void initState() {
     super.initState();
 
-    // Initialize the audio player
-    _audioPlayer = AudioPlayer();
-
-    // Force the app into Landscape mode for this screen
+    // Lock to landscape universally for this screen
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
 
-    // Total duration for the flickering and fading sequence
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 5000),
-      vsync: this,
-    );
-
-    // TweenSequence for the 3 flickers and the final fade to a dim state
-    _opacityAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 1.0,
-          end: 0.35,
-        ).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 1,
-      ),
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 0.35,
-          end: 1.0,
-        ).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 1,
-      ),
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 1.0,
-          end: 0.35,
-        ).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 1,
-      ),
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 0.35,
-          end: 1.0,
-        ).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 1,
-      ),
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 1.0,
-          end: 0.35,
-        ).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 1,
-      ),
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 0.35,
-          end: 1.0,
-        ).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 1,
-      ),
-      // Final fade out to a dim state (0.20 opacity)
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 1.0,
-          end: 0.20,
-        ).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 2,
-      ),
-    ]).animate(_fadeController);
-
-    // Listen to the animation status to play audio when it finishes
-    _fadeController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        _playAudio();
-      }
+    // Give the widget tree a moment to build, then start scrolling
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startAutoScroll();
     });
-
-    // Start the animation timeline
-    _fadeController.forward();
   }
 
-  Future<void> _playAudio() async {
-    await _audioPlayer.play(
-      AssetSource('audio/lumi_town/level6/emotion_intro.wav'),
-    );
+  void _startAutoScroll() {
+    // This timer ticks every 30 milliseconds, pushing the list up by 1.5 pixels
+    // Adjust the duration or the pixel amount to make it faster or slower!
+    _scrollTimer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
+      if (_scrollController.hasClients) {
+        double currentPosition = _scrollController.position.pixels;
+        _scrollController.jumpTo(currentPosition + 1.5);
+      }
+    });
   }
 
   @override
   void dispose() {
-    // Release the landscape lock when navigating away
+    _scrollTimer?.cancel(); // Always cancel timers to prevent memory leaks
+    _scrollController.dispose();
+
+    // Reset orientations when leaving the screen
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-
-    _fadeController.dispose();
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -126,82 +70,51 @@ class _Emotion2State extends State<Emotion2>
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // Dynamic constraints ensure universal fit across all device screens
+          // Grabbing the dynamic screen width and height to ensure universal fit
           final double screenWidth = constraints.maxWidth;
           final double screenHeight = constraints.maxHeight;
 
-          // Responsive sizing for the stars based on screen real estate
-          final double elementSize = (screenWidth * 0.18 < screenHeight * 0.28)
-              ? screenWidth * 0.25
-              : screenHeight * 0.35;
-
           return Stack(
             children: [
-              // 1. Full-Screen Responsive Background
+              // 1. Universal Background
               Positioned.fill(
                 child: Image.asset(
-                  'assets/images/backgrounds/bg_game_emotion.png',
+                  'assets/images/backgrounds/bg_lumi_park_night.png',
                   fit: BoxFit.cover,
                 ),
               ),
 
-              // 2. Proportionally Placed and Tilted Stars
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/scared.png',
-                elementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.15,
-                y: 0.65,
-                tiltDegrees: -8,
-              ),
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/happy.png',
-                elementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.25,
-                y: 0.25,
-                tiltDegrees: 8,
-              ),
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/disgust.png',
-                elementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.42,
-                y: 0.72,
-                tiltDegrees: -8,
-              ),
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/sad.png',
-                elementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.56,
-                y: 0.36,
-                tiltDegrees: -8,
-              ),
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/wow.png',
-                elementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.75,
-                y: 0.70,
-                tiltDegrees: 12,
-              ),
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/angry.png',
-                elementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.80,
-                y: 0.30,
-                tiltDegrees: -5,
+              // 2. Dr. Woo (The Owl) - Scaled based on device width
+              Positioned(
+                left:
+                    screenWidth *
+                    0.15, // Stays 15% from the left edge on all devices
+                bottom: -55, // Tucked slightly off the bottom edge
+                child: SizedBox(
+                  width:
+                      screenWidth *
+                      0.35, // Always takes up 40% of the screen width
+                  child: Image.asset(
+                    'assets/images/characters/dr.woo_the_owl.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
 
-              // 3. UI Layer (Top Left Exit Button)
+              // 3. The Automatic Upward Carousel - Scaled based on device width
+              Positioned(
+                right: screenWidth * 0.08, // Stays 8% from the right edge
+                top: 0,
+                bottom: 0,
+                child: SizedBox(
+                  width:
+                      screenWidth *
+                      0.25, // Always takes up 25% of the screen width
+                  child: _buildCarousel(),
+                ),
+              ),
+
+              // 4. UI Layer: Exit Button
               SafeArea(
                 child: Align(
                   alignment: Alignment.topLeft,
@@ -210,7 +123,7 @@ class _Emotion2State extends State<Emotion2>
                     child: SizedBox(
                       width: 55,
                       height: 55,
-                      child: Image.asset('assets/images/ui/x_yellow.png'),
+                      child: Image.asset('assets/images/buttons/x_yellow.png'),
                     ),
                   ),
                 ),
@@ -222,35 +135,40 @@ class _Emotion2State extends State<Emotion2>
     );
   }
 
-  // Universal Helper for responsive positioning and sizing
-  Widget _buildResponsiveStar(
-    String imagePath,
-    double size,
-    double totalWidth,
-    double totalHeight, {
-    required double x,
-    required double y,
-    required double tiltDegrees,
-  }) {
-    // Calculates exact on-screen position using fractions of total width/height
-    final double leftPosition = x * totalWidth - (size / 2);
-    final double topPosition = y * totalHeight - (size / 2);
-    final double tiltRadians = tiltDegrees * math.pi / 180;
+  // The Carousel Widget
+  Widget _buildCarousel() {
+    return ListView.builder(
+      controller: _scrollController,
+      // physics: const NeverScrollableScrollPhysics(), // Uncomment to prevent manual scrolling
+      itemBuilder: (context, index) {
+        // The modulo operator (%) creates an infinite loop through the 6 images
+        final String imagePath =
+            _scenarioImages[index % _scenarioImages.length];
 
-    return Positioned(
-      left: leftPosition,
-      top: topPosition,
-      child: FadeTransition(
-        opacity: _opacityAnimation,
-        child: Transform.rotate(
-          angle: tiltRadians,
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Image.asset(imagePath, fit: BoxFit.contain),
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20.0),
+              border: Border.all(
+                color: const Color(0xFFE8D5B5), // Creamy border color
+                width: 5.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15.0),
+              child: Image.asset(imagePath, fit: BoxFit.cover),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
