@@ -29,19 +29,35 @@ extension on _OrnamentColor {
     }
   }
 
+  String get imageAsset {
+    const base = 'assets/images/objects/arctic';
+    switch (this) {
+      case _OrnamentColor.red:
+        return '$base/ornament_red.png';
+      case _OrnamentColor.blue:
+        return '$base/ornament_blue.png';
+      case _OrnamentColor.green:
+        return '$base/ornament_green.png';
+      case _OrnamentColor.yellow:
+        return '$base/ornament_yellow.png';
+      case _OrnamentColor.purple:
+        return '$base/ornament_purple.png';
+    }
+  }
+
   String get audioAsset {
     const base = 'assets/audio/arctic_numberland';
     switch (this) {
       case _OrnamentColor.red:
-        return '$base/color_red.wav';
+        return '$base/red.wav';
       case _OrnamentColor.blue:
-        return '$base/color_blue.wav';
+        return '$base/blue.wav';
       case _OrnamentColor.green:
-        return '$base/color_green.wav';
+        return '$base/green.wav';
       case _OrnamentColor.yellow:
-        return '$base/color_yellow.wav';
+        return '$base/yellow.wav';
       case _OrnamentColor.purple:
-        return '$base/color_purple.wav';
+        return '$base/purple.wav';
     }
   }
 }
@@ -135,7 +151,6 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   late _RoundSpec _round;
   Set<String> _filledSpotIds = {};
 
-  String? _activeSpotId;
   List<_OrnamentColor> _trayOptions = [];
   bool _trayWrong = false;
   bool _treeWiggling = false;
@@ -149,6 +164,17 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   late Animation<double> _spotPulse;
   late AnimationController _wiggleCtrl;
   late Animation<double> _wiggle;
+
+  List<_OrnamentColor> _buildTrayForRound(_RoundSpec round) {
+    final needed = round.spots.map((s) => s.correctColor).toList();
+    final maxChoices = round.spots.map((s) => s.trayChoices).reduce(max);
+    final distractorSlots = (maxChoices - 1).clamp(0, _OrnamentColor.values.length);
+    final distractors = _OrnamentColor.values.where((c) => !needed.contains(c)).toList()
+      ..shuffle(Random());
+    final tray = [...needed, ...distractors.take(distractorSlots)];
+    tray.shuffle(Random());
+    return tray;
+  }
 
   @override
   void initState() {
@@ -212,8 +238,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   void _setupRound({bool playInstruction = true}) {
     _round = _rounds[_currentRound];
     _filledSpotIds = {};
-    _activeSpotId = null;
-    _trayOptions = [];
+    _trayOptions = _buildTrayForRound(_round);
     _trayWrong = false;
 
     _sceneEnterCtrl.forward(from: 0);
@@ -228,19 +253,6 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
     setState(() {});
   }
 
-  // ── Spot interaction ─────────────────────────────────────────────────────
-  void _activateSpot(_OrnamentSpot spot) {
-    if (_filledSpotIds.contains(spot.id) || _activeSpotId == spot.id) return;
-    final rng = Random();
-    final distractors = _OrnamentColor.values.where((c) => c != spot.correctColor).toList()..shuffle(rng);
-    final options = [spot.correctColor, ...distractors.take(spot.trayChoices - 1)]..shuffle(rng);
-    setState(() {
-      _activeSpotId = spot.id;
-      _trayOptions = options;
-      _trayWrong = false;
-    });
-  }
-
   Future<void> _onColorDropped(_OrnamentSpot spot, _OrnamentColor dropped) async {
     if (_filledSpotIds.contains(spot.id)) return;
 
@@ -248,8 +260,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
       HapticFeedback.mediumImpact();
       setState(() {
         _filledSpotIds.add(spot.id);
-        _activeSpotId = null;
-        _trayOptions = [];
+        _trayOptions.remove(dropped);
       });
       await playSfx(dropped.audioAsset);
       showDomaReaction(DomaState.correct);
@@ -403,7 +414,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
             ),
             Positioned(
               right: 16,
-              bottom: h * 0.1,
+              bottom: 1,
               child: _buildAnswerTrayPanel(w, h),
             ),
           ],
@@ -432,7 +443,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
             ],
           ),
           child: Text(
-            'Tap a spot, then drag the matching color!',
+            'Decorate the tree! Drag the matching color!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
               fontSize: (h * 0.06).clamp(13.0, 19.0),
@@ -491,7 +502,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   }
 
   Widget _buildSpot(_OrnamentSpot spot, double boardWidth, double boardHeight) {
-    final size = boardWidth * 0.18;
+    final size = boardWidth * 0.15;
     final left = boardWidth * spot.anchorX - size / 2;
     final top = boardHeight * spot.anchorY - size / 2;
     final filled = _filledSpotIds.contains(spot.id);
@@ -511,28 +522,25 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
             return _ornamentVisual(spot.correctColor, size);
           }
 
-          return GestureDetector(
-            onTap: () => _activateSpot(spot),
-            child: AnimatedBuilder(
-              animation: _spotPulse,
-              builder: (_, child) => Transform.scale(
-                scale: _activeSpotId == spot.id ? 1.0 : _spotPulse.value,
-                child: child,
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: highlight
-                      ? spot.correctColor.swatch.withValues(alpha: 0.45)
-                      : spot.correctColor.swatch.withValues(alpha: 0.28),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: highlight ? ArcticColorTheme.pictonblue : spot.correctColor.swatch,
-                    width: 2.5,
-                  ),
+          return AnimatedBuilder(
+            animation: _spotPulse,
+            builder: (_, child) => Transform.scale(
+              scale: _spotPulse.value,
+              child: child,
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: highlight
+                    ? spot.correctColor.swatch.withValues(alpha: 0.45)
+                    : spot.correctColor.swatch.withValues(alpha: 0.28),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: highlight ? ArcticColorTheme.pictonblue : spot.correctColor.swatch,
+                  width: 2.5,
                 ),
-                alignment: Alignment.center,
-                child: Icon(Icons.help_outline, size: size * 0.5, color: spot.correctColor.swatch),
               ),
+              alignment: Alignment.center,
+              child: Icon(Icons.help_outline, size: size * 0.5, color: spot.correctColor.swatch),
             ),
           );
         },
@@ -540,9 +548,6 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
     );
   }
 
-  /// Fixed answer tray docked in the lower-right corner — replaces the
-  /// floating popup used in earlier games. Shows a placeholder prompt
-  /// until a spot is tapped, then shows draggable color choices for it.
   Widget _buildAnswerTrayPanel(double w, double h) {
     final panelWidth = (w * 0.22).clamp(160.0, 240.0);
     final tileSize = (h * 0.12).clamp(46.0, 66.0);
@@ -558,71 +563,51 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
           BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4)),
         ],
       ),
-      child: _activeSpotId == null
+      child: _trayOptions.isEmpty
           ? Text(
-              'Tap an empty\nspot on the tree!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: (h * 0.032).clamp(12.0, 15.0),
-                fontWeight: FontWeight.w600,
-                color: ArcticColorTheme.slateblue.withValues(alpha: 0.7),
-              ),
-            )
+        'Great job!',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontFamily: ArcticAppTextStyles.fredoka,
+          fontSize: (h * 0.032).clamp(12.0, 15.0),
+          fontWeight: FontWeight.w600,
+          color: ArcticColorTheme.slateblue.withValues(alpha: 0.7),
+        ),
+      )
           : Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              alignment: WrapAlignment.center,
-              children: _trayOptions.map((color) {
-                final tile = _ornamentVisual(color, tileSize, wrong: _trayWrong);
-                return Draggable<_OrnamentColor>(
-                  data: color,
-                  feedback: Material(color: Colors.transparent, child: tile),
-                  childWhenDragging: Opacity(opacity: 0.3, child: tile),
-                  child: tile,
-                );
-              }).toList(),
-            ),
+        spacing: 10,
+        runSpacing: 10,
+        alignment: WrapAlignment.center,
+        children: _trayOptions.map((color) {
+          final tile = _ornamentVisual(color, tileSize, wrong: _trayWrong);
+          return Draggable<_OrnamentColor>(
+            data: color,
+            feedback: Material(color: Colors.transparent, child: tile),
+            childWhenDragging: Opacity(opacity: 0.3, child: tile),
+            child: tile,
+          );
+        }).toList(),
+      ),
     );
   }
 
-  /// A simple colored bauble — circle body plus a small cap/loop on top,
-  /// drawn rather than image-based so it's easy to reskin later.
   Widget _ornamentVisual(_OrnamentColor color, double size, {bool wrong = false}) {
-    final bodyColor = wrong ? Colors.red.shade300 : color.swatch;
-
     return SizedBox(
       width: size,
       height: size * 1.15,
-      child: Stack(
-        alignment: Alignment.topCenter,
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            top: 0,
-            child: Container(
-              width: size * 0.22,
-              height: size * 0.16,
-              decoration: BoxDecoration(
-                color: ArcticColorTheme.cadetblue,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
+      child: ColorFiltered(
+        colorFilter: wrong
+            ? const ColorFilter.mode(Colors.red, BlendMode.modulate)
+            : const ColorFilter.mode(Colors.white, BlendMode.dst),
+        child: Image.asset(
+          color.imageAsset,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(color: color.swatch, shape: BoxShape.circle),
           ),
-          Positioned(
-            top: size * 0.14,
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                color: bodyColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-                boxShadow: [BoxShadow(color: bodyColor.withValues(alpha: 0.45), blurRadius: 8)],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
