@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 
 class Emotion2 extends StatefulWidget {
   const Emotion2({super.key});
@@ -12,6 +13,14 @@ class Emotion2 extends StatefulWidget {
 class _Emotion2State extends State<Emotion2> {
   final ScrollController _scrollController = ScrollController();
   Timer? _scrollTimer;
+  Timer? _carouselAppearanceTimer;
+
+  // Audio configuration
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  StreamSubscription? _audioCompleteSubscription;
+
+  // State to control when the images appear
+  bool _showCarousel = false;
 
   // List of your 6 scenario images
   final List<String> _scenarioImages = [
@@ -33,15 +42,48 @@ class _Emotion2State extends State<Emotion2> {
       DeviceOrientation.landscapeRight,
     ]);
 
-    // Give the widget tree a moment to build, then start scrolling
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startAutoScroll();
+    // Initialize our audio and timing sequence
+    _initAudioAndSequence();
+  }
+
+  void _initAudioAndSequence() async {
+    bool isTutorialPlaying = true;
+
+    // 1. Listen for when the first audio finishes to play the second one
+    _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((
+      _,
+    ) async {
+      if (isTutorialPlaying) {
+        isTutorialPlaying = false;
+        // Ensure path matches your pubspec.yaml declaration
+        await _audioPlayer.play(
+          AssetSource('audio/lumi_town/level6/emotion_start.wav'),
+        );
+      }
+    });
+
+    // 2. Start playing the tutorial audio immediately
+    // Ensure path matches your pubspec.yaml declaration
+    await _audioPlayer.play(
+      AssetSource('audio/lumi_town/level6/emotion_tutorial.wav'),
+    );
+
+    // 3. Set a timer to show the carousel after 6 seconds
+    _carouselAppearanceTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted) {
+        setState(() {
+          _showCarousel = true;
+        });
+
+        // Give the widget tree a moment to build the now-visible carousel, then scroll
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _startAutoScroll();
+        });
+      }
     });
   }
 
   void _startAutoScroll() {
-    // This timer ticks every 30 milliseconds, pushing the list up by 1.5 pixels
-    // Adjust the duration or the pixel amount to make it faster or slower!
     _scrollTimer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
       if (_scrollController.hasClients) {
         double currentPosition = _scrollController.position.pixels;
@@ -52,7 +94,11 @@ class _Emotion2State extends State<Emotion2> {
 
   @override
   void dispose() {
-    _scrollTimer?.cancel(); // Always cancel timers to prevent memory leaks
+    // Always cancel timers and streams to prevent memory leaks
+    _scrollTimer?.cancel();
+    _carouselAppearanceTimer?.cancel();
+    _audioCompleteSubscription?.cancel();
+    _audioPlayer.dispose();
     _scrollController.dispose();
 
     // Reset orientations when leaving the screen
@@ -70,7 +116,6 @@ class _Emotion2State extends State<Emotion2> {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // Grabbing the dynamic screen width and height to ensure universal fit
           final double screenWidth = constraints.maxWidth;
           final double screenHeight = constraints.maxHeight;
 
@@ -84,16 +129,12 @@ class _Emotion2State extends State<Emotion2> {
                 ),
               ),
 
-              // 2. Dr. Woo (The Owl) - Scaled based on device width
+              // 2. Dr. Woo (The Owl)
               Positioned(
-                left:
-                    screenWidth *
-                    0.15, // Stays 15% from the left edge on all devices
-                bottom: -55, // Tucked slightly off the bottom edge
+                left: screenWidth * 0.15,
+                bottom: -55,
                 child: SizedBox(
-                  width:
-                      screenWidth *
-                      0.35, // Always takes up 40% of the screen width
+                  width: screenWidth * 0.35,
                   child: Image.asset(
                     'assets/images/characters/dr.woo_the_owl.png',
                     fit: BoxFit.contain,
@@ -101,16 +142,19 @@ class _Emotion2State extends State<Emotion2> {
                 ),
               ),
 
-              // 3. The Automatic Upward Carousel - Scaled based on device width
+              // 3. The Automatic Upward Carousel - Delayed Appearance
               Positioned(
-                right: screenWidth * 0.08, // Stays 8% from the right edge
+                right: screenWidth * 0.08,
                 top: 0,
                 bottom: 0,
                 child: SizedBox(
-                  width:
-                      screenWidth *
-                      0.25, // Always takes up 25% of the screen width
-                  child: _buildCarousel(),
+                  width: screenWidth * 0.25,
+                  // AnimatedOpacity creates a smooth fade-in effect when _showCarousel turns true
+                  child: AnimatedOpacity(
+                    opacity: _showCarousel ? 1.0 : 0.0,
+                    duration: const Duration(seconds: 1),
+                    child: _buildCarousel(),
+                  ),
                 ),
               ),
 
@@ -141,7 +185,6 @@ class _Emotion2State extends State<Emotion2> {
       controller: _scrollController,
       // physics: const NeverScrollableScrollPhysics(), // Uncomment to prevent manual scrolling
       itemBuilder: (context, index) {
-        // The modulo operator (%) creates an infinite loop through the 6 images
         final String imagePath =
             _scenarioImages[index % _scenarioImages.length];
 
@@ -150,10 +193,7 @@ class _Emotion2State extends State<Emotion2> {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20.0),
-              border: Border.all(
-                color: const Color(0xFFE8D5B5), // Creamy border color
-                width: 5.0,
-              ),
+              border: Border.all(color: const Color(0xFFE8D5B5), width: 5.0),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.3),
