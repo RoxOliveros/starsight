@@ -1,3 +1,4 @@
+import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
@@ -106,6 +107,16 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
   }
 
   Future<void> _playAudio() async {
+    // 1. Listen for the audio to finish
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) {
+        // 2. Navigate to the next screen!
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const Emotion2()),
+        );
+      }
+    });
+
     // Plays the audio indicating the stars are losing their light
     await _audioPlayer.play(
       AssetSource('audio/lumi_town/level6/emotion_intro.wav'),

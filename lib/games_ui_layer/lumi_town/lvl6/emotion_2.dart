@@ -1,3 +1,4 @@
+import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_3.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
@@ -49,21 +50,27 @@ class _Emotion2State extends State<Emotion2> {
   void _initAudioAndSequence() async {
     bool isTutorialPlaying = true;
 
-    // 1. Listen for when the first audio finishes to play the second one
+    // 1. Listen for when the audio finishes
     _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((
       _,
     ) async {
       if (isTutorialPlaying) {
+        // The first audio (tutorial) finished. Play the second one.
         isTutorialPlaying = false;
-        // Ensure path matches your pubspec.yaml declaration
         await _audioPlayer.play(
           AssetSource('audio/lumi_town/level6/emotion_start.wav'),
         );
+      } else {
+        // The second audio (start) finished! Navigate to Emotion3!
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const Emotion3Screen()),
+          );
+        }
       }
     });
 
     // 2. Start playing the tutorial audio immediately
-    // Ensure path matches your pubspec.yaml declaration
     await _audioPlayer.play(
       AssetSource('audio/lumi_town/level6/emotion_tutorial.wav'),
     );

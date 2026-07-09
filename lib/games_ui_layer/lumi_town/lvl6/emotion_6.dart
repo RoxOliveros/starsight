@@ -1,4 +1,5 @@
 import 'package:StarSight/games_ui_layer/lumi_town/dr.woo_reaction.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_7.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -26,6 +27,9 @@ class _Emotion6ScreenState extends State<Emotion6Screen>
   // NEW: Controls the visibility of the draggable stars
   bool _showStars = false;
 
+  // NEW: Tracks if we are currently playing the success audio
+  bool _isSuccessAudioPlaying = false;
+
   @override
   void initState() {
     super.initState();
@@ -41,18 +45,25 @@ class _Emotion6ScreenState extends State<Emotion6Screen>
     _playIntroAudio();
   }
 
-  /// Plays the initial story audio and shows stars when finished
   Future<void> _playIntroAudio() async {
-    // Listen for the exact moment the audio finishes playing
+    // UPDATED: The listener now handles both the intro finishing AND the success finishing
     _narratorPlayer.onPlayerComplete.listen((_) {
       if (mounted) {
-        // Trigger a rebuild to fade in the stars
-        setState(() {
-          _showStars = true;
-        });
+        if (_isSuccessAudioPlaying) {
+          // If the success audio just finished, go to the next screen
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const Emotion7Screen(), // Next Screen!
+            ),
+          );
+        } else {
+          // If the intro audio just finished, show the stars
+          setState(() {
+            _showStars = true;
+          });
+        }
       }
     });
-
     // Play the audio (AssetSource automatically looks inside the 'assets/' folder)
     // IMPORTANT: Update this path if you placed the audio in a different folder!
     await _narratorPlayer.play(
@@ -156,6 +167,8 @@ class _Emotion6ScreenState extends State<Emotion6Screen>
                             !_isCorrectlyAnswered) {
                           // Lock the answer so it can't be triggered twice
                           _isCorrectlyAnswered = true;
+
+                          _isSuccessAudioPlaying = true;
 
                           // Optional: Wait half a second so Dr. Woo's "ding" SFX
                           // finishes before the narrator starts talking
