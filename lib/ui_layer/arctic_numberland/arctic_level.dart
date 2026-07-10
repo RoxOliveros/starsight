@@ -8,6 +8,7 @@ import '../../games_ui_layer/arctic_numberland/addition_rescue_bridge_game.dart'
 import '../../games_ui_layer/arctic_numberland/addition_subtraction_signboard.dart';
 import '../../games_ui_layer/arctic_numberland/aurora_catcher.dart';
 import '../../games_ui_layer/arctic_numberland/decorate_snowy_tree.dart';
+import '../../games_ui_layer/arctic_numberland/igloo_peekaboo.dart';
 import '../../games_ui_layer/arctic_numberland/number345_counting.dart';
 import '../../games_ui_layer/arctic_numberland/number345_odd_one_out.dart';
 import '../../games_ui_layer/arctic_numberland/number1to5_sequence.dart';
@@ -340,13 +341,14 @@ class _LevelTile extends StatelessWidget {
       case 13:
         return const PenguinLineWalkGame();
       case 14:
-        return null;
+        return const IglooPeekabooGame();
       case 15:
         return null;
 
       //TODO: @Tin add 9-10 intro here and games
       case 16:
         return null;
+
       case 17:
         return null;
       case 18:
