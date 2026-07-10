@@ -11,15 +11,15 @@ import 'number345_odd_one_out.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
-class Number345CountingScreen extends StatefulWidget {
-  const Number345CountingScreen({super.key});
+class Number345CountingObjectsScreen extends StatefulWidget {
+  const Number345CountingObjectsScreen({super.key});
 
   @override
-  State<Number345CountingScreen> createState() =>
-      _Number345CountingScreenState();
+  State<Number345CountingObjectsScreen> createState() =>
+      _Number345CountingObjectsScreenState();
 }
 
-class _Number345CountingScreenState extends State<Number345CountingScreen>
+class _Number345CountingObjectsScreenState extends State<Number345CountingObjectsScreen>
     with TickerProviderStateMixin {
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -618,7 +618,7 @@ class _Number345CountingScreenState extends State<Number345CountingScreen>
         Navigator.pop(context, const Number345OddOneOutScreen());
       },
       onRestart: () {
-        Navigator.pop(context, const Number345CountingScreen());
+        Navigator.pop(context, const Number345CountingObjectsScreen());
       },
       onBack: () {
         Navigator.pop(context);

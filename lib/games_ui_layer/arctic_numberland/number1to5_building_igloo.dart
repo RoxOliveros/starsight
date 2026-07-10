@@ -9,15 +9,15 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'goodjob_doma_prompt.dart';
 import 'number1to5_match_snowglobe.dart';
 
-class Number0to5FillIglooScreen extends StatefulWidget {
-  const Number0to5FillIglooScreen({super.key});
+class Number1to5FillIglooScreen extends StatefulWidget {
+  const Number1to5FillIglooScreen({super.key});
 
   @override
-  State<Number0to5FillIglooScreen> createState() =>
-      _Number0to5FillIglooScreenState();
+  State<Number1to5FillIglooScreen> createState() =>
+      _Number1to5FillIglooScreenState();
 }
 
-class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
+class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
     with TickerProviderStateMixin {
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -854,7 +854,7 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
         Navigator.pop(context, const Number1to5MatchSnowglobesScreen());
       },
       onRestart: () {
-        Navigator.pop(context, const Number0to5FillIglooScreen());
+        Navigator.pop(context, const Number1to5FillIglooScreen());
       },
       onBack: () {
         Navigator.pop(context);

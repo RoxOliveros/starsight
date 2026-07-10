@@ -316,10 +316,10 @@ class _LevelTile extends StatelessWidget {
       case 5:
         return NumberIntroductionScreen.forSequence(
           [3, 4, 5],
-          nextScreen: const Number345CountingScreen(),
+          nextScreen: const Number345CountingObjectsScreen(),
         );
       case 6:
-        return const Number345CountingScreen();
+        return const Number345CountingObjectsScreen();
       case 7:
         return const Number345OddOneOutScreen();
       case 8:
@@ -327,28 +327,54 @@ class _LevelTile extends StatelessWidget {
       case 9:
         return const Number1to5CountingTreesScreen();
       case 10:
-        return const Number0to5FillIglooScreen();
+        return const Number1to5FillIglooScreen();
       case 11:
         return const Number1to5MatchSnowglobesScreen();
-        //TODO: @Tin add 6-10 intro here and other games
+
+
+      //TODO: @Tin add 6-8 intro here and games
       case 12:
-        return const AdditionRescueBridgeGame();
+        return null;
       case 13:
-        return const AdditionPackageDeliveryGame();
+        return null;
       case 14:
-        return const SubtractionMeltingIceGame();
+        return null;
       case 15:
-        return const SubtractionCompareGame();
+        return null;
+
+      //TODO: @Tin add 9-10 intro here and games
       case 16:
-        return const SignboardMathGame();
+        return null;
       case 17:
-        return const SnowmanShapeHuntGame();
+        return null;
       case 18:
-        return const DecorateSnowyTreeGame();
+        return null;
       case 19:
-        return const AuroraCatcherGame();
+        return null;
+
       case 20:
-        return const ShootingStarCounterGame();
+        return const AdditionRescueBridgeGame();
+      case 21:
+        return const AdditionPackageDeliveryGame();
+      case 22:
+        return const SubtractionMeltingIceGame();
+      case 23:
+        return const SubtractionCompareGame();
+      case 24:
+        return const SignboardMathGame();
+      case 25:
+        return const SnowmanShapeHuntGame();
+
+      //TODO: add shape game
+      case 26:
+        return null;
+
+      case 27:
+        return const DecorateSnowyTreeGame();
+      case 28:
+        return const AuroraCatcherGame();
+      case 29:
+        return const ShootingStarCountingGame();
       default:
         return null;
     }

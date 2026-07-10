@@ -786,7 +786,7 @@ class _Number1to5CountingTreesScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, const Number0to5FillIglooScreen());
+        Navigator.pop(context, const Number1to5FillIglooScreen());
       },
       onRestart: () {
         Navigator.pop(context, const Number1to5CountingTreesScreen());

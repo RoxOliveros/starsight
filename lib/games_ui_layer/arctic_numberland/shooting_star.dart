@@ -55,19 +55,19 @@ Offset _bezierTangent(Offset p0, Offset p1, Offset p2, double t) {
   );
 }
 
-class ShootingStarCounterGame extends StatefulWidget {
-  const ShootingStarCounterGame({super.key});
+class ShootingStarCountingGame extends StatefulWidget {
+  const ShootingStarCountingGame({super.key});
 
   @override
-  State<ShootingStarCounterGame> createState() => _ShootingStarCounterGameState();
+  State<ShootingStarCountingGame> createState() => _ShootingStarCountingGameState();
 }
 
-class _ShootingStarCounterGameState extends State<ShootingStarCounterGame>
+class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     with
         TickerProviderStateMixin,
-        DomaReactionMixin<ShootingStarCounterGame>,
-        GameLoadingMixin<ShootingStarCounterGame>,
-        ArcticAudioMixin<ShootingStarCounterGame> {
+        DomaReactionMixin<ShootingStarCountingGame>,
+        GameLoadingMixin<ShootingStarCountingGame>,
+        ArcticAudioMixin<ShootingStarCountingGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
