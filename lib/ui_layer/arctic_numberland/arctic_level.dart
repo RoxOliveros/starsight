@@ -25,6 +25,7 @@ import '../../games_ui_layer/arctic_numberland/lvl2_one_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl3_two_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl6_number012_counting.dart';
 import '../../games_ui_layer/arctic_numberland/lvl7_number012_counttap.dart';
+import '../../games_ui_layer/arctic_numberland/shooting_star.dart';
 import '../../games_ui_layer/arctic_numberland/snowman_shape_hunt.dart';
 import '../../games_ui_layer/arctic_numberland/subtraction_compare_game.dart';
 import '../../games_ui_layer/arctic_numberland/subtraction_melting_ice_game.dart';
@@ -358,6 +359,8 @@ class _LevelTile extends StatelessWidget {
         return const DecorateSnowyTreeGame();
       case 25:
         return const AuroraCatcherGame();
+      case 26:
+        return const ShootingStarCounterGame();
       default:
         return null;
     }
