@@ -1,6 +1,12 @@
+import 'package:StarSight/business_layer/town_progress_service.dart';
+import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+
+// Make sure to import your GoodJobOverlay file here
+// import 'goodjob_prompt.dart';
 
 class EmotionEndingScreen extends StatefulWidget {
   const EmotionEndingScreen({super.key});
@@ -20,6 +26,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
   // State variables for interactivity
   bool _isAudioFinished = false;
   String? _selectedStarPath;
+  bool _showGoodJobOverlay = false; // Added state for the overlay
 
   @override
   void initState() {
@@ -31,15 +38,10 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
     ]);
 
     // Set up the continuous flicker animation
-    _flickerController =
-        AnimationController(
-          duration: const Duration(
-            milliseconds: 800,
-          ), // Speed of one flicker fade
-          vsync: this,
-        )..repeat(
-          reverse: true,
-        ); // The reverse makes it pulse up and down continuously
+    _flickerController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    )..repeat(reverse: true);
 
     _flickerAnimation = Tween<double>(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(parent: _flickerController, curve: Curves.easeInOut),
@@ -50,7 +52,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
   }
 
   Future<void> _playEndingAudio() async {
-    // Listen for when the audio finishes playing
     _audioPlayer.onPlayerComplete.listen((event) {
       if (mounted) {
         setState(() {
@@ -59,7 +60,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
       }
     });
 
-    // Play the ending audio
     await _audioPlayer.play(
       AssetSource('audio/lumi_town/level6/emotion_ending.wav'),
     );
@@ -113,7 +113,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                 y: 0.65,
                 tiltDegrees: -8,
               ),
-
               _buildResponsiveStar(
                 'assets/images/objects/lumi/happy.png',
                 baseElementSize,
@@ -123,7 +122,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                 y: 0.25,
                 tiltDegrees: 8,
               ),
-
               _buildResponsiveStar(
                 'assets/images/objects/lumi/disgust.png',
                 baseElementSize,
@@ -133,7 +131,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                 y: 0.72,
                 tiltDegrees: -8,
               ),
-
               _buildResponsiveStar(
                 'assets/images/objects/lumi/sad.png',
                 baseElementSize,
@@ -143,7 +140,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                 y: 0.36,
                 tiltDegrees: -8,
               ),
-
               _buildResponsiveStar(
                 'assets/images/objects/lumi/wow.png',
                 baseElementSize,
@@ -153,7 +149,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                 y: 0.70,
                 tiltDegrees: 12,
               ),
-
               _buildResponsiveStar(
                 'assets/images/objects/lumi/angry.png',
                 baseElementSize,
@@ -164,7 +159,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                 tiltDegrees: -5,
               ),
 
-              // UI Element: Exit Button
+              // 3. UI Element: Exit Button
               SafeArea(
                 child: Align(
                   alignment: Alignment.topLeft,
@@ -178,6 +173,42 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                   ),
                 ),
               ),
+
+              // 4. Good Job Overlay (Renders on top of everything if activated)
+              if (_showGoodJobOverlay && _selectedStarPath != null)
+                Positioned.fill(
+                  child: GoodJobOverlay(
+                    // Pass the tapped emotion image to the overlay character!
+                    characterImage: _selectedStarPath!,
+                    closeButtonColor: Colors.orange,
+                    onNext: () async {
+                      await TownProgressService.instance.markLevelComplete(5);
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (context) => const LumiClassroomScreen(),
+                        ),
+                      );
+                    },
+                    onRestart: () {
+                      // Reset the selection so they can pick again
+                      setState(() {
+                        _selectedStarPath = null;
+                        _showGoodJobOverlay = false;
+                      });
+                    },
+                    onBack: () async {
+                      await TownProgressService.instance.markLevelComplete(5);
+                      if (mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => const LumiClassroomScreen(),
+                          ),
+                          (route) => route.isFirst,
+                        );
+                      }
+                    },
+                  ),
+                ),
             ],
           );
         },
@@ -195,13 +226,9 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
     required double y,
     required double tiltDegrees,
   }) {
-    // Determine if this specific star is the one the user selected
     final bool isSelected = _selectedStarPath == imagePath;
-
-    // If selected, double the size. Otherwise, use the base size.
     final double currentSize = isSelected ? baseSize * 2.2 : baseSize;
 
-    // If selected, move to the center (0.5, 0.5). Otherwise, use original coordinates.
     final double leftPosition = isSelected
         ? (totalWidth / 2) - (currentSize / 2)
         : (x * totalWidth) - (currentSize / 2);
@@ -210,10 +237,8 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
         ? (totalHeight / 2) - (currentSize / 2)
         : (y * totalHeight) - (currentSize / 2);
 
-    // AnimatedRotation uses "turns" (0.0 to 1.0) instead of radians.
     final double targetRotation = isSelected ? 0.0 : (tiltDegrees / 360.0);
 
-    // Fade out completely unselected stars
     final double baseOpacity = (_selectedStarPath == null || isSelected)
         ? 1.0
         : 0.0;
@@ -231,8 +256,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
         child: AnimatedBuilder(
           animation: _flickerAnimation,
           builder: (context, child) {
-            // If a star is selected, we force it to be totally solid (1.0).
-            // If no star is selected yet, we apply the flicker value.
             final double currentFlickerOpacity = (_selectedStarPath != null)
                 ? 1.0
                 : _flickerAnimation.value;
@@ -241,12 +264,22 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
           },
           child: GestureDetector(
             onTap: () {
-              // Only allow tapping if the audio is done playing
-              if (_isAudioFinished) {
+              // Lock tapping if audio isn't finished or overlay is already up
+              if (_isAudioFinished && !_showGoodJobOverlay) {
                 setState(() {
-                  // Toggle the selected state
                   _selectedStarPath = isSelected ? null : imagePath;
                 });
+
+                // Trigger GoodJobOverlay after the star finishes zooming to the center
+                if (!isSelected) {
+                  Future.delayed(const Duration(milliseconds: 1000), () {
+                    if (mounted && _selectedStarPath == imagePath) {
+                      setState(() {
+                        _showGoodJobOverlay = true;
+                      });
+                    }
+                  });
+                }
               }
             },
             child: AnimatedRotation(

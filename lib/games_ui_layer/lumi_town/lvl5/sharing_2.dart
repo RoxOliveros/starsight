@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
+import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -874,8 +877,13 @@ class _Sharing2State extends State<Sharing2> {
                       characterImage:
                           'assets/images/characters/dr.woo_smiling.png',
                       closeButtonColor: const Color(0xFF266589),
-                      onNext: () {
-                        // Add your navigation to the next level here
+                      onNext: () async {
+                        await TownProgressService.instance.markLevelComplete(5);
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => const EmotionStarsScreen(),
+                          ),
+                        );
                       },
                       onRestart: () {
                         setState(() {
@@ -891,7 +899,17 @@ class _Sharing2State extends State<Sharing2> {
                           _currentMood = 'normal';
                         });
                       },
-                      onBack: () => Navigator.of(context).maybePop(),
+                      onBack: () async {
+                        await TownProgressService.instance.markLevelComplete(5);
+                        if (mounted) {
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (_) => const LumiLevelScreen(),
+                            ),
+                            (route) => route.isFirst,
+                          );
+                        }
+                      },
                     ),
                 ],
               ),

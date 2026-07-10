@@ -1,18 +1,18 @@
 import 'dart:math' as math;
 import 'package:StarSight/games_ui_layer/lumi_town/dr.woo_reaction.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl7/respect_3.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl7/respect_6.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-class Respect2Screen extends StatefulWidget {
-  const Respect2Screen({Key? key}) : super(key: key);
+class Respect5Screen extends StatefulWidget {
+  const Respect5Screen({Key? key}) : super(key: key);
 
   @override
-  State<Respect2Screen> createState() => _Respect2ScreenState();
+  State<Respect5Screen> createState() => _Respect5ScreenState();
 }
 
-class _Respect2ScreenState extends State<Respect2Screen>
+class _Respect5ScreenState extends State<Respect5Screen>
     with TickerProviderStateMixin, DrWooReactionMixin {
   late final AudioPlayer _audioPlayer;
   bool _showButtons = false;
@@ -75,7 +75,7 @@ class _Respect2ScreenState extends State<Respect2Screen>
   Future<void> _playSceneAudio() async {
     try {
       await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level7/respect_jack1.wav'),
+        AssetSource('audio/lumi_town/level7/respect_tofee1.wav'),
       );
 
       await _audioPlayer.onPlayerComplete.first;
@@ -160,12 +160,12 @@ class _Respect2ScreenState extends State<Respect2Screen>
 
               return Positioned(
                 right:
-                    (sw * 0.08) - dx, // Subtract dx because she is on the right
+                    (sw * 0.10) - dx, // Subtract dx because she is on the right
                 bottom: -(baseCharacterHeight * 0.15) + bounce,
                 child: SizedBox(
                   height: roxieHeight,
                   child: Image.asset(
-                    'assets/images/characters/jack_the_fox.png',
+                    'assets/images/characters/doby_smiling.png',
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -180,8 +180,25 @@ class _Respect2ScreenState extends State<Respect2Screen>
               left: 20,
               bottom: 40,
               child: GestureDetector(
-                onTap: () {
-                  showDrWooReaction(DrWooState.wrong);
+                onTap: () async {
+                  _audioPlayer.play(
+                    AssetSource('audio/lumi_town/level7/respect_tofee1_rc.wav'),
+                  );
+                  // 2. The Magic Fix: Wait for BOTH the reaction AND the audio to finish!
+                  await Future.wait([
+                    showDrWooReactionQuietly(DrWooState.correct),
+                    _audioPlayer.onPlayerComplete.first,
+                  ]);
+
+                  // 3. Ensure the screen is still active
+                  if (!mounted) return;
+
+                  // 4. Navigate safely
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (context) => const Respect6Screen(),
+                    ),
+                  );
                 },
                 child: Image.asset(
                   'assets/images/objects/lumi/thumbs_up.png',
@@ -196,25 +213,8 @@ class _Respect2ScreenState extends State<Respect2Screen>
               right: 20,
               bottom: 40,
               child: GestureDetector(
-                onTap: () async {
-                  _audioPlayer.play(
-                    AssetSource('audio/lumi_town/level7/respect_jack1_rc.wav'),
-                  );
-                  // 2. The Magic Fix: Wait for BOTH the reaction AND the audio to finish!
-                  await Future.wait([
-                    showDrWooReactionQuietly(DrWooState.correct),
-                    _audioPlayer.onPlayerComplete.first,
-                  ]);
-
-                  // 3. Ensure the screen is still active
-                  if (!mounted) return;
-
-                  // 4. Navigate safely
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (context) => const Respect3Screen(),
-                    ),
-                  );
+                onTap: () {
+                  showDrWooReaction(DrWooState.wrong);
                 },
                 child: Image.asset(
                   'assets/images/objects/lumi/thumbs_down.png',

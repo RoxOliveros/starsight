@@ -1,18 +1,18 @@
 import 'dart:math' as math;
 import 'package:StarSight/games_ui_layer/lumi_town/dr.woo_reaction.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl7/respect_3.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl7/respect_5.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-class Respect2Screen extends StatefulWidget {
-  const Respect2Screen({Key? key}) : super(key: key);
+class Respect4Screen extends StatefulWidget {
+  const Respect4Screen({Key? key}) : super(key: key);
 
   @override
-  State<Respect2Screen> createState() => _Respect2ScreenState();
+  State<Respect4Screen> createState() => _Respect4ScreenState();
 }
 
-class _Respect2ScreenState extends State<Respect2Screen>
+class _Respect4ScreenState extends State<Respect4Screen>
     with TickerProviderStateMixin, DrWooReactionMixin {
   late final AudioPlayer _audioPlayer;
   bool _showButtons = false;
@@ -75,7 +75,7 @@ class _Respect2ScreenState extends State<Respect2Screen>
   Future<void> _playSceneAudio() async {
     try {
       await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level7/respect_jack1.wav'),
+        AssetSource('audio/lumi_town/level7/respect_kiki1.wav'),
       );
 
       await _audioPlayer.onPlayerComplete.first;
@@ -160,12 +160,12 @@ class _Respect2ScreenState extends State<Respect2Screen>
 
               return Positioned(
                 right:
-                    (sw * 0.08) - dx, // Subtract dx because she is on the right
+                    (sw * 0.10) - dx, // Subtract dx because she is on the right
                 bottom: -(baseCharacterHeight * 0.15) + bounce,
                 child: SizedBox(
                   height: roxieHeight,
                   child: Image.asset(
-                    'assets/images/characters/jack_the_fox.png',
+                    'assets/images/characters/kiki_the_cat.png',
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -198,7 +198,7 @@ class _Respect2ScreenState extends State<Respect2Screen>
               child: GestureDetector(
                 onTap: () async {
                   _audioPlayer.play(
-                    AssetSource('audio/lumi_town/level7/respect_jack1_rc.wav'),
+                    AssetSource('audio/lumi_town/level7/respect_kiki1_rc.wav'),
                   );
                   // 2. The Magic Fix: Wait for BOTH the reaction AND the audio to finish!
                   await Future.wait([
@@ -212,7 +212,7 @@ class _Respect2ScreenState extends State<Respect2Screen>
                   // 4. Navigate safely
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (context) => const Respect3Screen(),
+                      builder: (context) => const Respect5Screen(),
                     ),
                   );
                 },

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl5/sharing_1.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
@@ -34,8 +36,8 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
 
   void _listenToProgress() {
     _progressSub = TownProgressService.instance.streamUnlockedLevel().listen((
-        level,
-        ) async {
+      level,
+    ) async {
       if (!mounted) return;
 
       if (_isLoadingProgress) {
@@ -72,9 +74,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoadingProgress) {
-      return Scaffold(
-        body: LoadingScreen.lumiTown(),
-      );
+      return Scaffold(body: LoadingScreen.lumiTown());
     }
 
     return Scaffold(
@@ -255,6 +255,10 @@ class _LevelTile extends StatelessWidget {
         return CookingGameScreen();
       case 5:
         return Sharing1();
+      case 6:
+        return EmotionStarsScreen();
+      case 7:
+        return LumiClassroomScreen();
       default:
         return null;
     }
