@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/arctic_numberland/addition_rescue_bridge_game.dart';
 import '../../games_ui_layer/arctic_numberland/addition_subtraction_signboard.dart';
+import '../../games_ui_layer/arctic_numberland/aurora_catcher.dart';
 import '../../games_ui_layer/arctic_numberland/decorate_snowy_tree.dart';
 import '../../games_ui_layer/arctic_numberland/lvl8_three_introduction.dart';
 import '../../games_ui_layer/arctic_numberland/lvl9_four_introduction.dart';
@@ -259,7 +260,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
-                            if (_page < 2) setState(() => _page++);
+                            if (_page < 3) setState(() => _page++);
                           },
                           child: Opacity(
                             opacity: _page < 2 ? 1.0 : 0.3,
@@ -355,6 +356,8 @@ class _LevelTile extends StatelessWidget {
         return const SnowmanShapeHuntGame();
       case 24:
         return const DecorateSnowyTreeGame();
+      case 25:
+        return const AuroraCatcherGame();
       default:
         return null;
     }
