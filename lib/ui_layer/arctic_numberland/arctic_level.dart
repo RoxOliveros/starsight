@@ -18,6 +18,7 @@ import '../../games_ui_layer/arctic_numberland/number012_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/number012_counting.dart';
 import '../../games_ui_layer/arctic_numberland/number012_counttap.dart';
 import '../../games_ui_layer/arctic_numberland/number_introduction_screen.dart';
+import '../../games_ui_layer/arctic_numberland/penguin_line_walk.dart';
 import '../../games_ui_layer/arctic_numberland/shooting_star.dart';
 import '../../games_ui_layer/arctic_numberland/snowman_shape_hunt.dart';
 import '../../games_ui_layer/arctic_numberland/subtraction_compare_game.dart';
@@ -335,8 +336,9 @@ class _LevelTile extends StatelessWidget {
       //TODO: @Tin add 6-8 intro here and games
       case 12:
         return null;
+
       case 13:
-        return null;
+        return const PenguinLineWalkGame();
       case 14:
         return null;
       case 15:
@@ -365,7 +367,7 @@ class _LevelTile extends StatelessWidget {
       case 25:
         return const SnowmanShapeHuntGame();
 
-      //TODO: add shape game
+      //TODO: @Tin add shape game
       case 26:
         return null;
 
@@ -375,6 +377,11 @@ class _LevelTile extends StatelessWidget {
         return const AuroraCatcherGame();
       case 29:
         return const ShootingStarCountingGame();
+
+      //TODO: @Tin add an ending game for arctic
+      case 30:
+        return null;
+
       default:
         return null;
     }
