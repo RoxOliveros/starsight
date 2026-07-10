@@ -8,7 +8,7 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import 'goodjob_doma_prompt.dart';
-import 'lvl6_number012_counting.dart';
+import 'number012_counting.dart';
 
 enum _ScreenPhase { intro, miniGame }
 

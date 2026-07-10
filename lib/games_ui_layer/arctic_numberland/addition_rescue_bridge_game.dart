@@ -69,7 +69,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   bool _showWinDialog = false;
   int _rescuedCount = 0;
   bool _pupCrossing = false;
-  bool _pupWaitingVisible = true;
   bool _showEquation = true;
 
   late List<List<int>> _roundPool;
@@ -197,7 +196,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     _showEquation = true;
     _crossingIndex = null;
     _crossingMid = null;
-    _pupWaitingVisible = _rescuedCount < _totalRounds;
 
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
@@ -291,7 +289,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       _crossingStart = start;
       _crossingMid = mid;
       _crossingEnd = end;
-      _pupWaitingVisible = false;
     });
 
     await Future.delayed(const Duration(milliseconds: 2400));
@@ -946,7 +943,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
   // ── Weight tray ───────────────────────────────────────────────────────────
   Widget _buildWeightTray(double h) {
-    final chipSize = (h * 0.1).clamp(46.0, 72.0);
+    final chipSize = (h * 0.16).clamp(46.0, 72.0);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),

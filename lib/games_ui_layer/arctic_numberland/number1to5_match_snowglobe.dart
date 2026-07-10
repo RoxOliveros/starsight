@@ -6,6 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import 'addition_rescue_bridge_game.dart';
 import 'goodjob_doma_prompt.dart';
 
 class Number1to5MatchSnowglobesScreen extends StatefulWidget {
@@ -24,10 +25,8 @@ class _Number1to5MatchSnowglobesScreenState
   static const int _globeCount = 3;
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _snowglobeAsset =
-      'assets/images/objects/arctic/empty_snowglobe.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _snowglobeAsset = 'assets/images/objects/arctic/empty_snowglobe.png';
 
   // Objects that can appear inside snowglobes
   static const List<String> _insideObjects = [
@@ -526,7 +525,7 @@ class _Number1to5MatchSnowglobesScreenState
               children: [
                 Image.asset(
                   'assets/fonts/game_numbers/$_targetNumber.png',
-                  height: (h * 0.24).clamp(40.0, 70.0),
+                  height: (h * 0.30),
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Text(
                     '$_targetNumber',
@@ -679,7 +678,6 @@ class _Number1to5MatchSnowglobesScreenState
   }
 
   // Objects arranged in a neat grid/row inside the globe
-// Objects arranged in a neat grid/row inside the globe
   Widget _buildObjectsInsideGlobe(int count, String objectAsset, double size) {
     Widget buildItem() {
       return Padding(
@@ -767,7 +765,8 @@ class _Number1to5MatchSnowglobesScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: @tin navigate to next screen
+        //TODO: @Tin navigation
+        // Navigator.pop(context, const ());
       },
       onRestart: () {
         Navigator.pop(context, const Number1to5MatchSnowglobesScreen());

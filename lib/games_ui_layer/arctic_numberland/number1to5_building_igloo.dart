@@ -7,7 +7,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'goodjob_doma_prompt.dart';
-import 'lvl17_0to5_match_snowglobe.dart';
+import 'number1to5_match_snowglobe.dart';
 
 class Number0to5FillIglooScreen extends StatefulWidget {
   const Number0to5FillIglooScreen({super.key});
@@ -23,14 +23,11 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
   static const int _totalRounds = 5;
   static const int _maxNumber = 5;
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _iceAsset = 'assets/images/objects/arctic/ice_1.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level19/intro.wav';
-  static const String _audioBuild =
-      'assets/audio/arctic_numberland/level19/build.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level19/intro.wav';
+  static const String _audioBuild = 'assets/audio/arctic_numberland/level19/build.wav';
   static const String _audioComplete = 'assets/audio/sound_effects/shine.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -42,7 +39,6 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
   late List<bool> _slotHighlighted; // slot highlight when dragging over
   late List<_IceBlockData> _sourceBlocks; // blocks in the pile
   late List<bool> _blockPlaced; // which source blocks have been placed
-  bool _zeroRoundTriggered = false;
 
   int _placedCount = 0;
   bool _roundComplete = false;
@@ -203,7 +199,6 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
       _roundPool = List.generate(_maxNumber, (i) => i + 1)..shuffle();
     }
 
-    _zeroRoundTriggered = false;
 
     _targetCount = _roundPool.removeLast();
 
@@ -675,8 +670,8 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
       duration: const Duration(milliseconds: 150),
       opacity: isDragging ? 0.3 : opacity,
       child: Container(
-        width: size,
-        height: size,
+        width: size + 3,
+        height: size + 3,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           boxShadow: elevated
@@ -699,7 +694,7 @@ class _Number0to5FillIglooScreenState extends State<Number0to5FillIglooScreen>
           borderRadius: BorderRadius.circular(10),
           child: Image.asset(
             _iceAsset,
-            fit: BoxFit.cover,
+            fit: BoxFit.fitWidth,
             errorBuilder: (_, __, ___) => Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(

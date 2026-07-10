@@ -1,7 +1,122 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+
+/// Default praise clip played on a successful trace, reused across numbers
+/// so most callers don't need to pass their own.
+const String kDefaultTracingSuccessAudio =
+    'assets/audio/arctic_numberland/mahusay.wav';
+
+/// Candy-cane cursor asset that follows the child's finger while tracing.
+const String _kCaneAsset = 'assets/images/objects/arctic/candy_cane.png';
+
+const Map<int, List<List<Offset>>> kNumberStrokes = {
+  0: [
+    [
+      Offset(0.5, 0.2),
+      Offset(0.3, 0.3),
+      Offset(0.3, 0.7),
+      Offset(0.5, 0.8),
+      Offset(0.7, 0.7),
+      Offset(0.7, 0.3),
+      Offset(0.5, 0.2),
+    ],
+  ],
+  1: [
+    [Offset(0.35, 0.3), Offset(0.5, 0.2), Offset(0.5, 0.8)],
+  ],
+  2: [
+    [
+      Offset(0.3, 0.3),
+      Offset(0.35, 0.2),
+      Offset(0.55, 0.2),
+      Offset(0.7, 0.3),
+      Offset(0.7, 0.45),
+      Offset(0.3, 0.75),
+      Offset(0.3, 0.8),
+      Offset(0.7, 0.8),
+    ],
+  ],
+  3: [
+    [
+      Offset(0.32, 0.25),
+      Offset(0.5, 0.2),
+      Offset(0.68, 0.3),
+      Offset(0.55, 0.45),
+      Offset(0.4, 0.48),
+      Offset(0.55, 0.52),
+      Offset(0.68, 0.65),
+      Offset(0.55, 0.78),
+      Offset(0.35, 0.75),
+    ],
+  ],
+  4: [
+    [Offset(0.62, 0.2), Offset(0.3, 0.6), Offset(0.72, 0.6)],
+    [Offset(0.62, 0.2), Offset(0.62, 0.85)],
+  ],
+  5: [
+    [Offset(0.68, 0.2), Offset(0.35, 0.2), Offset(0.35, 0.48)],
+    [
+      Offset(0.35, 0.48),
+      Offset(0.55, 0.45),
+      Offset(0.7, 0.55),
+      Offset(0.7, 0.7),
+      Offset(0.55, 0.82),
+      Offset(0.35, 0.78),
+    ],
+  ],
+  6: [
+    [
+      Offset(0.62, 0.22),
+      Offset(0.42, 0.3),
+      Offset(0.32, 0.5),
+      Offset(0.32, 0.68),
+      Offset(0.45, 0.82),
+      Offset(0.62, 0.8),
+      Offset(0.7, 0.68),
+      Offset(0.62, 0.55),
+      Offset(0.45, 0.55),
+      Offset(0.35, 0.62),
+    ],
+  ],
+  7: [
+    [Offset(0.3, 0.22), Offset(0.7, 0.22)],
+    [Offset(0.7, 0.22), Offset(0.42, 0.82)],
+  ],
+  8: [
+    [
+      Offset(0.5, 0.5),
+      Offset(0.35, 0.42),
+      Offset(0.35, 0.28),
+      Offset(0.5, 0.2),
+      Offset(0.65, 0.28),
+      Offset(0.65, 0.42),
+      Offset(0.5, 0.5),
+    ],
+    [
+      Offset(0.5, 0.5),
+      Offset(0.35, 0.58),
+      Offset(0.35, 0.72),
+      Offset(0.5, 0.8),
+      Offset(0.65, 0.72),
+      Offset(0.65, 0.58),
+      Offset(0.5, 0.5),
+    ],
+  ],
+  9: [
+    [
+      Offset(0.62, 0.42),
+      Offset(0.62, 0.28),
+      Offset(0.48, 0.2),
+      Offset(0.35, 0.28),
+      Offset(0.35, 0.42),
+      Offset(0.48, 0.5),
+      Offset(0.62, 0.42),
+      Offset(0.6, 0.6),
+      Offset(0.5, 0.8),
+    ],
+  ],
+};
 
 class NumberTracingWidget extends StatefulWidget {
   final int number;
@@ -14,7 +129,7 @@ class NumberTracingWidget extends StatefulWidget {
     required this.number,
     required this.player,
     required this.onComplete,
-    required this.successAudio,
+    this.successAudio = kDefaultTracingSuccessAudio,
   });
 
   @override
@@ -22,19 +137,21 @@ class NumberTracingWidget extends StatefulWidget {
 }
 
 class _NumberTracingWidgetState extends State<NumberTracingWidget> {
-  final List<Offset> _tracedPoints = [];
+  List<List<Offset>> _denseStrokes = [];
+  int _currentStrokeIndex = 0;
+  int _currentPointIndex = 0;
   bool _tracingComplete = false;
-  Offset? _canePosition;
-  bool _pendingRebuild = false;
+  Offset? _canePosition; // local to the trace box
+
+  double _cachedW = -1;
+  double _cachedH = -1;
+  int _cachedNumber = -1;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final h = constraints.maxHeight;
-        return _buildTracingLayer(w, h);
-      },
+      builder: (context, constraints) =>
+          _buildTracingLayer(constraints.maxWidth, constraints.maxHeight),
     );
   }
 
@@ -46,18 +163,40 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
     final traceLeft = w / 2 - traceW / 2;
     final traceTop = h / 2 - traceH / 2 + 15;
 
+    // (Re)generate the dense guide path whenever the box size or the
+    // number changes -- e.g. rotating the device, or a new level loading
+    // this same widget instance.
+    if (_cachedW != traceW || _cachedH != traceH || _cachedNumber != widget.number) {
+      _cachedW = traceW;
+      _cachedH = traceH;
+      _cachedNumber = widget.number;
+      _denseStrokes = _buildDenseStrokes(
+        kNumberStrokes[widget.number] ?? kNumberStrokes[1]!,
+        traceW,
+        traceH,
+      );
+      _currentStrokeIndex = 0;
+      _currentPointIndex = 0;
+      _tracingComplete = false;
+    }
+
+    final totalPoints = _denseStrokes.fold<int>(0, (sum, s) => sum + s.length);
+    final donePoints = _denseStrokes
+            .take(_currentStrokeIndex)
+            .fold<int>(0, (sum, s) => sum + s.length) +
+        _currentPointIndex;
+    final progress = totalPoints == 0 ? 0.0 : donePoints / totalPoints;
+
     return Stack(
       children: [
-        // Progress bar
-        if (_tracedPoints.where((p) => p != const Offset(-1, -1)).length > 5)
+        if (donePoints > 5)
           Positioned(
             bottom: h * 0.06,
             left: w * 0.15,
             right: w * 0.15,
-            child: _buildProgressBar(),
+            child: _buildProgressBar(progress),
           ),
 
-        // Instruction banner
         Positioned(
           top: 0,
           left: 0,
@@ -65,19 +204,6 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
           child: Center(child: _buildBanner(h)),
         ),
 
-        // Tracing image
-        Positioned(
-          left: traceLeft,
-          top: traceTop,
-          width: traceW,
-          height: traceH,
-          child: Image.asset(
-            'assets/fonts/game_numbers/${widget.number}_tracing.png',
-            fit: BoxFit.contain,
-          ),
-        ),
-
-        // Gesture + paint layer
         Positioned(
           left: traceLeft,
           top: traceTop,
@@ -85,31 +211,15 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
           height: traceH,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onPanUpdate: (details) {
-              _tracedPoints.add(details.localPosition);
-              _canePosition = Offset(
-                traceLeft + details.localPosition.dx,
-                traceTop + details.localPosition.dy,
-              );
-              if (!_tracingComplete) _checkComplete(traceW, traceH);
-              if (!_pendingRebuild) {
-                _pendingRebuild = true;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) setState(() => _pendingRebuild = false);
-                });
-              }
-            },
-            onPanEnd: (_) {
-              setState(() {
-                _tracedPoints.add(const Offset(-1, -1));
-                _canePosition = null;
-              });
-            },
+            onPanUpdate: (details) => _onPanUpdate(details, traceW),
+            onPanEnd: (_) => setState(() => _canePosition = null),
             child: CustomPaint(
               size: Size(traceW, traceH),
-              painter: _TracePainter(
-                tracedPoints: _tracedPoints,
-                isComplete: _tracingComplete,
+              painter: _NumberGuidePainter(
+                denseStrokes: _denseStrokes,
+                currentStrokeIndex: _currentStrokeIndex,
+                currentPointIndex: _currentPointIndex,
+                complete: _tracingComplete,
               ),
             ),
           ),
@@ -118,14 +228,10 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         // Cane following finger
         if (_canePosition != null)
           Positioned(
-            left: _canePosition!.dx - caneSize * 0.15,
-            top: _canePosition!.dy - caneSize * 0.92,
+            left: traceLeft + _canePosition!.dx - caneSize * 0.15,
+            top: traceTop + _canePosition!.dy - caneSize * 0.92,
             child: IgnorePointer(
-              child: Image.asset(
-                'assets/images/objects/arctic/candy_cane.png',
-                width: caneSize,
-                fit: BoxFit.contain,
-              ),
+              child: Image.asset(_kCaneAsset, width: caneSize, fit: BoxFit.contain),
             ),
           ),
 
@@ -135,21 +241,86 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
             bottom: h * 0.08,
             left: w * 0.06,
             child: IgnorePointer(
-              child: Image.asset(
-                'assets/images/objects/arctic/candy_cane.png',
-                width: caneSize,
-                fit: BoxFit.contain,
-              ),
+              child: Image.asset(_kCaneAsset, width: caneSize, fit: BoxFit.contain),
             ),
           ),
       ],
     );
   }
 
-  Widget _buildProgressBar() {
-    final validCount = _tracedPoints
-        .where((p) => p != const Offset(-1, -1))
-        .length;
+  // ── Dense path generation ─────────────────────────────────────────────
+  List<List<Offset>> _buildDenseStrokes(
+    List<List<Offset>> fractionalStrokes,
+    double w,
+    double h,
+  ) {
+    final dense = <List<Offset>>[];
+    for (final stroke in fractionalStrokes) {
+      final points = <Offset>[];
+      for (int i = 0; i < stroke.length - 1; i++) {
+        final p1 = Offset(stroke[i].dx * w, stroke[i].dy * h);
+        final p2 = Offset(stroke[i + 1].dx * w, stroke[i + 1].dy * h);
+        final distance = (p2 - p1).distance;
+        final steps = (distance / 6.0).ceil().clamp(1, 999);
+        for (int j = 0; j <= steps; j++) {
+          points.add(Offset(
+            p1.dx + (p2.dx - p1.dx) * (j / steps),
+            p1.dy + (p2.dy - p1.dy) * (j / steps),
+          ));
+        }
+      }
+      dense.add(points);
+    }
+    return dense;
+  }
+
+  // ── Guided drag tracking ──────────────────────────────────────────────
+  void _onPanUpdate(DragUpdateDetails details, double traceW) {
+    if (_tracingComplete) return;
+    if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length) return;
+
+    final dragPos = details.localPosition;
+    final threshold = traceW * 0.14; // scales with box size across devices
+    final currentStroke = _denseStrokes[_currentStrokeIndex];
+
+    setState(() {
+      _canePosition = dragPos;
+      if (_currentPointIndex < currentStroke.length) {
+        final dist = (dragPos - currentStroke[_currentPointIndex]).distance;
+        if (dist < threshold) {
+          while (_currentPointIndex < currentStroke.length &&
+              (dragPos - currentStroke[_currentPointIndex]).distance < threshold) {
+            _currentPointIndex++;
+          }
+          if (_currentPointIndex >= currentStroke.length) {
+            _currentStrokeIndex++;
+            _currentPointIndex = 0;
+            if (_currentStrokeIndex >= _denseStrokes.length) {
+              _accept();
+            }
+          }
+        }
+      }
+    });
+  }
+
+  Future<void> _accept() async {
+    if (_tracingComplete) return;
+    setState(() {
+      _tracingComplete = true;
+      _canePosition = null;
+    });
+    try {
+      await widget.player.play(
+        AssetSource(widget.successAudio.replaceFirst('assets/', '')),
+      );
+    } catch (_) {}
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) widget.onComplete();
+  }
+
+  // ── UI bits ────────────────────────────────────────────────────────────
+  Widget _buildProgressBar(double progress) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(50),
       child: Container(
@@ -157,25 +328,19 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.25),
           borderRadius: BorderRadius.circular(50),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.5),
-            width: 1.5,
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
         ),
         child: Stack(
           children: [
             FractionallySizedBox(
-              widthFactor: (validCount / 20).clamp(0.0, 1.0),
+              widthFactor: progress.clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(50),
                   gradient: LinearGradient(
                     colors: _tracingComplete
                         ? [Colors.greenAccent, Colors.green]
-                        : [
-                            ArcticColorTheme.pictonblue,
-                            ArcticColorTheme.slateblue,
-                          ],
+                        : [ArcticColorTheme.pictonblue, ArcticColorTheme.slateblue],
                   ),
                 ),
               ),
@@ -207,307 +372,97 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         borderRadius: BorderRadius.circular(30),
         border: Border.all(color: Colors.white, width: 3),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Trace the number ${widget.number}!',
-            style: TextStyle(
-              fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.09).clamp(14.0, 22.0),
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
+      child: Text(
+        'Trace the number ${widget.number}!',
+        style: TextStyle(
+          fontFamily: ArcticAppTextStyles.fredoka,
+          fontSize: (h * 0.09).clamp(14.0, 22.0),
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
       ),
     );
   }
-
-  // ── Validation ─────────────────────────────────────────────────────────────
-  void _checkComplete(double traceW, double traceH) {
-    final valid = _tracedPoints
-        .where((p) => p != const Offset(-1, -1))
-        .toList();
-
-    if (valid.length < 8) return;
-
-    // Skip top/bottom start-end checks for closed-loop numbers
-    final isClosedLoop = widget.number == 0 || widget.number == 8;
-
-    if (!isClosedLoop) {
-      final ys = valid.map((p) => p.dy).toList();
-      final minY = ys.reduce(min);
-      final maxY = ys.reduce(max);
-
-      final minSpan = (widget.number == 4 || widget.number == 5) ? 0.40 : 0.55;
-      if ((maxY - minY) / traceH < minSpan) return;
-
-      final firstY = valid.take(5).map((p) => p.dy).reduce((a, b) => a + b) / 5;
-      if (firstY > traceH * 0.75) return;
-
-      if (widget.number != 4 && widget.number != 5) {
-        final lastY =
-            valid
-                .skip(valid.length - 5)
-                .map((p) => p.dy)
-                .reduce((a, b) => a + b) /
-            5;
-        if (lastY < traceH * 0.60) return;
-      }
-    }
-
-    if (!_numberSpecificCheck(valid, traceW, traceH)) return;
-
-    _accept();
-  }
-
-  bool _numberSpecificCheck(List<Offset> valid, double traceW, double traceH) {
-    switch (widget.number) {
-      case 0:
-      // Need substantially more points to confirm a real oval trace
-        if (valid.length < 20) return false;
-
-        final tl = valid
-            .where((p) => p.dy < traceH * 0.5 && p.dx < traceW * 0.5)
-            .length;
-        final tr = valid
-            .where((p) => p.dy < traceH * 0.5 && p.dx >= traceW * 0.5)
-            .length;
-        final bl = valid
-            .where((p) => p.dy >= traceH * 0.5 && p.dx < traceW * 0.5)
-            .length;
-        final br = valid
-            .where((p) => p.dy >= traceH * 0.5 && p.dx >= traceW * 0.5)
-            .length;
-
-        final ys = valid.map((p) => p.dy).toList();
-        final xs2 = valid.map((p) => p.dx).toList();
-        final ySpan = ys.reduce(max) - ys.reduce(min);
-        final xSpan = xs2.reduce(max) - xs2.reduce(min);
-
-        // All 4 quadrants need meaningful coverage
-        if (tl < 5 || tr < 5 || bl < 5 || br < 5) return false;
-        if (ySpan < traceH * 0.50) return false;
-        if (xSpan < traceW * 0.35) return false;
-
-        // Loop closure: start and end must be near each other
-        final firstPt = valid.first;
-        final lastPt = valid.last;
-        final closeDx = (firstPt.dx - lastPt.dx).abs();
-        final closeDy = (firstPt.dy - lastPt.dy).abs();
-        return closeDx < traceW * 0.30 && closeDy < traceH * 0.30;
-
-      case 1:
-        final xs = valid.map((p) => p.dx).toList()..sort();
-
-        // Drop the outermost 20% on each side to ignore hook/foot outliers
-        final trimCount = (xs.length * 0.20).round();
-        final trimmedXs = xs.sublist(trimCount, xs.length - trimCount);
-        final trimmedRange = trimmedXs.last - trimmedXs.first;
-        if (trimmedRange > traceW * 0.50) return false;
-
-        // Must be taller than it is wide (a 1 is always a tall stroke)
-        final ys = valid.map((p) => p.dy).toList();
-        final yRange = ys.reduce(max) - ys.reduce(min);
-        final xRange = xs.last - xs.first;
-        return yRange > xRange * 1.2;
-
-      case 2:
-        // Top curve: needs horizontal spread in upper half
-        final topPts = valid.where((p) => p.dy < traceH * 0.50).toList();
-        if (topPts.length < 3) return false;
-        final topXs = topPts.map((p) => p.dx).toList();
-        if ((topXs.reduce(max) - topXs.reduce(min)) < traceW * 0.30) {
-          return false;
-        }
-
-        // Bottom sweep: must be wide
-        final bottomPts = valid.where((p) => p.dy > traceH * 0.60).toList();
-        if (bottomPts.length < 4) return false;
-        final bxs = bottomPts.map((p) => p.dx).toList();
-        if ((bxs.reduce(max) - bxs.reduce(min)) < traceW * 0.45) return false;
-
-        // Stroke must end on the right side (the baseline goes left→right)
-        final lastPt = valid.last;
-        return lastPt.dx > traceW * 0.50;
-
-      case 3:
-        // Two bumps on the right side — x range biased right (most points > 30% x)
-        final rightPts = valid.where((p) => p.dx > traceW * 0.30).length;
-        if (rightPts / valid.length < 0.65) return false;
-        // Must have a middle notch — points near vertical center left of midpoint
-        final middlePts = valid
-            .where(
-              (p) =>
-                  p.dy > traceH * 0.40 &&
-                  p.dy < traceH * 0.60 &&
-                  p.dx < traceW * 0.55,
-            )
-            .length;
-        return middlePts >= 2;
-
-      case 4:
-        // 1) Left diagonal: points in upper-left area
-        final leftDiag = valid
-            .where((p) => p.dx < traceW * 0.55 && p.dy < traceH * 0.70)
-            .toList();
-        if (leftDiag.length < 3) return false;
-
-        // 2) Crossbar: spans across middle zone
-        final crossPts = valid
-            .where((p) => p.dy > traceH * 0.30 && p.dy < traceH * 0.75)
-            .toList();
-        if (crossPts.length < 4) return false;
-        final crossXs = crossPts.map((p) => p.dx).toList();
-        if ((crossXs.reduce(max) - crossXs.reduce(min)) < traceW * 0.38) {
-          return false;
-        }
-
-        // 3) Vertical stem: right side, goes reasonably far down
-        final stem = valid
-            .where((p) => p.dx > traceW * 0.40 && p.dy > traceH * 0.45)
-            .toList();
-        if (stem.length < 4) return false;
-        final stemYs = stem.map((p) => p.dy).toList();
-        if (stemYs.reduce(max) < traceH * 0.72) return false;
-
-        return true;
-
-      case 5:
-        // Top horizontal bar
-        final topPts = valid.where((p) => p.dy < traceH * 0.40).toList();
-        if (topPts.length < 2) return false;
-        final topXs = topPts.map((p) => p.dx).toList();
-        if ((topXs.reduce(max) - topXs.reduce(min)) < traceW * 0.20) {
-          return false;
-        }
-
-        // Bottom curve — right side coverage
-        final bottomPts = valid.where((p) => p.dy > traceH * 0.40).toList();
-        if (bottomPts.length < 3) return false;
-        final bxs = bottomPts.map((p) => p.dx).toList();
-        if (bxs.reduce(max) < traceW * 0.30) return false; // loosened from 0.45
-
-        // Left side of bottom curve must exist (the round belly of 5)
-        final bottomLeft = bottomPts.where((p) => p.dx < traceW * 0.50).length;
-        if (bottomLeft < 2) return false;
-
-        // Overall vertical span
-        final ys = valid.map((p) => p.dy).toList();
-        return (ys.reduce(max) - ys.reduce(min)) >
-            traceH * 0.35; // loosened from 0.45
-
-      case 6:
-        // Top curves left, then closes into a loop at bottom
-        // Bottom half must have points in all quadrants (the closed loop)
-        final bl = valid
-            .where((p) => p.dy > traceH * 0.50 && p.dx < traceW * 0.50)
-            .length;
-        final br = valid
-            .where((p) => p.dy > traceH * 0.50 && p.dx >= traceW * 0.50)
-            .length;
-        if (bl < 3 || br < 3) return false;
-        // Top must curve — has points left of center in upper half
-        final topLeft = valid
-            .where((p) => p.dy < traceH * 0.50 && p.dx < traceW * 0.55)
-            .length;
-        return topLeft >= 3;
-
-      case 7:
-        // Top horizontal sweep, then diagonal down-left
-        final topPts = valid.where((p) => p.dy < traceH * 0.25).toList();
-        if (topPts.length < 3) return false;
-        final topXs = topPts.map((p) => p.dx).toList();
-        if ((topXs.reduce(max) - topXs.reduce(min)) < traceW * 0.50) {
-          return false;
-        }
-        // End point should be lower-left area
-        final lastPt = valid.last;
-        return lastPt.dy > traceH * 0.70 && lastPt.dx < traceW * 0.60;
-
-      case 8:
-        // Points in all 4 quadrants (two loops)
-        final tl = valid
-            .where((p) => p.dy < traceH * 0.5 && p.dx < traceW * 0.5)
-            .length;
-        final tr = valid
-            .where((p) => p.dy < traceH * 0.5 && p.dx >= traceW * 0.5)
-            .length;
-        final bl = valid
-            .where((p) => p.dy >= traceH * 0.5 && p.dx < traceW * 0.5)
-            .length;
-        final br = valid
-            .where((p) => p.dy >= traceH * 0.5 && p.dx >= traceW * 0.5)
-            .length;
-        return tl >= 3 && tr >= 3 && bl >= 3 && br >= 3;
-
-      case 9:
-        // Top loop — all 4 quadrants in upper half
-        final tl = valid
-            .where((p) => p.dy < traceH * 0.55 && p.dx < traceW * 0.5)
-            .length;
-        final tr = valid
-            .where((p) => p.dy < traceH * 0.55 && p.dx >= traceW * 0.5)
-            .length;
-        if (tl < 3 || tr < 3) return false;
-        // Tail goes down on right side
-        final tail = valid
-            .where((p) => p.dy > traceH * 0.50 && p.dx > traceW * 0.40)
-            .length;
-        return tail >= 5;
-
-      default:
-        return true;
-    }
-  }
-
-  Future<void> _accept() async {
-    if (_tracingComplete) return;
-    setState(() => _tracingComplete = true);
-    try {
-      await widget.player.play(
-        AssetSource(widget.successAudio.replaceFirst('assets/', '')),
-      );
-    } catch (_) {}
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) widget.onComplete();
-  }
 }
 
-// ── Painter ───────────────────────────────────────────────────────────────────
-class _TracePainter extends CustomPainter {
-  final List<Offset> tracedPoints;
-  final bool isComplete;
+// ── Painter ────────────────────────────────────────────────────────────────
+class _NumberGuidePainter extends CustomPainter {
+  final List<List<Offset>> denseStrokes;
+  final int currentStrokeIndex;
+  final int currentPointIndex;
+  final bool complete;
 
-  _TracePainter({required this.tracedPoints, required this.isComplete});
+  _NumberGuidePainter({
+    required this.denseStrokes,
+    required this.currentStrokeIndex,
+    required this.currentPointIndex,
+    required this.complete,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (tracedPoints.length < 2) return;
-    final paint = Paint()
-      ..color = isComplete ? Colors.greenAccent : Colors.blueAccent
-      ..strokeWidth = size.width * 0.10
+    if (denseStrokes.isEmpty) return;
+
+    // Faint full-path guide underneath, so the child can see the whole
+    // shape before/while tracing it.
+    canvas.saveLayer(null, Paint()..color = Colors.white.withValues(alpha: 0.2));
+    final bgPaint = Paint()
+      ..color = Colors.grey.shade300
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = size.width * 0.18
       ..style = PaintingStyle.stroke;
-
-    final path = Path();
-    bool newStroke = true;
-    for (final p in tracedPoints) {
-      if (p == const Offset(-1, -1)) {
-        newStroke = true;
-      } else if (newStroke) {
-        path.moveTo(p.dx, p.dy);
-        newStroke = false;
-      } else {
+    for (final stroke in denseStrokes) {
+      if (stroke.isEmpty) continue;
+      final path = Path()..moveTo(stroke.first.dx, stroke.first.dy);
+      for (final p in stroke.skip(1)) {
         path.lineTo(p.dx, p.dy);
       }
+      canvas.drawPath(path, bgPaint);
     }
-    canvas.drawPath(path, paint);
+    canvas.restore();
+
+    // Filled-in progress + next-target indicator.
+    final fillPaint = Paint()
+      ..color = complete ? Colors.greenAccent : ArcticColorTheme.pictonblue
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = size.width * 0.15
+      ..style = PaintingStyle.stroke;
+
+    final guidePaint = Paint()
+      ..color = ArcticColorTheme.slateblue
+      ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < denseStrokes.length; i++) {
+      final stroke = denseStrokes[i];
+      if (stroke.isEmpty) continue;
+
+      if (i < currentStrokeIndex) {
+        final path = Path()..moveTo(stroke.first.dx, stroke.first.dy);
+        for (final p in stroke.skip(1)) {
+          path.lineTo(p.dx, p.dy);
+        }
+        canvas.drawPath(path, fillPaint);
+      } else if (i == currentStrokeIndex) {
+        if (currentPointIndex > 0) {
+          final path = Path()..moveTo(stroke.first.dx, stroke.first.dy);
+          for (int j = 1; j < currentPointIndex; j++) {
+            path.lineTo(stroke[j].dx, stroke[j].dy);
+          }
+          canvas.drawPath(path, fillPaint);
+        }
+        if (currentPointIndex < stroke.length) {
+          canvas.drawCircle(stroke[currentPointIndex], size.width * 0.09, guidePaint);
+        }
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(_TracePainter old) =>
-      old.tracedPoints != tracedPoints || old.isComplete != isComplete;
+  bool shouldRepaint(_NumberGuidePainter old) =>
+      old.denseStrokes != denseStrokes ||
+      old.currentStrokeIndex != currentStrokeIndex ||
+      old.currentPointIndex != currentPointIndex ||
+      old.complete != complete;
 }

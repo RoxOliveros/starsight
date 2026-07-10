@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
-import 'package:StarSight/games_ui_layer/arctic_numberland/lvl15_1to5_counting_trees.dart';
+import 'package:StarSight/games_ui_layer/arctic_numberland/number1to5_counting_trees.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';

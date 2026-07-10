@@ -7,7 +7,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'goodjob_doma_prompt.dart';
-import 'lvl8_three_introduction.dart';
+import 'number345_counting.dart';
+import 'number_introduction_screen.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
@@ -376,7 +377,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         width: cardSize,
         height: cardSize,
         decoration: BoxDecoration(
-          color: ArcticColorTheme.cadetblue,
+          color: ArcticColorTheme.cotton,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: ArcticColorTheme.slateblue, width: 3),
           boxShadow: [
@@ -559,7 +560,15 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, const NumberThreeIntroductionScreen());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NumberIntroductionScreen.forSequence(
+              [3, 4, 5],
+              nextScreen: const Number345CountingScreen(),
+            ),
+          ),
+        );
       },
       onRestart: () {
         Navigator.pop(context, const Number012TapCountScreen());

@@ -1,8 +1,11 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/ui_layer/arctic_numberland/arctic_level.dart';
 import 'package:StarSight/ui_layer/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+import 'games_ui_layer/arctic_numberland/number_introduction_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +23,6 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: SplashScreen());
+    return MaterialApp(debugShowCheckedModeBanner: false, home: ArcticLevelScreen());
   }
 }

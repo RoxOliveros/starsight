@@ -7,7 +7,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'goodjob_doma_prompt.dart';
-import 'lvl13_345_odd_one_out.dart';
+import 'number345_odd_one_out.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
