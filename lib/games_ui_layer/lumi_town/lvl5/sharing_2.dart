@@ -237,7 +237,13 @@ class _Sharing2State extends State<Sharing2> {
 
   // Called when the cancel button is tapped
   void _handleCancel() {
-    // 1. User canceled the 2nd Fox!
+    // 1. If it's NOT the 2nd Fox (index 5), playing the cancel button is wrong!
+    if (_charIndex != 5) {
+      _audioPlayer.play(AssetSource('audio/lumi_town/level5/cancel_wrong.wav'));
+      return; // Stop here! Do not reset items or trigger character retry.
+    }
+
+    // 2. User correctly canceled the 2nd Fox!
     if (_charIndex == 5) {
       setState(() {
         _secondFoxCanceled = true; // Mark as successfully bypassed
@@ -272,26 +278,6 @@ class _Sharing2State extends State<Sharing2> {
       });
       return; // Stop the standard retry logic
     }
-
-    // 2. Standard cancel logic for other characters
-    setState(() {
-      _readyForEntrance = false;
-      _currentMood = 'normal';
-
-      if (_hasGivenPancake) _pancakesLeft++;
-      if (_hasGivenWater) _waterLeft++;
-
-      _hasGivenPancake = false;
-      _hasGivenWater = false;
-    });
-
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      setState(() {
-        _readyForEntrance = true;
-        _retryCount++;
-      });
-    });
   }
 
   // Back-row character slot (dog / cat): positioned by horizontal fraction
@@ -673,14 +659,24 @@ class _Sharing2State extends State<Sharing2> {
             left: sw * 0.03,
             child: GestureDetector(
               onTap: () => Navigator.of(context).maybePop(),
-              child: Container(
+              child: Image.asset(
+                'assets/images/buttons/x_blue.png', // <-- Update this path to where you saved x_blue.png!
                 width: sw * 0.065,
-                height: sw * 0.065,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF266589),
-                  shape: BoxShape.circle,
+                fit: BoxFit.contain,
+                // Keeps the old made-up button as a safe fallback just in case the asset path is mistyped:
+                errorBuilder: (ctx, err, st) => Container(
+                  width: sw * 0.065,
+                  height: sw * 0.065,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF266589),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: sw * 0.04,
+                  ),
                 ),
-                child: Icon(Icons.close, color: Colors.white, size: sw * 0.04),
               ),
             ),
           ),

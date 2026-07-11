@@ -272,20 +272,30 @@ class _Sharing1State extends State<Sharing1> {
             ),
           ),
 
-          // ── 6. Close button ──────────────────────────────────────────
+          // ── 7. Close button (Top Left) ────────────────────────────────
           Positioned(
             top: sh * 0.05,
             left: sw * 0.03,
             child: GestureDetector(
               onTap: () => Navigator.of(context).maybePop(),
-              child: Container(
+              child: Image.asset(
+                'assets/images/buttons/x_blue.png', // <-- Update this path to where you saved x_blue.png!
                 width: sw * 0.065,
-                height: sw * 0.065,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF266589),
-                  shape: BoxShape.circle,
+                fit: BoxFit.contain,
+                // Keeps the old made-up button as a safe fallback just in case the asset path is mistyped:
+                errorBuilder: (ctx, err, st) => Container(
+                  width: sw * 0.065,
+                  height: sw * 0.065,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF266589),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: sw * 0.04,
+                  ),
                 ),
-                child: Icon(Icons.close, color: Colors.white, size: sw * 0.04),
               ),
             ),
           ),

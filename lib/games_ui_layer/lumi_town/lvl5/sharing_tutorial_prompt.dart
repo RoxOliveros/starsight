@@ -21,9 +21,14 @@ class SharingTutorialPrompt extends StatelessWidget {
       demoVisual: const _SharingDemoVisual(),
       hintText: 'If they come back, tap the Cancel button!',
       hintImagePath: 'assets/images/objects/lumi/cancel_btn.png',
+
+      hintDelay: const Duration(seconds: 3),
+
       // Plays as soon as the card appears, not after it's closed.
       audioAssetPath: 'audio/lumi_town/level5/sharing.wav',
       onClose: onClose,
+
+      autoCloseOnAudioComplete: true,
     );
   }
 }

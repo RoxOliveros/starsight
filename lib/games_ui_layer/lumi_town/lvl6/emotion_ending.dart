@@ -1,6 +1,7 @@
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
+import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -201,7 +202,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                       if (mounted) {
                         Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute(
-                            builder: (_) => const LumiClassroomScreen(),
+                            builder: (_) => const LumiLevelScreen(),
                           ),
                           (route) => route.isFirst,
                         );

@@ -40,6 +40,8 @@ class TutorialPromptCard extends StatefulWidget {
 
   final VoidCallback? onClose;
 
+  final bool autoCloseOnAudioComplete;
+
   const TutorialPromptCard({
     super.key,
     required this.title,
@@ -50,6 +52,7 @@ class TutorialPromptCard extends StatefulWidget {
     this.hintDelay = const Duration(seconds: 8),
     this.audioAssetPath,
     this.onClose,
+    this.autoCloseOnAudioComplete = false,
   }) : assert(
          (hintText == null) == (hintImagePath == null),
          'hintText and hintImagePath must be provided together',
@@ -64,6 +67,8 @@ class _TutorialPromptCardState extends State<TutorialPromptCard> {
   bool _showHint = false;
   Timer? _hintTimer;
 
+  StreamSubscription<void>? _audioCompleteSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +77,14 @@ class _TutorialPromptCardState extends State<TutorialPromptCard> {
     final audioPath = widget.audioAssetPath;
     if (audioPath != null) {
       _audioPlayer.play(AssetSource(audioPath));
+
+      if (widget.autoCloseOnAudioComplete && widget.onClose != null) {
+        _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
+          if (mounted) {
+            widget.onClose!(); // Auto-dismiss the tutorial when audio ends!
+          }
+        });
+      }
     }
 
     if (widget.hintText != null) {
@@ -87,6 +100,7 @@ class _TutorialPromptCardState extends State<TutorialPromptCard> {
 
   @override
   void dispose() {
+    _audioCompleteSubscription?.cancel();
     _hintTimer?.cancel();
     _audioPlayer.dispose();
     super.dispose();
