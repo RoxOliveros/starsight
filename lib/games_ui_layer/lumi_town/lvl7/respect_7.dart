@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:StarSight/games_ui_layer/lumi_town/dr.woo_reaction.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl7/respect_ending.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -180,11 +181,25 @@ class _Respect7ScreenState extends State<Respect7Screen>
               left: 20,
               bottom: 40,
               child: GestureDetector(
-                onTap: () {
+                onTap: () async {
                   _audioPlayer.play(
                     AssetSource('audio/lumi_town/level7/respect_doma1_rc.wav'),
                   );
-                  showDrWooReactionQuietly(DrWooState.correct);
+                  // 2. The Magic Fix: Wait for BOTH the reaction AND the audio to finish!
+                  await Future.wait([
+                    showDrWooReactionQuietly(DrWooState.correct),
+                    _audioPlayer.onPlayerComplete.first,
+                  ]);
+
+                  // 3. Ensure the screen is still active
+                  if (!mounted) return;
+
+                  // 4. Navigate safely
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (context) => const RespectEnding(),
+                    ),
+                  );
                 },
                 child: Image.asset(
                   'assets/images/objects/lumi/thumbs_up.png',
