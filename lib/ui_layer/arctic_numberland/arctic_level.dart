@@ -8,6 +8,7 @@ import '../../games_ui_layer/arctic_numberland/addition_rescue_bridge_game.dart'
 import '../../games_ui_layer/arctic_numberland/addition_subtraction_signboard.dart';
 import '../../games_ui_layer/arctic_numberland/aurora_catcher.dart';
 import '../../games_ui_layer/arctic_numberland/decorate_snowy_tree.dart';
+import '../../games_ui_layer/arctic_numberland/build_snowman.dart';
 import '../../games_ui_layer/arctic_numberland/igloo_peekaboo.dart';
 import '../../games_ui_layer/arctic_numberland/number345_counting.dart';
 import '../../games_ui_layer/arctic_numberland/number345_odd_one_out.dart';
@@ -19,6 +20,7 @@ import '../../games_ui_layer/arctic_numberland/number012_recognition.dart';
 import '../../games_ui_layer/arctic_numberland/number012_counting.dart';
 import '../../games_ui_layer/arctic_numberland/number012_counttap.dart';
 import '../../games_ui_layer/arctic_numberland/number_introduction_screen.dart';
+import '../../games_ui_layer/arctic_numberland/number_memory_match.dart';
 import '../../games_ui_layer/arctic_numberland/penguin_line_walk.dart';
 import '../../games_ui_layer/arctic_numberland/shooting_star.dart';
 import '../../games_ui_layer/arctic_numberland/snowman_shape_hunt.dart';
@@ -334,23 +336,22 @@ class _LevelTile extends StatelessWidget {
         return const Number1to5MatchSnowglobesScreen();
 
 
-      //TODO: @Tin add 6-8 intro here and games
       case 12:
-        return null;
+        return null; //TODO: @Tin add 6-8 intro here
 
       case 13:
         return const PenguinLineWalkGame();
       case 14:
         return const IglooPeekabooGame();
       case 15:
-        return null;
+        return const BuildSnowmanGame();
 
       //TODO: @Tin add 9-10 intro here and games
       case 16:
         return null;
 
       case 17:
-        return null;
+        return const NumberMemoryMatchGame();
       case 18:
         return null;
       case 19:
