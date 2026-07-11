@@ -29,7 +29,7 @@ class _RespectEndingState extends State<RespectEnding> {
     'fox': 'assets/images/characters/jack_smiling.png',
     'penguin': 'assets/images/characters/doma_smiling.png',
     'owl': 'assets/images/characters/dr.woo_smiling.png',
-    'dog': 'assets/images/characters/doby_smiling.png',
+    'dog': 'assets/images/characters/tofi_smiling.png',
     'bear': 'assets/images/characters/little_bear_uniform.png',
   };
 

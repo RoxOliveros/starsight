@@ -52,7 +52,7 @@ class _Sharing2State extends State<Sharing2> {
     'fox': 'assets/images/characters/jack_the_fox.png',
     'penguin': 'assets/images/characters/doma_the_penguin2.png',
     'owl': 'assets/images/characters/dr.woo_the_owl.png',
-    'dog': 'assets/images/characters/doby_the_dog.png',
+    'dog': 'assets/images/characters/tofi_the_dog.png',
   };
 
   static const Map<String, String> charactersSmiling = {
@@ -61,7 +61,7 @@ class _Sharing2State extends State<Sharing2> {
     'fox': 'assets/images/characters/jack_smiling.png',
     'penguin': 'assets/images/characters/doma_smiling.png',
     'owl': 'assets/images/characters/dr.woo_smiling.png',
-    'dog': 'assets/images/characters/doby_smiling.png',
+    'dog': 'assets/images/characters/tofi_smiling.png',
   };
 
   static const Map<String, String> characterVoiceovers = {

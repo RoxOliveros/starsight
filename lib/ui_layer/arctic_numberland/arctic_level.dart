@@ -9,6 +9,7 @@ import '../../games_ui_layer/arctic_numberland/addition_subtraction_signboard.da
 import '../../games_ui_layer/arctic_numberland/aurora_catcher.dart';
 import '../../games_ui_layer/arctic_numberland/decorate_snowy_tree.dart';
 import '../../games_ui_layer/arctic_numberland/build_snowman.dart';
+import '../../games_ui_layer/arctic_numberland/iceberg_tip.dart';
 import '../../games_ui_layer/arctic_numberland/igloo_peekaboo.dart';
 import '../../games_ui_layer/arctic_numberland/number345_counting.dart';
 import '../../games_ui_layer/arctic_numberland/number345_odd_one_out.dart';
@@ -353,7 +354,7 @@ class _LevelTile extends StatelessWidget {
       case 17:
         return const NumberMemoryMatchGame();
       case 18:
-        return null;
+        return const IcebergTipGame();
       case 19:
         return null;
 

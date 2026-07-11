@@ -38,7 +38,7 @@ class LoadingScreen extends StatefulWidget {
   // ── 1. Alphabet Forest ─────────────────────────────────────────────────
   factory LoadingScreen.alphabetForest() {
     return const LoadingScreen(
-      imagePath: 'assets/animations/characters/doby_reading.webp',
+      imagePath: 'assets/animations/characters/tofi_reading.webp',
       dotColor: Color(0xFF3B873B), // green
     );
   }

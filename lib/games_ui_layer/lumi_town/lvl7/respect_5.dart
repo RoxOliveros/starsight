@@ -165,7 +165,7 @@ class _Respect5ScreenState extends State<Respect5Screen>
                 child: SizedBox(
                   height: roxieHeight,
                   child: Image.asset(
-                    'assets/images/characters/doby_smiling.png',
+                    'assets/images/characters/tofi_smiling.png',
                     fit: BoxFit.contain,
                   ),
                 ),
