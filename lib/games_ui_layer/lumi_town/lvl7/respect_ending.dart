@@ -49,10 +49,12 @@ class _RespectEndingState extends State<RespectEnding> {
 
   void _startEndingSequence() {
     // Optional: Play a success narration audio here if you have one for Respect
-    // _audioPlayer.play(AssetSource('audio/lumi_town/respect_success.wav'));
+    _audioPlayer.play(
+      AssetSource('audio/lumi_town/level7/respect_success.wav'),
+    );
 
-    // Wait 4 seconds so the player can admire the group photo, then show the overlay
-    Future.delayed(const Duration(seconds: 4), () {
+    // Wait 20 seconds so the player can admire the group photo, then show the overlay
+    Future.delayed(const Duration(seconds: 20), () {
       if (mounted) {
         setState(() {
           _showGoodJobOverlay = true;
