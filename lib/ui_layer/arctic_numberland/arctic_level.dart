@@ -23,6 +23,7 @@ import '../../games_ui_layer/arctic_numberland/number012_counttap.dart';
 import '../../games_ui_layer/arctic_numberland/number_introduction_screen.dart';
 import '../../games_ui_layer/arctic_numberland/number_memory_match.dart';
 import '../../games_ui_layer/arctic_numberland/penguin_line_walk.dart';
+import '../../games_ui_layer/arctic_numberland/sled_shape_sort.dart';
 import '../../games_ui_layer/arctic_numberland/shooting_star.dart';
 import '../../games_ui_layer/arctic_numberland/snowglobe_shake_count.dart';
 import '../../games_ui_layer/arctic_numberland/snowman_shape_hunt.dart';
@@ -263,7 +264,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
                             if (_page < 3) setState(() => _page++);
                           },
                           child: Opacity(
-                            opacity: _page < 2 ? 1.0 : 0.3,
+                            opacity: _page < 3 ? 1.0 : 0.3,
                             child: Image.asset(
                               'assets/images/arrows/bttn_arctic_arrow_right.png',
                               width: 70,
@@ -337,9 +338,9 @@ class _LevelTile extends StatelessWidget {
       case 11:
         return const Number1to5MatchSnowglobesScreen();
 
-
+      //TODO: @Tin add 6-8 intro here
       case 12:
-        return null; //TODO: @Tin add 6-8 intro here
+        return null;
 
       case 13:
         return const PenguinLineWalkGame();
@@ -348,7 +349,7 @@ class _LevelTile extends StatelessWidget {
       case 15:
         return const BuildSnowmanGame();
 
-      //TODO: @Tin add 9-10 intro here and games
+      //TODO: @Tin add 9-10 intro here
       case 16:
         return null;
 
@@ -358,7 +359,6 @@ class _LevelTile extends StatelessWidget {
         return const IcebergTipGame();
       case 19:
         return const SnowglobeShakeGame();
-
       case 20:
         return const AdditionRescueBridgeGame();
       case 21:
@@ -371,11 +371,8 @@ class _LevelTile extends StatelessWidget {
         return const SignboardMathGame();
       case 25:
         return const SnowmanShapeHuntGame();
-
-      //TODO: @Tin add shape game
       case 26:
-        return null;
-
+        return const SledShapeSortGame();
       case 27:
         return const DecorateSnowyTreeGame();
       case 28:
@@ -394,6 +391,8 @@ class _LevelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (level > 30) return SizedBox(width: size, height: size);
+
     final bool isLocked = level > unlockedLevel;
 
     if (isLocked) {

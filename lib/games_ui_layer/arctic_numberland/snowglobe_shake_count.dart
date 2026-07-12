@@ -48,9 +48,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/snowglobe_shake_intro.wav';
-  static const String _audioInstruction = '$_audioBase/snowglobe_shake_instruction.wav';
-  static const String _audioWin = '$_audioBase/snowglobe_shake_win.wav';
-
+  static const String _audioInstruction = '$_audioBase/snowglobe_shake_instuction.wav';
 
   static const List<Alignment> _ballPositions = [
     Alignment(-0.28, -0.55),
@@ -218,7 +216,6 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     setState(() => _solvedRounds++);
 
     if (_currentRound + 1 >= _totalRounds) {
-      await playVoice(_audioWin);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
       return;
@@ -241,9 +238,9 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     if (_resolving) return;
     _resolving = true;
     HapticFeedback.mediumImpact();
-    showDomaReaction(DomaState.correct);
     setState(() => _attachedTag = tag);
     await playSfx('$_audioBase/${_rounds[_currentRound].targetNumber}.wav');
+    showDomaReaction(DomaState.correct);
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     await _advanceRound();

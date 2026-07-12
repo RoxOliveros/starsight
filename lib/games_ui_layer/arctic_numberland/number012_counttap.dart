@@ -272,7 +272,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
           else
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.only(top: 20),
+                padding: const EdgeInsets.only(top: 5),
                 child: Column(
                   children: [
                     const SizedBox(height: 12),
@@ -294,26 +294,26 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
                             ),
 
                             decoration: BoxDecoration(
-                              color: ArcticColorTheme.pictonblue.withValues(
-                                alpha: 0.8,
-                              ),
-                              borderRadius: BorderRadius.circular(30),
+                              color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(32),
                               border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
+
                             child: Text(
                               'Tap and count the number of object/s needed',
                               style: TextStyle(
                                 fontFamily: ArcticAppTextStyles.fredoka,
-                                fontSize: 24,
+                                fontSize: 20,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
-                                shadows: const [
-                                  Shadow(
-                                    color: Colors.black38,
-                                    blurRadius: 6,
-                                    offset: Offset(0, 3),
-                                  ),
-                                ],
+                                shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
                               ),
                             ),
                           ),
@@ -582,7 +582,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   Widget _buildIntroContent() {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.only(top: 20),
+        padding: const EdgeInsets.only(top: 5),
         child: Stack(
           children: [
             Positioned(top: 8, left: 12, child: ArcticBackButton()),

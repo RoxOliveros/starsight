@@ -147,14 +147,12 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
             else
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 20),
+                  padding: const EdgeInsets.only(top: 5),
                   child: Column(
                     children: [
-                      const SizedBox(height: 12),
-
                       // --- HEADER ---
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
@@ -163,25 +161,24 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                               child: ArcticBackButton(),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 8,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8,),
                               decoration: BoxDecoration(
-                                color: ArcticColorTheme.pictonblue.withValues(
-                                  alpha: 0.8,
-                                ),
-                                borderRadius: BorderRadius.circular(30),
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 3,
-                                ),
+                                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
+                                borderRadius: BorderRadius.circular(32),
+                                border: Border.all(color: Colors.white, width: 3),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
                               child: Text(
                                 'Tap the number you see!',
                                 style: TextStyle(
                                   fontFamily: ArcticAppTextStyles.fredoka,
-                                  fontSize: 24,
+                                  fontSize: 20,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white,
                                   shadows: [
@@ -369,13 +366,14 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   Widget _buildIntroContent() {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.only(top: 20),
+        padding: const EdgeInsets.only(top: 5),
         child: Stack(
           children: [
             Positioned(top: 8, left: 12, child: ArcticBackButton()),
             Positioned.fill(
               top: 50,
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Expanded(
                     child: Center(

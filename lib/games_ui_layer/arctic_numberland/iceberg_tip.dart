@@ -149,8 +149,8 @@ class _IcebergTipGameState extends State<IcebergTipGame>
 
     if (index == correctIndex) {
       HapticFeedback.mediumImpact();
-      showDomaReaction(DomaState.correct);
       await playSfx('$_audioBase/${max(_numberA, _numberB)}.wav');
+      showDomaReaction(DomaState.correct);
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
       await _onRoundComplete();

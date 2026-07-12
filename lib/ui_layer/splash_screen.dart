@@ -1,5 +1,6 @@
 import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:StarSight/business_layer/database_service.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
@@ -50,6 +51,7 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
+    OrientationService.setPortrait();
     _logoController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
