@@ -7,13 +7,16 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'number012_counting.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
 class Number012RecognitionScreen extends StatefulWidget {
-  const Number012RecognitionScreen({super.key});
+  final int level;
+
+  const Number012RecognitionScreen({super.key, required this.level});
 
   @override
   State<Number012RecognitionScreen> createState() =>
@@ -21,7 +24,11 @@ class Number012RecognitionScreen extends StatefulWidget {
 }
 
 class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
-    with TickerProviderStateMixin, GameLoadingMixin {
+    with TickerProviderStateMixin, GameLoadingMixin, DomaReactionMixin {
+
+  @override
+  AudioPlayer get domaPlayer => _player;
+
   late int _correctNumber;
   late List<int> _choices;
   int? _tappedIndex;
@@ -73,7 +80,8 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
     if (_choices[index] == _correctNumber) {
       setState(() => _tappedIndex = index);
-      _playAudio('assets/audio/arctic_numberland/$_correctNumber.wav');
+      await _playAudio('assets/audio/arctic_numberland/$_correctNumber.wav');
+      showDomaReaction(DomaState.correct);
       await Future.delayed(const Duration(milliseconds: 900));
       if (_round >= _totalRounds) {
         await ArcticProgressService.instance.markLevelComplete(5);
@@ -86,7 +94,8 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
       }
     } else {
       setState(() => _tappedIndex = index);
-      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 600));
       setState(() => _tappedIndex = null);
     }
@@ -114,11 +123,8 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
     }
   }
 
-  // Unselected → pictonblue | correct → green | wrong tap → red
   Color _choiceColor(int index) {
     if (_tappedIndex == null) return ArcticColorTheme.pictonblue;
-    if (_choices[index] == _correctNumber) return Colors.green;
-    if (_tappedIndex == index) return Colors.red;
     return ArcticColorTheme.pictonblue;
   }
 
@@ -152,13 +158,17 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                     children: [
                       // --- HEADER ---
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
                             Align(
                               alignment: Alignment.centerLeft,
                               child: ArcticBackButton(),
+                            ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: ArcticLevelBadge(level: widget.level),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8,),
@@ -316,6 +326,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                   ),
                 ),
               ),
+            if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
           ],
         ),
@@ -352,10 +363,10 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, const Number012CountingObjectsScreen());
+        Navigator.pop(context, Number012CountingObjectsScreen(level: widget.level + 1));
       },
       onRestart: () {
-        Navigator.pop(context, const Number012RecognitionScreen());
+        Navigator.pop(context, Number012RecognitionScreen(level: widget.level));
       },
       onBack: () {
         Navigator.pop(context);
@@ -370,6 +381,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
         child: Stack(
           children: [
             Positioned(top: 8, left: 12, child: ArcticBackButton()),
+            Positioned(top: 8, right: 12, child: ArcticLevelBadge(level: widget.level)),
             Positioned.fill(
               top: 50,
               child: Row(

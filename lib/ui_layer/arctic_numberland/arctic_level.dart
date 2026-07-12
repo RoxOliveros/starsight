@@ -312,23 +312,23 @@ class _LevelTile extends StatelessWidget {
       case 1:
         return NumberIntroductionScreen.forSequence(
           [0, 1, 2],
-          nextScreen: const Number012RecognitionScreen(),
+          nextScreen: const Number012RecognitionScreen(level: 2),
         );
       case 2:
-        return const Number012RecognitionScreen();
+        return const Number012RecognitionScreen(level: 2);
       case 3:
-        return const Number012CountingObjectsScreen();
+        return const Number012CountingObjectsScreen(level: 3);
       case 4:
-        return const Number012TapCountScreen();
+        return const Number012TapCountScreen(level: 4);
       case 5:
         return NumberIntroductionScreen.forSequence(
           [3, 4, 5],
-          nextScreen: const Number345CountingObjectsScreen(),
+          nextScreen: const Number345CountingObjectsScreen(level: 6),
         );
       case 6:
-        return const Number345CountingObjectsScreen();
+        return const Number345CountingObjectsScreen(level: 6);
       case 7:
-        return const Number345OddOneOutScreen();
+        return const Number345OddOneOutScreen(level: 7);
       case 8:
         return const Number012345SequenceScreen();
       case 9:

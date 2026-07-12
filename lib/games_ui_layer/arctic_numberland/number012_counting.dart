@@ -5,13 +5,16 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'number012_counttap.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
 class Number012CountingObjectsScreen extends StatefulWidget {
-  const Number012CountingObjectsScreen({super.key});
+  final int level;
+
+  const Number012CountingObjectsScreen({super.key, required this.level});
 
   @override
   State<Number012CountingObjectsScreen> createState() =>
@@ -20,7 +23,10 @@ class Number012CountingObjectsScreen extends StatefulWidget {
 
 class _Number012CountingObjectsScreenState
     extends State<Number012CountingObjectsScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DomaReactionMixin {
+  @override
+  AudioPlayer get domaPlayer => _player;
+
   late int _correctCount;
   late List<int> _choices;
   late String _currentObject;
@@ -112,7 +118,8 @@ class _Number012CountingObjectsScreenState
 
     if (_choices[index] == _correctCount) {
       setState(() => _tappedIndex = index);
-      _playAudio('assets/audio/arctic_numberland/$_correctCount.wav');
+      await _playAudio('assets/audio/arctic_numberland/$_correctCount.wav');
+      showDomaReaction(DomaState.correct);
       await Future.delayed(const Duration(milliseconds: 900));
       if (_round >= _totalRounds) {
         await ArcticProgressService.instance.markLevelComplete(6);
@@ -126,7 +133,8 @@ class _Number012CountingObjectsScreenState
     } else {
       setState(() => _tappedIndex = index);
 
-      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 600));
       setState(() => _tappedIndex = null);
     }
@@ -201,6 +209,10 @@ class _Number012CountingObjectsScreenState
                             alignment: Alignment.centerLeft,
                             child: ArcticBackButton(),
                           ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: ArcticLevelBadge(level: widget.level),
+                          ),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
@@ -218,7 +230,6 @@ class _Number012CountingObjectsScreenState
                                 ),
                               ],
                             ),
-
                             child: Text(
                               'How many are there?',
                               style: TextStyle(
@@ -226,13 +237,7 @@ class _Number012CountingObjectsScreenState
                                 fontSize: 20,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black54,
-                                    blurRadius: 8,
-                                    offset: Offset(0, 2),
-                                  ),
-                                ],
+                                shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
                               ),
                             ),
                           ),
@@ -334,6 +339,7 @@ class _Number012CountingObjectsScreenState
                 ),
               ),
             ),
+          if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -393,10 +399,10 @@ class _Number012CountingObjectsScreenState
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, const Number012TapCountScreen());
+        Navigator.pop(context, Number012TapCountScreen(level: widget.level + 1));
       },
       onRestart: () {
-        Navigator.pop(context, const Number012CountingObjectsScreen());
+        Navigator.pop(context, Number012CountingObjectsScreen(level: widget.level));
       },
       onBack: () {
         Navigator.pop(context);
@@ -411,6 +417,7 @@ class _Number012CountingObjectsScreenState
         child: Stack(
           children: [
             Positioned(top: 8, left: 12, child: ArcticBackButton()),
+            Positioned(top: 8, right: 12, child: ArcticLevelBadge(level: widget.level)),
             Positioned.fill(
               top: 50,
               child: Row(

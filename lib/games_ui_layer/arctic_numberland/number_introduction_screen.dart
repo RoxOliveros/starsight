@@ -422,7 +422,7 @@
             ),
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.only(top: 20),
+                padding: const EdgeInsets.only(top: 5),
                 child: Stack(
                   children: [
                     Positioned(top: 0, left: 12, child: ArcticBackButton()),

@@ -6,6 +6,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'number345_counting.dart';
 import 'number_introduction_screen.dart';
@@ -13,7 +14,9 @@ import 'number_introduction_screen.dart';
 enum _ScreenPhase { intro, miniGame }
 
 class Number012TapCountScreen extends StatefulWidget {
-  const Number012TapCountScreen({super.key});
+  final int level;
+
+  const Number012TapCountScreen({super.key, required this.level});
 
   @override
   State<Number012TapCountScreen> createState() =>
@@ -21,7 +24,9 @@ class Number012TapCountScreen extends StatefulWidget {
 }
 
 class _Number012TapCountScreenState extends State<Number012TapCountScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DomaReactionMixin {
+  @override
+  AudioPlayer get domaPlayer => _player;
   // ── Constants ──────────────────────────────────────────────────────────────
 
   static const int _totalRounds = 5;
@@ -225,7 +230,8 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
     if (_selectedCount == _targetNumber) {
       // ✅ Correct
-      _playAudio('assets/audio/arctic_numberland/$_targetNumber.wav');
+      await _playAudio('assets/audio/arctic_numberland/$_targetNumber.wav');
+      showDomaReaction(DomaState.correct);
       _celebrationCtrl.forward(from: 0);
       _numberBounce.forward(from: 0);
 
@@ -243,7 +249,8 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       }
     } else {
 
-      _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      showDomaReaction(DomaState.wrong);
       _wrongShakeCtrl.forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 2000));
       _wrongShakeCtrl.reset();
@@ -287,12 +294,15 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
                             alignment: Alignment.centerLeft,
                             child: ArcticBackButton(),
                           ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: ArcticLevelBadge(level: widget.level),
+                          ),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 8,
                             ),
-
                             decoration: BoxDecoration(
                               color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
                               borderRadius: BorderRadius.circular(32),
@@ -305,7 +315,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
                                 ),
                               ],
                             ),
-
                             child: Text(
                               'Tap and count the number of object/s needed',
                               style: TextStyle(
@@ -359,6 +368,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
                 ),
               ),
             ),
+          if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -565,13 +575,13 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
           MaterialPageRoute(
             builder: (_) => NumberIntroductionScreen.forSequence(
               [3, 4, 5],
-              nextScreen: const Number345CountingObjectsScreen(),
+              nextScreen: Number345CountingObjectsScreen(level: widget.level + 1),
             ),
           ),
         );
       },
       onRestart: () {
-        Navigator.pop(context, const Number012TapCountScreen());
+        Navigator.pop(context, Number012TapCountScreen(level: widget.level));
       },
       onBack: () {
         Navigator.pop(context);
@@ -586,6 +596,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         child: Stack(
           children: [
             Positioned(top: 8, left: 12, child: ArcticBackButton()),
+            Positioned(top: 8, right: 12, child: ArcticLevelBadge(level: widget.level)),
             Positioned.fill(
               top: 50,
               child: Row(

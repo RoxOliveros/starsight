@@ -6,13 +6,16 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'number345_odd_one_out.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
 class Number345CountingObjectsScreen extends StatefulWidget {
-  const Number345CountingObjectsScreen({super.key});
+  final int level;
+
+  const Number345CountingObjectsScreen({super.key, required this.level});
 
   @override
   State<Number345CountingObjectsScreen> createState() =>
@@ -20,7 +23,10 @@ class Number345CountingObjectsScreen extends StatefulWidget {
 }
 
 class _Number345CountingObjectsScreenState extends State<Number345CountingObjectsScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DomaReactionMixin {
+  @override
+  AudioPlayer get domaPlayer => _player;
+
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const List<int> _numbers = [3, 4, 5];
@@ -201,6 +207,8 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
     if (isCorrect) {
       _correctPulseCtrl.forward(from: 0);
       await _playAudio('assets/audio/arctic_numberland/$_correctCount.wav');
+      showDomaReaction(DomaState.correct);
+
       await Future.delayed(const Duration(milliseconds: 900));
       if (!mounted) return;
 
@@ -216,6 +224,8 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
       }
     } else {
       await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      showDomaReaction(DomaState.wrong);
+
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       setState(() => _tappedIndex = null);
@@ -275,10 +285,11 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
           if (_screenPhase == _ScreenPhase.intro)
-            _buildIntroContent()
+            _buildIntroLayer()
           else
             SafeArea(child: _buildGameContent()),
 
+          if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -286,13 +297,14 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
   }
 
   // ── Intro ──────────────────────────────────────────────────────────────────
-  Widget _buildIntroContent() {
+  Widget _buildIntroLayer() {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.only(top: 20),
+        padding: const EdgeInsets.only(top: 5),
         child: Stack(
           children: [
             Positioned(top: 8, left: 12, child: ArcticBackButton()),
+            Positioned(top: 8, right: 12, child: ArcticLevelBadge(level: widget.level)),
             Positioned.fill(
               top: 40,
               child: Row(
@@ -401,36 +413,43 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
 
         // ── HEADER ──────────────────────────────
         Padding(
-          padding: const EdgeInsets.only(top: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+              Align(
+                  alignment: Alignment.centerLeft,
+                  child: ArcticBackButton()
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ArcticLevelBadge(level: widget.level),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 8,
                 ),
-
                 decoration: BoxDecoration(
-                  color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(30),
+                  color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(32),
                   border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Text(
                   'How many are there?',
                   style: TextStyle(
                     fontFamily: ArcticAppTextStyles.fredoka,
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black54,
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
+                    shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
                   ),
                 ),
               ),
@@ -615,10 +634,10 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, const Number345OddOneOutScreen());
+        Navigator.pop(context, Number345OddOneOutScreen(level: widget.level));
       },
       onRestart: () {
-        Navigator.pop(context, const Number345CountingObjectsScreen());
+        Navigator.pop(context, Number345CountingObjectsScreen(level: widget.level));
       },
       onBack: () {
         Navigator.pop(context);

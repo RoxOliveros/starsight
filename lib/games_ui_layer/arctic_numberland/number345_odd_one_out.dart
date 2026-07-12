@@ -6,11 +6,14 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'number1to5_sequence.dart';
 
 class Number345OddOneOutScreen extends StatefulWidget {
-  const Number345OddOneOutScreen({super.key});
+  final int level;
+
+  const Number345OddOneOutScreen({super.key,required this.level});
 
   @override
   State<Number345OddOneOutScreen> createState() =>
@@ -18,17 +21,18 @@ class Number345OddOneOutScreen extends StatefulWidget {
 }
 
 class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DomaReactionMixin {
+  @override
+  AudioPlayer get domaPlayer => _player;
+
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const List<int> _numbers = [3, 4, 5];
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level16/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level16/intro.wav';
 
   static const Map<int, String> _numberAudio = {
     3: 'assets/audio/arctic_numberland/level16/odd_three.wav',
@@ -214,6 +218,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       });
       _correctCtrl.forward(from: 0);
       await _playAudio('assets/audio/arctic_numberland/$_oddCount.wav');
+      showDomaReaction(DomaState.correct);
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 
@@ -229,6 +234,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       setState(() => _wrongTappedIndex = cardIndex);
       _wrongCtrlList[cardIndex].forward(from: 0);
       await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 200));
       if (mounted) setState(() => _wrongTappedIndex = -1);
     }
@@ -275,6 +281,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
             child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
           ),
 
+          if (!_introPlaying) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -287,7 +294,16 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       builder: (context, constraints) {
         final h = constraints.maxHeight;
 
-        return Center(child: _buildDoma(h));
+        return
+          SafeArea(child: Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Stack(
+                children: [
+                  Positioned(top: 8, left: 12, child: ArcticBackButton()),
+                  Positioned(top: 8, right: 12, child: ArcticLevelBadge(level: widget.level)),
+                  Center(child: _buildDoma(h))
+                ],
+              )));
       },
     );
   }
@@ -303,13 +319,17 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
           children: [
             // ── HEADER ─────────────────────────────
             Padding(
-              padding: const EdgeInsets.only(top: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
                     child: ArcticBackButton(),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ArcticLevelBadge(level: widget.level),
                   ),
                   Center(child: _buildInstructionBanner(h)),
                 ],
@@ -362,16 +382,10 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
                 'Which is NOT $word?',
                 style: TextStyle(
                   fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: (h * 0.08).clamp(16.0, 26.0),
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  shadows: const [
-                    Shadow(
-                      color: Color(0x55003366),
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
                 ),
               ),
               const SizedBox(width: 10),
@@ -390,14 +404,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              // Speaker hint
-              Image.asset(
-                'assets/images/icons/speaker.png',
-                height: (h * 0.25).clamp(18.0, 28.0),
-                width: (h * 0.25).clamp(18.0, 28.0),
-                fit: BoxFit.contain,
-              ),
             ],
           ),
         ),
@@ -407,15 +413,18 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
 
   // ── Cards ──────────────────────────────────────────────────────────────────
   Widget _buildCardsRow(double w, double h) {
-    final cardW = (w * 0.18).clamp(105.0, 155.0);
-    final cardH = (h * 0.52).clamp(150.0, 220.0);
+    final cardW = (w * 0.19);
+    final cardH = (h * 0.60);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
-        children: List.generate(4, (i) => _buildCard(i, cardW, cardH)),
+          children: List.generate(4, (i) => _buildCard(i, cardW, cardH))
+              .expand((card) => [card, const SizedBox(width: 10)])
+              .toList()
+            ..removeLast()
       ),
     );
   }
@@ -480,44 +489,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
                 child: Stack(
                   children: [
                     Center(child: _buildCardObjects(count, asset, cardW)),
-
-                    // ✓ check
-                    if (isCorrect)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: const BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.check_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-
-                    // ✗ wrong
-                    if (isWrong)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade400,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -549,9 +520,9 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   }
 
   double _objectSizeForCount(int count, double cardW) {
-    if (count <= 3) return (cardW * 0.30).clamp(30.0, 52.0);
-    if (count == 4) return (cardW * 0.26).clamp(26.0, 46.0);
-    return (cardW * 0.22).clamp(22.0, 40.0);
+    if (count <= 3) return (cardW * 0.33);
+    if (count == 4) return (cardW * 0.30);
+    return (cardW * 0.30);
   }
 
   // ── Doma ───────────────────────────────────────────────────────────────────
@@ -614,7 +585,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         Navigator.pop(context, const Number012345SequenceScreen());
       },
       onRestart: () {
-        Navigator.pop(context, const Number345OddOneOutScreen());
+        Navigator.pop(context, Number345OddOneOutScreen(level: widget.level));
       },
       onBack: () {
         Navigator.pop(context);
