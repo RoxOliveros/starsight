@@ -24,6 +24,7 @@ import '../../games_ui_layer/arctic_numberland/number_introduction_screen.dart';
 import '../../games_ui_layer/arctic_numberland/number_memory_match.dart';
 import '../../games_ui_layer/arctic_numberland/penguin_line_walk.dart';
 import '../../games_ui_layer/arctic_numberland/shooting_star.dart';
+import '../../games_ui_layer/arctic_numberland/snowglobe_shake_count.dart';
 import '../../games_ui_layer/arctic_numberland/snowman_shape_hunt.dart';
 import '../../games_ui_layer/arctic_numberland/subtraction_compare_game.dart';
 import '../../games_ui_layer/arctic_numberland/subtraction_melting_ice_game.dart';
@@ -356,7 +357,7 @@ class _LevelTile extends StatelessWidget {
       case 18:
         return const IcebergTipGame();
       case 19:
-        return null;
+        return const SnowglobeShakeGame();
 
       case 20:
         return const AdditionRescueBridgeGame();
