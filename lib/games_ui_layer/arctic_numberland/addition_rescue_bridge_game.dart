@@ -12,7 +12,9 @@ import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
 class AdditionRescueBridgeGame extends StatefulWidget {
-  const AdditionRescueBridgeGame({super.key});
+  final int level;
+
+  const AdditionRescueBridgeGame({super.key, required this.level});
 
   @override
   State<AdditionRescueBridgeGame> createState() => _AdditionRescueBridgeGameState();
@@ -400,12 +402,10 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                 errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
               ),
             ),
-            SafeArea(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
             if (!_introPlaying) buildDoma(context),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
           ],
@@ -417,53 +417,60 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   // ── Intro / story setup ──────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 4,
-            child: AnimatedBuilder(
-              animation: _domaFloatCtrl,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(
-                  0,
-                  Tween<double>(begin: -6, end: 6).evaluate(
-                    CurvedAnimation(
-                      parent: _domaFloatCtrl,
-                      curve: Curves.easeInOut,
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 4,
+                child: AnimatedBuilder(
+                  animation: _domaFloatCtrl,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(
+                      0,
+                      Tween<double>(begin: -6, end: 6).evaluate(
+                        CurvedAnimation(
+                          parent: _domaFloatCtrl,
+                          curve: Curves.easeInOut,
+                        ),
+                      ),
                     ),
+                    child: child,
+                  ),
+                  child: Image.asset(
+                    _characterImage,
+                    height: screenH * 0.7,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                    const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
-                child: child,
               ),
-              child: Image.asset(
-                _characterImage,
-                height: screenH * 0.7,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) =>
-                    const Text('🐧', style: TextStyle(fontSize: 70)),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 5,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(
-                  _babyFoxAsset,
-                  height: screenH * 0.4,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
-                  const Text('🦭', style: TextStyle(fontSize: 70)),
+              Expanded(
+                flex: 5,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      _babyFoxAsset,
+                      height: screenH * 0.4,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                      const Text('🦭', style: TextStyle(fontSize: 70)),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
+
   }
 
   // ── Main game layout ─────────────────────────────────────────────────────
@@ -479,13 +486,17 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
             Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
                   child: Stack(
-                    alignment: Alignment.center,
+                    alignment: Alignment.topCenter,
                     children: [
                       Align(
                         alignment: Alignment.centerLeft,
                         child: ArcticBackButton(),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ArcticLevelBadge(level: widget.level),
                       ),
                       Center(child: _buildInstructionBanner(h)),
                     ],
@@ -594,7 +605,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
             'Add up, then load the scale to match!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.07).clamp(14.0, 20.0),
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               shadows: const [
@@ -813,7 +824,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       onAcceptWithDetails: (details) => _onWeightDropped(details.data),
       builder: (context, candidateData, rejectedData) {
         return SizedBox(
-          width: size * 1.6,
+          width: size * 1.2,
           height: size * 0.8,
           child: _panLoad.isEmpty
               ? Container(

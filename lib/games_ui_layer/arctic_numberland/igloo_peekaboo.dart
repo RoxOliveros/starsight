@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -12,8 +11,6 @@ import 'arctic_audio_helper.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
-/// One igloo choice in a round: hides a baby penguin holding [quantity]
-/// snowballs behind its window.
 class _IglooOption {
   final String id;
   final int quantity;
@@ -26,11 +23,10 @@ class _RoundSpec {
   const _RoundSpec({required this.targetNumber, required this.options});
 }
 
-/// "Igloo Window Peekaboo" — Doma calls out a number, the child taps the
-/// igloo hiding the baby penguin with that many snowballs. Ramps from 2
-/// igloo choices up to 4 as numbers climb from 1 to 8.
 class IglooPeekabooGame extends StatefulWidget {
-  const IglooPeekabooGame({super.key});
+  final int level;
+
+  const IglooPeekabooGame({super.key, required this.level});
 
   @override
   State<IglooPeekabooGame> createState() => _IglooPeekabooGameState();
@@ -61,7 +57,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
 
   // Ramp: 2 choices for the first two rounds, 3 for the middle stretch,
   // 4 once numbers get bigger and there's more to compare.
-  static const List<int> _optionCounts = [2, 2, 3, 4, 4];
+  static const List<int> _optionCounts = [2, 2, 3, 3, 3];
   static const int _totalRounds = 5;
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -181,17 +177,20 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
     if (option.quantity == round.targetNumber) {
       _roundResolving = true;
       HapticFeedback.mediumImpact();
-      showDomaReaction(DomaState.correct);
+
       setState(() => _correctSpotId = option.id);
       _revealCtrl.forward(from: 0);
       await playSfx('$_audioBase/${option.quantity}.wav');
+      showDomaReaction(DomaState.correct);
 
       await Future.delayed(const Duration(milliseconds: 1200));
       if (!mounted) return;
       await _advanceRound();
     } else {
       HapticFeedback.heavyImpact();
+      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
+
       setState(() => _wrongSpotId = option.id);
       _shakeCtrl.forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 500));
@@ -247,12 +246,10 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
                 errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
               ),
             ),
-            SafeArea(
-              child: Padding(
+             Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
             if (!_introPlaying) buildDoma(context),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
           ],
@@ -264,57 +261,66 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
   // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 5,
-            child: AnimatedBuilder(
-              animation: _domaFloatCtrl,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(
-                  0,
-                  Tween<double>(begin: -6, end: 6).evaluate(
-                    CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
-                  ),
-                ),
-                child: child,
-              ),
-              child: Image.asset(
-                _characterImage,
-                height: screenH * 0.7,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 5,
-            child: SizedBox(
-              height: screenH * 0.7,
-              child: Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    bottom: screenH * 0.5,
-                    right: screenH * 0.5,
-                    child: _buildPeekaboo(screenH * 0.5),
-                  ),
-                  Image.asset(
-                    _iglooAsset,
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 5,
+                child: AnimatedBuilder(
+                  animation: _domaFloatCtrl,
+                  builder: (_, child) =>
+                      Transform.translate(
+                        offset: Offset(
+                          0,
+                          Tween<double>(begin: -6, end: 6).evaluate(
+                            CurvedAnimation(parent: _domaFloatCtrl,
+                                curve: Curves.easeInOut),
+                          ),
+                        ),
+                        child: child,
+                      ),
+                  child: Image.asset(
+                    _characterImage,
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🧊', style: TextStyle(fontSize: 90)),
+                    errorBuilder: (_, __, ___) =>
+                    const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
-
-                ],
+                ),
               ),
-            ),
+              Expanded(
+                flex: 5,
+                child: SizedBox(
+                  height: screenH * 0.7,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        bottom: screenH * 0.5,
+                        right: screenH * 0.5,
+                        child: _buildPeekaboo(screenH * 0.5),
+                      ),
+                      Image.asset(
+                        _iglooAsset,
+                        height: screenH * 0.7,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                        const Text('🧊', style: TextStyle(fontSize: 90)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        )
+      ],
     );
   }
 
@@ -330,11 +336,15 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
                 child: Stack(
-                  alignment: Alignment.center,
+                  alignment: Alignment.topCenter,
                   children: [
                     Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ArcticLevelBadge(level: widget.level),
+                    ),
                     Center(child: _buildPromptBanner(h)),
                   ],
                 ),
@@ -342,7 +352,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
               _buildTargetBadge(h * 0.22),
               Expanded(child: _buildIglooRow(w, h)),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
+                padding: const EdgeInsets.only(bottom: 15),
                 child: _buildProgressDots(),
               ),
             ],
@@ -375,11 +385,10 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
             'Find the igloo with this many snowballs!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.05).clamp(13.0, 18.0),
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
-            ),
+              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],            ),
           ),
         ),
       ),
@@ -440,7 +449,8 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
     final round = _rounds[_currentRound];
     final iglooSize = (h * 0.38);
 
-    return Center(
+    return Align(
+      alignment: const Alignment(0, -1.5), // move toward -1.0 to go higher
       child: Wrap(
         alignment: WrapAlignment.center,
         spacing: 15,

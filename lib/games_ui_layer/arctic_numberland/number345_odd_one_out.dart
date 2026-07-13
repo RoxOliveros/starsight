@@ -277,9 +277,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         children: [
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
-          SafeArea(
-            child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-          ),
+          _introPlaying ? _buildIntroLayer() : _buildGameContent(),
 
           if (!_introPlaying) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
@@ -295,15 +293,18 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         final h = constraints.maxHeight;
 
         return
-          SafeArea(child: Padding(
+          Padding(
               padding: const EdgeInsets.only(top: 5),
               child: Stack(
                 children: [
-                  Positioned(top: 8, left: 12, child: ArcticBackButton()),
-                  Positioned(top: 8, right: 12, child: ArcticLevelBadge(level: widget.level)),
-                  Center(child: _buildDoma(h))
+                  Positioned(top: 25, left: 20, child: ArcticBackButton()),
+                  Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+                  Center(
+                      child: _buildDoma(h)
+                  ),
                 ],
-              )));
+              )
+          );
       },
     );
   }
@@ -319,9 +320,9 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
           children: [
             // ── HEADER ─────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
               child: Stack(
-                alignment: Alignment.center,
+                alignment: Alignment.topCenter,
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
@@ -335,8 +336,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
                 ],
               ),
             ),
-
-            const SizedBox(height: 16),
 
             // ── 4 CARDS ROW ────────────────────────
             Expanded(
@@ -582,7 +581,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, const Number012345SequenceScreen());
+        Navigator.pop(context, Number012345SequenceScreen(level: widget.level + 1));
       },
       onRestart: () {
         Navigator.pop(context, Number345OddOneOutScreen(level: widget.level));

@@ -108,7 +108,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
           ),
 
           //back button
-          Positioned(top: 20, left: 20, child: ArcticBackButton()),
+          Positioned(top: 25, left: 20, child: ArcticBackButton()),
 
           // 🌿 Content
           Center(
@@ -330,55 +330,55 @@ class _LevelTile extends StatelessWidget {
       case 7:
         return const Number345OddOneOutScreen(level: 7);
       case 8:
-        return const Number012345SequenceScreen();
+        return const Number012345SequenceScreen(level: 8);
       case 9:
-        return const Number1to5CountingTreesScreen();
+        return const Number1to5CountingTreesScreen(level: 9);
       case 10:
-        return const Number1to5FillIglooScreen();
+        return const Number1to5FillIglooScreen(level: 10);
       case 11:
-        return const Number1to5MatchSnowglobesScreen();
+        return const Number1to5MatchSnowglobesScreen(level: 11);
 
       //TODO: @Tin add 6-8 intro here
       case 12:
         return null;
 
       case 13:
-        return const PenguinLineWalkGame();
+        return const PenguinLineWalkGame(level: 13);
       case 14:
-        return const IglooPeekabooGame();
+        return const IglooPeekabooGame(level: 14);
       case 15:
-        return const BuildSnowmanGame();
+        return const BuildSnowmanGame(level: 15);
 
       //TODO: @Tin add 9-10 intro here
       case 16:
         return null;
 
       case 17:
-        return const NumberMemoryMatchGame();
+        return const NumberMemoryMatchGame(level: 17);
       case 18:
-        return const IcebergTipGame();
+        return const IcebergTipGame(level: 18);
       case 19:
-        return const SnowglobeShakeGame();
+        return const SnowglobeShakeGame(level: 19);
       case 20:
-        return const AdditionRescueBridgeGame();
+        return const AdditionRescueBridgeGame(level: 20);
       case 21:
-        return const AdditionPackageDeliveryGame();
+        return const AdditionPackageDeliveryGame(level: 21);
       case 22:
-        return const SubtractionMeltingIceGame();
+        return const SubtractionMeltingIceGame(level: 22);
       case 23:
-        return const SubtractionCompareGame();
+        return const SubtractionCompareGame(level: 23);
       case 24:
-        return const SignboardMathGame();
+        return const SignboardMathGame(level: 24);
       case 25:
-        return const SnowmanShapeHuntGame();
+        return const SnowmanShapeHuntGame(level: 25);
       case 26:
-        return const SledShapeSortGame();
+        return const SledShapeSortGame(level: 26);
       case 27:
-        return const DecorateSnowyTreeGame();
+        return const DecorateSnowyTreeGame(level: 27);
       case 28:
-        return const AuroraCatcherGame();
+        return const AuroraCatcherGame(level: 28);
       case 29:
-        return const ShootingStarCountingGame();
+        return const ShootingStarCountingGame(level: 29);
 
       //TODO: @Tin add an ending game for arctic
       case 30:

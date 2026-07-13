@@ -149,18 +149,17 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
               ),
             ),
             if (_screenPhase == _ScreenPhase.intro)
-              _buildIntroContent()
+              _buildIntroLayer()
             else
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 5),
+              Padding(
+                  padding: const EdgeInsets.only(top: 5, bottom: 10),
                   child: Column(
                     children: [
                       // --- HEADER ---
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
                         child: Stack(
-                          alignment: Alignment.center,
+                          alignment: Alignment.topCenter,
                           children: [
                             Align(
                               alignment: Alignment.centerLeft,
@@ -325,7 +324,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                     ],
                   ),
                 ),
-              ),
+
             if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
           ],
@@ -374,60 +373,61 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
     );
   }
 
-  Widget _buildIntroContent() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.only(top: 5),
-        child: Stack(
-          children: [
-            Positioned(top: 8, left: 12, child: ArcticBackButton()),
-            Positioned(top: 8, right: 12, child: ArcticLevelBadge(level: widget.level)),
-            Positioned.fill(
-              top: 50,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: Image.asset(
-                        'assets/images/characters/doma_the_penguin.png',
-                        height: MediaQuery.of(context).size.height * 0.65,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            const Text('🐧', style: TextStyle(fontSize: 60)),
-                      ),
+  Widget _buildIntroLayer() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 5),
+      child: Stack(
+        children: [
+          Positioned(top: 25, left: 20, child: ArcticBackButton()),
+          Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+          Positioned.fill(
+            top: 50,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      'assets/images/characters/doma_the_penguin.png',
+                      height: MediaQuery
+                          .of(context)
+                          .size
+                          .height * 0.65,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                      const Text('🐧', style: TextStyle(fontSize: 60)),
                     ),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: AnimatedBuilder(
-                        animation: _numberDanceCtrl,
-                        builder: (_, __) {
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(3, (i) {
-                              final angle =
-                                  _numberDance.value * ((i % 2 == 0) ? 1 : -1);
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                child: Transform.rotate(
-                                  angle: angle,
-                                  child: _buildIntroNumberCard(i),
-                                ),
-                              );
-                            }),
-                          );
-                        },
-                      ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: _numberDanceCtrl,
+                      builder: (_, __) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(3, (i) {
+                            final angle =
+                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: Transform.rotate(
+                                angle: angle,
+                                child: _buildIntroNumberCard(i),
+                              ),
+                            );
+                          }),
+                        );
+                      },
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

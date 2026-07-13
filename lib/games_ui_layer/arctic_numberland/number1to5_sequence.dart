@@ -6,10 +6,13 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
 class Number012345SequenceScreen extends StatefulWidget {
-  const Number012345SequenceScreen({super.key});
+  final int level;
+
+  const Number012345SequenceScreen({super.key, required this.level});
 
   @override
   State<Number012345SequenceScreen> createState() =>
@@ -17,7 +20,10 @@ class Number012345SequenceScreen extends StatefulWidget {
 }
 
 class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DomaReactionMixin {
+  @override
+  AudioPlayer get domaPlayer => _player;
+
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 3;
   static const List<int> _allNumbers = [0, 1, 2, 3, 4, 5];
@@ -213,6 +219,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
       _slotPulseCtrlList[slotIndex].forward(from: 0);
 
       await _playAudio(_audioSlotCorrect);
+      showDomaReaction(DomaState.correct);
 
       // Check if all missing slots are solved
       if (_slotLocked.every((l) => l)) {
@@ -239,6 +246,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
       });
 
       await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      showDomaReaction(DomaState.wrong);
 
       await Future.delayed(const Duration(milliseconds: 600));
 
@@ -296,13 +304,12 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         children: [
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 20),
+          Padding(
+              padding: const EdgeInsets.only(top: 5),
               child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
             ),
-          ),
 
+          if (!_introPlaying) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -313,7 +320,8 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
   Widget _buildIntroLayer() {
     return Stack(
       children: [
-        Positioned(top: 8, left: 12, child: ArcticBackButton()),
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
         Positioned.fill(
           top: 48,
           child: Row(
@@ -420,13 +428,17 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
           children: [
             // ── HEADER ─────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
               child: Stack(
-                alignment: Alignment.center,
+                alignment: Alignment.topCenter,
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
                     child: ArcticBackButton(),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ArcticLevelBadge(level: widget.level),
                   ),
                   Center(child: _buildInstructionBanner(h)),
                 ],
@@ -482,16 +494,10 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
               'Arrange the numbers in order!',
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: (h * 0.075).clamp(15.0, 24.0),
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
-                shadows: const [
-                  Shadow(
-                    color: Color(0x55003366),
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
+                shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
               ),
             ),
           ],
@@ -728,10 +734,10 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, const Number1to5CountingTreesScreen());
+        Navigator.pop(context, Number1to5CountingTreesScreen(level: widget.level + 1));
       },
       onRestart: () {
-        Navigator.pop(context, const Number012345SequenceScreen());
+        Navigator.pop(context, Number012345SequenceScreen(level: widget.level));
       },
       onBack: () {
         Navigator.pop(context);

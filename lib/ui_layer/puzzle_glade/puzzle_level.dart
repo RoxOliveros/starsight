@@ -110,7 +110,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
           ),
 
           //back button
-          Positioned(top: 25, left: 25, child: PuzzleBackButton()),
+          Positioned(top: 25, left: 20, child: PuzzleBackButton()),
 
           // 🌿 Content
           Center(

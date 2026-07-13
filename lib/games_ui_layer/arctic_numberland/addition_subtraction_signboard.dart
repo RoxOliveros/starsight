@@ -8,6 +8,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import 'arctic_audio_helper.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
@@ -21,14 +22,16 @@ class _RoundSpec {
 }
 
 class SignboardMathGame extends StatefulWidget {
-  const SignboardMathGame({super.key});
+  final int level;
+
+  const SignboardMathGame({super.key, required this.level});
 
   @override
   State<SignboardMathGame> createState() => _SignboardMathGameState();
 }
 
 class _SignboardMathGameState extends State<SignboardMathGame>
-    with TickerProviderStateMixin, DomaReactionMixin<SignboardMathGame>, GameLoadingMixin<SignboardMathGame> {
+    with TickerProviderStateMixin, DomaReactionMixin<SignboardMathGame>, GameLoadingMixin<SignboardMathGame>, ArcticAudioMixin  {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
@@ -196,11 +199,13 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        _playVoice(_spec.type == _RoundType.addition ? _audioRoundPromptAdd : _audioRoundPromptSub);
-      }
-    });
+    if (!_introPlaying) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _playVoice(_spec.type == _RoundType.addition ? _audioRoundPromptAdd : _audioRoundPromptSub);
+        }
+      });
+    }
 
     setState(() {});
   }
@@ -264,6 +269,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
       HapticFeedback.heavyImpact();
       setState(() => _placementWrong = true);
       await Future.delayed(const Duration(milliseconds: 350));
+      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       if (!mounted) return;
       setState(() {
@@ -338,12 +344,10 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                 errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
               ),
             ),
-            SafeArea(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
             if (!_introPlaying) buildDoma(context),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
           ],
@@ -355,47 +359,53 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   // ── Intro / story setup ──────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 4,
-            child: AnimatedBuilder(
-              animation: _domaFloatCtrl,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(
-                  0,
-                  Tween<double>(begin: -6, end: 6).evaluate(
-                    CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 4,
+                child: AnimatedBuilder(
+                  animation: _domaFloatCtrl,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(
+                      0,
+                      Tween<double>(begin: -6, end: 6).evaluate(
+                        CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                      ),
+                    ),
+                    child: child,
+                  ),
+                  child: Image.asset(
+                    _characterImage,
+                    height: screenH * 0.7,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
-                child: child,
               ),
-              child: Image.asset(
-                _characterImage,
-                height: screenH * 0.7,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 5,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(
-                  _signboardAsset,
-                  height: screenH * 0.75,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text('🪧', style: TextStyle(fontSize: 70)),
+              Expanded(
+                flex: 5,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      _signboardAsset,
+                      height: screenH * 0.75,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Text('🪧', style: TextStyle(fontSize: 70)),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -409,11 +419,15 @@ class _SignboardMathGameState extends State<SignboardMathGame>
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
               child: Stack(
-                alignment: Alignment.center,
+                alignment: Alignment.topCenter,
                 children: [
                   Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ArcticLevelBadge(level: widget.level),
+                  ),
                   Center(child: _buildInstructionBanner(h)),
                 ],
               ),
@@ -444,7 +458,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(top: 0, bottom: 5),
+              padding: const EdgeInsets.only(bottom: 15),
               child: _buildRoundIndicator(),
             ),
           ],
@@ -482,7 +496,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
             label,
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.06).clamp(13.0, 19.0),
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],

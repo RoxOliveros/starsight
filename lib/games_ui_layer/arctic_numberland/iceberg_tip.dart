@@ -12,7 +12,9 @@ import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
 class IcebergTipGame extends StatefulWidget {
-  const IcebergTipGame({super.key});
+  final int level;
+
+  const IcebergTipGame({super.key, required this.level});
 
   @override
   State<IcebergTipGame> createState() => _IcebergTipGameState();
@@ -156,6 +158,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
       await _onRoundComplete();
     } else {
       HapticFeedback.heavyImpact();
+      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       setState(() => _wrongShake = true);
       await Future.delayed(const Duration(milliseconds: 1100));
@@ -205,12 +208,10 @@ class _IcebergTipGameState extends State<IcebergTipGame>
                 errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
               ),
             ),
-            SafeArea(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
             if (!_introPlaying) buildDoma(context),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
           ],
@@ -222,40 +223,46 @@ class _IcebergTipGameState extends State<IcebergTipGame>
   // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
-    return Center(
-      child: AnimatedBuilder(
-          animation: _domaFloatCtrl,
-          builder: (_, child) => Transform.translate(
-            offset: Offset(
-              0,
-              Tween<double>(begin: -6, end: 6).evaluate(
-                CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: AnimatedBuilder(
+              animation: _domaFloatCtrl,
+              builder: (_, child) => Transform.translate(
+                offset: Offset(
+                  0,
+                  Tween<double>(begin: -6, end: 6).evaluate(
+                    CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                  ),
+                ),
+                child: child,
               ),
-            ),
-            child: child,
-          ),
 
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Spacer(),
-              Image.asset(
-                _characterImage,
-                height: screenH * 0.7,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-              ),
-              Spacer(),
-              Image.asset(
-                _icebergAsset,
-                height: screenH * 0.7,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-              ),
-              Spacer(),
-            ],
-          )
-      ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Spacer(),
+                  Image.asset(
+                    _characterImage,
+                    height: screenH * 0.7,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                  ),
+                  Spacer(),
+                  Image.asset(
+                    _icebergAsset,
+                    height: screenH * 0.7,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                  ),
+                  Spacer(),
+                ],
+              )
+          ),
+        )
+      ],
     );
   }
 
@@ -270,11 +277,15 @@ class _IcebergTipGameState extends State<IcebergTipGame>
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
               child: Stack(
-                alignment: Alignment.center,
+                alignment: Alignment.topCenter,
                 children: [
                   Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ArcticLevelBadge(level: widget.level),
+                  ),
                   Center(child: _buildInstructionBanner(h)),
                 ],
               ),
@@ -286,7 +297,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(bottom: 5),
+              padding: const EdgeInsets.only(bottom: 15),
               child: _buildRoundIndicator(),
             ),
           ],
@@ -318,7 +329,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
             'Tap the BIGGER iceberg/number!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.06).clamp(13.0, 19.0),
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
@@ -331,8 +342,8 @@ class _IcebergTipGameState extends State<IcebergTipGame>
 
   // ── Iceberg scene ────────────────────────────────────────────────────────
   Widget _buildIcebergScene(double w, double h) {
-    final icebergWidth = (w * 0.28).clamp(120.0, 220.0);
-    final maxTotalHeight = h * 0.85;
+    final icebergWidth = (w * 0.25).clamp(120.0, 220.0);
+    final maxTotalHeight = h * 0.82;
 
     return Center(
       child: Row(
@@ -487,8 +498,8 @@ class _IcebergTipGameState extends State<IcebergTipGame>
             color: done
                 ? ArcticColorTheme.cadetblue
                 : current
-                ? ArcticColorTheme.slateblue
-                : ArcticColorTheme.slateblue.withValues(alpha: 0.35),
+                ? ArcticColorTheme.cotton
+                : ArcticColorTheme.cotton.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(6),
           ),
         );

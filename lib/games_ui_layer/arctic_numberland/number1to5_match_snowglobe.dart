@@ -6,11 +6,13 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
-import 'addition_rescue_bridge_game.dart';
+import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
 class Number1to5MatchSnowglobesScreen extends StatefulWidget {
-  const Number1to5MatchSnowglobesScreen({super.key});
+  final int level;
+
+  const Number1to5MatchSnowglobesScreen({super.key, required this.level});
 
   @override
   State<Number1to5MatchSnowglobesScreen> createState() =>
@@ -19,7 +21,10 @@ class Number1to5MatchSnowglobesScreen extends StatefulWidget {
 
 class _Number1to5MatchSnowglobesScreenState
     extends State<Number1to5MatchSnowglobesScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DomaReactionMixin {
+  @override
+  AudioPlayer get domaPlayer => _player;
+
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const int _globeCount = 3;
@@ -219,6 +224,8 @@ class _Number1to5MatchSnowglobesScreenState
       setState(() => _tappedIndex = index);
       _correctPulseCtrl.forward(from: 0);
       await _playAudio('assets/audio/arctic_numberland/$_targetNumber.wav');
+      showDomaReaction(DomaState.correct);
+
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 
@@ -232,6 +239,9 @@ class _Number1to5MatchSnowglobesScreenState
     } else {
       // Shake the wrong globe
       setState(() => _shakingIndex = index);
+      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      showDomaReaction(DomaState.wrong);
+
       _shakeCtrl[index].forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 450));
       if (!mounted) return;
@@ -272,19 +282,6 @@ class _Number1to5MatchSnowglobesScreenState
     super.dispose();
   }
 
-  // ── Globe Colors ───────────────────────────────────────────────────────────
-  Color _globeBorderColor(int index) {
-    if (_tappedIndex == index) return Colors.green;
-    if (_shakingIndex == index) return Colors.red;
-    return Colors.white;
-  }
-
-  Color _globeGlowColor(int index) {
-    if (_tappedIndex == index) return Colors.green.withValues(alpha: 0.5);
-    if (_shakingIndex == index) return Colors.red.withValues(alpha: 0.4);
-    return Colors.transparent;
-  }
-
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -292,9 +289,8 @@ class _Number1to5MatchSnowglobesScreenState
       body: Stack(
         children: [
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
-          SafeArea(
-            child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-          ),
+          _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+          if (!_introPlaying) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -305,7 +301,8 @@ class _Number1to5MatchSnowglobesScreenState
   Widget _buildIntroLayer() {
     return Stack(
       children: [
-        Positioned(top: 8, left: 12, child: ArcticBackButton()),
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
         Positioned.fill(
           top: 48,
           child: Row(
@@ -424,13 +421,17 @@ class _Number1to5MatchSnowglobesScreenState
           children: [
             // ── HEADER ──────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
               child: Stack(
-                alignment: Alignment.center,
+                alignment: Alignment.topCenter,
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
                     child: ArcticBackButton(),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ArcticLevelBadge(level: widget.level),
                   ),
                   Center(child: _buildInstructionBanner(h)),
                 ],
@@ -438,22 +439,29 @@ class _Number1to5MatchSnowglobesScreenState
             ),
 
             // ── SCENE ───────────────────────────────
+            // ── SCENE ───────────────────────────────
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // LEFT: Doma + target number card
-                  Expanded(flex: 3, child: _buildTargetPanel(h)),
-
-                  // RIGHT: Three snowglobes
-                  Expanded(flex: 7, child: _buildGlobesArea(h)),
+                  const Expanded(flex: 1, child: SizedBox()), // ADD — empty space on the left
+                  Expanded(
+                    flex: 7,
+                    child: Row(                                // ADD — target panel + globes grouped together on the right
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(flex: 1, child: _buildTargetPanel(h)),
+                        Expanded(flex: 4, child: _buildGlobesArea(h)),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
 
             // ── PROGRESS ────────────────────────────
             Padding(
-              padding: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.only(bottom: 15),
               child: _buildRoundIndicator(),
             ),
           ],
@@ -484,12 +492,13 @@ class _Number1to5MatchSnowglobesScreenState
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Find the snowglobe with the matching number below',
+              'Find the snowglobe with the matching number/s',
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: (h * 0.072).clamp(13.0, 21.0),
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
+                shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
               ),
             ),
           ],
@@ -525,7 +534,7 @@ class _Number1to5MatchSnowglobesScreenState
               children: [
                 Image.asset(
                   'assets/fonts/game_numbers/$_targetNumber.png',
-                  height: (h * 0.30),
+                  height: (h * 0.25),
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Text(
                     '$_targetNumber',
@@ -560,7 +569,7 @@ class _Number1to5MatchSnowglobesScreenState
   Widget _buildSingleGlobe(int index, double h) {
     final isTapped = _tappedIndex == index;
     final isShaking = _shakingIndex == index;
-    final globeSize = (h * 0.52).clamp(110.0, 200.0);
+    final globeSize = (h * 0.47);
     final objectSize = (globeSize * 0.16).clamp(16.0, 30.0);
 
     return AnimatedBuilder(
@@ -575,16 +584,6 @@ class _Number1to5MatchSnowglobesScreenState
           scale: isTapped ? _correctPulse : const AlwaysStoppedAnimation(1.0),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 250),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: _globeGlowColor(index),
-                  blurRadius: 24,
-                  spreadRadius: 6,
-                ),
-              ],
-            ),
             child: Stack(
               alignment: Alignment.center,
               children: [
@@ -594,32 +593,11 @@ class _Number1to5MatchSnowglobesScreenState
                   width: globeSize,
                   height: globeSize,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Container(
+                  errorBuilder: (_, __, ___) => SizedBox(
                     width: globeSize,
                     height: globeSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFFDCF0FF),
-                      border: Border.all(
-                        color: _globeBorderColor(index),
-                        width: 3,
-                      ),
-                    ),
                   ),
                 ),
-
-                // Colored overlay tint on correct/wrong
-                if (isTapped || isShaking)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isTapped
-                            ? Colors.green.withValues(alpha: 0.18)
-                            : Colors.red.withValues(alpha: 0.18),
-                      ),
-                    ),
-                  ),
 
                 // Objects arranged inside the globe dome area
                 Positioned(
@@ -633,42 +611,6 @@ class _Number1to5MatchSnowglobesScreenState
                     objectSize,
                   ),
                 ),
-
-                // Tick or cross overlay
-                if (isTapped)
-                  Positioned(
-                    top: globeSize * 0.06,
-                    right: globeSize * 0.06,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                if (isShaking)
-                  Positioned(
-                    top: globeSize * 0.06,
-                    right: globeSize * 0.06,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -769,7 +711,7 @@ class _Number1to5MatchSnowglobesScreenState
         // Navigator.pop(context, const ());
       },
       onRestart: () {
-        Navigator.pop(context, const Number1to5MatchSnowglobesScreen());
+        Navigator.pop(context, Number1to5MatchSnowglobesScreen(level: widget.level));
       },
       onBack: () {
         Navigator.pop(context);

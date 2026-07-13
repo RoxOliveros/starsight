@@ -56,7 +56,9 @@ Offset _bezierTangent(Offset p0, Offset p1, Offset p2, double t) {
 }
 
 class ShootingStarCountingGame extends StatefulWidget {
-  const ShootingStarCountingGame({super.key});
+  final int level;
+
+  const ShootingStarCountingGame({super.key, required this.level});
 
   @override
   State<ShootingStarCountingGame> createState() => _ShootingStarCountingGameState();
@@ -272,6 +274,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       await _onRoundComplete();
     } else {
       HapticFeedback.heavyImpact();
+      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       setState(() => _wasWrong = true);
       await Future.delayed(const Duration(milliseconds: 500));
@@ -333,12 +336,10 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
                 ),
               ),
             ),
-            SafeArea(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
             if (!_introPlaying) buildDoma(context),
             if (_showWinBurst) _buildWinBurst(),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
@@ -351,40 +352,46 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
-    return Center(
-      child: AnimatedBuilder(
-        animation: _domaFloatCtrl,
-        builder: (_, child) => Transform.translate(
-          offset: Offset(
-            0,
-            Tween<double>(begin: -6, end: 6).evaluate(
-              CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: AnimatedBuilder(
+            animation: _domaFloatCtrl,
+            builder: (_, child) => Transform.translate(
+              offset: Offset(
+                0,
+                Tween<double>(begin: -6, end: 6).evaluate(
+                  CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                ),
+              ),
+              child: child,
+            ),
+            child:
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  _characterImage,
+                  height: screenH * 0.7,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                  const Text('🐧', style: TextStyle(fontSize: 70)),
+                ),
+                SizedBox(width: 130),
+                Image.asset(
+                  _shootingStarAsset,
+                  height: screenH * 0.4,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                  const Text('🐧', style: TextStyle(fontSize: 70)),
+                ),
+              ],
             ),
           ),
-          child: child,
         ),
-          child:
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                _characterImage,
-                height: screenH * 0.7,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) =>
-                const Text('🐧', style: TextStyle(fontSize: 70)),
-              ),
-              SizedBox(width: 130),
-              Image.asset(
-                _shootingStarAsset,
-                height: screenH * 0.4,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) =>
-                const Text('🐧', style: TextStyle(fontSize: 70)),
-              ),
-            ],
-          ),
-      ),
+      ],
     );
   }
 
@@ -400,11 +407,15 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
             Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
                   child: Stack(
-                    alignment: Alignment.center,
+                    alignment: Alignment.topCenter,
                     children: [
                       Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ArcticLevelBadge(level: widget.level),
+                      ),
                       Center(child: _buildPromptBanner(h)),
                     ],
                   ),
@@ -416,7 +427,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(top: 0, bottom: 5),
+                  padding: const EdgeInsets.only(bottom: 15),
                   child: _phase == _RoundPhase.answering
                       ? _buildAnswerPanel(h)
                       : _buildRoundIndicator(),
@@ -583,8 +594,8 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
             color: done
                 ? ArcticColorTheme.cadetblue
                 : current
-                ? ArcticColorTheme.slateblue
-                : ArcticColorTheme.slateblue.withValues(alpha: 0.35),
+                ? ArcticColorTheme.cotton
+                : ArcticColorTheme.cotton.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(6),
           ),
         );

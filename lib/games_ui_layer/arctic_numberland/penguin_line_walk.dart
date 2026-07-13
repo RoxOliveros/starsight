@@ -14,9 +14,10 @@ import 'goodjob_doma_prompt.dart';
 
 /// How many penguins to play with. Defaults to 1-8.
 class PenguinLineWalkGame extends StatefulWidget {
+  final int level;
   final int count;
 
-  const PenguinLineWalkGame({super.key, this.count = 8});
+  const PenguinLineWalkGame({super.key, this.count = 8, required this.level});
 
   @override
   State<PenguinLineWalkGame> createState() => _PenguinLineWalkGameState();
@@ -115,8 +116,8 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
       _placed.add(number);
       _stagingNumbers.remove(number);
     });
-    showDomaReaction(DomaState.correct);
     await playSfx('$_audioBase/$number.wav');
+    showDomaReaction(DomaState.correct);
 
     if (_placed.length >= _totalCount) {
       await Future.delayed(const Duration(milliseconds: 400));
@@ -124,8 +125,9 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
     }
   }
 
-  void _onPenguinMissed() {
+  Future<void> _onPenguinMissed() async {
     HapticFeedback.heavyImpact();
+    await playSfx('assets/audio/sound_effects/bubble_pop.wav');
     showDomaReaction(DomaState.wrong);
   }
 
@@ -173,12 +175,11 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
                 ),
               ),
             ),
-            SafeArea(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
+
             if (!_introPlaying) buildDoma(context),
             if (_showWinBurst) _buildWinBurst(),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
@@ -191,54 +192,59 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
   // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
-    return Center(
-      child: AnimatedBuilder(
-        animation: _domaFloatCtrl,
-        builder: (_, child) => Transform.translate(
-          offset: Offset(
-            0,
-            Tween<double>(begin: -6, end: 6).evaluate(
-              CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: AnimatedBuilder(
+            animation: _domaFloatCtrl,
+            builder: (_, child) => Transform.translate(
+              offset: Offset(
+                0,
+                Tween<double>(begin: -6, end: 6).evaluate(
+                  CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                ),
+              ),
+              child: child,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  _characterImage,
+                  height: screenH * 0.7,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                ),
+                SizedBox(width: 150),
+                Image.asset(
+                  _babyPenguinAsset,
+                  height: screenH * 0.3,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                ),
+                SizedBox(width: 50),
+                Image.asset(
+                  _babyPenguinAsset,
+                  height: screenH * 0.3,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                ),
+                SizedBox(width: 50),
+                Image.asset(
+                  _babyPenguinAsset,
+                  height: screenH * 0.3,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                ),
+              ],
             ),
           ),
-          child: child,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              _characterImage,
-              height: screenH * 0.7,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-            ),
-            SizedBox(width: 150),
-            Image.asset(
-              _babyPenguinAsset,
-              height: screenH * 0.3,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-            ),
-            SizedBox(width: 50),
-            Image.asset(
-              _babyPenguinAsset,
-              height: screenH * 0.3,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-            ),
-            SizedBox(width: 50),
-            Image.asset(
-              _babyPenguinAsset,
-              height: screenH * 0.3,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-            ),
-          ],
-        )
-      ),
+      ],
     );
   }
-
   // ── Main game layout ─────────────────────────────────────────────────────
   Widget _buildGameContent() {
     return LayoutBuilder(
@@ -250,11 +256,15 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
                 child: Stack(
-                  alignment: Alignment.center,
+                  alignment: Alignment.topCenter,
                   children: [
                     Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ArcticLevelBadge(level: widget.level),
+                    ),
                     Center(child: _buildPromptBanner(h)),
                   ],
                 ),
@@ -270,10 +280,11 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
                     child: child,
                   );
                 },
-                child: _buildFloeRow(h * 0.33),
-              ),              Expanded(child: _buildStagingArea(h)),
+                child: _buildLineRow(h * 0.33),
+              ),
+              Expanded(child: _buildStagingArea(h)),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
+                padding: const EdgeInsets.only(bottom: 15),
                 child: _buildProgressDots(),
               ),
             ],
@@ -306,11 +317,10 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
             'Match each penguin to its floe!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.05).clamp(13.0, 18.0),
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
-            ),
+              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],            ),
           ),
         ),
       ),
@@ -393,17 +403,17 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
   }
 
   // ── Floe row (drag targets) ──────────────────────────────────────────────
-  Widget _buildFloeRow(double h) {
+  Widget _buildLineRow(double h) {
     return SizedBox(
       height: h,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(_totalCount, (i) => _buildFloe(i + 1, h)),
+        children: List.generate(_totalCount, (i) => _buildLine(i + 1, h)),
       ),
     );
   }
 
-  Widget _buildFloe(int n, double slotSize) {
+  Widget _buildLine(int n, double slotSize) {
     final placed = _placed.contains(n);
 
     return DragTarget<int>(
@@ -423,15 +433,30 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
               alignment: Alignment.center,
               children: [
                 if (!placed)
-                  Text(
-                    '$n',
-                    style: TextStyle(
-                      fontFamily: ArcticAppTextStyles.fredoka,
-                      fontWeight: FontWeight.bold,
-                      fontSize: slotSize * 0.32,
-                      color: rejected
-                          ? Colors.red
-                          : ArcticColorTheme.slateblue.withValues(alpha: hovering ? 1.0 : 0.55),
+                  Container(
+                    width: slotSize * 0.6,
+                    height: slotSize * 0.6,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: hovering ? 0.9 : 0.6),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: rejected
+                            ? Colors.red
+                            : ArcticColorTheme.slateblue.withValues(alpha: hovering ? 1.0 : 0.55),
+                        width: 2.5,
+                      ),
+                    ),
+                    child: Text(
+                      '$n',
+                      style: TextStyle(
+                        fontFamily: ArcticAppTextStyles.fredoka,
+                        fontWeight: FontWeight.bold,
+                        fontSize: slotSize * 0.32,
+                        color: rejected
+                            ? Colors.red
+                            : ArcticColorTheme.slateblue.withValues(alpha: hovering ? 1.0 : 0.55),
+                      ),
                     ),
                   ),
                 if (placed)
@@ -473,20 +498,45 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
 
   // ── Win burst (shown while win audio plays) ──────────────────────────────
   Widget _buildWinBurst() {
-    final screenH = MediaQuery.of(context).size.height;
+    final screenH = MediaQuery
+        .of(context)
+        .size
+        .height;
     return Positioned.fill(
       child: Center(
         child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.0, end: 1.0),
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.elasticOut,
-          builder: (_, value, child) => Transform.scale(scale: value, child: child),
-          child: Image.asset(
-            _babyPenguinAsset,
-            height: screenH * 0.5,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Text('🎉', style: TextStyle(fontSize: 90)),
-          ),
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.elasticOut,
+            builder: (_, value, child) =>
+                Transform.scale(scale: value, child: child),
+            child:
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  _babyPenguinAsset,
+                  height: screenH * 0.3,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                  const Text('🎉', style: TextStyle(fontSize: 90)),
+                ),
+                Image.asset(
+                  _babyPenguinAsset,
+                  height: screenH * 0.3,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                  const Text('🎉', style: TextStyle(fontSize: 90)),
+                ),
+                Image.asset(
+                  _babyPenguinAsset,
+                  height: screenH * 0.3,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                  const Text('🎉', style: TextStyle(fontSize: 90)),
+                ),
+              ],
+            )
         ),
       ),
     );

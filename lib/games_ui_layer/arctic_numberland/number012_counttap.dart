@@ -275,20 +275,17 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
             ),
           ),
           if (_screenPhase == _ScreenPhase.intro)
-            _buildIntroContent()
+            _buildIntrolayer()
           else
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 5),
+            Padding(
+              padding: const EdgeInsets.only(top: 5, bottom: 5),
                 child: Column(
                   children: [
-                    const SizedBox(height: 12),
-
                     // ── Header ──────────────────────────────────────────────────────
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
                       child: Stack(
-                        alignment: Alignment.center,
+                        alignment: Alignment.topCenter,
                         children: [
                           Align(
                             alignment: Alignment.centerLeft,
@@ -367,7 +364,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
                   ],
                 ),
               ),
-            ),
           if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
@@ -589,14 +585,13 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     );
   }
 
-  Widget _buildIntroContent() {
-    return SafeArea(
-      child: Padding(
+  Widget _buildIntrolayer() {
+    return Padding(
         padding: const EdgeInsets.only(top: 5),
         child: Stack(
           children: [
-            Positioned(top: 8, left: 12, child: ArcticBackButton()),
-            Positioned(top: 8, right: 12, child: ArcticLevelBadge(level: widget.level)),
+            Positioned(top: 25, left: 20, child: ArcticBackButton()),
+            Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
             Positioned.fill(
               top: 50,
               child: Row(
@@ -642,8 +637,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildIntroNumberCard(int number) {

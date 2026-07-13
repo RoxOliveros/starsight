@@ -6,11 +6,14 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'number1to5_building_igloo.dart';
 
 class Number1to5CountingTreesScreen extends StatefulWidget {
-  const Number1to5CountingTreesScreen({super.key});
+  final int level;
+
+  const Number1to5CountingTreesScreen({super.key,required this.level});
 
   @override
   State<Number1to5CountingTreesScreen> createState() =>
@@ -19,19 +22,18 @@ class Number1to5CountingTreesScreen extends StatefulWidget {
 
 class _Number1to5CountingTreesScreenState
     extends State<Number1to5CountingTreesScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DomaReactionMixin {
+  @override
+  AudioPlayer get domaPlayer => _player;
+
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _treeAsset =
-      'assets/images/objects/arctic/snowy_tree.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _treeAsset = 'assets/images/objects/arctic/snowy_tree.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level18/intro.wav';
-  static const String _audioQuestion =
-      'assets/audio/arctic_numberland/level18/how_many.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level18/intro.wav';
+  static const String _audioQuestion = 'assets/audio/arctic_numberland/level18/how_many.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
@@ -235,6 +237,7 @@ class _Number1to5CountingTreesScreenState
     if (isCorrect) {
       _correctPulseCtrl.forward(from: 0);
       await _playAudio('assets/audio/arctic_numberland/$_treeCount.wav');
+      showDomaReaction(DomaState.correct);
 
       await Future.delayed(const Duration(milliseconds: 900));
       if (!mounted) return;
@@ -247,7 +250,8 @@ class _Number1to5CountingTreesScreenState
         _setupRound();
       }
     } else {
-      await Future.delayed(const Duration(milliseconds: 900));
+      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      showDomaReaction(DomaState.wrong);
 
       if (!mounted) return;
 
@@ -308,21 +312,6 @@ class _Number1to5CountingTreesScreenState
     super.dispose();
   }
 
-  // ── Choice Colors ──────────────────────────────────────────────────────────
-  Color _choiceColor(int index) {
-    if (_tappedIndex == null) return ArcticColorTheme.pictonblue;
-    if (_choices[index] == _treeCount) return Colors.green;
-    if (_tappedIndex == index) return Colors.red;
-    return ArcticColorTheme.pictonblue;
-  }
-
-  Color _choiceBorderColor(int index) {
-    if (_tappedIndex == null) return ArcticColorTheme.slateblue;
-    if (_choices[index] == _treeCount) return Colors.green.shade700;
-    if (_tappedIndex == index) return Colors.red.shade700;
-    return ArcticColorTheme.slateblue;
-  }
-
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -331,13 +320,12 @@ class _Number1to5CountingTreesScreenState
         children: [
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 20),
-              child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
           ),
 
+          if (!_introPlaying) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -348,7 +336,8 @@ class _Number1to5CountingTreesScreenState
   Widget _buildIntroLayer() {
     return Stack(
       children: [
-        Positioned(top: 8, left: 12, child: ArcticBackButton()),
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
         Positioned.fill(
           top: 48,
           child: Row(
@@ -449,13 +438,17 @@ class _Number1to5CountingTreesScreenState
           children: [
             // ── HEADER ──────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
               child: Stack(
-                alignment: Alignment.center,
+                alignment: Alignment.topCenter,
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
                     child: ArcticBackButton(),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ArcticLevelBadge(level: widget.level),
                   ),
                   Center(child: _buildInstructionBanner(h)),
                 ],
@@ -525,16 +518,10 @@ class _Number1to5CountingTreesScreenState
                 'How many trees are there?',
                 style: TextStyle(
                   fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: (h * 0.075).clamp(14.0, 23.0),
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  shadows: const [
-                    Shadow(
-                      color: Color(0x55003366),
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
+                  shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
                 ),
               ),
               const SizedBox(width: 10),
@@ -561,9 +548,6 @@ class _Number1to5CountingTreesScreenState
 
         return Stack(
           children: [
-            // Doma bottom left
-            Positioned(left: 0, bottom: 0, child: _buildDoma(sh * 0.68)),
-
             // Trees scattered
             ...List.generate(_trees.length, (i) {
               final tree = _trees[i];
@@ -691,15 +675,15 @@ class _Number1to5CountingTreesScreenState
                 width: btnSize * 1.1,
                 height: btnSize,
                 decoration: BoxDecoration(
-                  color: _choiceColor(index),
+                  color: ArcticColorTheme.pictonblue,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: _choiceBorderColor(index),
+                    color: ArcticColorTheme.slateblue,
                     width: 3,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _choiceColor(index).withValues(alpha: 0.4),
+                      color: ArcticColorTheme.slateblue.withValues(alpha: 0.4),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -728,30 +712,6 @@ class _Number1to5CountingTreesScreenState
           ),
         );
       }),
-    );
-  }
-
-  // ── Doma ───────────────────────────────────────────────────────────────────
-  Widget _buildDoma(double h) {
-    final domaH = h.clamp(90.0, 175.0);
-    return AnimatedBuilder(
-      animation: _domaFloatCtrl,
-      builder: (_, child) => Transform.translate(
-        offset: Offset(
-          0,
-          Tween<double>(begin: -6, end: 6).evaluate(
-            CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
-          ),
-        ),
-        child: child,
-      ),
-      child: Image.asset(
-        _characterImage,
-        height: domaH,
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) =>
-            Text('🐧', style: TextStyle(fontSize: domaH * 0.5)),
-      ),
     );
   }
 
@@ -786,10 +746,10 @@ class _Number1to5CountingTreesScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, const Number1to5FillIglooScreen());
+        Navigator.pop(context, Number1to5FillIglooScreen(level: widget.level + 1));
       },
       onRestart: () {
-        Navigator.pop(context, const Number1to5CountingTreesScreen());
+        Navigator.pop(context, Number1to5CountingTreesScreen(level: widget.level));
       },
       onBack: () {
         Navigator.pop(context);

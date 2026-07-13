@@ -11,7 +11,9 @@ import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
 class SubtractionMeltingIceGame extends StatefulWidget {
-  const SubtractionMeltingIceGame({super.key});
+  final int level;
+
+  const SubtractionMeltingIceGame({super.key,required this.level});
 
   @override
   State<SubtractionMeltingIceGame> createState() =>
@@ -69,7 +71,6 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   late List<List<int>> _roundPool;
   late int _minuend;
   late int _subtrahend;
-  late int _target;
 
   /// One entry per ice in this round — true once melted away.
   late List<bool> _popped;
@@ -170,7 +171,6 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     final fact = _roundPool.removeLast();
     _minuend = fact[0];
     _subtrahend = fact[1];
-    _target = _minuend - _subtrahend;
 
     _popped = List.filled(_minuend, false);
     _resolvingRound = false;
@@ -306,12 +306,10 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
                     Container(color: const Color(0xFFDCEFFA)),
               ),
             ),
-            SafeArea(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
             if (!_introPlaying) buildDoma(context),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
           ],
@@ -323,52 +321,58 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   // ── Intro / story setup ──────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 4,
-            child: AnimatedBuilder(
-              animation: _domaFloatCtrl,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(
-                  0,
-                  Tween<double>(begin: -6, end: 6).evaluate(
-                    CurvedAnimation(
-                      parent: _domaFloatCtrl,
-                      curve: Curves.easeInOut,
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 4,
+                child: AnimatedBuilder(
+                  animation: _domaFloatCtrl,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(
+                      0,
+                      Tween<double>(begin: -6, end: 6).evaluate(
+                        CurvedAnimation(
+                          parent: _domaFloatCtrl,
+                          curve: Curves.easeInOut,
+                        ),
+                      ),
                     ),
+                    child: child,
+                  ),
+                  child: Image.asset(
+                    _characterImage,
+                    height: screenH * 0.7,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                    const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
-                child: child,
               ),
-              child: Image.asset(
-                _characterImage,
-                height: screenH * 0.7,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) =>
-                    const Text('🐧', style: TextStyle(fontSize: 70)),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 5,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(
-                  _iceAsset,
-                  height: screenH * 0.3,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
+              Expanded(
+                flex: 5,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      _iceAsset,
+                      height: screenH * 0.3,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
                       const Text('🧊', style: TextStyle(fontSize: 70)),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -382,13 +386,17 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
               child: Stack(
-                alignment: Alignment.center,
+                alignment: Alignment.topCenter,
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
                     child: ArcticBackButton(),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ArcticLevelBadge(level: widget.level),
                   ),
                   Center(child: _buildInstructionBanner(h)),
                 ],
@@ -409,7 +417,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(top: 0, bottom: 5),
+              padding: const EdgeInsets.only(bottom: 15),
               child: _buildRoundIndicator(),
             ),
           ],
@@ -441,7 +449,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
             'Tap the ice to melt away the right amount!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.07).clamp(14.0, 20.0),
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               shadows: const [

@@ -6,11 +6,14 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'number1to5_match_snowglobe.dart';
 
 class Number1to5FillIglooScreen extends StatefulWidget {
-  const Number1to5FillIglooScreen({super.key});
+  final int level;
+
+  const Number1to5FillIglooScreen({super.key,required this.level});
 
   @override
   State<Number1to5FillIglooScreen> createState() =>
@@ -18,7 +21,10 @@ class Number1to5FillIglooScreen extends StatefulWidget {
 }
 
 class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DomaReactionMixin {
+  @override
+  AudioPlayer get domaPlayer => _player;
+
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const int _maxNumber = 5;
@@ -28,7 +34,6 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
 
   static const String _audioIntro = 'assets/audio/arctic_numberland/level19/intro.wav';
   static const String _audioBuild = 'assets/audio/arctic_numberland/level19/build.wav';
-  static const String _audioComplete = 'assets/audio/sound_effects/shine.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
@@ -286,7 +291,7 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
         if (!mounted) return;
         setState(() => _roundComplete = true);
         _correctPulseCtrl.forward(from: 0);
-        await _playAudio(_audioComplete);
+        showDomaReaction(DomaState.correct);
         await Future.delayed(const Duration(milliseconds: 700));
         if (!mounted) return;
         if (_currentRound + 1 >= _totalRounds) {
@@ -360,9 +365,9 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
       body: Stack(
         children: [
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
-          SafeArea(
-            child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-          ),
+          _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+
+          if (!_introPlaying) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -373,7 +378,8 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
   Widget _buildIntroLayer() {
     return Stack(
       children: [
-        Positioned(top: 8, left: 12, child: ArcticBackButton()),
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
         Positioned.fill(
           top: 48,
           child: Row(
@@ -475,16 +481,17 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
               children: [
                 // ── HEADER ──────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
                   child: Stack(
-                    alignment: Alignment.center,
+                    alignment: Alignment.topCenter,
                     children: [
                       Align(
                         alignment: Alignment.centerLeft,
                         child: ArcticBackButton(),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ArcticLevelBadge(level: widget.level),
                       ),
                       Center(child: _buildInstructionBanner(h)),
                     ],
@@ -559,26 +566,20 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
               'Put',
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: (h * 0.072).clamp(13.0, 21.0),
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
-                shadows: const [
-                  Shadow(
-                    color: Color(0x55003366),
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
+                shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
               ),
             ),
             // Show the target number prominently
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               child: Text(
                 '$_targetCount',
                 style: TextStyle(
                   fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: (h * 0.072).clamp(13.0, 21.0),
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                   shadows: const [
@@ -592,10 +593,10 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
               ),
             ),
             Text(
-              'blocks into the igloo!',
+              'block/s into the igloo!',
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: (h * 0.072).clamp(13.0, 21.0),
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
                 shadows: const [
@@ -851,10 +852,10 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, const Number1to5MatchSnowglobesScreen());
+        Navigator.pop(context, Number1to5MatchSnowglobesScreen(level: widget.level + 1));
       },
       onRestart: () {
-        Navigator.pop(context, const Number1to5FillIglooScreen());
+        Navigator.pop(context, Number1to5FillIglooScreen(level: widget.level));
       },
       onBack: () {
         Navigator.pop(context);

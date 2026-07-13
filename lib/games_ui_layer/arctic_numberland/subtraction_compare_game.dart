@@ -12,7 +12,9 @@ import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
 class SubtractionCompareGame extends StatefulWidget {
-  const SubtractionCompareGame({super.key});
+  final int level;
+
+  const SubtractionCompareGame({super.key, required this.level});
 
   @override
   State<SubtractionCompareGame> createState() =>
@@ -285,12 +287,10 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                 errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
               ),
             ),
-            SafeArea(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
             if (!_introPlaying) buildDoma(context),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
           ],
@@ -302,53 +302,59 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   // ── Intro / story setup ──────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 4,
-            child: AnimatedBuilder(
-              animation: _domaFloatCtrl,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(
-                  0,
-                  Tween<double>(begin: -6, end: 6).evaluate(
-                    CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 4,
+                child: AnimatedBuilder(
+                  animation: _domaFloatCtrl,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(
+                      0,
+                      Tween<double>(begin: -6, end: 6).evaluate(
+                        CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                      ),
+                    ),
+                    child: child,
+                  ),
+                  child: Image.asset(
+                    _characterImage,
+                    height: screenH * 0.7,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
-                child: child,
               ),
-              child: Image.asset(
-                _characterImage,
-                height: screenH * 0.7,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+              Expanded(
+                flex: 5,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      _candyCaneAsset,
+                      height: screenH * 0.25,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Text('🍬', style: TextStyle(fontSize: 70)),
+                    ),
+                    Image.asset(
+                      _iceCreamAsset,
+                      height: screenH * 0.25,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Text('🍧', style: TextStyle(fontSize: 70)),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-          Expanded(
-            flex: 5,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(
-                  _candyCaneAsset,
-                  height: screenH * 0.25,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text('🍬', style: TextStyle(fontSize: 70)),
-                ),
-                Image.asset(
-                  _iceCreamAsset,
-                  height: screenH * 0.25,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text('🍧', style: TextStyle(fontSize: 70)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -362,11 +368,15 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
               child: Stack(
-                alignment: Alignment.center,
+                alignment: Alignment.topCenter,
                 children: [
                   Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ArcticLevelBadge(level: widget.level),
+                  ),
                   Center(child: _buildInstructionBanner(h)),
                 ],
               ),
@@ -403,7 +413,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(top: 0, bottom: 5),
+              padding: const EdgeInsets.only(bottom: 15),
               child: _buildRoundIndicator(),
             ),
           ],
@@ -435,7 +445,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
             'How many candy canes are left without a treat?',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.06).clamp(13.0, 19.0),
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],

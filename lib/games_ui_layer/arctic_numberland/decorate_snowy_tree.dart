@@ -84,7 +84,9 @@ class _RoundSpec {
 }
 
 class DecorateSnowyTreeGame extends StatefulWidget {
-  const DecorateSnowyTreeGame({super.key});
+  final int level;
+
+  const DecorateSnowyTreeGame({super.key, required this.level});
 
   @override
   State<DecorateSnowyTreeGame> createState() => _DecorateSnowyTreeGameState();
@@ -270,6 +272,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
         await _onRoundComplete();
       }
     } else {
+      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       HapticFeedback.heavyImpact();
       setState(() => _trayWrong = true);
@@ -323,12 +326,10 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
                 errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
               ),
             ),
-            SafeArea(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
             if (!_introPlaying) buildDoma(context),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
           ],
@@ -340,42 +341,48 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 4,
-            child: AnimatedBuilder(
-              animation: _domaFloatCtrl,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(
-                  0,
-                  Tween<double>(begin: -6, end: 6).evaluate(
-                    CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 4,
+                child: AnimatedBuilder(
+                  animation: _domaFloatCtrl,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(
+                      0,
+                      Tween<double>(begin: -6, end: 6).evaluate(
+                        CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                      ),
+                    ),
+                    child: child,
+                  ),
+                  child: Image.asset(
+                    _characterImage,
+                    height: screenH * 0.7,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
-                child: child,
               ),
-              child: Image.asset(
-                _characterImage,
-                height: screenH * 0.7,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+              Expanded(
+                flex: 5,
+                child: Image.asset(
+                  _treeAsset,
+                  height: screenH * 0.75,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Text('🎄', style: TextStyle(fontSize: 90)),
+                ),
               ),
-            ),
+            ],
           ),
-          Expanded(
-            flex: 5,
-            child: Image.asset(
-              _treeAsset,
-              height: screenH * 0.75,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Text('🎄', style: TextStyle(fontSize: 90)),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -391,11 +398,15 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
             Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
                   child: Stack(
-                    alignment: Alignment.center,
+                    alignment: Alignment.topCenter,
                     children: [
                       Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ArcticLevelBadge(level: widget.level),
+                      ),
                       Center(child: _buildInstructionBanner(h)),
                     ],
                   ),
@@ -407,7 +418,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(top: 0, bottom: 5),
+                  padding: const EdgeInsets.only(bottom: 15),
                   child: _buildRoundIndicator(),
                 ),
               ],
@@ -446,7 +457,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
             'Decorate the tree! Drag the matching color!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.06).clamp(13.0, 19.0),
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],

@@ -1,5 +1,6 @@
   import 'dart:async';
   import 'dart:math';
+import 'dart:ui' as ui;
   import 'package:flutter/material.dart';
   import 'package:flutter/services.dart';
   import 'package:audioplayers/audioplayers.dart';
@@ -41,7 +42,9 @@
   }
 
   class SnowmanShapeHuntGame extends StatefulWidget {
-    const SnowmanShapeHuntGame({super.key});
+    final int level;
+
+    const SnowmanShapeHuntGame({super.key,required this.level});
 
     @override
     State<SnowmanShapeHuntGame> createState() => _SnowmanShapeHuntGameState();
@@ -58,7 +61,6 @@
     static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
     static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
     static const String _snowmanAsset = 'assets/images/objects/arctic/snowman_shape_outline.png';
-    static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
     static const String _audioBase = 'assets/audio/arctic_numberland';
     static const String _audioIntro = '$_audioBase/snowman_shape_hunt_intro.wav';
@@ -72,37 +74,37 @@
     static final List<_RoundSpec> _rounds = [
       const _RoundSpec([
         _SnowmanSpec([
-          _ShapeSpot(id: 'nose', correctShape: _ShapeType.triangle, anchorX: 0.5, anchorY: 0.265, trayChoices: 2),
+          _ShapeSpot(id: 'nose', correctShape: _ShapeType.triangle, anchorX: 0.5, anchorY: 0.25, trayChoices: 2),
         ]),
       ]),
       const _RoundSpec([
         _SnowmanSpec([
-          _ShapeSpot(id: 'nose', correctShape: _ShapeType.triangle, anchorX: 0.5, anchorY: 0.265, trayChoices: 2),
-          _ShapeSpot(id: 'button1', correctShape: _ShapeType.circle, anchorX: 0.481, anchorY: 0.47, trayChoices: 2),
+          _ShapeSpot(id: 'nose', correctShape: _ShapeType.triangle, anchorX: 0.5, anchorY: 0.25, trayChoices: 2),
+          _ShapeSpot(id: 'button1', correctShape: _ShapeType.circle, anchorX: 0.485, anchorY: 0.44, trayChoices: 2),
         ]),
       ]),
       const _RoundSpec([
         _SnowmanSpec([
-          _ShapeSpot(id: 'nose', correctShape: _ShapeType.triangle, anchorX: 0.5, anchorY: 0.265),
-          _ShapeSpot(id: 'button1', correctShape: _ShapeType.circle, anchorX: 0.481, anchorY: 0.47),
-          _ShapeSpot(id: 'button2', correctShape: _ShapeType.square, anchorX: 0.48155, anchorY: 0.555),
+          _ShapeSpot(id: 'nose', correctShape: _ShapeType.triangle, anchorX: 0.5, anchorY: 0.25),
+          _ShapeSpot(id: 'button1', correctShape: _ShapeType.circle, anchorX: 0.485, anchorY: 0.44),
+          _ShapeSpot(id: 'button2', correctShape: _ShapeType.square, anchorX: 0.48155, anchorY: 0.52),
         ]),
       ]),
       const _RoundSpec([
         _SnowmanSpec([
-          _ShapeSpot(id: 'nose', correctShape: _ShapeType.triangle, anchorX: 0.5, anchorY: 0.265),
-          _ShapeSpot(id: 'button1', correctShape: _ShapeType.circle, anchorX: 0.481, anchorY: 0.47),
-          _ShapeSpot(id: 'button2', correctShape: _ShapeType.square, anchorX: 0.48155, anchorY: 0.555),
-          _ShapeSpot(id: 'button3', correctShape: _ShapeType.triangle, anchorX: 0.48155, anchorY: 0.635),
+          _ShapeSpot(id: 'nose', correctShape: _ShapeType.triangle, anchorX: 0.5, anchorY: 0.25),
+          _ShapeSpot(id: 'button1', correctShape: _ShapeType.circle, anchorX: 0.485, anchorY: 0.44),
+          _ShapeSpot(id: 'button2', correctShape: _ShapeType.square, anchorX: 0.48155, anchorY: 0.52),
+          _ShapeSpot(id: 'button3', correctShape: _ShapeType.triangle, anchorX: 0.482, anchorY: 0.59),
         ]),
       ]),
       const _RoundSpec([
         _SnowmanSpec([
-          _ShapeSpot(id: 'hat', correctShape: _ShapeType.star, anchorX: 0.5, anchorY: 0.09),
-          _ShapeSpot(id: 'nose', correctShape: _ShapeType.triangle, anchorX: 0.5, anchorY: 0.265),
-          _ShapeSpot(id: 'button1', correctShape: _ShapeType.circle, anchorX: 0.481, anchorY: 0.47),
-          _ShapeSpot(id: 'button2', correctShape: _ShapeType.square, anchorX: 0.48155, anchorY: 0.555),
-          _ShapeSpot(id: 'button3', correctShape: _ShapeType.triangle, anchorX: 0.48155, anchorY: 0.635),
+          _ShapeSpot(id: 'hat', correctShape: _ShapeType.star, anchorX: 0.5, anchorY: 0.08),
+          _ShapeSpot(id: 'nose', correctShape: _ShapeType.triangle, anchorX: 0.5, anchorY: 0.25),
+          _ShapeSpot(id: 'button1', correctShape: _ShapeType.circle, anchorX: 0.485, anchorY: 0.44),
+          _ShapeSpot(id: 'button2', correctShape: _ShapeType.square, anchorX: 0.48155, anchorY: 0.52),
+          _ShapeSpot(id: 'button3', correctShape: _ShapeType.triangle, anchorX: 0.482, anchorY: 0.59),
         ]),
       ]),
     ];
@@ -119,9 +121,8 @@
     late _RoundSpec _round;
     late _SnowmanSpec _snowman;
     Set<String> _filledSpotIds = {};
-
-    String? _activeSpotId;
     List<_ShapeType> _trayOptions = [];
+
     bool _trayWrong = false;
     bool _snowmanWiggling = false;
 
@@ -135,13 +136,43 @@
     late AnimationController _wiggleCtrl;
     late Animation<double> _wiggle;
 
+    double? _snowmanAspectRatio;
+
+    List<_ShapeType> _buildTrayForRound(_SnowmanSpec snowman) {
+      final needed = snowman.spots.map((s) => s.correctShape).toList();
+      final maxChoices = snowman.spots.map((s) => s.trayChoices).reduce(max);
+      final distractorSlots = (maxChoices - 1).clamp(0, _ShapeType.values.length);
+      final distractors = _ShapeType.values.where((s) => !needed.contains(s)).toList()
+        ..shuffle(Random());
+      final tray = [...needed, ...distractors.take(distractorSlots)];
+      tray.shuffle(Random());
+      return tray;
+    }
+
     @override
     void initState() {
       OrientationService.setLandscape();
       super.initState();
       _initAnimations();
       _setupRound(playInstruction: false);
+      _resolveSnowmanAspectRatio();
       finishLoading(_startIntroFlow);
+    }
+
+    Future<void> _resolveSnowmanAspectRatio() async {
+      final completer = Completer<ui.Image>();
+      final stream = AssetImage(_snowmanAsset).resolve(ImageConfiguration.empty);
+      late ImageStreamListener listener;
+      listener = ImageStreamListener((info, _) {
+        completer.complete(info.image);
+        stream.removeListener(listener);
+      });
+      stream.addListener(listener);
+      final image = await completer.future;
+      if (!mounted) return;
+      setState(() {
+        _snowmanAspectRatio = image.width / image.height;
+      });
     }
 
     void _initAnimations() {
@@ -214,31 +245,8 @@
     void _loadSnowman(_SnowmanSpec spec) {
       _snowman = spec;
       _filledSpotIds = {};
-      _activeSpotId = null;
-      _trayOptions = [];
+      _trayOptions = _buildTrayForRound(spec);
       _trayWrong = false;
-    }
-
-    // ── Spot interaction ─────────────────────────────────────────────────────
-    void _activateSpot(_ShapeSpot spot) {
-      if (_filledSpotIds.contains(spot.id) || _activeSpotId == spot.id) return;
-      final rng = Random();
-      final distractors = _ShapeType.values.where((s) => s != spot.correctShape).toList()..shuffle(rng);
-      final options = [spot.correctShape, ...distractors.take(spot.trayChoices - 1)]..shuffle(rng);
-      setState(() {
-        _activeSpotId = spot.id;
-        _trayOptions = options;
-        _trayWrong = false;
-      });
-    }
-
-    void _dismissTray() {
-      if (_activeSpotId == null) return;
-      setState(() {
-        _activeSpotId = null;
-        _trayOptions = [];
-        _trayWrong = false;
-      });
     }
 
     Future<void> _onShapeDropped(_ShapeSpot spot, _ShapeType dropped) async {
@@ -248,8 +256,7 @@
         HapticFeedback.mediumImpact();
         setState(() {
           _filledSpotIds.add(spot.id);
-          _activeSpotId = null;
-          _trayOptions = [];
+          _trayOptions.remove(dropped);
         });
         await playSfx(ArcticAudioAssets.forShape(dropped.name));
         showDomaReaction(DomaState.correct);
@@ -259,6 +266,7 @@
           await _onSnowmanComplete();
         }
       } else {
+        await playSfx('assets/audio/sound_effects/bubble_pop.wav');
         showDomaReaction(DomaState.wrong);
         HapticFeedback.heavyImpact();
         setState(() => _trayWrong = true);
@@ -320,12 +328,10 @@
                   errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
                 ),
               ),
-              SafeArea(
-                child: Padding(
+              Padding(
                   padding: const EdgeInsets.only(top: 5),
                   child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
                 ),
-              ),
               if (!_introPlaying) buildDoma(context),
               if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
             ],
@@ -337,42 +343,48 @@
     // ── Intro layer ──────────────────────────────────────────────────────────
     Widget _buildIntroLayer() {
       final screenH = MediaQuery.of(context).size.height;
-      return Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(
-              flex: 4,
-              child: AnimatedBuilder(
-                animation: _domaFloatCtrl,
-                builder: (_, child) => Transform.translate(
-                  offset: Offset(
-                    0,
-                    Tween<double>(begin: -6, end: 6).evaluate(
-                      CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+      return Stack(
+        children: [
+          Positioned(top: 25, left: 20, child: ArcticBackButton()),
+          Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+          Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  flex: 4,
+                  child: AnimatedBuilder(
+                    animation: _domaFloatCtrl,
+                    builder: (_, child) => Transform.translate(
+                      offset: Offset(
+                        0,
+                        Tween<double>(begin: -6, end: 6).evaluate(
+                          CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                        ),
+                      ),
+                      child: child,
+                    ),
+                    child: Image.asset(
+                      _characterImage,
+                      height: screenH * 0.7,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
                     ),
                   ),
-                  child: child,
                 ),
-                child: Image.asset(
-                  _characterImage,
-                  height: screenH * 0.7,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                Expanded(
+                  flex: 5,
+                  child: Image.asset(
+                    _snowmanAsset,
+                    height: screenH * 0.75,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text('⛄', style: TextStyle(fontSize: 90)),
+                  ),
                 ),
-              ),
+              ],
             ),
-            Expanded(
-              flex: 5,
-              child: Image.asset(
-                _snowmanAsset,
-                height: screenH * 0.75,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Text('⛄', style: TextStyle(fontSize: 90)),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
@@ -383,31 +395,84 @@
           final h = constraints.maxHeight;
           final w = constraints.maxWidth;
 
-          return Column(
+          return Stack(
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
-                    Center(child: _buildInstructionBanner(h)),
-                  ],
-                ),
+              Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                    child: Stack(
+                      alignment: Alignment.topCenter,
+                      children: [
+                        Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                        Align(alignment: Alignment.centerRight, child: ArcticLevelBadge(level: widget.level)),
+                        Center(child: _buildInstructionBanner(h)),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: ScaleTransition(
+                      scale: _sceneEnter,
+                      child: _buildSnowmanScene(w, h),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 15),
+                    child: _buildRoundIndicator(),
+                  ),
+                ],
               ),
-              Expanded(
-                child: ScaleTransition(
-                  scale: _sceneEnter,
-                  child: _buildSnowmanScene(w, h),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 0, bottom: 5),
-                child: _buildRoundIndicator(),
+              Positioned(
+                right: 16,
+                bottom: 16,
+                child: _buildAnswerTrayPanel(w, h), // NEW
               ),
             ],
           );
         },
+      );
+    }
+
+    Widget _buildAnswerTrayPanel(double w, double h) {
+      final panelWidth = (w * 0.22).clamp(160.0, 240.0);
+      final tileSize = (h * 0.12).clamp(46.0, 66.0);
+
+      return Container(
+        width: panelWidth,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: ArcticColorTheme.pictonblue, width: 2),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: _trayOptions.isEmpty
+            ? Text(
+          'Great job!',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: ArcticAppTextStyles.fredoka,
+            fontSize: (h * 0.032).clamp(12.0, 15.0),
+            fontWeight: FontWeight.w600,
+            color: ArcticColorTheme.slateblue.withValues(alpha: 0.7),
+          ),
+        )
+            : Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          alignment: WrapAlignment.center,
+          children: _trayOptions.map((shape) {
+            final tile = _shapeTile(shape, tileSize, wrong: _trayWrong);
+            return Draggable<_ShapeType>(
+              data: shape,
+              feedback: Material(color: Colors.transparent, child: tile),
+              childWhenDragging: Opacity(opacity: 0.3, child: tile),
+              child: tile,
+            );
+          }).toList(),
+        ),
       );
     }
 
@@ -434,7 +499,7 @@
               'Tap a spot, then drag the matching shape!',
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: (h * 0.06).clamp(13.0, 19.0),
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
                 shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
@@ -447,8 +512,7 @@
 
     // ── Snowman scene with popup tray ───────────────────────────────────────
     Widget _buildSnowmanScene(double w, double h) {
-      const double snowmanAspectRatio = 0.6;
-
+      final double snowmanAspectRatio = _snowmanAspectRatio ?? 0.6;
       final maxBoardWidth = w * 0.42;
       final maxBoardHeight = h * 1;
 
@@ -459,9 +523,6 @@
         boardHeight = boardWidth / snowmanAspectRatio;
       }
 
-      final activeSpot =
-      _activeSpotId == null ? null : _snowman.spots.firstWhere((s) => s.id == _activeSpotId);
-
       return Center(
         child: SizedBox(
           width: boardWidth,
@@ -469,14 +530,6 @@
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // Tapping anywhere outside the tray dismisses it.
-              if (activeSpot != null)
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onTap: _dismissTray,
-                  ),
-                ),
               AnimatedBuilder(
                 animation: _wiggle,
                 builder: (_, child) => Transform.rotate(
@@ -494,7 +547,6 @@
                 ),
               ),
               ..._snowman.spots.map((spot) => _buildSpot(spot, boardWidth, boardHeight)),
-              if (activeSpot != null) _buildTrayPopup(activeSpot, boardWidth, boardHeight),
             ],
           ),
         ),
@@ -502,7 +554,7 @@
     }
 
     Widget _buildSpot(_ShapeSpot spot, double boardWidth, double boardHeight) {
-      final size = boardWidth * 0.25;
+      final size = boardWidth * 0.20;
       final left = boardWidth * spot.anchorX - size / 2;
       final top = boardHeight * spot.anchorY - size / 2;
       final filled = _filledSpotIds.contains(spot.id);
@@ -522,79 +574,28 @@
               return _shapeIcon(spot.correctShape, size, color: ArcticColorTheme.cadetblue);
             }
 
-            return GestureDetector(
-              onTap: () => _activateSpot(spot),
-              child: AnimatedBuilder(
-                animation: _spotPulse,
-                builder: (_, child) => Transform.scale(
-                  scale: _activeSpotId == spot.id ? 1.0 : _spotPulse.value,
-                  child: child,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: highlight
-                        ? ArcticColorTheme.pictonblue.withValues(alpha: 0.3)
-                        : Colors.white.withValues(alpha: 0.55),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: highlight ? ArcticColorTheme.pictonblue : ArcticColorTheme.slateblue.withValues(alpha: 0.6),
-                      width: 2.5,
-                    ),
+            return AnimatedBuilder(
+              animation: _spotPulse,
+              builder: (_, child) => Transform.scale(
+                scale: _spotPulse.value,
+                child: child,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: highlight
+                      ? ArcticColorTheme.pictonblue.withValues(alpha: 0.3)
+                      : Colors.white.withValues(alpha: 0.55),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: highlight ? ArcticColorTheme.pictonblue : ArcticColorTheme.slateblue.withValues(alpha: 0.6),
+                    width: 2.5,
                   ),
-                  alignment: Alignment.center,
-                  child: Icon(Icons.help_outline, size: size * 0.5, color: ArcticColorTheme.slateblue),
                 ),
+                alignment: Alignment.center,
+                child: Icon(Icons.help_outline, size: size * 0.5, color: ArcticColorTheme.slateblue),
               ),
             );
           },
-        ),
-      );
-    }
-
-    /// Small tray of draggable shape tiles anchored near the tapped spot,
-    /// flipping above the spot when there isn't room below (e.g. low buttons).
-    Widget _buildTrayPopup(_ShapeSpot spot, double boardWidth, double boardHeight) {
-      final tileSize = boardWidth * 0.25;
-      final trayWidth = tileSize * _trayOptions.length + 12.0 * (_trayOptions.length - 1) + 20;
-      final flipAbove = spot.anchorY > 0.6;
-      final spotSize = boardWidth * 0.16;
-
-      final centerX = boardWidth * spot.anchorX;
-      final left = (centerX - trayWidth / 2).clamp(0.0, max(0.0, boardWidth - trayWidth)).toDouble();
-
-      final rawTop = flipAbove
-          ? boardHeight * spot.anchorY - spotSize / 2 - tileSize - 24
-          : boardHeight * spot.anchorY + spotSize / 2 + 12;
-      final top = rawTop.clamp(0.0, max(0.0, boardHeight - tileSize - 20)).toDouble();
-
-      return Positioned(
-        left: left,
-        top: top,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: ArcticColorTheme.pictonblue, width: 2),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 10, offset: const Offset(0, 4)),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: _trayOptions.map((shape) {
-              final tile = _shapeTile(shape, tileSize, wrong: _trayWrong);
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Draggable<_ShapeType>(
-                  data: shape,
-                  feedback: Material(color: Colors.transparent, child: tile),
-                  childWhenDragging: Opacity(opacity: 0.3, child: tile),
-                  child: tile,
-                ),
-              );
-            }).toList(),
-          ),
         ),
       );
     }
@@ -607,23 +608,9 @@
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Image.asset(
-              _tagAsset,
-              width: size,
-              height: size,
-              fit: BoxFit.contain,
-              color: wrong ? Colors.red.shade300 : null,
-              colorBlendMode: wrong ? BlendMode.modulate : null,
-              errorBuilder: (_, __, ___) => Container(
-                decoration: BoxDecoration(
-                  color: wrong ? Colors.red.shade300 : ArcticColorTheme.pictonblue,
-                  borderRadius: BorderRadius.circular(size * 0.22),
-                ),
-              ),
-            ),
             Transform.translate(
               offset: Offset(0, size * 0.08), // ← tweak this to move it up/down
-              child: _shapeGlyph(shape, size * 0.5, color: wrong ? Colors.red.shade100 : ArcticColorTheme.cotton),
+              child: _shapeGlyph(shape, size * 0.8, color: wrong ? Colors.red.shade100 : ArcticColorTheme.slateblue),
             ),
           ],
         ),

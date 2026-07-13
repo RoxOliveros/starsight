@@ -94,7 +94,9 @@ class _AuroraRibbon {
 }
 
 class AuroraCatcherGame extends StatefulWidget {
-  const AuroraCatcherGame({super.key});
+  final int level;
+
+  const AuroraCatcherGame({super.key, required this.level});
 
   @override
   State<AuroraCatcherGame> createState() => _AuroraCatcherGameState();
@@ -285,6 +287,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
         await _onRoundComplete();
       }
     } else {
+      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       HapticFeedback.heavyImpact();
       setState(() => _wrongId = ribbon.id);
@@ -346,12 +349,10 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
                 ),
               ),
             ),
-            SafeArea(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
             if (!_introPlaying) buildDoma(context),
             if (_showWinAurora) _buildWinAurora(),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
@@ -364,37 +365,43 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
   // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
-    return Center(
-      child: AnimatedBuilder(
-        animation: _domaFloatCtrl,
-        builder: (_, child) => Transform.translate(
-          offset: Offset(
-            0,
-            Tween<double>(begin: -6, end: 6).evaluate(
-              CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
-            ),
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: AnimatedBuilder(
+              animation: _domaFloatCtrl,
+              builder: (_, child) => Transform.translate(
+                offset: Offset(
+                  0,
+                  Tween<double>(begin: -6, end: 6).evaluate(
+                    CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                  ),
+                ),
+                child: child,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    _characterImage,
+                    height: screenH * 0.7,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                  ),
+                  SizedBox(width: 130),
+                  Image.asset(
+                    _auroraAsset,
+                    height: screenH * 0.7,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text('🌌', style: TextStyle(fontSize: 70)),
+                  ),
+                ],
+              )
           ),
-          child: child,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              _characterImage,
-              height: screenH * 0.7,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-            ),
-            SizedBox(width: 130),
-            Image.asset(
-              _auroraAsset,
-              height: screenH * 0.7,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Text('🌌', style: TextStyle(fontSize: 70)),
-            ),
-          ],
-        )
-      ),
+      ],
     );
   }
 
@@ -410,11 +417,15 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
             Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
                   child: Stack(
-                    alignment: Alignment.center,
+                    alignment: Alignment.topCenter,
                     children: [
                       Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ArcticLevelBadge(level: widget.level),
+                      ),
                       Center(child: _buildPromptBanner(h)),
                     ],
                   ),
@@ -426,7 +437,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(top: 0, bottom: 5),
+                  padding: const EdgeInsets.only(bottom: 15),
                   child: _buildRoundIndicator(),
                 ),
               ],
@@ -478,7 +489,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
                 promptColor == null ? 'Catch the lights!' : 'Catch the light!',
                 style: TextStyle(
                   fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: (h * 0.06).clamp(13.0, 19.0),
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                   shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
@@ -599,8 +610,8 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
             color: done
                 ? ArcticColorTheme.cadetblue
                 : current
-                ? ArcticColorTheme.slateblue
-                : ArcticColorTheme.slateblue.withValues(alpha: 0.35),
+                ? ArcticColorTheme.cotton
+                : ArcticColorTheme.cotton.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(6),
           ),
         );

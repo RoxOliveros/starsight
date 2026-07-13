@@ -109,7 +109,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
           ),
 
           //back button
-          Positioned(top: 20, left: 20, child: LagoonBackButton()),
+          Positioned(top: 25, left: 20, child: LagoonBackButton()),
 
           // 🌿 Content
           Center(

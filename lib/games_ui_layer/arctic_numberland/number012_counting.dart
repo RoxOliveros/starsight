@@ -192,153 +192,163 @@ class _Number012CountingObjectsScreenState
           if (_screenPhase == _ScreenPhase.intro)
             _buildIntroLayer()
           else
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(top: 5, bottom: 5),
+              child: Column(
+                children: [
+                  // --- HEADER ---
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
+                    child: Stack(
+                      alignment: Alignment.topCenter,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ArcticBackButton(),
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: ArcticLevelBadge(level: widget.level),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: ArcticColorTheme.pictonblue.withValues(
+                                alpha: 0.92),
+                            borderRadius: BorderRadius.circular(32),
+                            border: Border.all(color: Colors.white, width: 3),
+                            boxShadow: [
+                              BoxShadow(
+                                color: ArcticColorTheme.pictonblue.withValues(
+                                    alpha: 0.4),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            'How many are there?',
+                            style: TextStyle(
+                              fontFamily: ArcticAppTextStyles.fredoka,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              shadows: const [
+                                Shadow(color: Color(0x55003366),
+                                    blurRadius: 6,
+                                    offset: Offset(0, 2))
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-                    // --- HEADER ---
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: ArcticBackButton(),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: ArcticLevelBadge(level: widget.level),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 8,
+                  const SizedBox(height: 8),
+
+                  // --- MAIN CONTENT ---
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // OBJECTS DISPLAY BOX
+                        Expanded(
+                          flex: 3,
+                          child: Container(
+                            height: double.infinity,
+                            margin: const EdgeInsets.only(
+                              bottom: 16,
+                              left: 12,
                             ),
                             decoration: BoxDecoration(
-                              color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-                              borderRadius: BorderRadius.circular(32),
-                              border: Border.all(color: Colors.white, width: 3),
+                              color: ArcticColorTheme.cotton,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: ArcticColorTheme.pictonblue,
+                                width: 4,
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                                  blurRadius: 16,
+                                  color: ArcticColorTheme.pictonblue
+                                      .withValues(alpha: 0.3),
+                                  blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                            child: Text(
-                              'How many are there?',
-                              style: TextStyle(
-                                fontFamily: ArcticAppTextStyles.fredoka,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // --- MAIN CONTENT ---
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // OBJECTS DISPLAY BOX
-                          Expanded(
-                            flex: 3,
-                            child: Container(
-                              height: double.infinity,
-                              margin: const EdgeInsets.only(
-                                bottom: 16,
-                                left: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: ArcticColorTheme.cotton,
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: ArcticColorTheme.pictonblue,
-                                  width: 4,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: ArcticColorTheme.pictonblue
-                                        .withValues(alpha: 0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: _buildObjectGrid(),
-                              ),
-                            ),
-                          ),
-
-                          // CHOICES
-                          Expanded(
-                            flex: 2,
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
+                              padding: const EdgeInsets.all(16),
+                              child: _buildObjectGrid(),
+                            ),
+                          ),
+                        ),
 
-                                  return Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: List.generate(_choices.length, (index) {
-                                      return Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 7),
-                                          child: GestureDetector(
-                                            onTap: () => _onChoiceTap(index),
-                                            child: AnimatedContainer(
-                                              duration: const Duration(milliseconds: 250),
-                                              width: double.infinity,
-                                              decoration: BoxDecoration(
-                                                color: _choiceColor(index),
-                                                borderRadius: BorderRadius.circular(18),
-                                                border: Border.all(
-                                                  color: _choiceBorderColor(index),
-                                                  width: 3,
-                                                ),
+                        // CHOICES
+                        Expanded(
+                          flex: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12,
+                                vertical: 16),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                return Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: List.generate(
+                                      _choices.length, (index) {
+                                    return Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 7),
+                                        child: GestureDetector(
+                                          onTap: () => _onChoiceTap(index),
+                                          child: AnimatedContainer(
+                                            duration: const Duration(
+                                                milliseconds: 250),
+                                            width: double.infinity,
+                                            decoration: BoxDecoration(
+                                              color: _choiceColor(index),
+                                              borderRadius: BorderRadius
+                                                  .circular(18),
+                                              border: Border.all(
+                                                color: _choiceBorderColor(
+                                                    index),
+                                                width: 3,
                                               ),
-                                              child: Center(
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(10),
-                                                  child: Image.asset(
-                                                    'assets/fonts/game_numbers/${_choices[index]}.png',
-                                                    fit: BoxFit.contain,
-                                                  ),
+                                            ),
+                                            child: Center(
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(
+                                                    10),
+                                                child: Image.asset(
+                                                  'assets/fonts/game_numbers/${_choices[index]}.png',
+                                                  fit: BoxFit.contain,
                                                 ),
                                               ),
                                             ),
                                           ),
                                         ),
-                                      );
-                                    }),
-                                  );
-                                },
-                              ),
+                                      ),
+                                    );
+                                  }),
+                                );
+                              },
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    _buildProgressDots(),
-                    const SizedBox(height: 10),                  ],
-                ),
+                  ),
+                  _buildProgressDots(),
+                  const SizedBox(height: 10),
+                ],
               ),
             ),
+
           if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
@@ -411,58 +421,60 @@ class _Number012CountingObjectsScreenState
   }
 
   Widget _buildIntroLayer() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.only(top: 5),
-        child: Stack(
-          children: [
-            Positioned(top: 8, left: 12, child: ArcticBackButton()),
-            Positioned(top: 8, right: 12, child: ArcticLevelBadge(level: widget.level)),
-            Positioned.fill(
-              top: 50,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: Image.asset(
-                        'assets/images/characters/doma_the_penguin.png',
-                        height: MediaQuery.of(context).size.height * 0.65,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            const Text('🐧', style: TextStyle(fontSize: 60)),
-                      ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 5),
+      child: Stack(
+        children: [
+          Positioned(top: 25, left: 20, child: ArcticBackButton()),
+          Positioned(
+              top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+          Positioned.fill(
+            top: 50,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      'assets/images/characters/doma_the_penguin.png',
+                      height: MediaQuery
+                          .of(context)
+                          .size
+                          .height * 0.65,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                      const Text('🐧', style: TextStyle(fontSize: 60)),
                     ),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: AnimatedBuilder(
-                        animation: _numberDanceCtrl,
-                        builder: (_, __) {
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(3, (i) {
-                              final angle =
-                                  _numberDance.value * ((i % 2 == 0) ? 1 : -1);
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                child: Transform.rotate(
-                                  angle: angle,
-                                  child: _buildIntroNumberCard(i),
-                                ),
-                              );
-                            }),
-                          );
-                        },
-                      ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: _numberDanceCtrl,
+                      builder: (_, __) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(3, (i) {
+                            final angle =
+                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: Transform.rotate(
+                                angle: angle,
+                                child: _buildIntroNumberCard(i),
+                              ),
+                            );
+                          }),
+                        );
+                      },
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

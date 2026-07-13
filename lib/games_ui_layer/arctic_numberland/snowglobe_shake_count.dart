@@ -24,7 +24,9 @@ class _RoundSpec {
 }
 
 class SnowglobeShakeGame extends StatefulWidget {
-  const SnowglobeShakeGame({super.key});
+  final int level;
+
+  const SnowglobeShakeGame({super.key,required this.level});
 
   @override
   State<SnowglobeShakeGame> createState() => _SnowglobeShakeGameState();
@@ -270,12 +272,11 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
                 errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
               ),
             ),
-            SafeArea(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
+
             if (!_introPlaying) buildDoma(context),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
           ],
@@ -287,42 +288,48 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 4,
-            child: AnimatedBuilder(
-              animation: _domaFloatCtrl,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(
-                  0,
-                  Tween<double>(begin: -6, end: 6).evaluate(
-                    CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 4,
+                child: AnimatedBuilder(
+                  animation: _domaFloatCtrl,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(
+                      0,
+                      Tween<double>(begin: -6, end: 6).evaluate(
+                        CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                      ),
+                    ),
+                    child: child,
+                  ),
+                  child: Image.asset(
+                    _characterImage,
+                    height: screenH * 0.7,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
-                child: child,
               ),
-              child: Image.asset(
-                _characterImage,
-                height: screenH * 0.7,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+              Expanded(
+                flex: 5,
+                child: Image.asset(
+                  _snowglobeEmptyAsset,
+                  height: screenH * 0.5,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Text('🔮', style: TextStyle(fontSize: 90)),
+                ),
               ),
-            ),
+            ],
           ),
-          Expanded(
-            flex: 5,
-            child: Image.asset(
-              _snowglobeEmptyAsset,
-              height: screenH * 0.5,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Text('🔮', style: TextStyle(fontSize: 90)),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -339,18 +346,22 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
                     child: Stack(
-                      alignment: Alignment.center,
+                      alignment: Alignment.topCenter,
                       children: [
                         Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: ArcticLevelBadge(level: widget.level),
+                        ),
                         Center(child: _buildInstructionBanner(h)),
                       ],
                     ),
                   ),
                   Expanded(child: _buildGlobeArea(h)),
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 5),
+                    padding: const EdgeInsets.only(bottom: 15),
                     child: _buildProgressDots(),
                   ),
                 ],
@@ -406,11 +417,10 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
             _globeFull ? 'Now put the matching tag!' : 'Shake the snowglobe to reveal!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.05).clamp(13.0, 18.0),
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
-            ),
+              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],            ),
           ),
         ),
       ),
@@ -506,8 +516,9 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
       ),
       childWhenDragging: Opacity(opacity: 0.3, child: _tagVisual(tag, size)),
       onDragStarted: () => HapticFeedback.selectionClick(),
-      onDraggableCanceled: (_, __) {
+      onDraggableCanceled: (_, __) async {
         HapticFeedback.heavyImpact();
+        await playSfx('assets/audio/sound_effects/bubble_pop.wav');
         showDomaReaction(DomaState.wrong);
       },
       child: _tagVisual(tag, size),

@@ -87,7 +87,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
             ),
           ),
 
-          Positioned(top: 20, left: 20, child: LumiBackButton()),
+          Positioned(top: 25, left: 20, child: LumiBackButton()),
 
           Center(
             child: LayoutBuilder(

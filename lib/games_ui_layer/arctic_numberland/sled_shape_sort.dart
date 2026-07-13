@@ -33,7 +33,9 @@ class _RoundSpec {
 }
 
 class SledShapeSortGame extends StatefulWidget {
-  const SledShapeSortGame({super.key});
+  final int level;
+
+  const SledShapeSortGame({super.key,required this.level});
 
   @override
   State<SledShapeSortGame> createState() => _SledShapeSortGameState();
@@ -193,6 +195,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         await _onRoundComplete();
       }
     } else {
+      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       HapticFeedback.heavyImpact();
       setState(() => _wrongItemId = item.id);
@@ -238,12 +241,10 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                 errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
               ),
             ),
-            SafeArea(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
               ),
-            ),
             if (!_introPlaying) buildDoma(context),
             if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
           ],
@@ -257,78 +258,85 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     final screenH = MediaQuery.of(context).size.height;
     final badgeSize = screenH * 0.12;
 
-    return Center(
-      child: AnimatedBuilder(
-        animation: _domaFloatCtrl,
-        builder: (_, child) => Transform.translate(
-          offset: Offset(
-            0,
-            Tween<double>(begin: -6, end: 6).evaluate(
-              CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+    return Stack(
+      children: [
+        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Center(
+          child: AnimatedBuilder(
+            animation: _domaFloatCtrl,
+            builder: (_, child) => Transform.translate(
+              offset: Offset(
+                0,
+                Tween<double>(begin: -6, end: 6).evaluate(
+                  CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                ),
+              ),
+              child: child,
             ),
-          ),
-          child: child,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Spacer(),
-            Image.asset(
-              _characterImage,
-              height: screenH * 0.7,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-            ),
-            const Spacer(),
-            Column(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                const Spacer(),
                 Image.asset(
-                  _sledAsset,
-                  height: screenH * 0.55,
+                  _characterImage,
+                  height: screenH * 0.7,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text('🛷', style: TextStyle(fontSize: 70)),
+                  errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: _ShapeKind.values.map((shape) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Container(
-                        width: badgeSize,
-                        height: badgeSize,
-                        padding: EdgeInsets.all(badgeSize * 0.1),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: ArcticColorTheme.pictonblue,
-                            width: 3,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
+                const Spacer(),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      _sledAsset,
+                      height: screenH * 0.55,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Text('🛷', style: TextStyle(fontSize: 70)),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: _ShapeKind.values.map((shape) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Container(
+                            width: badgeSize,
+                            height: badgeSize,
+                            padding: EdgeInsets.all(badgeSize * 0.1),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: ArcticColorTheme.pictonblue,
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: CustomPaint(
-                          painter: _ShapeOutlinePainter(shape),
-                          child: const SizedBox.expand(),
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                            child: CustomPaint(
+                              painter: _ShapeOutlinePainter(shape),
+                              child: const SizedBox.expand(),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
+                const Spacer(),
               ],
             ),
-            const Spacer(),
-          ],
+          ),
         ),
-      ),
+      ],
     );
+
   }
 
   // ── Main game layout ─────────────────────────────────────────────────────
@@ -342,19 +350,26 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
                 child: Stack(
-                  alignment: Alignment.center,
+                  alignment: Alignment.topCenter,
                   children: [
                     Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ArcticLevelBadge(level: widget.level),
+                    ),
                     Center(child: _buildInstructionBanner(h)),
                   ],
                 ),
               ),
               Expanded(child: _buildStagingArea(h)),
-              _buildSledRow(h * 0.32),
+              Transform.translate(
+                offset: Offset(0, -h * 0.05), // ← increase this to move it further up
+                child: _buildSledRow(h * 0.32),
+              ),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
+                padding: const EdgeInsets.only(bottom: 15),
                 child: _buildRoundIndicator(),
               ),
             ],
@@ -387,7 +402,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
             'Drag each shape into its sled!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: (h * 0.06).clamp(13.0, 19.0),
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],

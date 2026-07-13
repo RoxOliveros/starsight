@@ -287,7 +287,7 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
           if (_screenPhase == _ScreenPhase.intro)
             _buildIntroLayer()
           else
-            SafeArea(child: _buildGameContent()),
+            _buildGameContent(),
 
           if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
@@ -298,13 +298,12 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
 
   // ── Intro ──────────────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
-    return SafeArea(
-      child: Padding(
+    return Padding(
         padding: const EdgeInsets.only(top: 5),
         child: Stack(
           children: [
-            Positioned(top: 8, left: 12, child: ArcticBackButton()),
-            Positioned(top: 8, right: 12, child: ArcticLevelBadge(level: widget.level)),
+            Positioned(top: 25, left: 20, child: ArcticBackButton()),
+            Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
             Positioned.fill(
               top: 40,
               child: Row(
@@ -352,8 +351,7 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildIntroNumberCard(int i) {
@@ -409,13 +407,11 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
   Widget _buildGameContent() {
     return Column(
       children: [
-        const SizedBox(height: 12),
-
         // ── HEADER ──────────────────────────────
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
           child: Stack(
-            alignment: Alignment.center,
+            alignment: Alignment.topCenter,
             children: [
               Align(
                   alignment: Alignment.centerLeft,
@@ -485,7 +481,7 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
 
         // ── PROGRESS DOTS ───────────────────────
         Padding(
-          padding: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.only(bottom: 15),
           child: _buildProgressDots(),
         ),
       ],
