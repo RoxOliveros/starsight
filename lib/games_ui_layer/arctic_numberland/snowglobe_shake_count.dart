@@ -7,6 +7,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import 'addition_rescue_bridge_game.dart';
 import 'arctic_audio_helper.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -593,7 +594,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: navigate to next game
+        Navigator.pop(context, AdditionRescueBridgeGame(level: widget.level + 1));
       },
       onRestart: () {
         setState(() {

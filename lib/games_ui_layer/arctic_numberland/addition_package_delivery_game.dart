@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/arctic_numberland/subtraction_melting_ice_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -912,8 +913,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO @Tin navigate to next games
-        // Navigator.pop(context, const ());
+        Navigator.pop(context, SubtractionMeltingIceGame(level: widget.level + 1));
       },
       onRestart: () {
         setState(() {

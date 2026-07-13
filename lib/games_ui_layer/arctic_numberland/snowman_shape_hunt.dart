@@ -1,7 +1,8 @@
   import 'dart:async';
   import 'dart:math';
 import 'dart:ui' as ui;
-  import 'package:flutter/material.dart';
+  import 'package:StarSight/games_ui_layer/arctic_numberland/sled_shape_sort.dart';
+import 'package:flutter/material.dart';
   import 'package:flutter/services.dart';
   import 'package:audioplayers/audioplayers.dart';
   import '../../business_layer/orientation_service.dart';
@@ -675,7 +676,7 @@ import 'dart:ui' as ui;
         characterImage: 'assets/images/characters/doma_the_penguin.png',
         closeButtonColor: ArcticColorTheme.slateblue,
         onNext: () {
-          // TODO: navigate to next game
+          Navigator.pop(context, SledShapeSortGame(level: widget.level + 1));
         },
         onRestart: () {
           setState(() {

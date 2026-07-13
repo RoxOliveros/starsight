@@ -707,7 +707,7 @@ class _Number1to5MatchSnowglobesScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        //TODO: @Tin navigation
+        //TODO: @Tin navigation after number intro is done
         // Navigator.pop(context, const ());
       },
       onRestart: () {

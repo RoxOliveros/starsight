@@ -136,8 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: ProfileDayDialog(name: widget.nickname),
       ),
       body: _animationsReady
-          ? SafeArea(
-              child: Stack(
+          ? Stack(
                 clipBehavior: Clip.none,
                 children: [
                   // ── Full-screen cloud background ──────────────────────────
@@ -220,8 +219,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ],
                   ),
                 ],
-              ),
-            )
+              )
           : LoadingScreen.arctic(),
     );
   }
@@ -280,7 +278,10 @@ class _TopBar extends StatelessWidget {
           // ── Avatar pinned to the left ─────────────────────────────────
           Align(
             alignment: Alignment.centerLeft,
-            child: _AvatarBadge(key: avatarBadgeKey, name: nickname),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 25, left: 10),
+              child: _AvatarBadge(key: avatarBadgeKey, name: nickname),
+            ),
           ),
         ],
       ),
@@ -325,13 +326,34 @@ class _AvatarBadgeState extends State<_AvatarBadge> {
     const double circleSize = 55;
     const double pillHeight = 22;
     const double pillOverlap = 7;
+    const double pillMinWidth = 40;
+    const double pillMaxWidth = 130;
+    const double pillHorizontalPadding = 10;
+
+    const pillTextStyle = TextStyle(
+      fontFamily: AppTextStyles.fredoka,
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: Colors.white,
+      letterSpacing: 1,
+    );
+
+    final textPainter = TextPainter(
+      text: TextSpan(text: widget.name, style: pillTextStyle),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final pillWidth = (textPainter.width + pillHorizontalPadding * 2)
+        .clamp(pillMinWidth, pillMaxWidth);
+    final tileWidth = pillWidth > circleSize ? pillWidth : circleSize;
 
     return Builder(
       builder: (context) {
         return GestureDetector(
           onTap: () => _showProfileDialog(context),
           child: SizedBox(
-            width: circleSize,
+            width: tileWidth,
             height: circleSize + pillHeight - pillOverlap,
             child: Stack(
               clipBehavior: Clip.none,
@@ -366,7 +388,10 @@ class _AvatarBadgeState extends State<_AvatarBadge> {
                   child: Center(
                     child: Container(
                       height: pillHeight,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      width: pillWidth,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: pillHorizontalPadding,
+                      ),
                       decoration: BoxDecoration(
                         color: ColorTheme.yelloworange,
                         borderRadius: BorderRadius.circular(12),
@@ -374,13 +399,9 @@ class _AvatarBadgeState extends State<_AvatarBadge> {
                       alignment: Alignment.center,
                       child: Text(
                         widget.name,
-                        style: const TextStyle(
-                          fontFamily: AppTextStyles.fredoka,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          letterSpacing: 1,
-                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: pillTextStyle,
                       ),
                     ),
                   ),
@@ -438,7 +459,7 @@ class _MainIslandCard extends StatelessWidget {
             //   right: 5,
             //   bottom: 5,
             //   child: GestureDetector(
-            //     onTap: () {}, //TODO: @Tin Navigate to storymode
+            //     onTap: () {},
             //     child: Lottie.asset(
             //       'assets/animations/movie_clapperboard.json',
             //       width: 60,

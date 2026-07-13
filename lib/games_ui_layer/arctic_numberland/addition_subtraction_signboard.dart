@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/arctic_numberland/snowman_shape_hunt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -807,8 +808,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO @Tin navigate to next games
-        // Navigator.pop(context, const ());
+        Navigator.pop(context, SnowmanShapeHuntGame(level: widget.level + 1));
       },
       onRestart: () {
         setState(() {

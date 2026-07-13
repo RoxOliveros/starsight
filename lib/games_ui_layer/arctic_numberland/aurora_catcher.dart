@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/arctic_numberland/shooting_star.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -625,7 +626,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: navigate to next game
+        Navigator.pop(context, ShootingStarCountingGame(level: widget.level + 1));
       },
       onRestart: () {
         setState(() {

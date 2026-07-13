@@ -8,6 +8,7 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import 'arctic_audio_helper.dart';
+import 'aurora_catcher.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
@@ -654,7 +655,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: navigate to next game
+        Navigator.pop(context, AuroraCatcherGame(level: widget.level + 1));
       },
       onRestart: () {
         setState(() {

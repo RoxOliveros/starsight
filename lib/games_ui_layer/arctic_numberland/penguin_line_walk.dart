@@ -11,6 +11,7 @@ import '../../ui_layer/loading_screen.dart';
 import 'arctic_audio_helper.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'igloo_peekaboo.dart';
 
 /// How many penguins to play with. Defaults to 1-8.
 class PenguinLineWalkGame extends StatefulWidget {
@@ -548,7 +549,7 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: navigate to next game
+        Navigator.pop(context, IglooPeekabooGame(level: widget.level + 1));
       },
       onRestart: () {
         setState(() {

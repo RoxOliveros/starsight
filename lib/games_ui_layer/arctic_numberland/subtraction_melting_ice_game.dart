@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/games_ui_layer/arctic_numberland/subtraction_compare_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -616,8 +617,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO @Tin navigate to next games
-        // Navigator.pop(context, const ());
+        Navigator.pop(context, SubtractionCompareGame(level: widget.level + 1));
       },
       onRestart: () {
         setState(() {

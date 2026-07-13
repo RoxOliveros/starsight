@@ -630,7 +630,8 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: navigate to next game
+        // TODO: @Tin navigate to the next game after ending level is done
+        Navigator.pop(context, (level: widget.level + 1));
       },
       onRestart: () {
         setState(() {

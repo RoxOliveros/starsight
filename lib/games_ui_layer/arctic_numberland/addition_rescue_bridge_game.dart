@@ -8,6 +8,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import 'addition_package_delivery_game.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
@@ -1047,8 +1048,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO @Tin navigate to next games
-        // Navigator.pop(context, const ());
+        Navigator.pop(context, AdditionPackageDeliveryGame(level: widget.level + 1));
       },
       onRestart: () {
         setState(() {

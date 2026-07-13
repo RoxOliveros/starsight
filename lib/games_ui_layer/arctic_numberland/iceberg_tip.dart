@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/arctic_numberland/snowglobe_shake_count.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -513,7 +514,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: navigate to next game
+        Navigator.pop(context, SnowglobeShakeGame(level: widget.level + 1));
       },
       onRestart: () {
         setState(() {

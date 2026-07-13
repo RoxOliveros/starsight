@@ -621,7 +621,6 @@ class _FoodColoringScreenState extends State<FoodColoringScreen>
       characterImage: 'assets/images/characters/cat_holding_fishbone.png',
       closeButtonColor: LagoonColorTheme.darkbrown,
       onNext: () {
-        // TODO: @Tin navigate to next level
         // Navigator.of(context).pushReplacement(
         //   MaterialPageRoute(builder: (_) => const NextScreen(level: widget.level + 1)),
         // );

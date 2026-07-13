@@ -309,11 +309,14 @@ class _LevelTile extends StatelessWidget {
 
   Widget? _screenForLevel() {
     switch (level) {
+
+      //TODO: @Tin update 1-3 intro here
       case 1:
         return NumberIntroductionScreen.forSequence(
           [0, 1, 2],
           nextScreen: const Number012RecognitionScreen(level: 2),
         );
+
       case 2:
         return const Number012RecognitionScreen(level: 2);
       case 3:

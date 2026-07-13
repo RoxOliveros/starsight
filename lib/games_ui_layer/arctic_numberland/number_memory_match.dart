@@ -10,6 +10,7 @@ import '../../ui_layer/loading_screen.dart';
 import 'arctic_audio_helper.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'iceberg_tip.dart';
 
 enum _TileKind { numeral, quantity }
 
@@ -553,7 +554,7 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: navigate to next game
+        Navigator.pop(context, IcebergTipGame(level: widget.level + 1));
       },
       onRestart: () {
         setState(() {

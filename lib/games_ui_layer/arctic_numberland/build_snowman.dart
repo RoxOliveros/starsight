@@ -576,7 +576,8 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: navigate to next game
+        // TODO: @Tin navigate after number intro is done
+        // Navigator.pop(context, (level: widget.level + 1));
       },
       onRestart: () {
         setState(() {
