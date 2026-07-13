@@ -24,6 +24,11 @@ class GestureResult {
 
   bool get isThumbsUp => gesture == 'Thumb_Up';
   bool get isThumbsDown => gesture == 'Thumb_Down';
+
+  bool get isPraying =>
+      gesture == 'Praying' ||
+      gesture == 'Closed_Fist' ||
+      gesture == 'Open_Palm';
 }
 
 /// Embeds the native camera + MediaPipe gesture recognizer view, and exposes
