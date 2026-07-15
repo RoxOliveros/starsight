@@ -24,14 +24,13 @@ class _Prayer1State extends State<Prayer1> {
   // Timers
   Timer? _scene2Timer;
   Timer? _scene3Timer;
-  Timer? _promptTimer; // NEW: Timer to trigger the helpful prompt
+  Timer? _promptTimer; // Timer to trigger the helpful prompt
 
   // State flags for interactive gesture logic
   bool _hasCameraPermission = false;
   bool _isWaitingForPrayerGesture = false;
   bool _gestureDetected = false;
-  bool _showPromptCard =
-      false; // NEW: Controls whether the prompt card is visible
+  bool _showPromptCard = false; // Controls whether the prompt card is visible
 
   @override
   void initState() {
@@ -60,40 +59,48 @@ class _Prayer1State extends State<Prayer1> {
     // 2. Play the first prayer audio immediately
     await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_1.wav'));
 
-    // 3. At the 4-second mark, decide what to do based on permissions
+    // 3. Scene2 at 4s, scene3 at 9s — purely visual pacing that plays out
+    // during the narration, independent of gesture detection. If the child
+    // does the praying gesture at any point before these fire,
+    // _onGestureDetected cancels both timers and jumps straight to scene4.
     _scene2Timer = Timer(const Duration(seconds: 4), () {
-      if (!mounted) return;
+      if (!mounted || _gestureDetected) return;
 
-      if (!_hasCameraPermission) {
-        // FALLBACK: If no permission, go straight to Scene 2 and schedule Scene 3
+      setState(() {
+        _currentScene = 'assets/images/objects/lumi/lvl8_scene2.png';
+      });
+
+      _scene3Timer = Timer(const Duration(seconds: 5), () {
+        if (!mounted || _gestureDetected) return;
         setState(() {
-          _currentScene = 'assets/images/objects/lumi/lvl8_scene2.png';
+          _currentScene = 'assets/images/objects/lumi/lvl8_scene3.png';
         });
-
-        _scene3Timer = Timer(const Duration(seconds: 5), () {
-          if (mounted) {
-            setState(() {
-              _currentScene = 'assets/images/objects/lumi/lvl8_scene3.png';
-            });
-          }
-        });
-      } else {
-        // INTERACTIVE MODE: We have permission! Pause automatic transitions
-        // and start waiting for the child to do the praying hands gesture.
-        setState(() {
-          _isWaitingForPrayerGesture = true;
-        });
-
-        // NEW: Schedule the prompt card to pop up if they haven't prayed within 5 seconds!
-        _promptTimer = Timer(const Duration(seconds: 5), () {
-          if (mounted && _isWaitingForPrayerGesture && !_gestureDetected) {
-            setState(() {
-              _showPromptCard = true;
-            });
-          }
-        });
-      }
+      });
     });
+
+    // 4. Wait for pray_1 to actually finish playing before turning on
+    // gesture detection or arming the prompt timer. This guarantees the
+    // prompt (and the ability to trigger scene4) can never appear while the
+    // child is still mid-narration or still looking at scene2/scene3 — it
+    // only kicks in once they've heard the full instruction.
+    await _audioPlayer.onPlayerComplete.first;
+    if (!mounted || _gestureDetected) return;
+
+    if (_hasCameraPermission) {
+      setState(() {
+        _isWaitingForPrayerGesture = true;
+      });
+
+      // Give them a few seconds to actually try the gesture before nudging
+      // with the prompt card.
+      _promptTimer = Timer(const Duration(seconds: 5), () {
+        if (mounted && _isWaitingForPrayerGesture && !_gestureDetected) {
+          setState(() {
+            _showPromptCard = true;
+          });
+        }
+      });
+    }
   }
 
   // This callback fires when your MediaPipe camera detects a stable gesture
@@ -102,7 +109,11 @@ class _Prayer1State extends State<Prayer1> {
 
     // Check if the child did the praying gesture!
     if (result.isPraying) {
-      // Cancel the prompt timer if it hasn't fired yet!
+      // Cancel any pending timers — scene2/scene3 may still be pending if
+      // pray_1's audio was unusually short, and the prompt timer may still
+      // be pending regardless.
+      _scene2Timer?.cancel();
+      _scene3Timer?.cancel();
       _promptTimer?.cancel();
 
       setState(() {
@@ -166,6 +177,7 @@ class _Prayer1State extends State<Prayer1> {
                 onGesture: _onGestureDetected,
                 minConfidence: 0.7,
                 requiredConsecutiveFrames: 4,
+                requiredHands: 2, // needed for palms-together praying detection
               ),
             ),
 
@@ -189,18 +201,20 @@ class _Prayer1State extends State<Prayer1> {
           ),
 
           // --- Helpful Prompt Overlay ---
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: _showPromptCard
-                ? PrayerPromptCard(
-                    key: const ValueKey('prompt_card'),
-                    onClose: () {
-                      setState(() {
-                        _showPromptCard = false;
-                      });
-                    },
-                  )
-                : const SizedBox.shrink(),
+          Positioned.fill(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: _showPromptCard
+                  ? PrayerPromptCard(
+                      key: const ValueKey('prompt_card'),
+                      onClose: () {
+                        setState(() {
+                          _showPromptCard = false;
+                        });
+                      },
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ),
         ],
       ),

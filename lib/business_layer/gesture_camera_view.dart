@@ -25,10 +25,11 @@ class GestureResult {
   bool get isThumbsUp => gesture == 'Thumb_Up';
   bool get isThumbsDown => gesture == 'Thumb_Down';
 
-  bool get isPraying =>
-      gesture == 'Praying' ||
-      gesture == 'Closed_Fist' ||
-      gesture == 'Open_Palm';
+  // The native side now runs a real two-hand landmark geometry check and
+  // only emits 'Praying' when it detects palms together / fingers up.
+  // Open_Palm and Closed_Fist are single-hand MediaPipe stock categories
+  // that are unrelated to praying and must not be treated as a match.
+  bool get isPraying => gesture == 'Praying';
 }
 
 /// Embeds the native camera + MediaPipe gesture recognizer view, and exposes
@@ -48,11 +49,22 @@ class GestureCameraView extends StatefulWidget {
   final double minConfidence;
   final int requiredConsecutiveFrames;
 
+  /// How many hands the native recognizer should track (MediaPipe's
+  /// numHands). Defaults to 1 — the same behavior every existing screen
+  /// (e.g. thumbs up/down) already relies on. Only pass 2 for gestures that
+  /// genuinely need both hands, like the praying-hands detection in
+  /// prayer_1.dart. This is intentionally NOT a hot-swappable prop: it's
+  /// baked into the native view at creation time, so changing it on an
+  /// already-mounted GestureCameraView has no effect — use a new widget
+  /// instance (e.g. via key) if you ever need to change it dynamically.
+  final int requiredHands;
+
   const GestureCameraView({
     super.key,
     required this.onGesture,
     this.minConfidence = 0.7,
     this.requiredConsecutiveFrames = 4,
+    this.requiredHands = 1,
   });
 
   @override
@@ -120,10 +132,10 @@ class _GestureCameraViewState extends State<GestureCameraView> {
     // AndroidView embeds the native PlatformView (camera preview + detector).
     // Remember: you must have already requested camera permission before
     // showing this widget (e.g. via the permission_handler package).
-    return const AndroidView(
+    return AndroidView(
       viewType: GestureCameraView._viewType,
-      creationParams: <String, dynamic>{},
-      creationParamsCodec: StandardMessageCodec(),
+      creationParams: <String, dynamic>{'requiredHands': widget.requiredHands},
+      creationParamsCodec: const StandardMessageCodec(),
     );
   }
 }

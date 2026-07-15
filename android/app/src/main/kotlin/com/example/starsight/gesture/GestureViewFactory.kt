@@ -13,6 +13,16 @@ class GestureViewFactory(
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
-        return GestureRecognizerView(context, lifecycleOwner, eventSink())
+        // args comes from Dart's creationParams via StandardMessageCodec, so
+        // ints decode as Int (or Long on some platforms) — guard both, and
+        // fall back to 1 hand (today's default behavior for every existing
+        // screen like thumbs up/down) if it's missing or malformed.
+        val requiredHands = when (val raw = (args as? Map<*, *>)?.get("requiredHands")) {
+            is Int -> raw
+            is Long -> raw.toInt()
+            else -> 1
+        }.coerceIn(1, 2) // MediaPipe GestureRecognizer only supports 1 or 2 hands
+
+        return GestureRecognizerView(context, lifecycleOwner, eventSink(), requiredHands)
     }
 }
