@@ -11,7 +11,8 @@ import 'package:flutter/material.dart';
   import '../../ui_layer/game_loading_mixin.dart';
   import '../../ui_layer/loading_screen.dart';
   import 'arctic_audio_helper.dart';
-  import 'doma_reaction.dart';
+  import 'arctic_game_ui.dart';
+import 'doma_reaction.dart';
   import 'goodjob_doma_prompt.dart';
 
   enum _ShapeType { circle, square, triangle, star }

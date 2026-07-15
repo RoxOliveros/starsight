@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:StarSight/business_layer/forest_progress_service.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
@@ -10,8 +11,9 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:audioplayers/audioplayers.dart' show AudioPlayer;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
+import 'alphabet_game_ui.dart';
 
 class PaintPoint {
   final Offset position;
@@ -35,7 +37,13 @@ class AlphabetPaintScreen extends StatefulWidget {
 }
 
 class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, TofiReactionMixin {
+
+  final AudioPlayer _player = AudioPlayer();
+
+  @override
+  AudioPlayer get tofiPlayer => _player;
+
   // --- Paint State ---
   final List<PaintPoint> _paintPoints = [];
   Color _selectedColor = const Color(0xFFE74C3C); // default red
@@ -118,7 +126,15 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
 
     if (coverage >= 0.50 && !_celebrationShown) {
       _celebrationShown = true;
-      Future.delayed(const Duration(milliseconds: 400), _showCelebrationDialog);
+      Future.delayed(
+        const Duration(milliseconds: 400),
+            () async {
+          await showTofiReaction(TofiState.correct);
+          if (mounted) {
+            _showCelebrationDialog();
+          }
+        },
+      );
     }
   }
 
@@ -224,8 +240,9 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
     if (local.dx < 0 ||
         local.dy < 0 ||
         local.dx > canvasSize.width ||
-        local.dy > canvasSize.height)
+        local.dy > canvasSize.height) {
       return;
+    }
 
     final Random rng = Random();
 
@@ -239,7 +256,7 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
         _paintPoints.add(
           PaintPoint(
             position: Offset(local.dx + jitterX, local.dy + jitterY),
-            color: _selectedColor.withOpacity(0.18 + rng.nextDouble() * 0.15),
+            color: _selectedColor.withValues(alpha: 0.18 + rng.nextDouble() * 0.15),
             radius: sizeJitter,
           ),
         );
@@ -257,45 +274,41 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
       body: ForestBackground(
         child: Stack(
           children: [
+            buildTofi(context),
+
             // ── Back button ──
-            const Positioned(top: 10, left: 10, child: ForestBackButton()),
+            const Positioned(top: 25, left: 20, child: ForestBackButton()),
 
             // ── Title ──
             Positioned(
-              top: 12,
+              top: 25,
               left: 0,
               right: 0,
-              child: Center(
-                child: Text(
-                  'Paint the letter!',
-                  style: TextStyle(
-                    fontFamily: ForestAppTextStyles.fredoka,
-                    fontSize: screenSize.height * 0.06,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    shadows: const [
-                      Shadow(
-                        blurRadius: 6,
-                        color: Colors.black45,
-                        offset: Offset(2, 2),
-                      ),
-                    ],
-                  ),
-                ),
+              child: Center(child: ForestInstructionBanner(text: 'Paint the letter!')),
+            ),
+
+            // Level Badge
+            Positioned(
+              top: 25,
+              right: 20,
+              child: ForestLevelBadge(
+                level: ForestProgressService.levelNumberForLetter(
+                  widget.letter.toUpperCase(),
+                ) ??
+                    1,
               ),
             ),
 
             // ── Main area: canvas + palette ──
             Positioned(
-              top: screenSize.height * 0.13,
+              top: screenSize.height * 0.22,
               bottom: 12,
-              left: 12,
+              left: 200,
               right: 12,
-              child: Row(
+              child: Column(
                 children: [
                   // ── Paint Canvas ──
                   Expanded(
-                    flex: 5,
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         return GestureDetector(
@@ -320,7 +333,7 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
+                                  color: Colors.black.withValues(alpha: 0.15),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
@@ -342,30 +355,19 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                     ),
                   ),
 
-                  const SizedBox(width: 12),
+                  const SizedBox(height: 12),
 
-                  // ── Color Palette — scrollable so it fits any device ──
+                  // ── Color Palette — horizontal, scrolls if it overflows ──
                   SizedBox(
-                    width: screenSize.width * 0.09,
+                    height: screenSize.height * 0.14,
                     child: SingleChildScrollView(
-                      // Allows vertical scroll when content overflows
+                      scrollDirection: Axis.horizontal,
                       physics: const BouncingScrollPhysics(),
-                      child: Column(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const SizedBox(height: 8),
-
-                          // Brush label
-                          Text(
-                            'Brush',
-                            style: TextStyle(
-                              fontFamily: ForestAppTextStyles.fredoka,
-                              fontSize: 13,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
+                          const SizedBox(width: 8),
 
                           // Brush size buttons
                           _BrushSizeButton(
@@ -374,14 +376,14 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                             color: _selectedColor,
                             onTap: () => setState(() => _brushSize = 18),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(width: 4),
                           _BrushSizeButton(
                             size: 28,
                             isSelected: _brushSize == 28,
                             color: _selectedColor,
                             onTap: () => setState(() => _brushSize = 28),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(width: 4),
                           _BrushSizeButton(
                             size: 40,
                             isSelected: _brushSize == 40,
@@ -389,15 +391,15 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                             onTap: () => setState(() => _brushSize = 40),
                           ),
 
-                          const SizedBox(height: 12),
-                          const Divider(color: Colors.white54, thickness: 1),
-                          const SizedBox(height: 8),
+                          const SizedBox(width: 12),
+                          const VerticalDivider(color: Colors.white54, thickness: 1, width: 20),
+                          const SizedBox(width: 8),
 
                           // Color swatches — all palette colors, scrolls if needed
                           ..._palette.map((color) {
                             final bool isSelected = _selectedColor == color;
                             return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
                               child: GestureDetector(
                                 onTap: () =>
                                     setState(() => _selectedColor = color),
@@ -416,12 +418,12 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                                     ),
                                     boxShadow: isSelected
                                         ? [
-                                            BoxShadow(
-                                              color: color.withOpacity(0.6),
-                                              blurRadius: 8,
-                                              spreadRadius: 2,
-                                            ),
-                                          ]
+                                      BoxShadow(
+                                        color: color.withValues(alpha: 0.6),
+                                        blurRadius: 8,
+                                        spreadRadius: 2,
+                                      ),
+                                    ]
                                         : [],
                                   ),
                                 ),
@@ -429,9 +431,9 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                             );
                           }),
 
-                          const SizedBox(height: 12),
-                          const Divider(color: Colors.white54, thickness: 1),
-                          const SizedBox(height: 8),
+                          const SizedBox(width: 12),
+                          const VerticalDivider(color: Colors.white54, thickness: 1, width: 20),
+                          const SizedBox(width: 8),
 
                           // Clear button
                           GestureDetector(
@@ -466,7 +468,7 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                             ),
                           ),
 
-                          const SizedBox(height: 8),
+                          const SizedBox(width: 8),
                         ],
                       ),
                     ),

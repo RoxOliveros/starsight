@@ -3,6 +3,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -11,34 +12,39 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
-class AlphabetHuntScreen extends StatefulWidget {
-  final String targetLetter;
+import 'alphabet_game_ui.dart';
 
-  const AlphabetHuntScreen({super.key, required this.targetLetter});
+class AlphabetHuntScreen extends StatefulWidget {
+  final String letter;
+
+  const AlphabetHuntScreen({super.key, required this.letter});
 
   @override
   State<AlphabetHuntScreen> createState() => _AlphabetHuntScreenState();
 }
 
-class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
+class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
+  with TofiReactionMixin {
+  @override
+  AudioPlayer get tofiPlayer => _audioPlayer;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   late List<String> _letterPool;
-  List<HuntObject> _activeObjects = [];
+  final List<HuntObject> _activeObjects = [];
 
   int _correctCount = 0;
   final int _winCondition = 4;
 
   // Lists to track the exact screen positions for our tap effects!
-  List<Map<String, double>> _wrongEffects = [];
-  List<Map<String, double>> _correctEffects = [];
+  final List<Map<String, double>> _wrongEffects = [];
+  final List<Map<String, double>> _correctEffects = [];
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
     // 1. Figure out which 3-letter group we are hunting in
-    _letterPool = _getPoolForLetter(widget.targetLetter);
+    _letterPool = _getPoolForLetter(widget.letter);
 
     // 2. Generate the scattered objects
     _generateHuntField();
@@ -58,11 +64,11 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
     _activeObjects.clear();
 
     for (int i = 0; i < _winCondition; i++) {
-      _activeObjects.add(_createHuntObject(widget.targetLetter.toUpperCase()));
+      _activeObjects.add(_createHuntObject(widget.letter.toUpperCase()));
     }
 
     List<String> distractors = _letterPool
-        .where((l) => l != widget.targetLetter.toUpperCase())
+        .where((l) => l != widget.letter.toUpperCase())
         .toList();
 
     for (String distractorLetter in distractors) {
@@ -113,7 +119,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
     // Get the exact pixel position of the object they tapped
     Offset position = box.localToGlobal(Offset.zero);
 
-    if (obj.letter == widget.targetLetter.toUpperCase()) {
+    if (obj.letter == widget.letter.toUpperCase()) {
       setState(() {
         _correctEffects.add({'x': position.dx, 'y': position.dy});
       });
@@ -130,9 +136,11 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
       });
 
       // 3. Play Sound & Remove Object
-      String audioFile =
-          'audio/alphabet_forest/sound_effects/sound_${widget.targetLetter.toLowerCase()}.wav';
+      String audioFile = 'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav';
       await _audioPlayer.play(AssetSource(audioFile));
+      await _audioPlayer.onPlayerComplete.first;
+
+      showTofiReaction(TofiState.correct);
 
       setState(() {
         _correctCount++;
@@ -145,6 +153,8 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
     } else {
       // --- WRONG MATCH ---
       // Show the Red X Effect
+      showTofiReaction(TofiState.wrong);
+
       setState(() {
         _wrongEffects.add({'x': position.dx, 'y': position.dy});
       });
@@ -177,7 +187,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
           onNext: () {
             Navigator.pop(context); // Close the prompt
 
-            String current = widget.targetLetter.toUpperCase();
+            String current = widget.letter.toUpperCase();
 
             // Mark this letter's level as complete, unlocking the next one.
             final completedLevel = ForestProgressService.levelNumberForLetter(
@@ -248,8 +258,8 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
     OrientationService.setLandscape();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -260,54 +270,37 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
 
     return Scaffold(
       body: ForestBackground(
-        child: SafeArea(
-          child: Stack(
+        child: Stack(
             children: [
-              // 1. TOP HEADER
-              Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: EdgeInsets.only(top: screenSize.height * 0.02),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        "Find all the letters:",
-                        style: TextStyle(
-                          fontFamily: ForestAppTextStyles.fredoka,
-                          fontSize: screenSize.height * 0.06,
-                          color: Color.fromARGB(255, 71, 70, 70),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        widget.targetLetter.toUpperCase(),
-                        style: TextStyle(
-                          fontFamily: ForestAppTextStyles.fredoka,
-                          fontSize: screenSize.height * 0.12,
-                          fontWeight: FontWeight.w900,
-                          color: Color.fromARGB(255, 71, 70, 70),
-                          height: 1.0,
-                        ),
-                      ),
-                      Text(
-                        "$_correctCount / $_winCondition",
-                        style: TextStyle(
-                          fontFamily: ForestAppTextStyles.fredoka,
-                          fontSize: screenSize.height * 0.05,
-                          color: ForestColorTheme.darkseagreen,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+              buildTofi(context),
+
+              // ── Back button ──
+              const Positioned(top: 25, left: 20, child: ForestBackButton()),
+
+              // ── Title ──
+              Positioned(
+                top: 25,
+                left: 0,
+                right: 0,
+                child: Center(child: ForestInstructionBanner(text: 'Find all the letters: ${widget.letter.toUpperCase()}')),
+              ),
+
+              // Level Badge
+              Positioned(
+                top: 25,
+                right: 20,
+                child: ForestLevelBadge(
+                  level: ForestProgressService.levelNumberForLetter(
+                    widget.letter.toUpperCase(),
+                  ) ??
+                      1,
                 ),
               ),
 
               Positioned(
-                top: screenSize.height * 0.35,
-                bottom: 0,
-                left: 40,
+                top: 70,
+                bottom: 20,
+                left: 180,
                 right: 40,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -399,13 +392,10 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen> {
                   ),
                 );
               }),
-
-              const Positioned(top: 10, left: 10, child: ForestBackButton()),
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -7,7 +8,9 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../business_layer/forest_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
+import 'alphabet_game_ui.dart';
 
 enum ScreenPhase { intro, tracing }
 
@@ -23,7 +26,12 @@ class AlphabetIntroScreen extends StatefulWidget {
 }
 
 class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, TofiReactionMixin {
+  final AudioPlayer _player = AudioPlayer();
+
+  @override
+  AudioPlayer get tofiPlayer => _player;
+
   late AnimationController _floatCtrl;
   late Animation<double> _float;
   IntroPhase _introPhase = IntroPhase.entering;
@@ -154,6 +162,11 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
 
     await audioFinished.future;
     await sub.cancel();
+
+    if (!mounted) return;
+
+    await showTofiReaction(TofiState.correct);
+
     if (!mounted) return;
 
     setState(() => _introPhase = IntroPhase.done);
@@ -204,32 +217,27 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       body: ForestBackground(
         child: Stack(
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: ForestBackButton(),
+            const Positioned(top: 25, left: 20, child: ForestBackButton()),
+
+            Positioned(
+              top: 25,
+              right: 20,
+              child: ForestLevelBadge(
+                level: ForestProgressService.levelNumberForLetter(
+                  widget.startingLetter,
+                ) ??
+                    1,
               ),
             ),
 
-            Positioned(
-              left: 40,
-              bottom: 0,
-              child: SlideTransition(
-                position: _charSlide,
-                child: Image.asset(
-                  'assets/images/characters/dog.png',
-                  height: screenSize.height * 0.4,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
+            buildTofi(context),
 
             Center(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  const SizedBox(width: 130),
                   // LEFT: Floating object
                   if (_introPhase != IntroPhase.entering &&
                       _introPhase != IntroPhase.playingIntro)

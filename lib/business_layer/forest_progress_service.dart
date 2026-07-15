@@ -72,14 +72,53 @@ class ForestProgressService {
   bool isUnlocked(int level, int unlockedLevel) => level <= unlockedLevel;
 
   static int? levelNumberForLetter(String letter) {
-    final upper = letter.toUpperCase();
-    const order = [
-      'A', 'B', 'C', 'D', 'E', 'F', 'G', // levels 1-7
-      'H', 'I', 'J', 'K', 'L', 'M', 'N', // levels 9-15
-    ];
-    final index = order.indexOf(upper);
-    if (index == -1) return null;
-    // A-G map directly to 1-7. H-N need +2 to skip over level 8 (Match).
-    return index < 7 ? index + 1 : index + 2;
+    switch (letter.toUpperCase()) {
+      case 'A':
+      case 'B':
+      case 'C':
+        return 1;
+
+      case 'D':
+      case 'E':
+      case 'F':
+        return 3;
+
+      case 'G':
+      case 'H':
+      case 'I':
+        return 5;
+
+      case 'J':
+      case 'K':
+      case 'L':
+        return 7;
+
+      case 'M':
+      case 'N':
+      case 'O':
+        return 9;
+
+      case 'P':
+      case 'Q':
+      case 'R':
+        return 11;
+
+      case 'S':
+      case 'T':
+      case 'U':
+        return 13;
+
+      case 'V':
+      case 'W':
+      case 'X':
+        return 15;
+
+      case 'Y':
+      case 'Z':
+        return 17;
+
+      default:
+        return null;
+    }
   }
 }

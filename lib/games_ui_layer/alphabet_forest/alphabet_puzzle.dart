@@ -3,12 +3,16 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+
+import 'alphabet_game_ui.dart';
 
 class PuzzlePiece {
   final int id; // 0=TL, 1=TR, 2=BL, 3=BR
@@ -19,15 +23,21 @@ class PuzzlePiece {
 
 class AlphabetPuzzleScreen extends StatefulWidget {
   // You can pass the letter you want to play through the constructor later!
-  final String startingLetter;
+  final String letter;
 
-  const AlphabetPuzzleScreen({super.key, required this.startingLetter});
+  const AlphabetPuzzleScreen({super.key, required this.letter});
 
   @override
   State<AlphabetPuzzleScreen> createState() => _AlphabetPuzzleScreenState();
 }
 
-class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
+class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
+  with TofiReactionMixin {
+  @override
+  AudioPlayer get tofiPlayer => _player;
+
+  final AudioPlayer _player = AudioPlayer();
+
   late List<PuzzlePiece> _availablePieces;
   final Map<int, PuzzlePiece> _placedPieces = {};
 
@@ -40,13 +50,14 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
     OrientationService.setLandscape();
 
     // Load the correct pieces and background before starting the game
-    _loadLetter(widget.startingLetter);
+    _loadLetter(widget.letter);
     _resetGame();
   }
 
   @override
   void dispose() {
     OrientationService.setLandscape();
+    _player.dispose();
     super.dispose();
   }
 
@@ -194,7 +205,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
           onNext: () {
             Navigator.pop(context); // Close the prompt
 
-            String current = widget.startingLetter.toUpperCase();
+            String current = widget.letter.toUpperCase();
 
             // Mark this letter's level as complete, unlocking the next one.
             final completedLevel = ForestProgressService.levelNumberForLetter(
@@ -273,36 +284,49 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
 
     return Scaffold(
       body: ForestBackground(
-        child: SafeArea(
-          child: Row(
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: ForestBackButton(),
+        child: Stack(
+          children: [
+            buildTofi(context),
+
+            // Back button
+            const Positioned(
+              top: 25,
+              left: 20,
+              child: ForestBackButton(),
+            ),
+
+            // Title
+            const Positioned(
+              top: 25,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: ForestInstructionBanner(
+                  text: 'Complete the Picture!',
                 ),
               ),
-              Expanded(
-                flex: 3,
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Complete the Picture!',
-                        style: TextStyle(
-                          fontFamily: ForestAppTextStyles.fredoka,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          color: ForestColorTheme.darkseagreen,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
+            ),
 
-                      Container(
-                        width: boardSize,
-                        height: boardSize,
+            // Level badge
+            Positioned(
+              top: 25,
+              right: 20,
+              child: ForestLevelBadge(
+                level: ForestProgressService.levelNumberForLetter(
+                  widget.letter.toUpperCase(),
+                ) ??
+                    1,
+              ),
+            ),
+
+            Stack(
+              children: [
+                Padding(padding: const EdgeInsets.only(top: 70),
+                  child: Center(
+                    child: SizedBox(
+                      width: boardSize,
+                      height: boardSize,
+                      child: Container(
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.5),
                           border: Border.all(
@@ -316,58 +340,77 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
                             opacity: 0.65,
                           ),
                         ),
-                        child: GridView.builder(
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                              ),
-                          itemCount: 4,
-                          itemBuilder: (context, index) {
-                            return _buildTargetSlot(index, pieceSize);
-                          },
+                        child: MediaQuery.removePadding(
+                          context: context,
+                          removeTop: true,
+                          removeBottom: true,
+                          child: GridView.builder(
+                            padding: EdgeInsets.zero,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: 4,
+                            gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                            ),
+                            itemBuilder: (context, index) {
+                              return _buildTargetSlot(index, pieceSize);
+                            },
+                          ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
+
                 ),
-              ),
-              Container(
-                width: screenSize.width * 0.25,
-                color: Colors.white.withValues(alpha: 0.4),
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      alignment: WrapAlignment.center,
-                      children: _availablePieces.map((piece) {
-                        return Draggable<PuzzlePiece>(
-                          data: piece,
-                          feedback: _PuzzlePieceWidget(
-                            imagePath: piece.imagePath,
-                            size: pieceSize,
-                            isDragging: true,
-                          ),
-                          childWhenDragging: Opacity(
-                            opacity: 0.2,
+                Positioned(
+                  right: 20,
+                  top: 80,
+                  bottom: 20,
+                  child: SizedBox(
+                    width: screenSize.width * 0.28,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount: _availablePieces.length,
+                        gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 1,
+                        ),
+                        itemBuilder: (context, index) {
+                          final piece = _availablePieces[index];
+
+                          return Draggable<PuzzlePiece>(
+                            data: piece,
+                            feedback: _PuzzlePieceWidget(
+                              imagePath: piece.imagePath,
+                              size: pieceSize,
+                              isDragging: true,
+                            ),
+                            childWhenDragging: Opacity(
+                              opacity: 0.2,
+                              child: _PuzzlePieceWidget(
+                                imagePath: piece.imagePath,
+                                size: pieceSize,
+                              ),
+                            ),
                             child: _PuzzlePieceWidget(
                               imagePath: piece.imagePath,
                               size: pieceSize,
                             ),
-                          ),
-                          child: _PuzzlePieceWidget(
-                            imagePath: piece.imagePath,
-                            size: pieceSize,
-                          ),
-                        );
-                      }).toList(),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            )
+          ],
         ),
       ),
     );
@@ -385,6 +428,8 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen> {
           _placedPieces[slotIndex] = details.data;
           _availablePieces.removeWhere((p) => p.id == details.data.id);
         });
+
+        showTofiReaction(TofiState.correct);
 
         if (_placedPieces.length == 4) {
           Future.delayed(const Duration(milliseconds: 400), _showSuccessDialog);

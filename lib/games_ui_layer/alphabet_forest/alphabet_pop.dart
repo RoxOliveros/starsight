@@ -5,6 +5,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -12,6 +13,8 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+
+import 'alphabet_game_ui.dart';
 
 class AlphabetPopScreen extends StatefulWidget {
   final String targetLetter;
@@ -22,16 +25,34 @@ class AlphabetPopScreen extends StatefulWidget {
   State<AlphabetPopScreen> createState() => _AlphabetPopScreenState();
 }
 
-class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
+class _AlphabetPopScreenState extends State<AlphabetPopScreen>
+  with TofiReactionMixin {
+
+  @override
+  AudioPlayer get tofiPlayer => _audioPlayer;
+
   final AudioPlayer _audioPlayer = AudioPlayer();
   final Random _random = Random();
 
   late Timer _gameTimer;
-  List<BouncingBall> _activeBalls = [];
+  final List<BouncingBall> _activeBalls = [];
 
   int _correctCount = 0;
   final int _winCondition = 3;
-  List<Map<String, double>> _wrongEffects = [];
+  final List<Map<String, double>> _wrongEffects = [];
+
+  final List<double> _lanes = [
+    0.22,
+    0.32,
+    0.42,
+    0.52,
+    0.62,
+    0.72,
+    0.82,
+    0.92,
+  ];
+
+  late List<double> _availableLanes;
 
   @override
   void initState() {
@@ -44,8 +65,11 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
   void _generateBalls() {
     _activeBalls.clear();
 
+    _availableLanes = List.from(_lanes);
+    _availableLanes.shuffle();
+
     List<String> distractors = _getDistractorLetters(widget.targetLetter);
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 5; i++) {
       String randomDistractor =
           distractors[_random.nextInt(distractors.length)];
       _activeBalls.add(_createBall(randomDistractor));
@@ -66,16 +90,26 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
   }
 
   BouncingBall _createBall(String letter) {
+    // use one lane per ball
+    double x;
+
+    if (_availableLanes.isNotEmpty) {
+      x = _availableLanes.removeLast();
+    } else {
+      // fallback if you ever have more balls than lanes
+      x = 0.30 + _random.nextDouble() * 0.64;
+    }
+
+    double y = 0.05 + _random.nextDouble() * 0.45;
+
     return BouncingBall(
       id: UniqueKey().toString(),
       key: GlobalKey(),
       letter: letter,
-      xPos: 0.05 + (_random.nextDouble() * 0.90),
-      yPos:
-          _random.nextDouble() *
-          0.5, // Start them all in the top half of the screen
-      dx: 0.0,
-      dy: 0.0,
+      xPos: x,
+      yPos: y,
+      dx: 0,
+      dy: 0,
       isPopped: false,
     );
   }
@@ -119,6 +153,8 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
           'audio/alphabet_forest/sound_effects/sound_${widget.targetLetter.toLowerCase()}.wav';
       await _audioPlayer.play(AssetSource(audioFile));
 
+      showTofiReaction(TofiState.correct);
+
       setState(() {
         ball.isPopped = true;
         _correctCount++;
@@ -136,6 +172,8 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
         }
       });
     } else {
+      showTofiReaction(TofiState.wrong);
+
       // --- WRONG MATCH ---
       final double tapX = ball.xPos;
       final double tapY = ball.yPos;
@@ -256,136 +294,124 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen> {
 
     return Scaffold(
       body: ForestBackground(
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: EdgeInsets.only(top: screenSize.height * 0.02),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        "Pop the correct balls!",
-                        style: TextStyle(
-                          fontFamily: ForestAppTextStyles.fredoka,
-                          fontSize: screenSize.height * 0.06,
-                          color: Color.fromARGB(255, 71, 70, 70),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        widget.targetLetter.toUpperCase(),
-                        style: TextStyle(
-                          fontFamily: ForestAppTextStyles.fredoka,
-                          fontSize: screenSize.height * 0.12,
-                          fontWeight: FontWeight.w900,
-                          color: ForestColorTheme.seagreen,
-                          height: 1.0,
-                        ),
-                      ),
-                    ],
-                  ),
+        child: Stack(
+          children: [
+            buildTofi(context),
+
+            Positioned(top: 25, left: 20, child: ForestBackButton()),
+
+            Positioned(
+              top: 25,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: ForestInstructionBanner(
+                  text:
+                      'Pop all the ${widget.targetLetter.toUpperCase()} balls!',
                 ),
               ),
+            ),
 
-              Positioned(
-                top: screenSize.height * 0.30,
-                bottom: 20,
-                left: 20,
-                right: 20,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Stack(
-                      children: [
-                        // 1. Draw the balls
-                        ..._activeBalls.map((ball) {
-                          return Positioned(
-                            left: ball.xPos * (constraints.maxWidth - ballSize),
-                            top: ball.yPos * (constraints.maxHeight - ballSize),
-                            child: GestureDetector(
-                              key: ball.key,
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => _onBallTap(ball),
-                              child: SizedBox(
-                                width: ballSize,
-                                height: ballSize,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    Image.asset(
-                                      ball.isPopped
-                                          ? 'assets/images/objects/forest/ball_popped.png'
-                                          : 'assets/images/objects/forest/ball.png',
-                                      fit: BoxFit.contain,
-                                    ),
-                                    if (!ball.isPopped)
-                                      Text(
-                                        ball.letter,
-                                        textScaler: const TextScaler.linear(
-                                          1.0,
-                                        ),
-                                        style: TextStyle(
-                                          fontFamily:
-                                              ForestAppTextStyles.fredoka,
-                                          fontSize: letterFontSize,
-                                          fontWeight: FontWeight.w900,
-                                          color: Colors.white,
-                                          shadows: const [
-                                            Shadow(
-                                              blurRadius: 6,
-                                              color: Colors.black87,
-                                              offset: Offset(2, 2),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
+            Positioned(
+              top: 25,
+              right: 20,
+              child: ForestLevelBadge(
+                level:
+                    ForestProgressService.levelNumberForLetter(
+                      widget.targetLetter.toUpperCase(),
+                    ) ??
+                    1,
+              ),
+            ),
 
-                        // 2. Draw the Red X's using the EXACT same math as the balls
-                        ..._wrongEffects.map((effect) {
-                          return Positioned(
-                            left:
-                                effect['x']! *
-                                (constraints.maxWidth - ballSize),
-                            top:
-                                effect['y']! *
-                                (constraints.maxHeight - ballSize),
+            Positioned(
+              top: screenSize.height * 0.30,
+              bottom: 20,
+              left: 20,
+              right: 20,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Stack(
+                    children: [
+                      // 1. Draw the balls
+                      ..._activeBalls.map((ball) {
+                        return Positioned(
+                          left: ball.xPos * (constraints.maxWidth - ballSize),
+                          top: ball.yPos * (constraints.maxHeight - ballSize),
+                          child: GestureDetector(
+                            key: ball.key,
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _onBallTap(ball),
                             child: SizedBox(
                               width: ballSize,
                               height: ballSize,
-                              child: Center(
-                                child: Icon(
-                                  Icons.close_rounded,
-                                  color: Colors.redAccent,
-                                  size: ballSize * 0.8,
-                                  shadows: const [
-                                    Shadow(
-                                      color: Colors.white,
-                                      blurRadius: 12,
-                                      offset: Offset(0, 0),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Image.asset(
+                                    ball.isPopped
+                                        ? 'assets/images/objects/forest/ball_popped.png'
+                                        : 'assets/images/objects/forest/ball.png',
+                                    fit: BoxFit.contain,
+                                  ),
+                                  if (!ball.isPopped)
+                                    Text(
+                                      ball.letter,
+                                      textScaler: const TextScaler.linear(1.0),
+                                      style: TextStyle(
+                                        fontFamily: ForestAppTextStyles.fredoka,
+                                        fontSize: letterFontSize,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                        shadows: const [
+                                          Shadow(
+                                            blurRadius: 6,
+                                            color: Colors.black87,
+                                            offset: Offset(2, 2),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ],
-                                ),
+                                ],
                               ),
                             ),
-                          );
-                        }),
-                      ],
-                    );
-                  },
-                ),
-              ),
+                          ),
+                        );
+                      }),
 
-              const Positioned(top: 10, left: 10, child: ForestBackButton()),
-            ],
-          ),
+                      // 2. Draw the Red X's using the EXACT same math as the balls
+                      ..._wrongEffects.map((effect) {
+                        return Positioned(
+                          left:
+                              effect['x']! * (constraints.maxWidth - ballSize),
+                          top:
+                              effect['y']! * (constraints.maxHeight - ballSize),
+                          child: SizedBox(
+                            width: ballSize,
+                            height: ballSize,
+                            child: Center(
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: Colors.redAccent,
+                                size: ballSize * 0.8,
+                                shadows: const [
+                                  Shadow(
+                                    color: Colors.white,
+                                    blurRadius: 12,
+                                    offset: Offset(0, 0),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

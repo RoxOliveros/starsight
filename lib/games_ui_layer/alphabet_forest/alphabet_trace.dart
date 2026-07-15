@@ -1,14 +1,19 @@
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_paint.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_pop.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
+import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_hunt.dart';
+
+import 'alphabet_game_ui.dart';
 
 class TraceLevel {
   final String letterName;
@@ -31,7 +36,13 @@ class AlphabetTraceScreen extends StatefulWidget {
   State<AlphabetTraceScreen> createState() => _AlphabetTraceScreenState();
 }
 
-class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
+class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
+  with TofiReactionMixin {
+  final AudioPlayer _player = AudioPlayer();
+
+  @override
+  AudioPlayer get tofiPlayer => _player;
+
   final GlobalKey _canvasKey = GlobalKey();
   int _currentLevelIndex = 0;
 
@@ -56,6 +67,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   @override
   void dispose() {
     OrientationService.setLandscape();
+    _player.dispose();
     super.dispose();
   }
 
@@ -852,7 +864,9 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
     });
   }
 
-  void _showSuccessDialog() {
+  Future<void> _showSuccessDialog() async {
+    await showTofiReaction(TofiState.correct);
+
     bool isLastSubLevel = _currentLevelIndex == _levels.length - 1;
 
     showDialog(
@@ -904,7 +918,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        AlphabetPuzzleScreen(startingLetter: letter),
+                        AlphabetPuzzleScreen(letter: letter),
                   ),
                 );
               }
@@ -914,7 +928,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        AlphabetHuntScreen(targetLetter: letter),
+                        AlphabetHuntScreen(letter: letter),
                   ),
                 );
               }
@@ -944,81 +958,88 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: ForestBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Stack(
-                  alignment: Alignment.topCenter,
-                  children: [
-                    const Align(
-                      alignment: Alignment.topLeft,
-                      child: ForestBackButton(),
-                    ),
-                    Text(
-                      'Trace ${_levels[_currentLevelIndex].letterName}',
-                      style: const TextStyle(
-                        fontFamily: ForestAppTextStyles.fredoka,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: ForestColorTheme.darkseagreen,
+        child:
+        Stack(
+          children: [
+            Column(
+              children: [
+                SizedBox(
+                  height: 80,
+                  child: Stack(
+                    children: [
+                      const Positioned(
+                        top: 25,
+                        left: 20,
+                        child: ForestBackButton(),
                       ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.refresh_rounded,
-                          color: ForestColorTheme.seagreen,
-                          size: 32,
-                        ),
-                        onPressed: _resetBoard,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Center(
-                  child: AspectRatio(
-                    aspectRatio: 1.0,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Container(
-                        key: _canvasKey,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: ForestColorTheme.lightgreen,
-                            width: 4,
+
+                      Positioned(
+                        top: 25,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: ForestInstructionBanner(
+                            text: 'Trace ${_levels[_currentLevelIndex]
+                                .letterName}',
                           ),
                         ),
-                        child: Stack(
-                          children: [
-                            GestureDetector(
-                              onPanUpdate: _onPanUpdate,
-                              child: CustomPaint(
-                                painter: GuidedTracePainter(
-                                  denseStrokes: _denseStrokes,
-                                  currentStrokeIndex: _currentStrokeIndex,
-                                  currentPointIndex: _currentPointIndex,
-                                ),
-                                size: Size.infinite,
-                              ),
+                      ),
+
+                      Positioned(
+                        top: 25,
+                        right: 20,
+                        child: ForestLevelBadge(
+                          level: ForestProgressService.levelNumberForLetter(
+                            widget.startingLetter,
+                          ) ??
+                              1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                Expanded(
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: 1.0,
+                      child: Padding(
+                        padding: const EdgeInsets.all(18.0),
+                        child: Container(
+                          key: _canvasKey,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: ForestColorTheme.lightgreen,
+                              width: 4,
                             ),
-                          ],
+                          ),
+                          child: Stack(
+                            children: [
+                              GestureDetector(
+                                onPanUpdate: _onPanUpdate,
+                                child: CustomPaint(
+                                  painter: GuidedTracePainter(
+                                    denseStrokes: _denseStrokes,
+                                    currentStrokeIndex: _currentStrokeIndex,
+                                    currentPointIndex: _currentPointIndex,
+                                  ),
+                                  size: Size.infinite,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
+                const SizedBox(height: 20),
+              ],
+            ),
+            buildTofi(context),
+          ],
         ),
       ),
     );
