@@ -5,7 +5,6 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:math';
 import '../../business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
@@ -743,34 +742,35 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
 
   void _generateDensePaths() {
     final RenderBox? renderBox =
-        _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    _canvasKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
 
     final Size size = renderBox.size;
     List<List<Offset>> newDenseStrokes = [];
 
     for (var stroke in _levels[_currentLevelIndex].strokes) {
-      List<Offset> densePoints = [];
-      for (int i = 0; i < stroke.length - 1; i++) {
-        Offset p1 = Offset(
-          stroke[i].dx * size.width,
-          stroke[i].dy * size.height,
-        );
-        Offset p2 = Offset(
-          stroke[i + 1].dx * size.width,
-          stroke[i + 1].dy * size.height,
-        );
+      final pts = stroke
+          .map((p) => Offset(p.dx * size.width, p.dy * size.height))
+          .toList();
 
-        double distance = sqrt(pow(p2.dx - p1.dx, 2) + pow(p2.dy - p1.dy, 2));
-        int steps = (distance / 5.0).ceil();
+      if (pts.length < 2) {
+        newDenseStrokes.add(pts);
+        continue;
+      }
+
+      List<Offset> densePoints = [];
+      for (int i = 0; i < pts.length - 1; i++) {
+        final p0 = i == 0 ? pts[i] : pts[i - 1];              // ADD: neighbor points for the curve
+        final p1 = pts[i];
+        final p2 = pts[i + 1];
+        final p3 = i + 2 < pts.length ? pts[i + 2] : pts[i + 1];
+
+        final distance = (p2 - p1).distance;
+        final steps = (distance / 5.0).ceil().clamp(1, 999);
 
         for (int j = 0; j <= steps; j++) {
-          densePoints.add(
-            Offset(
-              p1.dx + (p2.dx - p1.dx) * (j / steps),
-              p1.dy + (p2.dy - p1.dy) * (j / steps),
-            ),
-          );
+          final t = j / steps;
+          densePoints.add(_catmullRom(p0, p1, p2, p3, t));      // CHANGED from straight lerp
         }
       }
       newDenseStrokes.add(densePoints);
@@ -779,6 +779,23 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
     setState(() {
       _denseStrokes = newDenseStrokes;
     });
+  }
+
+// ADD this helper method (same technique as number_tracing_widget.dart)
+  Offset _catmullRom(Offset p0, Offset p1, Offset p2, Offset p3, double t) {
+    final t2 = t * t;
+    final t3 = t2 * t;
+    final x = 0.5 *
+        ((2 * p1.dx) +
+            (p2.dx - p0.dx) * t +
+            (2 * p0.dx - 5 * p1.dx + 4 * p2.dx - p3.dx) * t2 +
+            (3 * p1.dx - p0.dx - 3 * p2.dx + p3.dx) * t3);
+    final y = 0.5 *
+        ((2 * p1.dy) +
+            (p2.dy - p0.dy) * t +
+            (2 * p0.dy - 5 * p1.dy + 4 * p2.dy - p3.dy) * t2 +
+            (3 * p1.dy - p0.dy - 3 * p2.dy + p3.dy) * t3);
+    return Offset(x, y);
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
@@ -934,10 +951,10 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Stack(
-                  alignment: Alignment.center,
+                  alignment: Alignment.topCenter,
                   children: [
                     const Align(
-                      alignment: Alignment.centerLeft,
+                      alignment: Alignment.topLeft,
                       child: ForestBackButton(),
                     ),
                     Text(

@@ -151,19 +151,25 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
       decoration: BoxDecoration(
-        color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(30),
+        color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(32),
         border: Border.all(color: Colors.white, width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Text(
         widget.instructionText,
         style: TextStyle(
           fontFamily: ArcticAppTextStyles.fredoka,
-          fontSize: (h * 0.09).clamp(16.0, 26.0),
+          fontSize: 20,
           fontWeight: FontWeight.bold,
           color: Colors.white,
-          shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
-        ),
+          shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],        ),
       ),
     );
   }

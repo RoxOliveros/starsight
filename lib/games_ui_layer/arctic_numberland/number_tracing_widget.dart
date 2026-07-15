@@ -2,12 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 
-/// Default praise clip played on a successful trace, reused across numbers
-/// so most callers don't need to pass their own.
-const String kDefaultTracingSuccessAudio =
-    'assets/audio/arctic_numberland/mahusay.wav';
+const String kDefaultTracingSuccessAudio = 'assets/audio/arctic_numberland/mahusay.wav';
 
-/// Candy-cane cursor asset that follows the child's finger while tracing.
 const String _kCaneAsset = 'assets/images/objects/arctic/candy_cane.png';
 
 const Map<int, List<List<Offset>>> kNumberStrokes = {
@@ -157,15 +153,20 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 
   Widget _buildTracingLayer(double w, double h) {
     final caneSize = h * 0.14;
-    final numberSize = h * 0.85;
-    final traceW = widget.number == 1 ? numberSize * 0.35 : numberSize * 0.5;
+    final numberSize = h * 0.75;
+    final traceW = numberSize * 0.78;
     final traceH = numberSize;
     final traceLeft = w / 2 - traceW / 2;
     final traceTop = h / 2 - traceH / 2 + 15;
 
-    // (Re)generate the dense guide path whenever the box size or the
-    // number changes -- e.g. rotating the device, or a new level loading
-    // this same widget instance.
+    final containerW = traceW;        // CHANGED — container now bigger than traceW, not smaller
+    final containerH = traceH * 0.85;        // CHANGED — container now bigger than traceH, not smaller
+    final containerLeft = w / 2 - containerW / 2;
+    final containerTop = h / 2 - containerH / 2 + 15;
+
+    final numberOffsetX = 0.0;   // ADD — positive moves number right, negative moves left
+    final numberOffsetY = 0.0;   // ADD — positive moves number down, negative moves up
+
     if (_cachedW != traceW || _cachedH != traceH || _cachedNumber != widget.number) {
       _cachedW = traceW;
       _cachedH = traceH;
@@ -205,21 +206,43 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         ),
 
         Positioned(
-          left: traceLeft,
-          top: traceTop,
-          width: traceW,
-          height: traceH,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onPanUpdate: (details) => _onPanUpdate(details, traceW),
-            onPanEnd: (_) => setState(() => _canePosition = null),
-            child: CustomPaint(
-              size: Size(traceW, traceH),
-              painter: _NumberGuidePainter(
-                denseStrokes: _denseStrokes,
-                currentStrokeIndex: _currentStrokeIndex,
-                currentPointIndex: _currentPointIndex,
-                complete: _tracingComplete,
+          left: containerLeft,
+          top: containerTop,
+          width: containerW,
+          height: containerH,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: ArcticColorTheme.pictonblue,
+                width: 4,
+              ),
+            ),
+            child: Center(
+              child: FittedBox(                                    // ADD — scales the number down to fit inside the container
+                fit: BoxFit.contain,
+                child: Transform.translate(
+                  offset: Offset(numberOffsetX, numberOffsetY),
+                  child: SizedBox(
+                    width: traceW,
+                    height: traceH,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onPanUpdate: (details) => _onPanUpdate(details, traceW),
+                      onPanEnd: (_) => setState(() => _canePosition = null),
+                      child: CustomPaint(
+                        size: Size(traceW, traceH),
+                        painter: _NumberGuidePainter(
+                          denseStrokes: _denseStrokes,
+                          currentStrokeIndex: _currentStrokeIndex,
+                          currentPointIndex: _currentPointIndex,
+                          complete: _tracingComplete,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -250,28 +273,54 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 
   // ── Dense path generation ─────────────────────────────────────────────
   List<List<Offset>> _buildDenseStrokes(
-    List<List<Offset>> fractionalStrokes,
-    double w,
-    double h,
-  ) {
+      List<List<Offset>> fractionalStrokes,
+      double w,
+      double h,
+      ) {
     final dense = <List<Offset>>[];
     for (final stroke in fractionalStrokes) {
+      final pts = stroke.map((p) => Offset(p.dx * w, p.dy * h)).toList();
+      if (pts.length < 2) {
+        dense.add(pts);
+        continue;
+      }
+
       final points = <Offset>[];
-      for (int i = 0; i < stroke.length - 1; i++) {
-        final p1 = Offset(stroke[i].dx * w, stroke[i].dy * h);
-        final p2 = Offset(stroke[i + 1].dx * w, stroke[i + 1].dy * h);
+      for (int i = 0; i < pts.length - 1; i++) {
+        final p0 = i == 0 ? pts[i] : pts[i - 1];
+        final p1 = pts[i];
+        final p2 = pts[i + 1];
+        final p3 = i + 2 < pts.length ? pts[i + 2] : pts[i + 1];
+
         final distance = (p2 - p1).distance;
-        final steps = (distance / 6.0).ceil().clamp(1, 999);
+        final steps = (distance / 5.0).ceil().clamp(1, 999);
         for (int j = 0; j <= steps; j++) {
-          points.add(Offset(
-            p1.dx + (p2.dx - p1.dx) * (j / steps),
-            p1.dy + (p2.dy - p1.dy) * (j / steps),
-          ));
+          final t = j / steps;
+          points.add(_catmullRom(p0, p1, p2, p3, t));
         }
       }
       dense.add(points);
     }
     return dense;
+  }
+
+// Smoothly interpolates between p1 and p2 (t: 0..1), using p0/p3 as the
+// surrounding points so the curve bends naturally instead of connecting
+// waypoints with straight segments.
+  Offset _catmullRom(Offset p0, Offset p1, Offset p2, Offset p3, double t) {
+    final t2 = t * t;
+    final t3 = t2 * t;
+    final x = 0.5 *
+        ((2 * p1.dx) +
+            (p2.dx - p0.dx) * t +
+            (2 * p0.dx - 5 * p1.dx + 4 * p2.dx - p3.dx) * t2 +
+            (3 * p1.dx - p0.dx - 3 * p2.dx + p3.dx) * t3);
+    final y = 0.5 *
+        ((2 * p1.dy) +
+            (p2.dy - p0.dy) * t +
+            (2 * p0.dy - 5 * p1.dy + 4 * p2.dy - p3.dy) * t2 +
+            (3 * p1.dy - p0.dy - 3 * p2.dy + p3.dy) * t3);
+    return Offset(x, y);
   }
 
   // ── Guided drag tracking ──────────────────────────────────────────────
@@ -368,17 +417,25 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
       decoration: BoxDecoration(
-        color: ArcticColorTheme.pictonblue.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(30),
+        color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(32),
         border: Border.all(color: Colors.white, width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Text(
         'Trace the number ${widget.number}!',
         style: TextStyle(
           fontFamily: ArcticAppTextStyles.fredoka,
-          fontSize: (h * 0.09).clamp(14.0, 22.0),
+          fontSize: 20,
           fontWeight: FontWeight.bold,
           color: Colors.white,
+          shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
         ),
       ),
     );
@@ -403,11 +460,9 @@ class _NumberGuidePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (denseStrokes.isEmpty) return;
 
-    // Faint full-path guide underneath, so the child can see the whole
-    // shape before/while tracing it.
     canvas.saveLayer(null, Paint()..color = Colors.white.withValues(alpha: 0.2));
     final bgPaint = Paint()
-      ..color = Colors.grey.shade300
+      ..color = Colors.grey.shade400
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..strokeWidth = size.width * 0.18
