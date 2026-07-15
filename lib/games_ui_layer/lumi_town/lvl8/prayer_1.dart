@@ -1,12 +1,11 @@
-// File: lib/prayer_1.dart
-
 import 'dart:async';
 import 'package:StarSight/business_layer/gesture_camera_view.dart';
+import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'prayer_prompt_card.dart'; // Import our new prompt card!
+import 'prayer_prompt_card.dart';
 
 class Prayer1 extends StatefulWidget {
   const Prayer1({super.key});
@@ -31,6 +30,7 @@ class _Prayer1State extends State<Prayer1> {
   bool _isWaitingForPrayerGesture = false;
   bool _gestureDetected = false;
   bool _showPromptCard = false; // Controls whether the prompt card is visible
+  bool _showGoodJob = false; // Controls whether the Good Job overlay is shown
 
   @override
   void initState() {
@@ -127,6 +127,24 @@ class _Prayer1State extends State<Prayer1> {
       // Stop the first audio if it's still playing, and play pray_2.wav!
       await _audioPlayer.stop();
       await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_2.wav'));
+
+      // Once pray_2 finishes, go back to scene2, play pray_3, then show
+      // the Good Job overlay once that finishes too.
+      await _audioPlayer.onPlayerComplete.first;
+      if (!mounted) return;
+
+      setState(() {
+        _currentScene = 'assets/images/objects/lumi/lvl8_scene2.png';
+      });
+
+      await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_3.wav'));
+
+      await _audioPlayer.onPlayerComplete.first;
+      if (!mounted) return;
+
+      setState(() {
+        _showGoodJob = true;
+      });
     }
   }
 
@@ -216,6 +234,20 @@ class _Prayer1State extends State<Prayer1> {
                   : const SizedBox.shrink(),
             ),
           ),
+
+          // --- Good Job Overlay ---
+          if (_showGoodJob)
+            GoodJobOverlay(
+              characterImage: 'assets/images/characters/dr.woo_smiling.png',
+              // TODO: replace with the actual theme color for this level
+              closeButtonColor: Colors.blue,
+              // TODO: navigate to whatever comes after this level
+              onNext: () {},
+              // TODO: replay this level (e.g. pushReplacement to Prayer1())
+              onRestart: () {},
+              // TODO: navigate back (e.g. pop, or pushAndRemoveUntil to a hub screen)
+              onBack: () {},
+            ),
         ],
       ),
     );
