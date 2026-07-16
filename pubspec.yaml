@@ -155,6 +155,7 @@ flutter:
     - assets/audio/lumi_town/level6/
     - assets/audio/lumi_town/level7/
     - assets/audio/lumi_town/level8/
+    - assets/audio/lumi_town/level9/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
