@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:audioplayers/audioplayers.dart';
+
+// IMPORTANT: Make sure this path matches where your sorry_5.dart is located!
+import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_5.dart';
 
 class Sorry4Screen extends StatefulWidget {
   const Sorry4Screen({super.key});
@@ -12,8 +14,6 @@ class Sorry4Screen extends StatefulWidget {
 
 class _Sorry4ScreenState extends State<Sorry4Screen>
     with TickerProviderStateMixin {
-  late final AudioPlayer _audioPlayer;
-
   // --- Animation Variables (Exact math from previous screens) ---
   late final AnimationController _walkController;
   final Duration _walkDuration = const Duration(milliseconds: 1800);
@@ -23,15 +23,13 @@ class _Sorry4ScreenState extends State<Sorry4Screen>
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
     _walkController = AnimationController(vsync: this, duration: _walkDuration);
 
     _setupLandscapeOrientation();
 
-    // Start walking animation and play audio after frame renders
+    // Start walking animation and navigate when it's done!
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _walkController.forward(from: 0);
-      _playSceneAudio();
+      _startWalkAndTransition();
     });
   }
 
@@ -42,14 +40,19 @@ class _Sorry4ScreenState extends State<Sorry4Screen>
     ]);
   }
 
-  Future<void> _playSceneAudio() async {
+  /// Plays the walking animation and immediately transitions to the puzzle!
+  Future<void> _startWalkAndTransition() async {
     try {
-      // Tweak this asset path to whatever narration audio belongs to this scene!
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level9/sorry_narration_3.wav'),
+      // Wait for Jack's walking animation to completely finish (1.8 seconds)
+      await _walkController.forward(from: 0);
+      if (!mounted) return;
+
+      // Navigate straight to the 3-piece Puzzle (Scene 5)
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const Sorry5Screen()),
       );
     } catch (e) {
-      debugPrint('Error playing audio for sorry_4: $e');
+      debugPrint('Error transitioning from sorry_4: $e');
     }
   }
 
@@ -63,7 +66,6 @@ class _Sorry4ScreenState extends State<Sorry4Screen>
     ]);
 
     _walkController.dispose();
-    _audioPlayer.dispose();
     super.dispose();
   }
 

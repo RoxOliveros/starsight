@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_3.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -71,6 +72,15 @@ class _Sorry2ScreenState extends State<Sorry2Screen>
       // 4. Play the bear's sorry audio
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level9/sorry_1.wav'),
+      );
+
+      // Wait for the sorry audio to finish
+      await _audioPlayer.onPlayerComplete.first;
+      if (!mounted) return;
+
+      // Navigate to Scene 3
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const Sorry3Screen()),
       );
     } catch (e) {
       debugPrint('Error playing sequence: $e');

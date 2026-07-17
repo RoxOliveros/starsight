@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_8.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -107,12 +108,9 @@ class _Sorry7ScreenState extends State<Sorry7Screen> {
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 
-      // TODO: Replace with your actual next screen navigation!
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Great Job! Transitioning to next scene...'),
-          backgroundColor: Colors.green,
-        ),
+      // Navigate to the Celebration Finale (Scene 8)
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const Sorry8Screen()),
       );
     } catch (e) {
       debugPrint('Error in final victory sequence: $e');
