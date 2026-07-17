@@ -16,9 +16,9 @@ enum ScreenPhase { intro, tracing }
 enum IntroPhase { entering, playingIntro, showingLetter, done }
 
 class AlphabetIntroScreen extends StatefulWidget {
-  final String startingLetter;
+  final String letter;
 
-  const AlphabetIntroScreen({super.key, required this.startingLetter});
+  const AlphabetIntroScreen({super.key, required this.letter});
 
   @override
   State<AlphabetIntroScreen> createState() => _AlphabetIntroScreenState();
@@ -42,7 +42,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
 
   // --- ANIMATION CONTROLLERS ---
   late AnimationController _charSlideCtrl;
-  late Animation<Offset> _charSlide;
 
   late AnimationController _letterPopCtrl;
   late Animation<double> _letterPop;
@@ -55,27 +54,26 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _prepareAssets());
+
+    final letter = widget.letter.toUpperCase();
+
+    // Only show loading screen for these intro letters
+    const introLoadingLetters = {'A', 'D', 'G', 'J', 'M', 'P', 'S', 'V', 'Y'};
+
+    if (introLoadingLetters.contains(letter)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _prepareAssets();
+      });
+    } else {
+      _isLoadingAssets = false;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _startIntroFlow();
+      });
+    }
   }
 
   Future<void> _prepareAssets() async {
-    await Future.wait([
-      precacheImage(
-        const AssetImage('assets/images/characters/dog.png'),
-        context,
-      ),
-      precacheImage(
-        AssetImage(
-          'assets/fonts/game_letters/intro_${widget.startingLetter.toLowerCase()}.png',
-        ),
-        context,
-      ),
-      precacheImage(
-        AssetImage(_getObjectImage(widget.startingLetter)),
-        context,
-      ),
-    ]);
-
     final elapsed = DateTime.now().difference(_loadStart);
     // Loading time
     final remaining = const Duration(milliseconds: 1500) - elapsed;
@@ -93,10 +91,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _charSlide = Tween<Offset>(begin: const Offset(0, 1.5), end: Offset.zero)
-        .animate(
-          CurvedAnimation(parent: _charSlideCtrl, curve: Curves.elasticOut),
-        );
 
     _letterPopCtrl = AnimationController(
       vsync: this,
@@ -149,7 +143,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     });
 
     String audioFile =
-        'audio/alphabet_forest/intro_${widget.startingLetter.toLowerCase()}.wav';
+        'audio/alphabet_forest/intro_${widget.letter.toLowerCase()}.wav';
     await _audioPlayer.play(AssetSource(audioFile));
 
     await Future.delayed(const Duration(seconds: 2));
@@ -186,12 +180,12 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
             child: ScaleTransition(scale: _letterPop, child: child),
           ),
           child: Image.asset(
-            'assets/fonts/game_letters/intro_${widget.startingLetter.toLowerCase()}.png',
+            'assets/fonts/game_letters/intro_${widget.letter.toLowerCase()}.png',
             width: 1000,
             height: 1000,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) => Text(
-              widget.startingLetter,
+              widget.letter,
               style: const TextStyle(
                 fontSize: 100,
                 color: ForestColorTheme.seagreen,
@@ -223,7 +217,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
               right: 20,
               child: ForestLevelBadge(
                 level: ForestProgressService.levelNumberForLetter(
-                  widget.startingLetter,
+                  widget.letter,
                 ) ??
                     1,
               ),
@@ -247,7 +241,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                         child: child,
                       ),
                       child: Image.asset(
-                        _getObjectImage(widget.startingLetter),
+                        _getObjectImage(widget.letter),
                         height: 150,
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => const SizedBox.shrink(),
@@ -277,7 +271,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                       context,
                       MaterialPageRoute(
                         builder: (context) => AlphabetTraceScreen(
-                          startingLetter: widget.startingLetter,
+                          letter: widget.letter,
                         ),
                       ),
                     );
@@ -343,6 +337,8 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       'S': 'sun',
       'T': 'tree',
       'U': 'umbrella',
+      'V': 'vase',
+      'W': 'window',
     };
     final name = objectMap[letter.toUpperCase()] ?? letter.toLowerCase();
     return 'assets/images/objects/forest/$name.png';

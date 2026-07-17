@@ -1,7 +1,6 @@
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_paint.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_pop.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_paint.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_pop.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
-import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -10,10 +9,11 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_puzzle.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_hunt.dart';
-
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_puzzle.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_hunt.dart';
 import 'alphabet_game_ui.dart';
+import 'alphabet_minigame_fall.dart';
+import 'alphabet_minigame_find.dart';
 
 class TraceLevel {
   final String letterName;
@@ -28,9 +28,9 @@ class TraceLevel {
 }
 
 class AlphabetTraceScreen extends StatefulWidget {
-  final String startingLetter;
+  final String letter;
 
-  const AlphabetTraceScreen({super.key, required this.startingLetter});
+  const AlphabetTraceScreen({super.key, required this.letter});
 
   @override
   State<AlphabetTraceScreen> createState() => _AlphabetTraceScreenState();
@@ -59,7 +59,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     OrientationService.setLandscape();
 
     // Load the specific letter's strokes
-    _loadLetter(widget.startingLetter);
+    _loadLetter(widget.letter);
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _generateDensePaths());
   }
@@ -736,6 +736,176 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
           ),
         ];
         break;
+      case 'V':
+        _levels = [
+          TraceLevel(
+            letterName: "Big V",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.25, 0.2),
+                const Offset(0.5, 0.8),
+                const Offset(0.75, 0.2),
+              ],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small v",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.3, 0.45),
+                const Offset(0.5, 0.8),
+                const Offset(0.7, 0.45),
+              ],
+            ],
+          ),
+        ];
+        break;
+
+      case 'W':
+        _levels = [
+          TraceLevel(
+            letterName: "Big W",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.15, 0.2),
+                const Offset(0.3, 0.8),
+                const Offset(0.5, 0.45),
+                const Offset(0.7, 0.8),
+                const Offset(0.85, 0.2),
+              ],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small w",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.2, 0.45),
+                const Offset(0.35, 0.8),
+                const Offset(0.5, 0.55),
+                const Offset(0.65, 0.8),
+                const Offset(0.8, 0.45),
+              ],
+            ],
+          ),
+        ];
+        break;
+
+      case 'X':
+        _levels = [
+          TraceLevel(
+            letterName: "Big X",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.25, 0.2),
+                const Offset(0.75, 0.8),
+              ],
+              [
+                const Offset(0.75, 0.2),
+                const Offset(0.25, 0.8),
+              ],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small x",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.3, 0.45),
+                const Offset(0.7, 0.8),
+              ],
+              [
+                const Offset(0.7, 0.45),
+                const Offset(0.3, 0.8),
+              ],
+            ],
+          ),
+        ];
+        break;
+
+      case 'Y':
+        _levels = [
+          TraceLevel(
+            letterName: "Big Y",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.25, 0.2),
+                const Offset(0.5, 0.45),
+              ],
+              [
+                const Offset(0.75, 0.2),
+                const Offset(0.5, 0.45),
+              ],
+              [
+                const Offset(0.5, 0.45),
+                const Offset(0.5, 0.8),
+              ],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small y",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.3, 0.45),
+                const Offset(0.5, 0.65),
+                const Offset(0.7, 0.45),
+              ],
+              [
+                const Offset(0.5, 0.65),
+                const Offset(0.45, 0.95),
+                const Offset(0.3, 0.9),
+              ],
+            ],
+          ),
+        ];
+        break;
+
+      case 'Z':
+        _levels = [
+          TraceLevel(
+            letterName: "Big Z",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.2, 0.2),
+                const Offset(0.8, 0.2),
+              ],
+              [
+                const Offset(0.8, 0.2),
+                const Offset(0.2, 0.8),
+              ],
+              [
+                const Offset(0.2, 0.8),
+                const Offset(0.8, 0.8),
+              ],
+            ],
+          ),
+          TraceLevel(
+            letterName: "Small z",
+            imagePath: '',
+            strokes: [
+              [
+                const Offset(0.3, 0.45),
+                const Offset(0.7, 0.45),
+              ],
+              [
+                const Offset(0.7, 0.45),
+                const Offset(0.3, 0.8),
+              ],
+              [
+                const Offset(0.3, 0.8),
+                const Offset(0.7, 0.8),
+              ],
+            ],
+          ),
+        ];
+        break;
       default:
         // Fallback to A if something goes wrong
         _levels = [
@@ -869,89 +1039,74 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
 
     bool isLastSubLevel = _currentLevelIndex == _levels.length - 1;
 
-    showDialog(
-      context: context,
-      useSafeArea: false,
-      barrierColor: Colors.transparent,
-      barrierDismissible: false,
-      builder: (_) => Material(
-        type: MaterialType.transparency,
-        child: GoodJobOverlay(
-          characterImage: 'assets/images/characters/dog.png',
-          closeButtonColor: ForestColorTheme.mediumseagreen,
+    if (!mounted) return;
 
-          onNext: () {
-            Navigator.pop(context); // Close the dialog
+    if (!isLastSubLevel) {
+      setState(() {
+        _resetBoard();
+        _currentLevelIndex++;
+        _generateDensePaths();
+      });
+      return;
+    }
 
-            if (!isLastSubLevel) {
-              setState(() {
-                _resetBoard();
-                _currentLevelIndex++;
-                _generateDensePaths();
-              });
-            } else {
-              // --- SMART MINI-GAME ROUTER ---
-              String letter = widget.startingLetter.toUpperCase();
+    // --- SMART MINI-GAME ROUTER ---
+    String letter = widget.letter.toUpperCase();
 
-              // 1. Water Color: A, E, H, L
-              if (['A', 'E', 'H', 'L'].contains(letter)) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AlphabetPaintScreen(letter: letter),
-                  ),
-                );
-              }
-              // 2. Pop: B, F, I, M
-              else if (['B', 'F', 'I', 'M'].contains(letter)) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AlphabetPopScreen(targetLetter: letter),
-                  ),
-                );
-              }
-              // 3. Puzzle: C, G, J, N
-              else if (['C', 'G', 'J', 'N'].contains(letter)) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AlphabetPuzzleScreen(letter: letter),
-                  ),
-                );
-              }
-              // 4. Hunt: D, K
-              else if (['D', 'K'].contains(letter)) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AlphabetHuntScreen(letter: letter),
-                  ),
-                );
-              }
-              // Fallback
-              else {
-                Navigator.pop(context);
-              }
-            }
-          },
-          onRestart: () {
-            Navigator.pop(context);
-            setState(() {
-              _resetBoard(); // Restart current trace
-            });
-          },
-
-          onBack: () {
-            Navigator.pop(context);
-            Navigator.pop(context); // Go back to Map
-          },
+    // 1. Paint
+    if (['A', 'E', 'H', 'L', 'R', 'X'].contains(letter)) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AlphabetPaintScreen(letter: letter),
         ),
-      ),
-    );
+      );
+    }
+    // 2. Pop
+    else if (['B', 'F', 'I', 'M', 'S'].contains(letter)) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AlphabetPopScreen(letter: letter),
+        ),
+      );
+    }
+    // 3. Puzzle
+    else if (['C', 'G', 'J', 'N', 'T'].contains(letter)) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AlphabetPuzzleScreen(letter: letter),
+        ),
+      );
+    }
+    // 4. Hunt
+    else if (['D', 'K', 'O', 'U'].contains(letter)) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AlphabetHuntScreen(letter: letter),
+        ),
+      );
+    }
+    // 5. Fall
+    else if (['P', 'V'].contains(letter)) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AlphabetFallScreen(letter: letter),
+        ),
+      );
+    }
+    // 5. Sound
+    else if (['Q', 'W'].contains(letter)) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AlphabetFindScreen(letter: letter),
+        ),
+      );
+    }
   }
 
   @override
@@ -990,7 +1145,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
                         right: 20,
                         child: ForestLevelBadge(
                           level: ForestProgressService.levelNumberForLetter(
-                            widget.startingLetter,
+                            widget.letter,
                           ) ??
                               1,
                         ),

@@ -3,9 +3,7 @@ import 'dart:ui' as ui;
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -140,6 +138,38 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
 
   void _showCelebrationDialog() {
     if (!mounted) return;
+
+    String currentLetter = widget.letter.toUpperCase();
+
+    const skipGoodJobLetters = {'A', 'E', 'H'};
+
+    if (skipGoodJobLetters.contains(currentLetter)) {
+      String nextLetter =
+      String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              AlphabetIntroScreen(letter: nextLetter),
+        ),
+      );
+      return;
+    }
+
+    // mark level complete for some letters
+    const completeLevelsLetters = {'L', 'R', 'X'};
+
+    if (completeLevelsLetters.contains(currentLetter)) {
+      final completedLevel =
+      ForestProgressService.levelNumberForLetter(currentLetter);
+
+      if (completedLevel != null) {
+        ForestProgressService.instance.markLevelComplete(completedLevel);
+      }
+    }
+
+
     showDialog(
       context: context,
       useSafeArea: false,
@@ -151,57 +181,31 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
           characterImage: 'assets/images/characters/dog.png',
           closeButtonColor: ForestColorTheme.seagreen,
           onNext: () {
-            Navigator.pop(context); // Close the prompt
+            Navigator.pop(context);
 
-            String current = widget.letter.toUpperCase();
-
-            // Mark this letter's level as complete, unlocking the next one.
-            final completedLevel = ForestProgressService.levelNumberForLetter(
-              current,
-            );
-            if (completedLevel != null) {
-              ForestProgressService.instance.markLevelComplete(completedLevel);
-            }
-
-            // --- THE BOSS LEVEL CHECKER ---
-            if (current == 'G') {
-              // If they just finished G, send them to Level 8 (Match Game!)
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AlphabetMatchScreen(),
-                ),
-              );
-            } else if (current == 'N') {
-              // If they just finished N, send them to Level 16 (Fall Game!)
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AlphabetFallScreen(),
-                ),
-              );
+            if (currentLetter == '') {
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (_) => const (),
+              //   ),
+              // );
             } else {
-              // Otherwise, just go to the next normal Intro screen!
-              int charCode = current.codeUnitAt(0);
+              int charCode = currentLetter.codeUnitAt(0);
               if (charCode >= 65 && charCode < 90) {
                 String nextLetter = String.fromCharCode(charCode + 1);
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        AlphabetIntroScreen(startingLetter: nextLetter),
+                    builder: (_) =>
+                        AlphabetIntroScreen(letter: nextLetter),
                   ),
                 );
               } else {
-                // Reached the end of the alphabet with no more letters or
-                // boss levels mapped. Go back to a *fresh* level-select
-                // screen so it reloads progress on its own (same pattern
-                // as Arctic/Puzzle Glade), instead of popping back to a
-                // potentially stale existing instance.
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const ForestLevelScreen(),
+                    builder: (_) => const ForestLevelScreen(),
                   ),
                 );
               }
@@ -215,11 +219,11 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
             });
           },
           onBack: () {
-            Navigator.pop(context); // Close the prompt
+            Navigator.pop(context);
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const ForestLevelScreen(),
+                builder: (_) => const ForestLevelScreen(),
               ),
             );
           },

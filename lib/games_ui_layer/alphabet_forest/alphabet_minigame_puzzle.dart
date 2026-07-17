@@ -1,8 +1,6 @@
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
@@ -11,7 +9,6 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-
 import 'alphabet_game_ui.dart';
 
 class PuzzlePiece {
@@ -165,6 +162,16 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
           PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/nose_br.png'),
         ];
         break;
+      case 'T':
+        _fullImagePath =
+        'assets/images/alphabets/tree_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/tree_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/tree_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/tree_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/tree_br.png'),
+        ];
+        break;
       default:
         // Fallback just in case
         _fullImagePath = 'assets/images/alphabets/apple_full.png';
@@ -180,6 +187,36 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   }
 
   void _showSuccessDialog() {
+    String currentLetter = widget.letter.toUpperCase();
+
+    const skipGoodJobLetters = {'G', 'J', 'N', 'T'};
+
+    if (skipGoodJobLetters.contains(currentLetter)) {
+      String nextLetter =
+      String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              AlphabetIntroScreen(letter: nextLetter),
+        ),
+      );
+      return;
+    }
+
+    // mark level complete for some letters
+    const completeLevelsLetters = {'C'};
+
+    if (completeLevelsLetters.contains(currentLetter)) {
+      final completedLevel =
+      ForestProgressService.levelNumberForLetter(currentLetter);
+
+      if (completedLevel != null) {
+        ForestProgressService.instance.markLevelComplete(completedLevel);
+      }
+    }
+
     showDialog(
       context: context,
       useSafeArea: false,
@@ -207,30 +244,14 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
 
             String current = widget.letter.toUpperCase();
 
-            // Mark this letter's level as complete, unlocking the next one.
-            final completedLevel = ForestProgressService.levelNumberForLetter(
-              current,
-            );
-            if (completedLevel != null) {
-              ForestProgressService.instance.markLevelComplete(completedLevel);
-            }
-
-            if (current == 'G') {
-              // If they just finished G, send them to Level 8 (Match Game!)
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AlphabetMatchScreen(),
-                ),
-              );
-            } else if (current == 'N') {
-              // If they just finished N, send them to Level 16 (Fall Game!)
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AlphabetFallScreen(),
-                ),
-              );
+            if (current == 'C') {
+              // TODO: @Tin navigate to letters a-c game
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => const (),
+              //   ),
+              // );
             } else {
               // Otherwise, just go to the next normal Intro screen!
               int charCode = current.codeUnitAt(0);
@@ -240,7 +261,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        AlphabetIntroScreen(startingLetter: nextLetter),
+                        AlphabetIntroScreen(letter: nextLetter),
                   ),
                 );
               } else {

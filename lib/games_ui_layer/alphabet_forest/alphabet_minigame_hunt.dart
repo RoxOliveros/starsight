@@ -1,8 +1,6 @@
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
@@ -11,7 +9,6 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-
 import 'alphabet_game_ui.dart';
 
 class AlphabetHuntScreen extends StatefulWidget {
@@ -56,6 +53,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     if (['A', 'B', 'C'].contains(upperTarget)) return ['A', 'B', 'C'];
     if (['D', 'E', 'F'].contains(upperTarget)) return ['D', 'E', 'F'];
     if (['G', 'H', 'I'].contains(upperTarget)) return ['G', 'H', 'I'];
+    if (['S', 'T', 'U'].contains(upperTarget)) return ['S', 'T', 'U'];
     // Add more groups here later! (J,K,L etc.)
     return ['A', 'B', 'C'];
   }
@@ -107,6 +105,10 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
       'H': 'hat',
       'I': 'igloo',
       'J': 'jar',
+      'O': 'oil',
+      'S': 'sun',
+      'T': 'tree',
+      'U': 'umbrella'
     };
     final name = objectMap[letter.toUpperCase()] ?? 'apple';
     return 'assets/images/objects/forest/$name.png';
@@ -173,6 +175,36 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   }
 
   void _showApplause() {
+    String currentLetter = widget.letter.toUpperCase();
+
+    const skipGoodJobLetters = {'D', 'K'};
+
+    if (skipGoodJobLetters.contains(currentLetter)) {
+      String nextLetter =
+      String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              AlphabetIntroScreen(letter: nextLetter),
+        ),
+      );
+      return;
+    }
+
+    // mark level complete for some letters
+    const completeLevelsLetters = {'O', 'U'};
+
+    if (completeLevelsLetters.contains(currentLetter)) {
+      final completedLevel =
+      ForestProgressService.levelNumberForLetter(currentLetter);
+
+      if (completedLevel != null) {
+        ForestProgressService.instance.markLevelComplete(completedLevel);
+      }
+    }
+
     showDialog(
       context: context,
       useSafeArea: false,
@@ -189,30 +221,14 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
             String current = widget.letter.toUpperCase();
 
-            // Mark this letter's level as complete, unlocking the next one.
-            final completedLevel = ForestProgressService.levelNumberForLetter(
-              current,
-            );
-            if (completedLevel != null) {
-              ForestProgressService.instance.markLevelComplete(completedLevel);
-            }
-
-            if (current == 'G') {
-              // If they just finished G, send them to Level 8 (Match Game!)
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AlphabetMatchScreen(),
-                ),
-              );
-            } else if (current == 'N') {
-              // If they just finished N, send them to Level 16 (Fall Game!)
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AlphabetFallScreen(),
-                ),
-              );
+            if (current == 'O') {
+              // TODO: @Tin navigate to letters a-o game
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => const (),
+              //   ),
+              // );
             } else {
               // Otherwise, just go to the next normal Intro screen!
               int charCode = current.codeUnitAt(0);
@@ -222,7 +238,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        AlphabetIntroScreen(startingLetter: nextLetter),
+                        AlphabetIntroScreen(letter: nextLetter),
                   ),
                 );
               } else {
@@ -298,10 +314,10 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
               ),
 
               Positioned(
-                top: 70,
+                top: 80,
                 bottom: 20,
                 left: 180,
-                right: 40,
+                right: 20,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     // Calculate item size to fit exactly 4 columns and 3 rows

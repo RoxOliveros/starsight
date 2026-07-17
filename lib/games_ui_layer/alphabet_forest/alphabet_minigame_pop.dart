@@ -2,9 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_fall.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_match.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
@@ -17,9 +15,9 @@ import 'package:flutter/material.dart';
 import 'alphabet_game_ui.dart';
 
 class AlphabetPopScreen extends StatefulWidget {
-  final String targetLetter;
+  final String letter;
 
-  const AlphabetPopScreen({super.key, required this.targetLetter});
+  const AlphabetPopScreen({super.key, required this.letter});
 
   @override
   State<AlphabetPopScreen> createState() => _AlphabetPopScreenState();
@@ -68,7 +66,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     _availableLanes = List.from(_lanes);
     _availableLanes.shuffle();
 
-    List<String> distractors = _getDistractorLetters(widget.targetLetter);
+    List<String> distractors = _getDistractorLetters(widget.letter);
     for (int i = 0; i < 5; i++) {
       String randomDistractor =
           distractors[_random.nextInt(distractors.length)];
@@ -76,7 +74,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     }
 
     for (int i = 0; i < _winCondition; i++) {
-      _activeBalls.add(_createBall(widget.targetLetter.toUpperCase()));
+      _activeBalls.add(_createBall(widget.letter.toUpperCase()));
     }
   }
 
@@ -147,10 +145,10 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   void _onBallTap(BouncingBall ball) async {
     if (ball.isPopped) return;
 
-    if (ball.letter == widget.targetLetter.toUpperCase()) {
+    if (ball.letter == widget.letter.toUpperCase()) {
       // --- CORRECT MATCH ---
       String audioFile =
-          'audio/alphabet_forest/sound_effects/sound_${widget.targetLetter.toLowerCase()}.wav';
+          'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav';
       await _audioPlayer.play(AssetSource(audioFile));
 
       showTofiReaction(TofiState.correct);
@@ -195,6 +193,36 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   }
 
   void _showApplause() {
+    String currentLetter = widget.letter.toUpperCase();
+
+    const skipGoodJobLetters = {'B', 'M', 'S'};
+
+    if (skipGoodJobLetters.contains(currentLetter)) {
+      String nextLetter =
+      String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              AlphabetIntroScreen(letter: nextLetter),
+        ),
+      );
+      return;
+    }
+
+    // mark level complete for some letters
+    const completeLevelsLetters = {'F', 'I'};
+
+    if (completeLevelsLetters.contains(currentLetter)) {
+      final completedLevel =
+      ForestProgressService.levelNumberForLetter(currentLetter);
+
+      if (completedLevel != null) {
+        ForestProgressService.instance.markLevelComplete(completedLevel);
+      }
+    }
+
     showDialog(
       context: context,
       useSafeArea: false,
@@ -207,43 +235,33 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
           closeButtonColor: ForestColorTheme.seagreen,
 
           onNext: () {
-            Navigator.pop(context); // Close the prompt
+            Navigator.pop(context);
 
-            String current = widget.targetLetter.toUpperCase();
-
-            final completedLevel = ForestProgressService.levelNumberForLetter(
-              current,
-            );
-            if (completedLevel != null) {
-              ForestProgressService.instance.markLevelComplete(completedLevel);
-            }
-
-            if (current == 'G') {
-              // If they just finished G, send them to Level 8 (Match Game!)
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AlphabetMatchScreen(),
-                ),
-              );
-            } else if (current == 'N') {
-              // If they just finished N, send them to Level 16 (Fall Game!)
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AlphabetFallScreen(),
-                ),
-              );
+            if (currentLetter == 'F') {
+              // TODO: @Tin add navigation for a-f games
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => const (),
+              //   ),
+              // );
+            } else if (currentLetter == 'I') {
+              // TODO: @Tin add navigation for a-i games
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => const (),
+              //   ),
+              // );
             } else {
-              // Otherwise, just go to the next normal Intro screen!
-              int charCode = current.codeUnitAt(0);
+              int charCode = currentLetter.codeUnitAt(0);
               if (charCode >= 65 && charCode < 90) {
                 String nextLetter = String.fromCharCode(charCode + 1);
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        AlphabetIntroScreen(startingLetter: nextLetter),
+                        AlphabetIntroScreen(letter: nextLetter),
                   ),
                 );
               } else {
@@ -256,6 +274,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
               }
             }
           },
+
           onRestart: () {
             Navigator.pop(context);
             setState(() {
@@ -264,8 +283,9 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
               _startGameLoop();
             });
           },
+
           onBack: () {
-            Navigator.pop(context); // Close the prompt
+            Navigator.pop(context);
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -307,7 +327,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
               child: Center(
                 child: ForestInstructionBanner(
                   text:
-                      'Pop all the ${widget.targetLetter.toUpperCase()} balls!',
+                      'Pop all the ${widget.letter.toUpperCase()} balls!',
                 ),
               ),
             ),
@@ -318,7 +338,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
               child: ForestLevelBadge(
                 level:
                     ForestProgressService.levelNumberForLetter(
-                      widget.targetLetter.toUpperCase(),
+                      widget.letter.toUpperCase(),
                     ) ??
                     1,
               ),

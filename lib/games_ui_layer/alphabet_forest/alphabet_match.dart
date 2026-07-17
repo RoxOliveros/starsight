@@ -194,17 +194,7 @@ class _AlphabetMatchScreenState extends State<AlphabetMatchScreen> {
           closeButtonColor: ForestColorTheme.seagreen,
 
           onNext: () {
-            ForestProgressService.instance.markLevelComplete(8);
-
-            Navigator.pop(context); // Close the prompt
-
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    const AlphabetIntroScreen(startingLetter: 'H'),
-              ),
-            );
+            Navigator.pop(context);
           },
           onRestart: () {
             Navigator.pop(context);
