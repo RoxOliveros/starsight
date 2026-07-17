@@ -48,6 +48,8 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   final GlobalKey<_AvatarBadgeState> _avatarBadgeKey = GlobalKey();
 
+  int _currentIndex = 0;
+
   // Activity/island cards
   final List<_ActivityCard> _activities = const [
     _ActivityCard(
@@ -137,89 +139,115 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       body: _animationsReady
           ? Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // ── Full-screen cloud background ──────────────────────────
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // ── Full-screen cloud background ──────────────────────────
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          // Left cloud
-                          Positioned(
-                            left: -60,
-                            top: 0,
-                            bottom: 0,
-                            child: Center(
-                              child: Lottie.asset(
-                                'assets/animations/white_clouds_mirrored.json',
-                                width: 550,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) =>
-                                    const SizedBox(width: 200),
-                              ),
-                            ),
-                          ),
-                          // Center cloud
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            top: -150,
-                            bottom: 0,
-                            child: Center(
-                              child: Lottie.asset(
-                                'assets/animations/white_cloud.json',
-                                width: 80,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) =>
-                                    const SizedBox(width: 80),
-                              ),
-                            ),
-                          ),
-                          // Right cloud
-                          Positioned(
-                            right: -200,
-                            top: -50,
-                            bottom: 0,
-                            child: Center(
-                              child: Lottie.asset(
-                                'assets/animations/white_clouds_mirrored.json',
-                                width: 550,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) =>
-                                    const SizedBox(width: 200),
-                              ),
-                            ),
-                          ),
-                        ],
+                  // Left cloud
+                  Positioned(
+                    left: -60,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: Lottie.asset(
+                        'assets/animations/white_clouds_mirrored.json',
+                        width: 550,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                        const SizedBox(width: 200),
                       ),
                     ),
                   ),
-
-                  // ── All UI on top ─────────────────────────────────────────
-                  Column(
-                    children: [
-                      _TopBar(
-                        nickname: widget.nickname,
-                        avatarBadgeKey: _avatarBadgeKey,
+                  // Center cloud
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: -150,
+                    bottom: 0,
+                    child: Center(
+                      child: Lottie.asset(
+                        'assets/animations/white_cloud.json',
+                        width: 80,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                        const SizedBox(width: 80),
                       ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: _MainIslandCard(
-                            activities: _activities,
-                            floatAnimation: _floatAnimation,
-                            selectedTab: _selectedTab,
-                            onTabChanged: (i) =>
-                                setState(() => _selectedTab = i),
-                          ),
-                        ),
+                    ),
+                  ),
+                  // Right cloud
+                  Positioned(
+                    right: -200,
+                    top: -50,
+                    bottom: 0,
+                    child: Center(
+                      child: Lottie.asset(
+                        'assets/animations/white_clouds_mirrored.json',
+                        width: 550,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                        const SizedBox(width: 200),
                       ),
-                    ],
+                    ),
                   ),
                 ],
-              )
+              ),
+            ),
+          ),
+
+          // ── All UI on top ─────────────────────────────────────────
+          Column(
+            children: [
+              _TopBar(
+                nickname: widget.nickname,
+                avatarBadgeKey: _avatarBadgeKey,
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: _MainIslandCard(
+                    activities: _activities,
+                    floatAnimation: _floatAnimation,
+                    selectedTab: _selectedTab,
+                    onTabChanged: (i) => setState(() => _selectedTab = i),
+
+                    currentIndex: _currentIndex,
+                    onIndexChanged: (i) => setState(() => _currentIndex = i),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 15,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _activities.length,
+                    (index) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: _currentIndex == index ? 18 : 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: _currentIndex == index
+                        ? ColorTheme.orange
+                        : ColorTheme.yelloworange.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      )
           : LoadingScreen.arctic(),
     );
   }
@@ -237,7 +265,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -423,12 +451,16 @@ class _MainIslandCard extends StatelessWidget {
   final Animation<double> floatAnimation;
   final int selectedTab;
   final ValueChanged<int> onTabChanged;
+  final int currentIndex;
+  final ValueChanged<int> onIndexChanged;
 
   const _MainIslandCard({
     required this.activities,
     required this.floatAnimation,
     required this.selectedTab,
     required this.onTabChanged,
+    required this.currentIndex,
+    required this.onIndexChanged,
   });
 
   @override
@@ -448,6 +480,7 @@ class _MainIslandCard extends StatelessWidget {
                     activities: activities,
                     floatAnimation: floatAnimation,
                     height: islandHeight,
+                    onIndexChanged: onIndexChanged,
                   ),
                 ),
                 const Spacer(),
@@ -483,11 +516,13 @@ class _IslandCarousel extends StatefulWidget {
   final List<_ActivityCard> activities;
   final Animation<double> floatAnimation;
   final double height;
+  final ValueChanged<int> onIndexChanged;
 
   const _IslandCarousel({
     required this.activities,
     required this.floatAnimation,
     required this.height,
+    required this.onIndexChanged,
   });
 
   @override
@@ -514,17 +549,19 @@ class _IslandCarouselState extends State<_IslandCarousel> {
         setState(() {
           _currentIndex = newIndex;
         });
+
+        widget.onIndexChanged(newIndex);
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          height: widget.height,
-          child: ListView.separated(
+    return SizedBox(
+      height: widget.height,
+      child: Stack(
+        children: [
+          ListView.separated(
             controller: _scrollController,
             scrollDirection: Axis.horizontal,
             clipBehavior: Clip.none,
@@ -539,32 +576,8 @@ class _IslandCarouselState extends State<_IslandCarousel> {
               );
             },
           ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            widget.activities.length,
-            (index) => AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-
-              width: _currentIndex == index ? 18 : 10,
-              height: 10,
-
-              decoration: BoxDecoration(
-                color: _currentIndex == index
-                    ? ColorTheme.orange
-                    : ColorTheme.yelloworange.withValues(alpha: 0.4),
-
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

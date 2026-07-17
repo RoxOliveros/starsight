@@ -1,6 +1,6 @@
 import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:StarSight/ui_layer/behavior_reports_screen.dart';
-import 'package:StarSight/ui_layer/parents_pin.dart';
+import 'package:StarSight/ui_layer/parents_pin_validation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'app_dialog.dart';
@@ -140,15 +140,23 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                 _ProfileOption(
                   icon: Icons.auto_awesome,
                   label: "Analysis and Reports",
-                  onTap: () {
-                    Navigator.pop(context);
+                  onTap: () async {
+                    final navigator = Navigator.of(context);
+                    navigator.pop();
 
-                    Navigator.push(
-                      context,
+                    final bool? authenticated = await navigator.push<bool>(
                       MaterialPageRoute(
-                        builder: (context) => const BehaviorReportsScreen(),
+                        builder: (_) => const ParentPinValidation(),
                       ),
                     );
+
+                    if (authenticated == true) {
+                      navigator.push(
+                        MaterialPageRoute(
+                          builder: (_) => const BehaviorReportsScreen(),
+                        ),
+                      );
+                    }
                   },
                 ),
 
