@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/gesture_camera_view.dart';
+import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -241,12 +243,30 @@ class _Prayer1State extends State<Prayer1> {
               characterImage: 'assets/images/characters/dr.woo_smiling.png',
               // TODO: replace with the actual theme color for this level
               closeButtonColor: Colors.blue,
-              // TODO: navigate to whatever comes after this level
-              onNext: () {},
+
+              onNext: () async {
+                await TownProgressService.instance.markLevelComplete(8);
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const Sorry1Screen()),
+                );
+              },
               // TODO: replay this level (e.g. pushReplacement to Prayer1())
-              onRestart: () {},
-              // TODO: navigate back (e.g. pop, or pushAndRemoveUntil to a hub screen)
-              onBack: () {},
+              onRestart: () {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const Prayer1()),
+                );
+              },
+
+              onBack: () async {
+                await TownProgressService.instance.markLevelComplete(7);
+
+                if (mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const Prayer1()),
+                    (route) => route.isFirst,
+                  );
+                }
+              },
             ),
         ],
       ),

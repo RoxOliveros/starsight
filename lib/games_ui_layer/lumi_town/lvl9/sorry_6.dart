@@ -1,3 +1,4 @@
+import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_7.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -42,8 +43,10 @@ class _Sorry6ScreenState extends State<Sorry6Screen> {
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 
-      // TODO: Add your next screen transition here once sorry_7 finishes!
-      debugPrint('sorry_7.wav finished playing!');
+      // Navigate to the 6-piece Puzzle (Scene 7)
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const Sorry7Screen()),
+      );
     } catch (e) {
       debugPrint('Error playing audio for sorry_6 screen: $e');
     }

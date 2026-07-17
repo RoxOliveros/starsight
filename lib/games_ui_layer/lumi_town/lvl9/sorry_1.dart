@@ -1,3 +1,4 @@
+import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -31,9 +32,17 @@ class _Sorry1ScreenState extends State<Sorry1Screen> {
   Future<void> _initAndPlayAudio() async {
     _audioPlayer = AudioPlayer();
     try {
-      // AssetSource automatically looks inside the declared 'assets/' path
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level9/sorry_narration_1.wav'),
+      );
+
+      // Wait for audio to finish
+      await _audioPlayer.onPlayerComplete.first;
+      if (!mounted) return;
+
+      // Navigate to Scene 2
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const Sorry2Screen()),
       );
     } catch (e) {
       debugPrint('Error playing narration audio: $e');

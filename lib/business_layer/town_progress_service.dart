@@ -5,7 +5,7 @@ class TownProgressService {
   TownProgressService._();
   static final TownProgressService instance = TownProgressService._();
 
-  static const int totalLevels = 7;
+  static const int totalLevels = 9;
   static const int _defaultUnlockedLevel = 1;
 
   DocumentReference<Map<String, dynamic>>? get _docRef {

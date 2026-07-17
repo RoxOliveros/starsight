@@ -3,6 +3,8 @@ import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl5/sharing_1.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl8/prayer_1.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
@@ -259,6 +261,11 @@ class _LevelTile extends StatelessWidget {
         return EmotionStarsScreen();
       case 7:
         return LumiClassroomScreen();
+      case 8:
+        return Prayer1();
+      case 9:
+        return Sorry1Screen();
+
       default:
         return null;
     }
