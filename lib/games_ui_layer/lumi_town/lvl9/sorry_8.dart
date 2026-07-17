@@ -276,9 +276,8 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
                 await TownProgressService.instance.markLevelComplete(9);
               },
               onRestart: () {
-                // TODO: replace with your actual restart route
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const Sorry8Screen()),
+                  MaterialPageRoute(builder: (_) => const Sorry1Screen()),
                 );
               },
               onBack: () async {
