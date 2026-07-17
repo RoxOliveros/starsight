@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/arctic_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
@@ -212,6 +213,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
 
     if (_currentRound + 1 >= _totalRounds) {
       await playVoice(_audioWin);
+      await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
     } else {
@@ -366,9 +368,12 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                 ),
               ),
               Expanded(child: _buildStagingArea(h)),
-              Transform.translate(
-                offset: Offset(0, -h * 0.05), // ← increase this to move it further up
-                child: _buildSledRow(h * 0.32),
+              Padding(
+                padding: EdgeInsets.only(left: MediaQuery.of(context).size.height * 0.40),
+                child: Transform.translate(
+                  offset: Offset(0, -h * 0.05),
+                  child: _buildSledRow(h * 0.32),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 15),
@@ -609,7 +614,12 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, DecorateSnowyTreeGame(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DecorateSnowyTreeGame(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         setState(() {

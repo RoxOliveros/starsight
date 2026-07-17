@@ -296,7 +296,7 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
         await Future.delayed(const Duration(milliseconds: 700));
         if (!mounted) return;
         if (_currentRound + 1 >= _totalRounds) {
-          await ArcticProgressService.instance.markLevelComplete(16);
+          await ArcticProgressService.instance.markLevelComplete(widget.level);
           setState(() => _showWinDialog = true);
         } else {
           setState(() => _currentRound++);
@@ -504,6 +504,7 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const SizedBox(width: 120),
                       // LEFT: Doma + ice block pile
                       Expanded(flex: 4, child: _buildBlockPileArea(h, w)),
 
@@ -853,7 +854,12 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, Number1to5MatchSnowglobesScreen(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Number1to5MatchSnowglobesScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         Navigator.pop(context, Number1to5FillIglooScreen(level: widget.level));

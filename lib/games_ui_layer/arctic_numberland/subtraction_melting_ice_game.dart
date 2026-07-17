@@ -3,6 +3,7 @@ import 'package:StarSight/games_ui_layer/arctic_numberland/subtraction_compare_g
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/arctic_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
@@ -228,6 +229,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     if (!mounted) return;
 
     if (_currentRound + 1 >= _totalRounds) {
+      await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
     } else {
@@ -618,7 +620,12 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, SubtractionCompareGame(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubtractionCompareGame(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         setState(() {

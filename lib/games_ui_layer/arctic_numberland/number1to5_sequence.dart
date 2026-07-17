@@ -232,7 +232,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         if (!mounted) return;
 
         if (_currentRound + 1 >= _totalRounds) {
-          await ArcticProgressService.instance.markLevelComplete(14);
+          await ArcticProgressService.instance.markLevelComplete(widget.level);
           setState(() => _showWinDialog = true);
         } else {
           setState(() => _currentRound++);
@@ -735,7 +735,12 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, Number1to5CountingTreesScreen(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Number1to5CountingTreesScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         Navigator.pop(context, Number012345SequenceScreen(level: widget.level));

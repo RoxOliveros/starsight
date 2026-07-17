@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/arctic_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
@@ -76,7 +77,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
 
   List<int> _buildTargets() {
     final rng = Random();
-    final targets = List.generate(8, (n) => n + 1)..shuffle(rng);
+    final targets = List.generate(5, (n) => n + 1)..shuffle(rng);
     return targets.take(_totalRounds).toList();
   }
 
@@ -168,6 +169,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
 
     if (_currentRound + 1 >= _totalRounds) {
       await playVoice(_audioWin);
+      await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
       return;
@@ -578,7 +580,14 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         // TODO: @Tin navigate after number intro is done
-        // Navigator.pop(context, (level: widget.level + 1));
+        // onNext: () {
+        //   Navigator.pushReplacement(
+        //     context,
+        //     MaterialPageRoute(
+        //       builder: (_) => (level: widget.level + 1),
+        //     ),
+        //   );
+        // },
       },
       onRestart: () {
         setState(() {

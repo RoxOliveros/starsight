@@ -244,7 +244,7 @@ class _Number1to5CountingTreesScreenState
       if (!mounted) return;
 
       if (_currentRound + 1 >= _totalRounds) {
-        await ArcticProgressService.instance.markLevelComplete(15);
+        await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
         setState(() => _currentRound++);
@@ -496,45 +496,38 @@ class _Number1to5CountingTreesScreenState
   Widget _buildInstructionBanner(double h) {
     return ScaleTransition(
       scale: _instructionBounce,
-      child: GestureDetector(
-        onTap: () => _playAudio(_audioQuestion),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-          decoration: BoxDecoration(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+        decoration: BoxDecoration(
+          color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'How many trees are there?',
+              style: TextStyle(
+                fontFamily: ArcticAppTextStyles.fredoka,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                shadows: const [
+                  Shadow(color: Color(0x55003366),
+                      blurRadius: 6,
+                      offset: Offset(0, 2))
+                ],
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'How many trees are there?',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
-                ),
-              ),
-              const SizedBox(width: 10),
-              // Speaker hint
-              Image.asset(
-                'assets/images/icons/speaker.png',
-                height: (h * 0.25).clamp(18.0, 28.0),
-                width: (h * 0.25).clamp(18.0, 28.0),
-                fit: BoxFit.contain,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -747,7 +740,12 @@ class _Number1to5CountingTreesScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, Number1to5FillIglooScreen(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Number1to5FillIglooScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         Navigator.pop(context, Number1to5CountingTreesScreen(level: widget.level));

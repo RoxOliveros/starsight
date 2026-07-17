@@ -7,7 +7,6 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../business_layer/forest_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import 'alphabet_game_ui.dart';

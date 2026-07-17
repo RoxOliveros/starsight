@@ -16,14 +16,14 @@ abstract class Fonts {
   static const String fredoka = 'Fredoka';
 }
 
-class ParentPin extends StatefulWidget {
-  const ParentPin({super.key});
+class ParentPinValidation extends StatefulWidget {
+  const ParentPinValidation({super.key});
 
   @override
-  State<ParentPin> createState() => ParentPinState();
+  State<ParentPinValidation> createState() => ParentPinValidationState();
 }
 
-class ParentPinState extends State<ParentPin> {
+class ParentPinValidationState extends State<ParentPinValidation> {
   final List<String> _digits = [];
   static const int _maxDigits = 4;
 
@@ -212,8 +212,7 @@ class ParentPinState extends State<ParentPin> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ColorTheme.cream,
-      body: SafeArea(
-        child: LayoutBuilder(
+      body: LayoutBuilder(
           builder: (context, constraints) {
             final double w = constraints.maxWidth;
             final double h = constraints.maxHeight;
@@ -333,7 +332,6 @@ class ParentPinState extends State<ParentPin> {
             );
           },
         ),
-      ),
     );
   }
 }
