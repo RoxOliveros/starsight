@@ -183,7 +183,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                     characterImage: _selectedStarPath!,
                     closeButtonColor: Colors.orange,
                     onNext: () async {
-                      await TownProgressService.instance.markLevelComplete(5);
+                      await TownProgressService.instance.markLevelComplete(6);
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
                           builder: (context) => const LumiClassroomScreen(),

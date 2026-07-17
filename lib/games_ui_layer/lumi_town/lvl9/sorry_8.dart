@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -270,9 +272,8 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
               // completion screen (Little Bear, Jack, or another asset)
               characterImage: 'assets/images/characters/dr.woo_smiling.png',
               closeButtonColor: const Color(0xFF266589),
-              onNext: () {
-                // TODO: replace with your actual next-level route
-                Navigator.of(context).maybePop();
+              onNext: () async {
+                await TownProgressService.instance.markLevelComplete(9);
               },
               onRestart: () {
                 // TODO: replace with your actual restart route
@@ -280,8 +281,15 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
                   MaterialPageRoute(builder: (_) => const Sorry8Screen()),
                 );
               },
-              onBack: () {
-                Navigator.of(context).maybePop();
+              onBack: () async {
+                await TownProgressService.instance.markLevelComplete(9);
+
+                if (mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const Sorry1Screen()),
+                    (route) => route.isFirst,
+                  );
+                }
               },
             ),
 

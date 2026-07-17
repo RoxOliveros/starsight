@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl8/prayer_1.dart';
 import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -188,19 +190,25 @@ class _RespectEndingState extends State<RespectEnding> {
               characterImage: 'assets/images/characters/dr.woo_smiling.png',
               closeButtonColor: const Color(0xFF266589),
               onNext: () async {
-                // TODO: Mark respect level complete and navigate to the next screen
-                await TownProgressService.instance.markLevelComplete(6);
-                // Navigator.of(context).pushReplacement(...);
+                await TownProgressService.instance.markLevelComplete(7);
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const Prayer1()),
+                );
               },
               onRestart: () {
-                // Reset the overlay timer if they want to replay the ending scene
-                setState(() {
-                  _showGoodJobOverlay = false;
-                });
-                _startEndingSequence();
+                // Stop any ending audio that might still be playing
+                _audioPlayer.stop();
+
+                // Route back to the VERY FIRST screen of the Respect level!
+                // (Replace 'Respect1Screen()' with whatever your Level 7 starting widget is named)
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => const LumiClassroomScreen(),
+                  ),
+                );
               },
               onBack: () async {
-                await TownProgressService.instance.markLevelComplete(6);
+                await TownProgressService.instance.markLevelComplete(7);
 
                 if (mounted) {
                   Navigator.of(context).pushAndRemoveUntil(
