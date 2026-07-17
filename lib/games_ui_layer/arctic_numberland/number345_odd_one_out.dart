@@ -224,7 +224,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       if (!mounted) return;
 
       if (_currentRound + 1 >= _totalRounds) {
-        await ArcticProgressService.instance.markLevelComplete(13);
+        await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
         setState(() => _currentRound++);
@@ -582,7 +582,12 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, Number012345SequenceScreen(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Number012345SequenceScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         Navigator.pop(context, Number345OddOneOutScreen(level: widget.level));

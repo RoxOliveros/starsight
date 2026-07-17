@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/arctic_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
@@ -190,6 +191,7 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
 
   Future<void> _onAllMatched() async {
     await playVoice(_audioWin);
+    await ArcticProgressService.instance.markLevelComplete(widget.level);
     if (!mounted) return;
     setState(() {
       _showWinDialog = true;
@@ -555,7 +557,12 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, IcebergTipGame(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => IcebergTipGame(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         setState(() {

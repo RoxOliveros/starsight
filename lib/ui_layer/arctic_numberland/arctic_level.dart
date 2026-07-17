@@ -329,8 +329,8 @@ class _LevelTile extends StatelessWidget {
           [3, 4, 5],
           nextScreen: const Number345CountingObjectsScreen(level: 6),
         );
-      case 6:
 
+      case 6:
         return const Number345CountingObjectsScreen(level: 6);
       case 7:
         return const Number345OddOneOutScreen(level: 7);

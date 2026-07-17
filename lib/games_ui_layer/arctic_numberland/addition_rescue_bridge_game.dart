@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/arctic_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
@@ -314,6 +315,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         _showEquation = false;
       });
       await _playVoice(_audioWin);
+      await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
     } else {
@@ -604,7 +606,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
             ],
           ),
           child: Text(
-            'Add up, then load the scale to match!',
+            'Add up, then load the bridge to match!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
               fontSize: 20,
@@ -1049,7 +1051,12 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, AdditionPackageDeliveryGame(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdditionPackageDeliveryGame(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         setState(() {

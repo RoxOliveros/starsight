@@ -239,7 +239,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       await Future.delayed(const Duration(milliseconds: 1000));
 
       if (_round + 1 >= _totalRounds) {
-        await ArcticProgressService.instance.markLevelComplete(7);
+        await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();

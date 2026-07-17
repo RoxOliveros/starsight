@@ -4,6 +4,7 @@ import 'package:StarSight/games_ui_layer/arctic_numberland/snowman_shape_hunt.da
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/arctic_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
@@ -261,6 +262,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
       if (_currentRound + 1 >= _totalRounds) {
         await _playVoice(_audioWin);
+        await ArcticProgressService.instance.markLevelComplete(widget.level);
         if (!mounted) return;
         setState(() => _showWinDialog = true);
       } else {
@@ -435,25 +437,21 @@ class _SignboardMathGameState extends State<SignboardMathGame>
               ),
             ),
             Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              child: Stack(
                 children: [
-                  Expanded(
+                  // Center the signboard on the entire screen
+                  Center(
                     child: ScaleTransition(
                       scale: _sceneEnter,
                       child: _buildSignboardScene(w, h),
                     ),
                   ),
-                  SizedBox(
-                    width: w * 0.25,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: _buildPieceTray(h),
-                        ),
-                      ],
+
+                  // Choices fixed on the right
+                  Padding(padding: EdgeInsetsGeometry.only(right: 20),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildPieceTray(h),
                     ),
                   ),
                 ],
@@ -515,61 +513,61 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     final boardHeight = h * 0.85;
     final itemSize = (h * 0.15);
 
-    return Align(
-      alignment: Alignment.centerRight,
-      child: SizedBox(
-        width: boardWidth,
-        height: boardHeight,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _signboardAsset,
-                fit: BoxFit.fill,
-                errorBuilder: (_, __, ___) => Container(
-                  decoration: BoxDecoration(
-                    color: ArcticColorTheme.cotton.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white, width: 4),
+    return SizedBox(
+      width: boardWidth,
+      height: boardHeight,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              _signboardAsset,
+              fit: BoxFit.fill,
+              errorBuilder: (_, __, ___) =>
+                  Container(
+                    decoration: BoxDecoration(
+                      color: ArcticColorTheme.cotton.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white, width: 4),
+                    ),
                   ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(
+                horizontal: boardWidth * 0.08, vertical: boardHeight * 0.2),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: _spec.type == _RoundType.addition
+                      ? _buildAdditionClusters(itemSize)
+                      : _buildSubtractionClusterWithBury(
+                      boardWidth * 0.7, itemSize),
+                ),
+                _buildTagSlot(itemSize),
+              ],
+            ),
+          ),
+          Positioned(
+            bottom: boardHeight * 0.30,
+            right: boardWidth * 0.06,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Text(
+                _spec.type == _RoundType.addition
+                    ? '${_spec.a} + ${_spec.b} = ?'
+                    : '${_spec.a} − ${_spec.b} = ?',
+                style: TextStyle(
+                  fontFamily: ArcticAppTextStyles.fredoka,
+                  fontSize: (boardHeight * 0.09),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: boardWidth * 0.08, vertical: boardHeight * 0.2),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: _spec.type == _RoundType.addition
-                        ? _buildAdditionClusters(itemSize)
-                        : _buildSubtractionClusterWithBury(boardWidth * 0.7, itemSize),
-                  ),
-                  _buildTagSlot(itemSize),
-                ],
-              ),
-            ),
-            Positioned(
-              bottom: boardHeight * 0.30,
-              right: boardWidth * 0.06,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: Text(
-                  _spec.type == _RoundType.addition
-                      ? '${_spec.a} + ${_spec.b} = ?'
-                      : '${_spec.a} − ${_spec.b} = ?',
-                  style: TextStyle(
-                    fontFamily: ArcticAppTextStyles.fredoka,
-                    fontSize: (boardHeight * 0.09),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -712,7 +710,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
   /// Draggable puzzle-piece tray with the answer choices.
   Widget _buildPieceTray(double h) {
-    final pieceSize = (h * 0.13).clamp(50.0, 78.0);
+    final pieceSize = (h * 0.15);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -809,7 +807,12 @@ class _SignboardMathGameState extends State<SignboardMathGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, SnowmanShapeHuntGame(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SnowmanShapeHuntGame(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         setState(() {

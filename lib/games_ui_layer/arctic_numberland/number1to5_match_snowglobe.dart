@@ -231,7 +231,7 @@ class _Number1to5MatchSnowglobesScreenState
       if (!mounted) return;
 
       if (_currentRound + 1 >= _totalRounds) {
-        await ArcticProgressService.instance.markLevelComplete(17);
+        await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
         setState(() => _currentRound++);
@@ -440,12 +440,13 @@ class _Number1to5MatchSnowglobesScreenState
             ),
 
             // ── SCENE ───────────────────────────────
-            // ── SCENE ───────────────────────────────
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Expanded(flex: 1, child: SizedBox()), // ADD — empty space on the left
+                  SizedBox(
+                    width: MediaQuery.of(context).size.height * 0.40,
+                  ),
                   Expanded(
                     flex: 7,
                     child: Row(                                // ADD — target panel + globes grouped together on the right
@@ -709,7 +710,14 @@ class _Number1to5MatchSnowglobesScreenState
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         //TODO: @Tin navigation after number intro is done
-        // Navigator.pop(context, const ());
+        // onNext: () {
+        //   Navigator.pushReplacement(
+        //     context,
+        //     MaterialPageRoute(
+        //       builder: (_) => (level: widget.level + 1),
+        //     ),
+        //   );
+        // },
       },
       onRestart: () {
         Navigator.pop(context, Number1to5MatchSnowglobesScreen(level: widget.level));

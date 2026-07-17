@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/arctic_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
@@ -133,8 +134,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       final t = elapsed.inMilliseconds / 1000.0;
       setState(() => _elapsed = t);
       _checkPhaseTransition(t);
-    })
-      ..start();
+    });
     finishLoading(_startIntroFlow);
   }
 
@@ -165,10 +165,21 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     await playVoice(_audioIntro);
+
     if (!mounted) return;
+
     setState(() => _introPlaying = false);
+
+    _roundStartElapsed = 0;
+    _elapsed = 0;
+
+    _skyTicker.start();
+
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) playVoice(_audioInstruction);
+
+    if (mounted) {
+      playVoice(_audioInstruction);
+    }
   }
 
   // Builds a fixed schedule of stars with randomized gaps/paths, and works
@@ -294,6 +305,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     if (_currentRound + 1 >= _totalRounds) {
       setState(() => _showWinBurst = true);
       await playVoice(_audioWin);
+      await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() {
         _showWinBurst = false;
@@ -632,7 +644,12 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         // TODO: @Tin navigate to the next game after ending level is done
-        Navigator.pop(context, (level: widget.level + 1));
+        // Navigator.pushReplacement(
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (_) => (level: widget.level + 1),
+        //   ),
+        // );
       },
       onRestart: () {
         setState(() {

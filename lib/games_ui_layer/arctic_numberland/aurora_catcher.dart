@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/arctic_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
@@ -307,6 +308,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     if (_currentRound + 1 >= _totalRounds) {
       setState(() => _showWinAurora = true);
       await playVoice(_audioWin);
+      await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() {
         _showWinAurora = false;
@@ -627,7 +629,12 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, ShootingStarCountingGame(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ShootingStarCountingGame(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         setState(() {

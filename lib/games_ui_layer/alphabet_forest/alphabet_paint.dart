@@ -11,7 +11,7 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:audioplayers/audioplayers.dart' show AudioPlayer;
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'alphabet_game_ui.dart';
 

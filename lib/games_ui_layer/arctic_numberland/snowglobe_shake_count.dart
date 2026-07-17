@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/arctic_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
@@ -68,7 +69,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   ];
 
   static const double _shakeDistanceThreshold = 26.0;
-  static const List<int> _tagOptionCounts = [2, 2, 3, 3, 3];
+  static const List<int> _tagOptionCounts = [2, 2, 2, 2, 2];
   static const int _totalRounds = 5;
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -220,6 +221,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     setState(() => _solvedRounds++);
 
     if (_currentRound + 1 >= _totalRounds) {
+      await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
       return;
@@ -595,7 +597,12 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, AdditionRescueBridgeGame(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdditionRescueBridgeGame(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         setState(() {

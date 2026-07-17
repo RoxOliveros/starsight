@@ -123,7 +123,7 @@ class _Number012CountingObjectsScreenState
       showDomaReaction(DomaState.correct);
       await Future.delayed(const Duration(milliseconds: 900));
       if (_round >= _totalRounds) {
-        await ArcticProgressService.instance.markLevelComplete(6);
+        await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
         setState(() {
@@ -410,10 +410,17 @@ class _Number012CountingObjectsScreenState
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, Number012TapCountScreen(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Number012TapCountScreen(level: widget.level + 1),
+
+          ),
+        );
       },
       onRestart: () {
-        Navigator.pop(context, Number012CountingObjectsScreen(level: widget.level));
+        Navigator.pop(
+            context, Number012CountingObjectsScreen(level: widget.level));
       },
       onBack: () {
         Navigator.pop(context);

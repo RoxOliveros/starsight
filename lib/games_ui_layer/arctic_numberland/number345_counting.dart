@@ -33,11 +33,9 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
   static const List<int> _numbers = [3, 4, 5];
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level14/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level14/intro.wav';
 
   // ── Objects pool (all arctic_numberland assets) ──────────────────────────────────────
   static const List<Map<String, String>> _objects = [
@@ -214,7 +212,7 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
       if (!mounted) return;
 
       if (_round >= _totalRounds) {
-        await ArcticProgressService.instance.markLevelComplete(12);
+        await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
         setState(() {
@@ -631,7 +629,12 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, Number345OddOneOutScreen(level: widget.level));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Number345OddOneOutScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         Navigator.pop(context, Number345CountingObjectsScreen(level: widget.level));

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/arctic_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
@@ -225,6 +226,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
       if (_currentRound + 1 >= _totalRounds) {
         await _playVoice(_audioWin);
+        await ArcticProgressService.instance.markLevelComplete(widget.level);
         if (!mounted) return;
         setState(() => _showWinDialog = true);
       } else {
@@ -534,7 +536,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
           decoration: BoxDecoration(
             color: highlight
                 ? ArcticColorTheme.pictonblue.withValues(alpha: 0.25)
-                : Colors.white.withValues(alpha: 0.35),
+                : Colors.grey.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: highlight ? ArcticColorTheme.pictonblue : Colors.white,
@@ -583,7 +585,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
   // ── Confirmation row ─────────────────────────────────────────────────────
   Widget _buildConfirmRow(double h, {Key? key}) {
-    final btnSize = (h * 0.11).clamp(46.0, 66.0);
+    final btnSize = (h * 0.18);
 
     return Padding(
       key: key,
@@ -666,7 +668,12 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        Navigator.pop(context, SignboardMathGame(level: widget.level + 1));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SignboardMathGame(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         setState(() {
