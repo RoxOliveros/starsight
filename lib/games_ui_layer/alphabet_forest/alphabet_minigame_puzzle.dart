@@ -152,14 +152,92 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
           PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/jar_br.png'),
         ];
         break;
+      case 'K':
+        _fullImagePath = 'assets/images/alphabets/key_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/key_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/key_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/key_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/key_br.png'),
+        ];
+        break;
+
+      case 'L':
+        _fullImagePath = 'assets/images/alphabets/lamp_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/lamp_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/lamp_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/lamp_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/lamp_br.png'),
+        ];
+        break;
+
+      case 'M':
+        _fullImagePath = 'assets/images/alphabets/milk_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/milk_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/milk_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/milk_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/milk_br.png'),
+        ];
+        break;
       case 'N':
         _fullImagePath =
-            'assets/images/alphabets/nose_full.png'; // Make sure this matches your image name!
+        'assets/images/alphabets/nose_full.png'; // Make sure this matches your image name!
         _allPieces = [
           PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/nose_tl.png'),
           PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/nose_tr.png'),
           PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/nose_bl.png'),
           PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/nose_br.png'),
+        ];
+        break;
+      case 'O':
+        _fullImagePath = 'assets/images/alphabets/oil_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/oil_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/oil_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/oil_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/oil_br.png'),
+        ];
+        break;
+
+      case 'P':
+        _fullImagePath = 'assets/images/alphabets/pan_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/pan_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/pan_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/pan_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/pan_br.png'),
+        ];
+        break;
+
+      case 'Q':
+        _fullImagePath = 'assets/images/alphabets/queen_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/queen_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/queen_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/queen_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/queen_br.png'),
+        ];
+        break;
+
+      case 'R':
+        _fullImagePath = 'assets/images/alphabets/rain_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/rain_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/rain_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/rain_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/rain_br.png'),
+        ];
+        break;
+
+      case 'S':
+        _fullImagePath = 'assets/images/alphabets/sun_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/sun_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/sun_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/sun_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/sun_br.png'),
         ];
         break;
       case 'T':
@@ -170,6 +248,64 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
           PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/tree_tr.png'),
           PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/tree_bl.png'),
           PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/tree_br.png'),
+        ];
+        break;
+      case 'U':
+        _fullImagePath = 'assets/images/alphabets/umbrella_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/umbrella_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/umbrella_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/umbrella_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/umbrella_br.png'),
+        ];
+        break;
+
+      case 'V':
+        _fullImagePath = 'assets/images/alphabets/vase_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/vase_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/vase_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/vase_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/vase_br.png'),
+        ];
+        break;
+      case 'W':
+        _fullImagePath =
+        'assets/images/alphabets/window_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/window_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/window_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/window_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/window_br.png'),
+        ];
+        break;
+      case 'X':
+        _fullImagePath = 'assets/images/alphabets/xylophone_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/xylophone_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/xylophone_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/xylophone_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/xylophone_br.png'),
+        ];
+        break;
+
+      case 'Y':
+        _fullImagePath = 'assets/images/alphabets/yarn_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/yarn_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/yarn_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/yarn_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/yarn_br.png'),
+        ];
+        break;
+
+      case 'Z':
+        _fullImagePath = 'assets/images/alphabets/zero_full.png';
+        _allPieces = [
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/zero_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/zero_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/zero_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/zero_br.png'),
         ];
         break;
       default:
@@ -187,9 +323,19 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   }
 
   void _showSuccessDialog() {
-    String currentLetter = widget.letter.toUpperCase();
+    final String currentLetter = widget.letter.toUpperCase();
 
-    const skipGoodJobLetters = {'G', 'J', 'N', 'T'};
+    const skipGoodJobLetters = {
+      'A', 'B',
+      'D', 'E',
+      'G', 'H',
+      'J', 'K',
+      'M', 'N',
+      'P', 'Q',
+      'S', 'T',
+      'V', 'W',
+      'Y', 'Z',
+    };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
       String nextLetter =
@@ -206,7 +352,17 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     }
 
     // mark level complete for some letters
-    const completeLevelsLetters = {'C'};
+    const completeLevelsLetters = {
+      'C',
+      'F',
+      'I',
+      'L',
+      'O',
+      'R',
+      'U',
+      'X',
+      'Z',
+    };
 
     if (completeLevelsLetters.contains(currentLetter)) {
       final completedLevel =

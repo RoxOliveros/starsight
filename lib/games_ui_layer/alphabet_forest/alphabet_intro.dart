@@ -181,8 +181,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
           ),
           child: Image.asset(
             'assets/fonts/game_letters/intro_${widget.letter.toLowerCase()}.png',
-            width: 1000,
-            height: 1000,
+            height: MediaQuery.of(context).size.height * 0.50,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) => Text(
               widget.letter,
@@ -205,7 +204,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       );
     }
 
-    final Size screenSize = MediaQuery.of(context).size;
     return Scaffold(
       body: ForestBackground(
         child: Stack(
@@ -230,8 +228,9 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(width: 130),
                   // LEFT: Floating object
+                  const SizedBox(width: 50),
+
                   if (_introPhase != IntroPhase.entering &&
                       _introPhase != IntroPhase.playingIntro)
                     AnimatedBuilder(
@@ -242,7 +241,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                       ),
                       child: Image.asset(
                         _getObjectImage(widget.letter),
-                        height: 150,
+                        height: MediaQuery.of(context).size.height * 0.40,
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       ),
@@ -250,12 +249,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
 
                   const SizedBox(width: 16),
 
-                  // RIGHT: GIF (bigger)
-                  SizedBox(
-                    height: screenSize.height * 0.80,
-                    width: screenSize.width * 0.50,
-                    child: _buildAnimatedGif(),
-                  ),
+                  _buildAnimatedGif(),
                 ],
               ),
             ),

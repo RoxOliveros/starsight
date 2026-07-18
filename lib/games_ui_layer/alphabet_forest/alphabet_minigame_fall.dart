@@ -82,7 +82,14 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
       'P': 'pan',
       'Q': 'queen',
       'R': 'rain',
+      'S': 'sun',
+      'T': 'tree',
+      'U': 'umbrella',
       'V': 'vase',
+      'W': 'window',
+      'X': 'xylophone',
+      'Y': 'yarn',
+      'Z': 'zero',
     };
     final name = objectMap[letter.toUpperCase()] ?? 'apple';
     return 'assets/images/objects/forest/$name.png';
@@ -217,7 +224,17 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   void _showApplause() {
     String currentLetter = widget.letter.toUpperCase();
 
-    const skipGoodJobLetters = {'P', 'V'};
+    const skipGoodJobLetters = {
+      'A', 'B',
+      'D', 'E',
+      'G', 'H',
+      'J', 'K',
+      'M', 'N',
+      'P', 'Q',
+      'S', 'T',
+      'V', 'W',
+      'Y', 'Z',
+    };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
       String nextLetter =
@@ -234,7 +251,17 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     }
 
     // mark level complete for some letters
-    const completeLevelsLetters = {''};
+    const completeLevelsLetters = {
+      'C',
+      'F',
+      'I',
+      'L',
+      'O',
+      'R',
+      'U',
+      'X',
+      'Z',
+    };
 
     if (completeLevelsLetters.contains(currentLetter)) {
       final completedLevel =

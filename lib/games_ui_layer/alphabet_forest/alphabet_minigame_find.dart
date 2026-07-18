@@ -217,16 +217,44 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   void _showApplause() {
     final String currentLetter = widget.letter.toUpperCase();
 
-    // Letters that skip the GoodJob overlay entirely
-    const skipGoodJobLetters = {'Q', 'W'};
+    const skipGoodJobLetters = {
+      'A', 'B',
+      'D', 'E',
+      'G', 'H',
+      'J', 'K',
+      'M', 'N',
+      'P', 'Q',
+      'S', 'T',
+      'V', 'W',
+      'Y', 'Z',
+    };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
-      _goToNext();
+      String nextLetter =
+      String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              AlphabetIntroScreen(letter: nextLetter),
+        ),
+      );
       return;
     }
 
-    // Letters that mark their forest level complete on finishing this game.
-    const completeLevelsLetters = {''};
+    // mark level complete for some letters
+    const completeLevelsLetters = {
+      'C',
+      'F',
+      'I',
+      'L',
+      'O',
+      'R',
+      'U',
+      'X',
+      'Z',
+    };
 
     if (completeLevelsLetters.contains(currentLetter)) {
       final completedLevel =
@@ -295,8 +323,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
               right: 0,
               child: Center(
                 child: ForestInstructionBanner(
-                  text: 'Where is the letter ${widget
-                      .letter} ?', // CHANGED from _correctCount / _winCondition
+                  text: 'Where is the letter ${widget.letter}?',
                 ),
               ),
             ),

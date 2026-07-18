@@ -193,9 +193,19 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   }
 
   void _showApplause() {
-    String currentLetter = widget.letter.toUpperCase();
+    final String currentLetter = widget.letter.toUpperCase();
 
-    const skipGoodJobLetters = {'B', 'M', 'S'};
+    const skipGoodJobLetters = {
+      'A', 'B',
+      'D', 'E',
+      'G', 'H',
+      'J', 'K',
+      'M', 'N',
+      'P', 'Q',
+      'S', 'T',
+      'V', 'W',
+      'Y', 'Z',
+    };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
       String nextLetter =
@@ -212,7 +222,17 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     }
 
     // mark level complete for some letters
-    const completeLevelsLetters = {'F', 'I'};
+    const completeLevelsLetters = {
+      'C',
+      'F',
+      'I',
+      'L',
+      'O',
+      'R',
+      'U',
+      'X',
+      'Z',
+    };
 
     if (completeLevelsLetters.contains(currentLetter)) {
       final completedLevel =

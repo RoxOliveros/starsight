@@ -50,11 +50,17 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   // --- THE DYNAMIC 3-LETTER POOL ---
   List<String> _getPoolForLetter(String target) {
     String upperTarget = target.toUpperCase();
+
     if (['A', 'B', 'C'].contains(upperTarget)) return ['A', 'B', 'C'];
     if (['D', 'E', 'F'].contains(upperTarget)) return ['D', 'E', 'F'];
     if (['G', 'H', 'I'].contains(upperTarget)) return ['G', 'H', 'I'];
+    if (['J', 'K', 'L'].contains(upperTarget)) return ['J', 'K', 'L'];
+    if (['M', 'N', 'O'].contains(upperTarget)) return ['M', 'N', 'O'];
+    if (['P', 'Q', 'R'].contains(upperTarget)) return ['P', 'Q', 'R'];
     if (['S', 'T', 'U'].contains(upperTarget)) return ['S', 'T', 'U'];
-    // Add more groups here later! (J,K,L etc.)
+    if (['V', 'W', 'X'].contains(upperTarget)) return ['V', 'W', 'X'];
+    if (['X', 'Y', 'Z'].contains(upperTarget)) return ['X', 'Y', 'Z'];
+
     return ['A', 'B', 'C'];
   }
 
@@ -105,10 +111,22 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
       'H': 'hat',
       'I': 'igloo',
       'J': 'jar',
+      'K': 'key',
+      'L': 'lamp',
+      'M': 'milk',
+      'N': 'nose',
       'O': 'oil',
+      'P': 'pan',
+      'Q': 'queen',
+      'R': 'rain',
       'S': 'sun',
       'T': 'tree',
-      'U': 'umbrella'
+      'U': 'umbrella',
+      'V': 'vase',
+      'W': 'window',
+      'X': 'xylophone',
+      'Y': 'yarn',
+      'Z': 'zero',
     };
     final name = objectMap[letter.toUpperCase()] ?? 'apple';
     return 'assets/images/objects/forest/$name.png';
@@ -175,9 +193,19 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   }
 
   void _showApplause() {
-    String currentLetter = widget.letter.toUpperCase();
+    final String currentLetter = widget.letter.toUpperCase();
 
-    const skipGoodJobLetters = {'D', 'K'};
+    const skipGoodJobLetters = {
+      'A', 'B',
+      'D', 'E',
+      'G', 'H',
+      'J', 'K',
+      'M', 'N',
+      'P', 'Q',
+      'S', 'T',
+      'V', 'W',
+      'Y', 'Z',
+    };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
       String nextLetter =
@@ -194,7 +222,17 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     }
 
     // mark level complete for some letters
-    const completeLevelsLetters = {'O', 'U'};
+    const completeLevelsLetters = {
+      'C',
+      'F',
+      'I',
+      'L',
+      'O',
+      'R',
+      'U',
+      'X',
+      'Z',
+    };
 
     if (completeLevelsLetters.contains(currentLetter)) {
       final completedLevel =

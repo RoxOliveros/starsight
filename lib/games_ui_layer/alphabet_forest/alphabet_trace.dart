@@ -53,12 +53,30 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
 
   late List<TraceLevel> _levels;
 
+  static final Random _random = Random();
+
+  static List<int> _miniGameQueue = [];
+  static int _miniGameIndex = 0;
+
+  int _nextMiniGame() {
+    if (_miniGameIndex >= _miniGameQueue.length) {
+      _miniGameQueue.shuffle(_random);
+      _miniGameIndex = 0;
+    }
+
+    return _miniGameQueue[_miniGameIndex++];
+  }
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
-    // Load the specific letter's strokes
+    if (_miniGameQueue.isEmpty) {
+      _miniGameQueue = List.generate(6, (i) => i);
+      _miniGameQueue.shuffle(_random);
+    }
+
     _loadLetter(widget.letter);
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _generateDensePaths());
@@ -1053,60 +1071,21 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     // --- SMART MINI-GAME ROUTER ---
     String letter = widget.letter.toUpperCase();
 
-    // 1. Paint
-    if (['A', 'E', 'H', 'L', 'R', 'X'].contains(letter)) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AlphabetPaintScreen(letter: letter),
-        ),
-      );
-    }
-    // 2. Pop
-    else if (['B', 'F', 'I', 'M', 'S'].contains(letter)) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AlphabetPopScreen(letter: letter),
-        ),
-      );
-    }
-    // 3. Puzzle
-    else if (['C', 'G', 'J', 'N', 'T'].contains(letter)) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AlphabetPuzzleScreen(letter: letter),
-        ),
-      );
-    }
-    // 4. Hunt
-    else if (['D', 'K', 'O', 'U'].contains(letter)) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AlphabetHuntScreen(letter: letter),
-        ),
-      );
-    }
-    // 5. Fall
-    else if (['P', 'V'].contains(letter)) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AlphabetFallScreen(letter: letter),
-        ),
-      );
-    }
-    // 5. Sound
-    else if (['Q', 'W'].contains(letter)) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AlphabetFindScreen(letter: letter),
-        ),
-      );
-    }
+    final miniGames = [
+      AlphabetPaintScreen(letter: letter),
+      AlphabetPopScreen(letter: letter),
+      AlphabetPuzzleScreen(letter: letter),
+      AlphabetHuntScreen(letter: letter),
+      AlphabetFallScreen(letter: letter),
+      AlphabetFindScreen(letter: letter),
+    ];
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => miniGames[_nextMiniGame()],
+      ),
+    );
   }
 
   @override
