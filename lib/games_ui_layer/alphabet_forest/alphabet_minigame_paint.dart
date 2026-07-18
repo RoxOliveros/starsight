@@ -138,10 +138,19 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
 
   void _showCelebrationDialog() {
     if (!mounted) return;
+    final String currentLetter = widget.letter.toUpperCase();
 
-    String currentLetter = widget.letter.toUpperCase();
-
-    const skipGoodJobLetters = {'A', 'E', 'H'};
+    const skipGoodJobLetters = {
+      'A', 'B',
+      'D', 'E',
+      'G', 'H',
+      'J', 'K',
+      'M', 'N',
+      'P', 'Q',
+      'S', 'T',
+      'V', 'W',
+      'Y', 'Z',
+    };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
       String nextLetter =
@@ -158,7 +167,17 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
     }
 
     // mark level complete for some letters
-    const completeLevelsLetters = {'L', 'R', 'X'};
+    const completeLevelsLetters = {
+      'C',
+      'F',
+      'I',
+      'L',
+      'O',
+      'R',
+      'U',
+      'X',
+      'Z',
+    };
 
     if (completeLevelsLetters.contains(currentLetter)) {
       final completedLevel =
@@ -168,7 +187,6 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
         ForestProgressService.instance.markLevelComplete(completedLevel);
       }
     }
-
 
     showDialog(
       context: context,
