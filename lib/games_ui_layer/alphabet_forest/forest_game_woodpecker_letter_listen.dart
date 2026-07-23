@@ -13,17 +13,17 @@ import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
 
-class WoodpeckerLetterLadderGame extends StatefulWidget {
+class WoodpeckerLetterListenGame extends StatefulWidget {
   final int level;
 
-  const WoodpeckerLetterLadderGame({super.key, required this.level});
+  const WoodpeckerLetterListenGame({super.key, required this.level});
 
   @override
-  State<WoodpeckerLetterLadderGame> createState() =>
-      _WoodpeckerLetterLadderGameState();
+  State<WoodpeckerLetterListenGame> createState() =>
+      _WoodpeckerLetterListenGameState();
 }
 
-class _WoodpeckerLetterLadderGameState extends State<WoodpeckerLetterLadderGame>
+class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
     with TickerProviderStateMixin, GameLoadingMixin, ForestAudioMixin, TofiReactionMixin {
 
   @override
@@ -224,7 +224,7 @@ class _WoodpeckerLetterLadderGameState extends State<WoodpeckerLetterLadderGame>
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
                     builder: (_) =>
-                        WoodpeckerLetterLadderGame(level: widget.level),
+                        WoodpeckerLetterListenGame(level: widget.level),
                   ),
                 );
               },

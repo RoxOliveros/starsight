@@ -63,8 +63,32 @@ class ForestAudioAssets {
   static const String letterA = '$base/sound_effects/sound_a.wav';
   static const String letterB = '$base/sound_effects/sound_b.wav';
   static const String letterC = '$base/sound_effects/sound_c.wav';
+  static const String letterD = '$base/sound_effects/sound_d.wav';
+  static const String letterE = '$base/sound_effects/sound_e.wav';
+  static const String letterF = '$base/sound_effects/sound_f.wav';
+  static const String letterG = '$base/sound_effects/sound_g.wav';
+  static const String letterH = '$base/sound_effects/sound_h.wav';
+  static const String letterI = '$base/sound_effects/sound_i.wav';
+  static const String letterJ = '$base/sound_effects/sound_j.wav';
+  static const String letterK = '$base/sound_effects/sound_k.wav';
+  static const String letterL = '$base/sound_effects/sound_l.wav';
+  static const String letterM = '$base/sound_effects/sound_m.wav';
+  static const String letterN = '$base/sound_effects/sound_n.wav';
+  static const String letterO = '$base/sound_effects/sound_o.wav';
+  static const String letterP = '$base/sound_effects/sound_p.wav';
+  static const String letterQ = '$base/sound_effects/sound_q.wav';
+  static const String letterR = '$base/sound_effects/sound_r.wav';
+  static const String letterS = '$base/sound_effects/sound_s.wav';
+  static const String letterT = '$base/sound_effects/sound_t.wav';
+  static const String letterU = '$base/sound_effects/sound_u.wav';
+  static const String letterV = '$base/sound_effects/sound_v.wav';
+  static const String letterW = '$base/sound_effects/sound_w.wav';
+  static const String letterX = '$base/sound_effects/sound_x.wav';
+  static const String letterY = '$base/sound_effects/sound_y.wav';
+  static const String letterZ = '$base/sound_effects/sound_z.wav';
 
-  /// Look up a letter call-out by name, e.g. `ForestAudioAssets.forLetter('B')`.
+  /// Look up a letter call-out by name, e.g.
+  /// `ForestAudioAssets.forLetter('B')`.
   static String forLetter(String letter) {
     switch (letter.toUpperCase()) {
       case 'A':
@@ -73,6 +97,52 @@ class ForestAudioAssets {
         return letterB;
       case 'C':
         return letterC;
+      case 'D':
+        return letterD;
+      case 'E':
+        return letterE;
+      case 'F':
+        return letterF;
+      case 'G':
+        return letterG;
+      case 'H':
+        return letterH;
+      case 'I':
+        return letterI;
+      case 'J':
+        return letterJ;
+      case 'K':
+        return letterK;
+      case 'L':
+        return letterL;
+      case 'M':
+        return letterM;
+      case 'N':
+        return letterN;
+      case 'O':
+        return letterO;
+      case 'P':
+        return letterP;
+      case 'Q':
+        return letterQ;
+      case 'R':
+        return letterR;
+      case 'S':
+        return letterS;
+      case 'T':
+        return letterT;
+      case 'U':
+        return letterU;
+      case 'V':
+        return letterV;
+      case 'W':
+        return letterW;
+      case 'X':
+        return letterX;
+      case 'Y':
+        return letterY;
+      case 'Z':
+        return letterZ;
       default:
         throw ArgumentError('Unknown letter: $letter');
     }
