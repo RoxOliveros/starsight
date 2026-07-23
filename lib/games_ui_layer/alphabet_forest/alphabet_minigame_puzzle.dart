@@ -2,6 +2,7 @@ import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/woodpecker_letter_ladder_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -63,254 +64,254 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     switch (letter.toUpperCase()) {
       case 'A':
         _fullImagePath =
-            'assets/images/alphabets/apple_full.png'; // image for the background
+            'assets/images/alphabets_puzzle/apple_full.png'; // image for the background
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/apple_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/apple_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/apple_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/apple_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/apple_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/apple_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/apple_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/apple_br.png'),
         ];
         break;
       case 'B':
-        _fullImagePath = 'assets/images/alphabets/ball_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/ball_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/ball_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/ball_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/ball_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/ball_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/ball_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/ball_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/ball_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/ball_br.png'),
         ];
         break;
       case 'C':
-        _fullImagePath = 'assets/images/alphabets/car_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/car_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/car_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/car_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/car_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/car_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/car_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/car_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/car_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/car_br.png'),
         ];
         break;
       case 'D':
-        _fullImagePath = 'assets/images/alphabets/duck_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/duck_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/duck_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/duck_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/duck_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/duck_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/duck_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/duck_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/duck_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/duck_br.png'),
         ];
         break;
       case 'E':
-        _fullImagePath = 'assets/images/alphabets/egg_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/egg_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/egg_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/egg_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/egg_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/egg_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/egg_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/egg_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/egg_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/egg_br.png'),
         ];
         break;
       case 'F':
-        _fullImagePath = 'assets/images/alphabets/feet_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/feet_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/feet_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/feet_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/feet_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/feet_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/feet_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/feet_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/feet_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/feet_br.png'),
         ];
         break;
       case 'G':
-        _fullImagePath = 'assets/images/alphabets/glass_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/glass_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/glass_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/glass_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/glass_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/glass_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/glass_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/glass_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/glass_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/glass_br.png'),
         ];
         break;
       case 'H':
-        _fullImagePath = 'assets/images/alphabets/hat_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/hat_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/hat_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/hat_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/hat_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/hat_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/hat_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/hat_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/hat_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/hat_br.png'),
         ];
         break;
       case 'I':
-        _fullImagePath = 'assets/images/alphabets/igloo_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/igloo_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/igloo_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/igloo_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/igloo_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/igloo_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/igloo_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/igloo_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/igloo_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/igloo_br.png'),
         ];
         break;
       case 'J':
-        _fullImagePath = 'assets/images/alphabets/jar_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/jar_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/jar_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/jar_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/jar_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/jar_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/jar_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/jar_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/jar_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/jar_br.png'),
         ];
         break;
       case 'K':
-        _fullImagePath = 'assets/images/alphabets/key_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/key_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/key_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/key_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/key_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/key_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/key_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/key_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/key_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/key_br.png'),
         ];
         break;
 
       case 'L':
-        _fullImagePath = 'assets/images/alphabets/lamp_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/lamp_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/lamp_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/lamp_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/lamp_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/lamp_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/lamp_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/lamp_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/lamp_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/lamp_br.png'),
         ];
         break;
 
       case 'M':
-        _fullImagePath = 'assets/images/alphabets/milk_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/milk_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/milk_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/milk_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/milk_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/milk_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/milk_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/milk_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/milk_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/milk_br.png'),
         ];
         break;
       case 'N':
         _fullImagePath =
-        'assets/images/alphabets/nose_full.png'; // Make sure this matches your image name!
+        'assets/images/alphabets_puzzle/nose_full.png'; // Make sure this matches your image name!
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/nose_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/nose_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/nose_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/nose_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/nose_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/nose_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/nose_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/nose_br.png'),
         ];
         break;
       case 'O':
-        _fullImagePath = 'assets/images/alphabets/oil_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/oil_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/oil_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/oil_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/oil_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/oil_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/oil_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/oil_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/oil_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/oil_br.png'),
         ];
         break;
 
       case 'P':
-        _fullImagePath = 'assets/images/alphabets/pan_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/pan_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/pan_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/pan_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/pan_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/pan_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/pan_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/pan_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/pan_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/pan_br.png'),
         ];
         break;
 
       case 'Q':
-        _fullImagePath = 'assets/images/alphabets/queen_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/queen_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/queen_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/queen_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/queen_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/queen_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/queen_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/queen_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/queen_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/queen_br.png'),
         ];
         break;
 
       case 'R':
-        _fullImagePath = 'assets/images/alphabets/rain_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/rain_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/rain_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/rain_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/rain_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/rain_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/rain_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/rain_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/rain_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/rain_br.png'),
         ];
         break;
 
       case 'S':
-        _fullImagePath = 'assets/images/alphabets/sun_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/sun_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/sun_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/sun_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/sun_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/sun_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/sun_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/sun_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/sun_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/sun_br.png'),
         ];
         break;
       case 'T':
         _fullImagePath =
-        'assets/images/alphabets/tree_full.png';
+        'assets/images/alphabets_puzzle/tree_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/tree_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/tree_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/tree_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/tree_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/tree_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/tree_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/tree_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/tree_br.png'),
         ];
         break;
       case 'U':
-        _fullImagePath = 'assets/images/alphabets/umbrella_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/umbrella_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/umbrella_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/umbrella_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/umbrella_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/umbrella_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/umbrella_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/umbrella_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/umbrella_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/umbrella_br.png'),
         ];
         break;
 
       case 'V':
-        _fullImagePath = 'assets/images/alphabets/vase_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/vase_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/vase_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/vase_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/vase_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/vase_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/vase_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/vase_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/vase_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/vase_br.png'),
         ];
         break;
       case 'W':
         _fullImagePath =
-        'assets/images/alphabets/window_full.png';
+        'assets/images/alphabets_puzzle/window_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/window_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/window_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/window_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/window_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/window_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/window_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/window_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/window_br.png'),
         ];
         break;
       case 'X':
-        _fullImagePath = 'assets/images/alphabets/xylophone_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/xylophone_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/xylophone_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/xylophone_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/xylophone_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/xylophone_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/xylophone_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/xylophone_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/xylophone_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/xylophone_br.png'),
         ];
         break;
 
       case 'Y':
-        _fullImagePath = 'assets/images/alphabets/yarn_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/yarn_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/yarn_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/yarn_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/yarn_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/yarn_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/yarn_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/yarn_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/yarn_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/yarn_br.png'),
         ];
         break;
 
       case 'Z':
-        _fullImagePath = 'assets/images/alphabets/zero_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/zero_full.png';
         _allPieces = [
-          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets/zero_tl.png'),
-          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets/zero_tr.png'),
-          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets/zero_bl.png'),
-          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets/zero_br.png'),
+          PuzzlePiece(id: 0, imagePath: 'assets/images/alphabets_puzzle/zero_tl.png'),
+          PuzzlePiece(id: 1, imagePath: 'assets/images/alphabets_puzzle/zero_tr.png'),
+          PuzzlePiece(id: 2, imagePath: 'assets/images/alphabets_puzzle/zero_bl.png'),
+          PuzzlePiece(id: 3, imagePath: 'assets/images/alphabets_puzzle/zero_br.png'),
         ];
         break;
       default:
         // Fallback just in case
-        _fullImagePath = 'assets/images/alphabets/apple_full.png';
+        _fullImagePath = 'assets/images/alphabets_puzzle/apple_full.png';
         _allPieces = [];
     }
   }
@@ -400,14 +401,13 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
 
             String current = widget.letter.toUpperCase();
 
-            if (current == 'C') {
-              // TODO: @Tin navigate to letters a-c game
-              // Navigator.pushReplacement(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => const (),
-              //   ),
-              // );
+            if (currentLetter == 'C'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WoodpeckerLetterLadderGame(level: 2),
+                ),
+              );
             } else {
               // Otherwise, just go to the next normal Intro screen!
               int charCode = current.codeUnitAt(0);

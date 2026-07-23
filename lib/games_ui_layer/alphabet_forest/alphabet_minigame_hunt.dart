@@ -2,6 +2,7 @@ import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/woodpecker_letter_ladder_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -259,14 +260,13 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
             String current = widget.letter.toUpperCase();
 
-            if (current == 'O') {
-              // TODO: @Tin navigate to letters a-o game
-              // Navigator.pushReplacement(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => const (),
-              //   ),
-              // );
+            if (currentLetter == 'C'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WoodpeckerLetterLadderGame(level: 2),
+                ),
+              );
             } else {
               // Otherwise, just go to the next normal Intro screen!
               int charCode = current.codeUnitAt(0);

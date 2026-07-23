@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/woodpecker_letter_ladder_game.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -201,13 +202,13 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
           onNext: () {
             Navigator.pop(context);
 
-            if (currentLetter == '') {
-              // Navigator.pushReplacement(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (_) => const (),
-              //   ),
-              // );
+            if (currentLetter == 'C'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WoodpeckerLetterLadderGame(level: 2),
+                ),
+              );
             } else {
               int charCode = currentLetter.codeUnitAt(0);
               if (charCode >= 65 && charCode < 90) {

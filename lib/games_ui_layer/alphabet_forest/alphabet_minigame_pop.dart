@@ -4,6 +4,7 @@ import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/woodpecker_letter_ladder_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -257,14 +258,13 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
           onNext: () {
             Navigator.pop(context);
 
-            if (currentLetter == 'F') {
-              // TODO: @Tin add navigation for a-f games
-              // Navigator.pushReplacement(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => const (),
-              //   ),
-              // );
+            if (currentLetter == 'C'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WoodpeckerLetterLadderGame(level: 2),
+                ),
+              );
             } else if (currentLetter == 'I') {
               // TODO: @Tin add navigation for a-i games
               // Navigator.pushReplacement(

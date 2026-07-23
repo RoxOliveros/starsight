@@ -1,6 +1,7 @@
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/woodpecker_letter_ladder_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
@@ -285,6 +286,15 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
           onNext: () {
             Navigator.pop(context); // Close the Good Job prompt
+
+            if (currentLetter == 'C'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WoodpeckerLetterLadderGame(level: 2),
+                ),
+              );
+            }
             _goToNext();
           },
 
