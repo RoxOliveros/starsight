@@ -51,7 +51,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   final AudioPlayer _player = AudioPlayer();
 
   static const List<String> _letterPool = [
-    'A', 'B', 'C', 'D', 'E', 'F', 'a', 'b', 'c', 'd', 'e', 'f'
+    'D', 'E', 'F', 'd', 'e', 'f'
   ];
 
   static const List<double> _laneXFractions = [0.12, 0.38, 0.64, 0.88];
@@ -64,7 +64,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   static const int _totalRounds = 5;
 
   // Child must drop this many correct-letter acorns per round.
-  static const int _catchesPerRound = 3;
+  static const int _catchesPerRound = 1;
   int _catchesThisRound = 0;
 
   bool _roundLocked = false; // guards against overlap during round transition
@@ -120,6 +120,8 @@ class _AcornBasketGameState extends State<AcornBasketGame>
         }
       });
     }
+
+    _basketAcorns.clear();
 
     finishLoading(_startIntroFlow);
     _loadRound();
@@ -180,17 +182,29 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
     _targetLetter = target;
     _catchesThisRound = 0;
-    _basketAcorns.clear();
     _roundLocked = false;
     _wrongHoverFlash = false;
 
-    // Reset every lane so the new target letter starts raining right away.
-    for (final lane in _lanes) {
-      lane.isBusy = false;
-      _spawnLane(lane);
+    // First time only: start the falling animation
+    if (_currentRound == 0) {
+      for (final lane in _lanes) {
+        lane.isBusy = false;
+        _spawnLane(lane);
+      }
+    } else {
+      // Keep the acorns falling, just update the letters
+      _refreshLaneLetters();
     }
 
     setState(() {});
+  }
+
+  void _refreshLaneLetters() {
+    for (final lane in _lanes) {
+      lane.letter = _pickLetterForLane();
+    }
+
+    if (mounted) setState(() {});
   }
 
   @override
@@ -231,11 +245,6 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
     if (_catchesThisRound >= _catchesPerRound) {
       _roundLocked = true;
-
-      // Freeze the rain while we celebrate / transition.
-      for (final l in _lanes) {
-        l.controller.stop();
-      }
 
       _currentRound++;
 
@@ -341,9 +350,6 @@ class _AcornBasketGameState extends State<AcornBasketGame>
               _buildIntroLayer()
             else
               _buildGameContent(),
-
-            if (!_introPlaying)
-              buildTofi(context),
           ],
         ),
       ),
@@ -451,6 +457,27 @@ class _AcornBasketGameState extends State<AcornBasketGame>
           child: ForestLevelBadge(level: widget.level),
         ),
 
+        // BASKET — bottom-left
+        Positioned(
+          bottom: 20,
+          right: 20,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const SizedBox(height: 6),
+              _BasketTarget(
+                basketAcorns: _basketAcorns,
+                pulseController: _basketPulseController,
+                shakeController: _wrongShakeController,
+                isWrongHover: _wrongHoverFlash,
+                onAccept: _onAcornAccepted,
+              ),
+            ],
+          ),
+        ),
+
+        buildTofi(context),
+
         // FALLING ACORN RAIN ZONE
         Positioned(
           top: 110,
@@ -507,53 +534,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
             },
           ),
         ),
-
-        // BASKET — bottom-left
-        Positioned(
-          bottom: 20,
-          right: 20,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _buildCatchProgress(),
-              const SizedBox(height: 6),
-              _BasketTarget(
-                basketAcorns: _basketAcorns,
-                pulseController: _basketPulseController,
-                shakeController: _wrongShakeController,
-                isWrongHover: _wrongHoverFlash,
-                onAccept: _onAcornAccepted,
-              ),
-            ],
-          ),
-        ),
-
-        buildTofi(context),
       ],
-    );
-  }
-
-  Widget _buildCatchProgress() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(_catchesPerRound, (i) {
-        final filled = i < _catchesThisRound;
-
-        return Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: Container(
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: filled
-                  ? const Color(0xFF6B4226)
-                  : Colors.white.withValues(alpha: 0.35),
-              border: Border.all(color: const Color(0xFF4A2C17), width: 2),
-            ),
-          ),
-        );
-      }),
     );
   }
 
@@ -709,40 +690,56 @@ class _BasketTarget extends StatelessWidget {
               children: [
                 Image.asset(
                   'assets/images/objects/puzzle/basket.png',
-                  height: 150,
+                  height: 170,
                   fit: BoxFit.contain,
                 ),
 
-                ...List.generate(
-                  basketAcorns.length,
-                      (i) => Positioned(
-                    left: 28 + (i % 2) * 50,
-                    bottom: 28 + (i ~/ 2) * 35,
+                ...List.generate(basketAcorns.length, (i) {
+                  const positions = [
+                    Offset(20, 20),   // left
+                    Offset(60, 16),   // center
+                    Offset(100, 28),  // right
+                    Offset(30, 72),   // bottom-left
+                    Offset(83, 85),   // bottom-right
+                  ];
+
+                  final p = positions[i];
+
+                  return Positioned(
+                    left: p.dx,
+                    top: p.dy,
                     child: SizedBox(
-                      width: 50,
+                      height: 70,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
                           Image.asset(
                             'assets/images/objects/forest/acorn.png',
                           ),
+
                           Positioned(
-                            top: 21,
-                            left: 12,
+                            top: 28,
+                            left: 16,
                             child: Text(
                               basketAcorns[i],
                               style: const TextStyle(
-                                color: Colors.white,
+                                fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 25,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black54,
+                                    blurRadius: 3,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ),
+                  );
+                }),
               ],
             ),
           ),

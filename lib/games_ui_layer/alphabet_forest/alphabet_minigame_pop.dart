@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
+import 'forest_game_butterfly_flower.dart';
 
 class AlphabetPopScreen extends StatefulWidget {
   final String letter;
@@ -273,14 +274,13 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                   builder: (context) => const AcornBasketGame(level: 4),
                 ),
               );
-            } else if (currentLetter == 'I') {
-              // TODO: @Tin add navigation for a-i games
-              // Navigator.pushReplacement(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => const (),
-              //   ),
-              // );
+            } else if (currentLetter == 'I'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ButterflyFlowerGardenGame(level: 6),
+                ),
+              );
             } else {
               int charCode = currentLetter.codeUnitAt(0);
               if (charCode >= 65 && charCode < 90) {

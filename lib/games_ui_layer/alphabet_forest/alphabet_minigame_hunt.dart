@@ -12,6 +12,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
+import 'forest_game_butterfly_flower.dart';
 
 class AlphabetHuntScreen extends StatefulWidget {
   final String letter;
@@ -273,6 +274,13 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) => const AcornBasketGame(level: 4),
+                ),
+              );
+            } else if (currentLetter == 'I'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ButterflyFlowerGardenGame(level: 6),
                 ),
               );
             } else {

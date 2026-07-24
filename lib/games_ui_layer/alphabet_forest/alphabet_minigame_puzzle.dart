@@ -12,6 +12,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
+import 'forest_game_butterfly_flower.dart';
 
 class PuzzlePiece {
   final int id; // 0=TL, 1=TR, 2=BL, 3=BR
@@ -414,6 +415,13 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) => const AcornBasketGame(level: 4),
+                ),
+              );
+            } else if (currentLetter == 'I'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ButterflyFlowerGardenGame(level: 6),
                 ),
               );
             } else {

@@ -6,6 +6,7 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_acorn_basket.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_butterfly_flower.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_woodpecker_letter_listen.dart';
 import '../loading_screen.dart';
 
@@ -314,29 +315,29 @@ class _LevelTile extends StatelessWidget {
 
   Widget? _screenForLevel() {
     switch (level) {
-      // abc intro
+        // abc intro
       case 1:
         return const AlphabetIntroScreen(letter: 'A');
 
-      // abc games
+        // abc games
       case 2:
         return WoodpeckerLetterListenGame(level: 2);
 
-        //def intro
+        // def intro
       case 3:
         return const AlphabetIntroScreen(letter: 'D');
 
-        // a-f games
+        // def games
       case 4:
         return AcornBasketGame(level: 4);
 
-        //ghi intro
+        // ghi intro
       case 5:
         return const AlphabetIntroScreen(letter: 'G');
 
-      // TODO: @Tin ghi games
+        // ghi games
       case 6:
-        return null;
+        return const ButterflyFlowerGardenGame(level: 6);
 
       case 7:
         return const AlphabetIntroScreen(letter: 'J');

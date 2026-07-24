@@ -14,6 +14,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
+import 'forest_game_butterfly_flower.dart';
 
 class PaintPoint {
   final Offset position;
@@ -215,6 +216,13 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) => const AcornBasketGame(level: 4),
+                ),
+              );
+            } else if (currentLetter == 'I'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ButterflyFlowerGardenGame(level: 6),
                 ),
               );
             } else {
