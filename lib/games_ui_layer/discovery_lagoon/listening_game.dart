@@ -1,8 +1,18 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-enum GamePhase { intro, listening, choosing, answered }
+// 1. Added 'goodJob' phase for the final victory screen!
+enum GamePhase {
+  intro,
+  listening,
+  choosing,
+  answered,
+  completed,
+  bodyParts,
+  goodJob,
+}
 
 class ListeningGame extends StatefulWidget {
   const ListeningGame({super.key});
@@ -15,30 +25,72 @@ class _ListeningGameState extends State<ListeningGame> {
   late final AudioPlayer _audioPlayer;
   GamePhase _currentPhase = GamePhase.intro;
 
+  // Tracks which animal sound the player needs to listen for right now![cite: 7]
+  String _targetAnimal = 'chicken';
+
+  // Master list of all available animals in the game[cite: 7]
+  final List<Map<String, String>> _allAnimals = [
+    {'id': 'chicken', 'image': 'assets/images/objects/lagoon/chicken.png'},
+    {'id': 'frog', 'image': 'assets/images/objects/lagoon/frog.png'},
+    {'id': 'snake', 'image': 'assets/images/objects/lagoon/snake.png'},
+    {'id': 'pig', 'image': 'assets/images/objects/lagoon/pig.png'},
+    {'id': 'cow', 'image': 'assets/images/objects/lagoon/cow.png'},
+    {
+      'id': 'penguin',
+      'image': 'assets/images/characters/doma_the_penguin2.png',
+    },
+    {'id': 'dog', 'image': 'assets/images/characters/tofi_smiling.png'},
+  ];
+
+  // Holds the 3 currently displayed choices for the active round[cite: 7]
+  List<Map<String, String>> _currentChoices = [];
+
+  // Holds the 3 body part cards (Ear, Hand, Nose) for the final UI[cite: 7]
+  final List<Map<String, String>> _bodyParts = [
+    {'id': 'ear', 'image': 'assets/images/objects/lagoon/ear.png'},
+    {'id': 'hand', 'image': 'assets/images/objects/lagoon/pointing_hand.png'},
+    {'id': 'nose', 'image': 'assets/images/objects/lagoon/nose.png'},
+  ];
+
   @override
   void initState() {
     super.initState();
-    // 1. FORCE LANDSCAPE ORIENTATION
+    // 1. FORCE LANDSCAPE ORIENTATION[cite: 7]
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
 
-    // 2. ENABLE TRUE IMMERSIVE FULLSCREEN (Hides system status & navigation bars)
+    // 2. ENABLE TRUE IMMERSIVE FULLSCREEN (Hides system status & navigation bars)[cite: 7]
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     _audioPlayer = AudioPlayer();
     _playIntroAudio();
   }
 
-  /// Plays the intro voiceover automatically when the screen loads.
+  /// Helper: Picks the target animal + 2 random wrong animals, then shuffles them![cite: 7]
+  void _generateChoices() {
+    final targetObj = _allAnimals.firstWhere((a) => a['id'] == _targetAnimal);
+    final wrongChoices = _allAnimals
+        .where((a) => a['id'] != _targetAnimal)
+        .toList();
+    wrongChoices.shuffle(Random());
+
+    final selected = [targetObj, wrongChoices[0], wrongChoices[1]];
+    selected.shuffle(Random());
+
+    setState(() {
+      _currentChoices = selected;
+    });
+  }
+
+  /// Plays the intro voiceover automatically when the screen loads.[cite: 7]
   Future<void> _playIntroAudio() async {
     try {
       await _audioPlayer.play(
         AssetSource('audio/discovery_lagoon/listening_intro.wav'),
       );
 
-      // Listen for when the intro audio completes
       _audioPlayer.onPlayerComplete.first.then((_) {
         if (mounted) {
           _startListeningPhase();
@@ -49,30 +101,55 @@ class _ListeningGameState extends State<ListeningGame> {
     }
   }
 
-  /// Shows speaker.gif and plays the target animal sound
+  /// Shows speaker.gif, plays target animal sound, then asks the follow-up question[cite: 7]
   Future<void> _startListeningPhase() async {
+    _generateChoices();
+
     setState(() {
       _currentPhase = GamePhase.listening;
     });
 
     try {
-      await _audioPlayer.play(
-        AssetSource('audio/discovery_lagoon/listening_chicken.wav'),
-      );
+      String audioPath;
+      if (_targetAnimal == 'chicken') {
+        audioPath = 'audio/discovery_lagoon/listening_chicken.wav';
+      } else if (_targetAnimal == 'frog') {
+        audioPath = 'audio/discovery_lagoon/listening_frog.wav';
+      } else if (_targetAnimal == 'snake') {
+        audioPath = 'audio/discovery_lagoon/listening_snake.wav';
+      } else if (_targetAnimal == 'pig') {
+        audioPath = 'audio/discovery_lagoon/listening_pig.wav';
+      } else {
+        audioPath = 'audio/discovery_lagoon/listening_cow.wav';
+      }
 
-      _audioPlayer.onPlayerComplete.first.then((_) {
+      await _audioPlayer.play(AssetSource(audioPath));
+
+      _audioPlayer.onPlayerComplete.first.then((_) async {
         if (mounted) {
-          setState(() {
-            _currentPhase = GamePhase.choosing;
-          });
+          try {
+            await _audioPlayer.play(
+              AssetSource('audio/discovery_lagoon/listening_whatanimal.wav'),
+            );
+
+            _audioPlayer.onPlayerComplete.first.then((_) {
+              if (mounted) {
+                setState(() {
+                  _currentPhase = GamePhase.choosing;
+                });
+              }
+            });
+          } catch (e) {
+            debugPrint("Error playing whatanimal audio: $e");
+          }
         }
       });
     } catch (e) {
-      debugPrint("Error playing chicken audio: $e");
+      debugPrint("Error playing target animal audio: $e");
     }
   }
 
-  /// Helper method to play Kiki's feedback audio
+  /// Helper method to play Kiki's feedback audio[cite: 7]
   Future<void> _playKikiAudio(String assetPath) async {
     try {
       await _audioPlayer.stop();
@@ -82,32 +159,99 @@ class _ListeningGameState extends State<ListeningGame> {
     }
   }
 
-  /// Handles when the user taps on an animal
+  /// Handles when the user taps on an animal[cite: 7]
   void _onAnimalTapped(String animalName) {
     if (_currentPhase != GamePhase.choosing) return;
 
-    if (animalName == 'chicken') {
+    if (animalName == _targetAnimal) {
       setState(() {
         _currentPhase = GamePhase.answered;
       });
 
-      // Play shine sound effect first, then play correct audio after it finishes
       _playKikiAudio('audio/sound_effects/shine.wav');
       _audioPlayer.onPlayerComplete.first.then((_) {
         if (mounted) {
           _playKikiAudio('audio/discovery_lagoon/listening_rc.wav');
+
+          _audioPlayer.onPlayerComplete.first.then((_) {
+            if (mounted) {
+              if (_targetAnimal == 'chicken') {
+                setState(() => _targetAnimal = 'frog');
+                _startListeningPhase();
+              } else if (_targetAnimal == 'frog') {
+                setState(() => _targetAnimal = 'snake');
+                _startListeningPhase();
+              } else if (_targetAnimal == 'snake') {
+                setState(() => _targetAnimal = 'pig');
+                _startListeningPhase();
+              } else if (_targetAnimal == 'pig') {
+                setState(() => _targetAnimal = 'cow');
+                _startListeningPhase();
+              } else {
+                // All 5 animal rounds complete! Show Kiki and play ending clip[cite: 7]
+                setState(() {
+                  _currentPhase = GamePhase.completed;
+                });
+                _playKikiAudio('audio/discovery_lagoon/listening_ending1.wav');
+
+                // When ending clip finishes, transition to the Body Parts UI![cite: 7]
+                _audioPlayer.onPlayerComplete.first.then((_) {
+                  if (mounted) {
+                    setState(() {
+                      _currentPhase = GamePhase.bodyParts;
+                    });
+                    _playKikiAudio(
+                      'audio/discovery_lagoon/listening_whatpart.wav',
+                    );
+                  }
+                });
+              }
+            }
+          });
         }
       });
     } else {
-      // Play try again audio if the wrong animal is chosen
       _playKikiAudio('audio/discovery_lagoon/kiki_tryagain.wav');
     }
+  }
+
+  /// Handles taps during the final Body Parts mini-game[cite: 7]
+  void _onBodyPartTapped(String partId) {
+    if (_currentPhase != GamePhase.bodyParts) return;
+
+    if (partId == 'ear') {
+      _playKikiAudio('audio/sound_effects/shine.wav');
+      _audioPlayer.onPlayerComplete.first.then((_) {
+        if (mounted) {
+          _playKikiAudio('audio/discovery_lagoon/listening_whatpart_rc.wav');
+
+          // 2. WHEN THIS FINISHES, SHOW THE GOOD JOB OVERLAY![cite: 7]
+          _audioPlayer.onPlayerComplete.first.then((_) {
+            if (mounted) {
+              setState(() {
+                _currentPhase = GamePhase.goodJob;
+              });
+            }
+          });
+        }
+      });
+    } else {
+      _playKikiAudio('audio/discovery_lagoon/kiki_tryagain.wav');
+    }
+  }
+
+  /// Helper to restart the whole game from the beginning!
+  void _restartGame() {
+    setState(() {
+      _targetAnimal = 'chicken';
+      _currentPhase = GamePhase.intro;
+    });
+    _playIntroAudio();
   }
 
   @override
   void dispose() {
     _audioPlayer.dispose();
-    // 3. RESTORE ORIENTATION & SYSTEM UI WHEN LEAVING THE GAME
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -120,32 +264,24 @@ class _ListeningGameState extends State<ListeningGame> {
 
   @override
   Widget build(BuildContext context) {
-    final double sw = MediaQuery.of(context).size.width;
     final double sh = MediaQuery.of(context).size.height;
 
-    // Only HEIGHT is set here — width is left to follow Kiki's natural
-    // aspect ratio via BoxFit.contain, exactly like PerfumeGame does.
-    // Tune this single number to make her bigger/smaller (0.85 = 85% of
-    // screen height, matching PerfumeGame's catHeight).
     final double catHeight = sh * 1.0;
     final double catBottom = sh * -0.25;
 
     return Scaffold(
-      // No SafeArea or AspectRatio wrappers, ensuring edge-to-edge fullscreen
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // A. BACKGROUND LAYER (Expands to cover 100% of any device screen)
+          // A. BACKGROUND LAYER[cite: 7]
           Image.asset(
             'assets/images/backgrounds/bg_rainbow_lagoon.png',
             fit: BoxFit.cover,
           ),
 
-          // B. FOREGROUND CHARACTER LAYER (Kiki, sized by height only —
-          // same pattern as PerfumeGame's cat character)
-          // Kiki will now disappear during the listening AND choosing phases!
+          // B. FOREGROUND CHARACTER LAYER (Standard Kiki during intro & completed)[cite: 7]
           if (_currentPhase == GamePhase.intro ||
-              _currentPhase == GamePhase.answered)
+              _currentPhase == GamePhase.completed)
             Positioned(
               bottom: catBottom,
               left: 0,
@@ -159,74 +295,436 @@ class _ListeningGameState extends State<ListeningGame> {
               ),
             ),
 
-          // C. SPEAKER GIF LAYER (Appears during listening phase, centered and big)
+          // C. SPEAKER GIF LAYER[cite: 7]
           if (_currentPhase == GamePhase.listening)
             Center(
               child: Image.asset(
                 'assets/images/objects/lagoon/speaker.gif',
-                height: sh * 0.60, // Made much bigger (60% of screen height)
+                height: sh * 0.60,
                 fit: BoxFit.contain,
               ),
             ),
 
-          // D. ANIMAL CHOICES LAYER (Appears after speaker vanishes)
+          // D. ANIMAL CHOICES LAYER[cite: 7]
           if (_currentPhase == GamePhase.choosing ||
               _currentPhase == GamePhase.answered)
-            Positioned(
-              bottom: sh * 0.05,
-              left: sw * 0.05,
-              right: sw * 0.05,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildAnimalChoice(
-                    'assets/images/objects/lagoon/chicken.png',
-                    'chicken',
-                    sh,
-                  ),
-                  _buildAnimalChoice(
-                    'assets/images/characters/doma_the_penguin2.png',
-                    'penguin',
-                    sh,
-                  ),
-                  _buildAnimalChoice(
-                    'assets/images/characters/tofi_smiling.png',
-                    'dog',
-                    sh,
-                  ),
-                ],
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: _currentChoices.map((animal) {
+                    return _buildAnimalChoice(
+                      animal['image']!,
+                      animal['id']!,
+                      sh,
+                    );
+                  }).toList(),
+                ),
               ),
+            ),
+
+          // E. BODY PARTS CHALLENGE LAYER[cite: 7]
+          if (_currentPhase == GamePhase.bodyParts) ...[
+            Positioned(
+              bottom: sh * -0.35, // Pushed down so half body shows!
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Image.asset(
+                  'assets/images/characters/cat_holding_fishbone.png',
+                  height: sh * 0.95,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              top: sh * 0.05,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 48.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: _bodyParts.map((part) {
+                      return _buildBodyPartCard(
+                        part['image']!,
+                        part['id']!,
+                        sh,
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+
+          // F. GOOD JOB OVERLAY LAYER (Appears after winning!)[cite: 8]
+          if (_currentPhase == GamePhase.goodJob)
+            GoodJobOverlay(
+              characterImage:
+                  'assets/images/characters/kiki_tryagain.png', // Using kiki_tryagain!
+              closeButtonColor: Colors.orange, // Change color if desired!
+              onNext: () {
+                // Navigate to your next level here!
+                Navigator.of(context).pop();
+              },
+              onRestart: _restartGame, // Restarts the listening game!
+              onBack: () {
+                // Navigate back to menu here!
+                Navigator.of(context).pop();
+              },
             ),
         ],
       ),
     );
   }
 
-  /// Helper widget to build interactive animal buttons with smooth bounce formatting
   Widget _buildAnimalChoice(
     String imagePath,
     String animalId,
     double screenHeight,
   ) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onAnimalTapped(animalId),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+          child: Image.asset(
+            imagePath,
+            height: screenHeight * 0.55,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBodyPartCard(
+    String imagePath,
+    String partId,
+    double screenHeight,
+  ) {
+    final double cardSize = screenHeight * 0.35;
+
     return GestureDetector(
-      onTap: () => _onAnimalTapped(animalId),
+      onTap: () => _onBodyPartTapped(partId),
       child: Container(
+        width: cardSize,
+        height: cardSize,
+        margin: const EdgeInsets.symmetric(horizontal: 16.0),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24.0),
           boxShadow: const [
             BoxShadow(
-              color: Colors.black26,
-              blurRadius: 10,
-              offset: Offset(0, 5),
+              color: Colors.black12,
+              blurRadius: 8,
+              offset: Offset(0, 4),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Image.asset(imagePath, fit: BoxFit.contain),
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// GOOD JOB OVERLAY & HELPER CLASSES[cite: 8]
+// ──────────────────────────────────────────────────────────────────────────────
+
+class GoodJobOverlay extends StatefulWidget {
+  final String characterImage;
+  final Color closeButtonColor;
+  final VoidCallback onNext;
+  final VoidCallback onRestart;
+  final VoidCallback onBack;
+
+  const GoodJobOverlay({
+    super.key,
+    required this.characterImage,
+    required this.closeButtonColor,
+    required this.onNext,
+    required this.onRestart,
+    required this.onBack,
+  });
+
+  @override
+  State<GoodJobOverlay> createState() => _GoodJobOverlayState();
+}
+
+class _GoodJobOverlayState extends State<GoodJobOverlay>
+    with TickerProviderStateMixin {
+  late AnimationController _entranceCtrl;
+  late AnimationController _starsCtrl;
+  late AnimationController _charBounceCtrl;
+
+  late Animation<double> _fadeAnim;
+  late Animation<double> _bannerScale;
+  late Animation<double> _charScale;
+  late Animation<double> _charBounce;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _initAudio();
+    _playYeySound();
+
+    _entranceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    _starsCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+
+    _charBounceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+
+    _fadeAnim = CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeIn);
+
+    _bannerScale = TweenSequence([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.2), weight: 55),
+      TweenSequenceItem(tween: Tween(begin: 1.2, end: 0.92), weight: 25),
+      TweenSequenceItem(tween: Tween(begin: 0.92, end: 1.0), weight: 20),
+    ]).animate(_entranceCtrl);
+
+    _charScale = TweenSequence([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.15), weight: 60),
+      TweenSequenceItem(tween: Tween(begin: 1.15, end: 1.0), weight: 40),
+    ]).animate(_entranceCtrl);
+
+    _charBounce = Tween<double>(begin: -6, end: 6).animate(
+      CurvedAnimation(parent: _charBounceCtrl, curve: Curves.easeInOut),
+    );
+
+    _entranceCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _entranceCtrl.dispose();
+    _starsCtrl.dispose();
+    _charBounceCtrl.dispose();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initAudio() async {
+    await _audioPlayer.setReleaseMode(ReleaseMode.stop);
+  }
+
+  Future<void> _playYeySound() async {
+    await _audioPlayer.play(AssetSource('audio/sound_effects/yey.wav'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Colors.black.withValues(alpha: 0.45),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 50,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: ScaleTransition(
+                    scale: _bannerScale,
+                    child: const _ArcedGoodJobBanner(),
+                  ),
+                ),
+              ),
+            ),
+
+            Positioned(
+              top: 130,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: AnimatedBuilder(
+                  animation: _charBounceCtrl,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(0, _charBounce.value),
+                    child: child,
+                  ),
+                  child: ScaleTransition(
+                    scale: _charScale,
+                    child: _buildCharacter(),
+                  ),
+                ),
+              ),
+            ),
+
+            Positioned(
+              bottom: 28,
+              left: 32,
+              child: _ImageButton(
+                imagePath: 'assets/images/buttons/restart.png',
+                onTap: widget.onRestart,
+                size: 88,
+                tooltip: 'Restart',
+              ),
+            ),
+
+            Positioned(
+              bottom: 28,
+              right: 32,
+              child: _ImageButton(
+                imagePath: 'assets/images/buttons/next.png',
+                onTap: widget.onNext,
+                size: 88,
+                tooltip: 'Next Level',
+              ),
+            ),
+
+            Positioned(
+              top: 16,
+              left: 16,
+              child: _CloseButton(
+                onTap: widget.onBack,
+                color: widget.closeButtonColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCharacter() {
+    return Image.asset(
+      widget.characterImage,
+      height: 300,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) =>
+          const Icon(Icons.pets, size: 120, color: Colors.white),
+    );
+  }
+}
+
+class _ArcedGoodJobBanner extends StatelessWidget {
+  const _ArcedGoodJobBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/images/goodjob.png',
+      width: 550,
+      fit: BoxFit.contain,
+    );
+  }
+}
+
+class _CloseButton extends StatelessWidget {
+  final VoidCallback onTap;
+  final Color color;
+
+  const _CloseButton({required this.onTap, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+      ),
+    );
+  }
+}
+
+class _ImageButton extends StatefulWidget {
+  final String imagePath;
+  final VoidCallback onTap;
+  final double size;
+  final String tooltip;
+
+  const _ImageButton({
+    required this.imagePath,
+    required this.onTap,
+    required this.size,
+    required this.tooltip,
+  });
+
+  @override
+  State<_ImageButton> createState() => _ImageButtonState();
+}
+
+class _ImageButtonState extends State<_ImageButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      reverseDuration: const Duration(milliseconds: 150),
+      lowerBound: 0.85,
+      upperBound: 1.0,
+      value: 1.0,
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: widget.tooltip,
+      child: GestureDetector(
+        onTapDown: (_) => _ctrl.reverse(),
+        onTapUp: (_) {
+          _ctrl.forward();
+          widget.onTap();
+        },
+        onTapCancel: () => _ctrl.forward(),
+        child: ScaleTransition(
+          scale: _ctrl,
           child: Image.asset(
-            imagePath,
-            height: screenHeight * 0.45,
+            widget.imagePath,
+            width: widget.size,
+            height: widget.size,
             fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) =>
+                Icon(Icons.circle, size: widget.size, color: Colors.orange),
           ),
         ),
       ),
