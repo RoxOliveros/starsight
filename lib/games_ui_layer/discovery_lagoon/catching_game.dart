@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-// Added bitterPrompt phase to handle the transition to the 4th level
+// Added favoriteTaste phase for the final interactive question!
 enum GamePhase {
   intro,
   sweetPrompt,
@@ -12,6 +12,7 @@ enum GamePhase {
   sourPrompt,
   saltyPrompt,
   bitterPrompt,
+  favoriteTaste,
   goodJob,
 }
 
@@ -62,6 +63,9 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   int _caughtCount = 0;
   final int _targetToWin = 10;
 
+  // Locks taps during the final favorite taste question until audio ends!
+  bool _canTapFavorite = false;
+
   // Asset paths for sweet foods
   final List<String> _sweetFoodImages = [
     'assets/images/objects/lagoon/cookie.png',
@@ -89,7 +93,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     'assets/images/objects/lagoon/bacon.png',
   ];
 
-  // NEW: Asset paths for bitter foods!
+  // Asset paths for bitter foods
   final List<String> _bitterFoodImages = [
     'assets/images/objects/lagoon/coffee.png',
     'assets/images/objects/lagoon/lettuce.png',
@@ -162,7 +166,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
   /// Plays catching_sour.wav, then starts Round 2 (Sour)!
   Future<void> _startSourRound() async {
-    _gameLoopController.stop();
     setState(() {
       _fallingItems.clear(); // Clear old items from the screen
       _caughtCount = 0; // Reset counter for Round 2
@@ -194,7 +197,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
   /// Plays catching_salty.wav, then starts Round 3 (Salty)!
   Future<void> _startSaltyRound() async {
-    _gameLoopController.stop();
     setState(() {
       _fallingItems.clear(); // Clear old items from the screen
       _caughtCount = 0; // Reset counter for Round 3
@@ -226,7 +228,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
   /// Plays catching_bitter.wav, then starts Round 4 (Bitter)!
   Future<void> _startBitterRound() async {
-    _gameLoopController.stop();
     setState(() {
       _fallingItems.clear(); // Clear old items from the screen
       _caughtCount = 0; // Reset counter for Round 4
@@ -254,6 +255,62 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
         _gameLoopController.forward();
       }
     }
+  }
+
+  /// Transitions to the Favorite Taste finale screen after winning all rounds!
+  Future<void> _startFavoriteTastePhase() async {
+    setState(() {
+      _fallingItems.clear();
+      _currentPhase = GamePhase.favoriteTaste;
+      _canTapFavorite = false; // Lock taps until audio finishes!
+    });
+
+    try {
+      await _audioPlayer.play(
+        AssetSource('audio/discovery_lagoon/catching_fav_taste.wav'),
+      );
+
+      _audioPlayer.onPlayerComplete.first.then((_) {
+        if (mounted) {
+          setState(() {
+            _canTapFavorite = true; // Unlock taps!
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint("Error playing fav taste audio: $e");
+      if (mounted) {
+        setState(() => _canTapFavorite = true);
+      }
+    }
+  }
+
+  /// Handles when player taps one of the 4 favorite taste baskets
+  void _onFavoriteTasteTapped() {
+    if (!_canTapFavorite || _currentPhase != GamePhase.favoriteTaste) return;
+
+    setState(() {
+      _canTapFavorite = false; // Lock further taps so they can't spam it!
+    });
+
+    // Play shine sound effect first!
+    _playSound('audio/sound_effects/shine.wav');
+
+    _audioPlayer.onPlayerComplete.first.then((_) {
+      if (mounted) {
+        // Play Kiki's ending voiceover!
+        _playSound('audio/discovery_lagoon/catching_ending.wav');
+
+        _audioPlayer.onPlayerComplete.first.then((_) {
+          if (mounted) {
+            // Transition to the final Good Job Victory screen!
+            setState(() {
+              _currentPhase = GamePhase.goodJob;
+            });
+          }
+        });
+      }
+    });
   }
 
   /// Helper method to play sound effects
@@ -293,24 +350,33 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
             // 4. CHECK IF CAUGHT ITEM MATCHES ACTIVE ROUND!
             if (caughtItem.isTarget) {
               _caughtCount++;
-              _playSound('audio/sound_effects/shine.wav'); // Success sound!
 
               // Check Win Condition for current round!
               if (_caughtCount >= _targetToWin) {
-                if (_currentRound == TasteRound.sweet) {
-                  // Round 1 Complete! Transition to Sour round!
-                  _startSourRound();
-                } else if (_currentRound == TasteRound.sour) {
-                  // Round 2 Complete! Transition to Salty round!
-                  _startSaltyRound();
-                } else if (_currentRound == TasteRound.salty) {
-                  // Round 3 Complete! Transition to Bitter round!
-                  _startBitterRound();
-                } else {
-                  // All 4 rounds complete! Show Victory Screen!
-                  _gameLoopController.stop();
-                  _currentPhase = GamePhase.goodJob;
-                }
+                // A. STOP GAME LOOP IMMEDIATELY SO NOTHING ELSE FALLS
+                _gameLoopController.stop();
+
+                // B. PLAY SHINE SOUND EFFECT
+                _playSound('audio/sound_effects/shine.wav');
+
+                // C. WAIT FOR SHINE.WAV TO FINISH BEFORE SWITCHING ROUNDS!
+                _audioPlayer.onPlayerComplete.first.then((_) {
+                  if (mounted) {
+                    if (_currentRound == TasteRound.sweet) {
+                      _startSourRound();
+                    } else if (_currentRound == TasteRound.sour) {
+                      _startSaltyRound();
+                    } else if (_currentRound == TasteRound.salty) {
+                      _startBitterRound();
+                    } else {
+                      // All 4 rounds complete! Trigger the Favorite Taste finale!
+                      _startFavoriteTastePhase();
+                    }
+                  }
+                });
+              } else {
+                // Regular catch (not the final winning item yet)
+                _playSound('audio/sound_effects/shine.wav');
               }
             } else {
               // Caught a wrong item! Play try-again sound.
@@ -335,7 +401,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
     String randomImage;
     if (spawnTarget) {
-      // Pick from sweet, sour, salty, or bitter list depending on the active round!
       if (_currentRound == TasteRound.sweet) {
         randomImage =
             _sweetFoodImages[_random.nextInt(_sweetFoodImages.length)];
@@ -349,7 +414,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
             _bitterFoodImages[_random.nextInt(_bitterFoodImages.length)];
       }
     } else {
-      // Build distraction pool: wrong items PLUS foods from the inactive rounds!
       List<String> distractionPool = [..._wrongFoodImages];
       if (_currentRound == TasteRound.sweet) {
         distractionPool.addAll(_sourFoodImages);
@@ -425,11 +489,39 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     // 1. INTRO PHASE
     if (_currentPhase == GamePhase.intro) {
       return Scaffold(
-        body: Image.asset(
-          'assets/images/objects/lagoon/kiki_withbasket_rainbowbg.png',
-          width: sw,
-          height: sh,
-          fit: BoxFit.cover,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_rainbow_closeup2.png',
+              fit: BoxFit.cover,
+            ),
+            Positioned(
+              bottom: -sh * 0.10,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Image.asset(
+                  'assets/images/characters/kiki_the_cat.png',
+                  height: sh * 0.90,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -sh * 0.15,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Image.asset(
+                  'assets/images/objects/lagoon/basket.png',
+                  width: sh * 0.75,
+                  height: sh * 0.55,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -470,11 +562,11 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
       );
     }
 
-    // 5. BITTER PROMPT PHASE (NEW!)
+    // 5. BITTER PROMPT PHASE
     if (_currentPhase == GamePhase.bitterPrompt) {
       return Scaffold(
         body: Image.asset(
-          'assets/images/objects/lagoon/bitter.png', // Uses bitter.png!
+          'assets/images/objects/lagoon/bitter.png',
           width: sw,
           height: sh,
           fit: BoxFit.cover,
@@ -482,7 +574,68 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
       );
     }
 
-    // 6. PLAYING & VICTORY PHASES
+    // 6. FAVORITE TASTE FINALE PHASE
+    if (_currentPhase == GamePhase.favoriteTaste) {
+      return Scaffold(
+        body: Stack(
+          clipBehavior: Clip.none,
+          fit: StackFit.expand,
+          children: [
+            // A. Background Layer
+            Image.asset(
+              'assets/images/backgrounds/bg_rainbow_closeup.png',
+              fit: BoxFit.cover,
+            ),
+            // B. Kiki Character Layer
+            Positioned(
+              bottom: -sh * 0.20,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Image.asset(
+                  'assets/images/characters/kiki_the_cat.png',
+                  height: sh * 1.15,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            // C. 4 Baskets Row Layer
+            Positioned(
+              bottom: -sh * 0.12,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildFavoriteChoice(
+                    'assets/images/objects/lagoon/chocolate.png',
+                    sh,
+                    sw,
+                  ),
+                  _buildFavoriteChoice(
+                    'assets/images/objects/lagoon/lemon.png',
+                    sh,
+                    sw,
+                  ),
+                  _buildFavoriteChoice(
+                    'assets/images/objects/lagoon/fries.png',
+                    sh,
+                    sw,
+                  ),
+                  _buildFavoriteChoice(
+                    'assets/images/objects/lagoon/bittergourd.png',
+                    sh,
+                    sw,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 7. PLAYING & VICTORY PHASES
     final double basketWidth = sh * 0.75;
     final double basketHeight = sh * 0.55;
     final double foodSize = sh * 0.26;
@@ -522,10 +675,9 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
                   height: foodSize,
                   fit: BoxFit.contain,
                 ),
-              );
-            }),
-
-            // D. GOOD JOB OVERLAY LAYER (Appears once all 4 rounds are won!)
+              ); // <-- Make sure this line ends with a semicolon inside the return statement!
+            }), // <-- Notice there is NO semicolon here after the closing bracket and parenthesis! Just a comma or nothing!
+            // D. GOOD JOB OVERLAY LAYER (Appears after the favorite taste finale!)
             if (_currentPhase == GamePhase.goodJob)
               GoodJobOverlay(
                 characterImage: 'assets/images/characters/kiki_tryagain.png',
@@ -540,6 +692,44 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Helper widget to build the 4 basket choices with foods drawn ON TOP of the basket overlay!
+  Widget _buildFavoriteChoice(
+    String foodImagePath,
+    double screenHeight,
+    double screenWidth,
+  ) {
+    final double basketW = screenWidth * 0.23;
+    final double basketH = screenHeight * 0.38;
+    final double foodS = screenHeight * 0.28;
+
+    return GestureDetector(
+      onTap: _onFavoriteTasteTapped,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.bottomCenter,
+        children: [
+          // 1. Basket drawn FIRST (at the back)
+          Image.asset(
+            'assets/images/objects/lagoon/basket.png',
+            width: basketW,
+            height: basketH,
+            fit: BoxFit.contain,
+          ),
+          // 2. Food drawn SECOND (on top / in front of the basket overlay!)
+          Positioned(
+            bottom: screenHeight * 0.15, // Positions it cleanly over the rim
+            child: Image.asset(
+              foodImagePath,
+              width: foodS,
+              height: foodS,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ],
       ),
     );
   }
