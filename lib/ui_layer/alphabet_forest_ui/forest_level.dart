@@ -7,6 +7,8 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_acorn_basket.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_butterfly_flower.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_letter_match.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_mushroom_hidenseek.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_woodpecker_letter_listen.dart';
 import '../loading_screen.dart';
 
@@ -339,19 +341,21 @@ class _LevelTile extends StatelessWidget {
       case 6:
         return const ButterflyFlowerGardenGame(level: 6);
 
+        // jkl intro
       case 7:
         return const AlphabetIntroScreen(letter: 'J');
 
-      // TODO: @Tin jkl games
+        // jkl games
       case 8:
-        return null;
+        return const ButterflyLetterMatchGame(level: 8);
 
+        // mno intro
       case 9:
         return const AlphabetIntroScreen(letter: 'M');
 
-      // TODO: @Tin mno games
+        // mno games
       case 10:
-        return null;
+        return const MushroomHideAndSeekGame(level: 10);
 
       case 11:
         return const AlphabetIntroScreen(letter: 'P');

@@ -13,12 +13,22 @@ class ForestAudioHelper {
         Duration timeout = const Duration(seconds: 20),
       }) async {
     StreamSubscription? sub;
+
     try {
+      await voicePlayer.stop();   // <-- Add this
+
       final completer = Completer<void>();
+
       sub = voicePlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
       });
-      await voicePlayer.play(AssetSource(_strip(asset)));
+
+      await voicePlayer.play(
+        AssetSource(_strip(asset)),
+      );
+
       await completer.future.timeout(timeout);
     } catch (e) {
       debugPrint('ForestAudioHelper: voice error ($asset): $e');

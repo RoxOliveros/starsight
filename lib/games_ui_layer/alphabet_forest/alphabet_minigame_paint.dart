@@ -15,6 +15,8 @@ import 'package:flutter/material.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_butterfly_flower.dart';
+import 'forest_game_letter_match.dart';
+import 'forest_game_mushroom_hidenseek.dart';
 
 class PaintPoint {
   final Offset position;
@@ -223,6 +225,20 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) => const ButterflyFlowerGardenGame(level: 6),
+                ),
+              );
+            } else if (currentLetter == 'L'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ButterflyLetterMatchGame(level: 8),
+                ),
+              );
+            } else if (currentLetter == 'O'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MushroomHideAndSeekGame(level: 10),
                 ),
               );
             } else {
