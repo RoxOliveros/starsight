@@ -6,6 +6,7 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_acorn_basket.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_berry_bush_harvest.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_butterfly_flower.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_letter_match.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_mushroom_hidenseek.dart';
@@ -357,14 +358,15 @@ class _LevelTile extends StatelessWidget {
       case 10:
         return const MushroomHideAndSeekGame(level: 10);
 
+        // pqr intro
       case 11:
         return const AlphabetIntroScreen(letter: 'P');
 
-      // TODO: @Tin pqr games
+      // pqr games
       case 12:
-        return null;
+        return const BerryBushHarvestGame(level: 12);
 
-      // TODO: @Tin intro stu
+      // stu intro
       case 13:
         return const AlphabetIntroScreen(letter: 'S');
 
@@ -372,7 +374,7 @@ class _LevelTile extends StatelessWidget {
       case 14:
         return null;
 
-      // TODO: @Tin intro vwx
+      // vwx intro
       case 15:
         return const AlphabetIntroScreen(letter: 'V');
 

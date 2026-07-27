@@ -14,6 +14,7 @@ import 'dart:async';
 import '../../business_layer/orientation_service.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
+import 'forest_game_berry_bush_harvest.dart';
 import 'forest_game_butterfly_flower.dart';
 import 'forest_game_letter_match.dart';
 import 'forest_game_mushroom_hidenseek.dart';
@@ -324,6 +325,13 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) => const MushroomHideAndSeekGame(level: 10),
+                ),
+              );
+            } else if (currentLetter == 'R'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const BerryBushHarvestGame(level: 12),
                 ),
               );
             }
