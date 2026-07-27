@@ -16,6 +16,7 @@ import 'forest_game_berry_bush_harvest.dart';
 import 'forest_game_butterfly_flower.dart';
 import 'forest_game_letter_match.dart';
 import 'forest_game_mushroom_hidenseek.dart';
+import 'forest_game_stick_letter_builder.dart';
 
 class AlphabetHuntScreen extends StatefulWidget {
   final String letter;
@@ -305,6 +306,13 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) => const BerryBushHarvestGame(level: 12),
+                ),
+              );
+            } else if (currentLetter == 'X'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FallenStickLetterBuilderGame(level: 16),
                 ),
               );
             } else {

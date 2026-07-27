@@ -16,6 +16,7 @@ import 'forest_game_berry_bush_harvest.dart';
 import 'forest_game_butterfly_flower.dart';
 import 'forest_game_letter_match.dart';
 import 'forest_game_mushroom_hidenseek.dart';
+import 'forest_game_stick_letter_builder.dart';
 
 class PuzzlePiece {
   final int id; // 0=TL, 1=TR, 2=BL, 3=BR
@@ -446,6 +447,13 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) => const BerryBushHarvestGame(level: 12),
+                ),
+              );
+            } else if (currentLetter == 'X'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FallenStickLetterBuilderGame(level: 16),
                 ),
               );
             } else {

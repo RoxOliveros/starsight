@@ -10,6 +10,7 @@ import '../../games_ui_layer/alphabet_forest/forest_game_berry_bush_harvest.dart
 import '../../games_ui_layer/alphabet_forest/forest_game_butterfly_flower.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_letter_match.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_mushroom_hidenseek.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_stick_letter_builder.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_woodpecker_letter_listen.dart';
 import '../loading_screen.dart';
 
@@ -378,9 +379,9 @@ class _LevelTile extends StatelessWidget {
       case 15:
         return const AlphabetIntroScreen(letter: 'V');
 
-      // TODO: @Tin vwx games
+      // vwx games
       case 16:
-        return null;
+        return const FallenStickLetterBuilderGame(level: 16);
 
       case 17:
         return const AlphabetIntroScreen(letter: 'Y');
