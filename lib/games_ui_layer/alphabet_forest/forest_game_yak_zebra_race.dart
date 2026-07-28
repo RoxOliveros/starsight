@@ -11,6 +11,7 @@ import '../../ui_layer/loading_screen.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
+import 'forest_game_catterpillar_letter_match.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -392,9 +393,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
-              // NAV: placeholder per spec -- point this at whatever
-              // actually follows Y/Z in your module sequence.
-              MaterialPageRoute(builder: (_) => AlphabetIntroScreen(letter: 'A')),
+              MaterialPageRoute(builder: (_) => CaterpillarLetterMatchGame(level: 19)),
             );
           },
           onRestart: () {
