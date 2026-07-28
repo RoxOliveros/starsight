@@ -20,6 +20,7 @@ import 'forest_game_letter_match.dart';
 import 'forest_game_mushroom_hidenseek.dart';
 import 'forest_game_paw_print.dart';
 import 'forest_game_stick_letter_builder.dart';
+import 'forest_game_yak_zebra_race.dart';
 
 class AlphabetFallScreen extends StatefulWidget {
   final String letter;
@@ -348,6 +349,13 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) => const FallenStickLetterBuilderGame(level: 16),
+                ),
+              );
+            } else if (currentLetter == 'Z'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const YakZebraRaceGame(level: 18),
                 ),
               );
             }

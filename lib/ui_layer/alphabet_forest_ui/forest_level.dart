@@ -13,6 +13,7 @@ import '../../games_ui_layer/alphabet_forest/forest_game_mushroom_hidenseek.dart
 import '../../games_ui_layer/alphabet_forest/forest_game_paw_print.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_stick_letter_builder.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_woodpecker_letter_listen.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_yak_zebra_race.dart';
 import '../loading_screen.dart';
 
 abstract class ColorTheme {
@@ -364,32 +365,33 @@ class _LevelTile extends StatelessWidget {
       case 11:
         return const AlphabetIntroScreen(letter: 'P');
 
-      // pqr games
+        // pqr games
       case 12:
         return const BerryBushHarvestGame(level: 12);
 
-      // stu intro
+        // stu intro
       case 13:
         return const AlphabetIntroScreen(letter: 'S');
 
-      // stu games
+        // stu games
       case 14:
         return const FollowThePawPrintsGame(level: 14);
 
-      // vwx intro
+        // vwx intro
       case 15:
         return const AlphabetIntroScreen(letter: 'V');
 
-      // vwx games
+        // vwx games
       case 16:
         return const FallenStickLetterBuilderGame(level: 16);
 
+        // yz intro
       case 17:
         return const AlphabetIntroScreen(letter: 'Y');
 
-      // TODO: @Tin yz games
+        // yz games
       case 18:
-        return null;
+        return const YakZebraRaceGame(level: 18);
 
       // TODO: @Tin a-z games
       case 19:
