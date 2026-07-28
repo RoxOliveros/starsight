@@ -10,6 +10,7 @@ import '../../games_ui_layer/alphabet_forest/forest_game_berry_bush_harvest.dart
 import '../../games_ui_layer/alphabet_forest/forest_game_butterfly_flower.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_letter_match.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_mushroom_hidenseek.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_paw_print.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_stick_letter_builder.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_woodpecker_letter_listen.dart';
 import '../loading_screen.dart';
@@ -371,9 +372,9 @@ class _LevelTile extends StatelessWidget {
       case 13:
         return const AlphabetIntroScreen(letter: 'S');
 
-      // TODO: @Tin stu games
+      // stu games
       case 14:
-        return null;
+        return const FollowThePawPrintsGame(level: 14);
 
       // vwx intro
       case 15:
@@ -423,10 +424,29 @@ class _LevelTile extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         final screen = _screenForLevel();
+
         if (screen == null) {
-          debugPrint("Level $level is not linked up yet!");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Coming Soon!',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              backgroundColor: ColorTheme.darkgreen,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
           return;
         }
+
         onOpenLevel(screen);
       },
       child: Container(

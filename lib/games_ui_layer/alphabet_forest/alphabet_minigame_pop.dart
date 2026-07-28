@@ -19,6 +19,7 @@ import 'forest_game_berry_bush_harvest.dart';
 import 'forest_game_butterfly_flower.dart';
 import 'forest_game_letter_match.dart';
 import 'forest_game_mushroom_hidenseek.dart';
+import 'forest_game_paw_print.dart';
 import 'forest_game_stick_letter_builder.dart';
 
 class AlphabetPopScreen extends StatefulWidget {
@@ -306,7 +307,14 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                   builder: (context) => const BerryBushHarvestGame(level: 12),
                 ),
               );
-            } else if (currentLetter == 'X'){
+            } else if (currentLetter == 'U'){
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FollowThePawPrintsGame(level: 14),
+                ),
+              );
+            }  else if (currentLetter == 'X'){
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
