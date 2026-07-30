@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../../business_layer/orientation_service.dart';
+
 class Sorry5Screen extends StatefulWidget {
   const Sorry5Screen({super.key});
 
@@ -27,19 +29,12 @@ class _Sorry5ScreenState extends State<Sorry5Screen> {
   @override
   void initState() {
     super.initState();
-    _setupLandscapeOrientation();
+    OrientationService.setLandscape();
 
     // Start audio and unlock puzzle pieces when it completes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startIntroAudio();
     });
-  }
-
-  void _setupLandscapeOrientation() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
   }
 
   /// Plays sorry_5.wav and unlocks dragging once the narration finishes

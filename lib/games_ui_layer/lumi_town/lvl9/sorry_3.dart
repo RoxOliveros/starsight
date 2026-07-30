@@ -9,6 +9,8 @@ import 'package:permission_handler/permission_handler.dart';
 // Adjust this import path to wherever your gesture_camera_view.dart is located
 import 'package:StarSight/business_layer/gesture_camera_view.dart';
 
+import '../../../business_layer/orientation_service.dart';
+
 // Adjust this to wherever your next screen/level is located!
 // import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_4.dart';
 
@@ -40,16 +42,9 @@ class _Sorry3ScreenState extends State<Sorry3Screen> {
   @override
   void initState() {
     super.initState();
-    _setupLandscapeOrientation();
+    OrientationService.setLandscape();
     _startStorySequence();
     _requestCameraPermission();
-  }
-
-  void _setupLandscapeOrientation() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
   }
 
   /// Plays Scene 3 audio -> swaps to Scene 4 at 4s mark -> finishes audio -> plays Scene 4 audio -> enables interactive UI
@@ -147,13 +142,6 @@ class _Sorry3ScreenState extends State<Sorry3Screen> {
   }
 
   Future<void> _exitLevel() async {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-    if (!mounted) return;
     Navigator.of(context).maybePop();
   }
 

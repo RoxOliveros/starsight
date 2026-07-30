@@ -6,6 +6,8 @@ import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+
+import '../../../business_layer/orientation_service.dart';
 // adjust import path to match your project structure
 
 class Sorry8Screen extends StatefulWidget {
@@ -31,7 +33,7 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
   @override
   void initState() {
     super.initState();
-    _setupLandscapeOrientation();
+    OrientationService.setLandscape();
 
     // Jack's walk over to Little Bear
     _walkController = AnimationController(
@@ -55,13 +57,6 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playStorySequence();
     });
-  }
-
-  void _setupLandscapeOrientation() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
   }
 
   /// 1. Plays audio -> 2. Jack walks over -> 3. Hands over the car ->
@@ -128,12 +123,6 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     _walkController.dispose();
     _carSlideController.dispose();
     _jumpController.dispose();

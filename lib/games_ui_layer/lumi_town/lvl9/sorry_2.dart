@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../../business_layer/orientation_service.dart';
+
 class Sorry2Screen extends StatefulWidget {
   const Sorry2Screen({super.key});
 
@@ -33,19 +35,12 @@ class _Sorry2ScreenState extends State<Sorry2Screen>
     _walkController = AnimationController(vsync: this, duration: _walkDuration);
 
     // Lock to landscape orientation
-    _setupLandscapeOrientation();
+    OrientationService.setLandscape();
 
     // Start the sequential audio and animation sequence
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startSceneSequence();
     });
-  }
-
-  void _setupLandscapeOrientation() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
   }
 
   /// Handles the timing: narration -> bear walking -> sorry audio & crying image
@@ -89,14 +84,6 @@ class _Sorry2ScreenState extends State<Sorry2Screen>
 
   @override
   void dispose() {
-    // Reset orientations when exiting
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-
     _walkController.dispose();
     _audioPlayer.dispose();
     super.dispose();

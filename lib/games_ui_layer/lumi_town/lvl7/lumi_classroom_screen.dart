@@ -2,6 +2,7 @@ import 'package:StarSight/games_ui_layer/lumi_town/dr.woo_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../../business_layer/orientation_service.dart';
 import 'respect_1.dart';
 
 class LumiClassroomScreen extends StatefulWidget {
@@ -20,10 +21,7 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
     super.initState();
     _audioPlayer = AudioPlayer();
 
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.landscapeLeft,
-    ]);
+    OrientationService.setLandscape();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playIntroAudio();
@@ -32,13 +30,6 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-
     _audioPlayer.dispose();
     super.dispose();
   }

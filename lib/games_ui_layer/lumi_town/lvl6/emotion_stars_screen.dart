@@ -2,7 +2,9 @@ import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
-import 'package:audioplayers/audioplayers.dart'; // Import the audio player
+import 'package:audioplayers/audioplayers.dart';
+
+import '../../../business_layer/orientation_service.dart'; // Import the audio player
 
 class EmotionStarsScreen extends StatefulWidget {
   const EmotionStarsScreen({super.key});
@@ -20,14 +22,10 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
   @override
   void initState() {
     super.initState();
-
     // Initialize the audio player
     _audioPlayer = AudioPlayer();
 
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
 
     // Set a total duration for the entire animation (3 flickers + final fade)
     _fadeController = AnimationController(
@@ -125,16 +123,9 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
 
     _fadeController.dispose();
-    _audioPlayer
-        .dispose(); // Always dispose of the audio player to free up memory
+    _audioPlayer.dispose(); // Always dispose of the audio player to free up memory
     super.dispose();
   }
 

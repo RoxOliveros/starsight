@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../../business_layer/orientation_service.dart';
+
 class Sorry7Screen extends StatefulWidget {
   const Sorry7Screen({super.key});
 
@@ -37,15 +39,7 @@ class _Sorry7ScreenState extends State<Sorry7Screen> {
   @override
   void initState() {
     super.initState();
-    _setupLandscapeOrientation();
-    // No intro audio called here — user can start dragging immediately!
-  }
-
-  void _setupLandscapeOrientation() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
   }
 
   /// Checks if the active puzzle row is complete and triggers the right sequence

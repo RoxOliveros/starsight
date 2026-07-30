@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../../business_layer/orientation_service.dart';
+
 class Sorry1Screen extends StatefulWidget {
   const Sorry1Screen({super.key});
 
@@ -16,16 +18,8 @@ class _Sorry1ScreenState extends State<Sorry1Screen> {
   @override
   void initState() {
     super.initState();
-    _setupLandscapeOrientation();
+    OrientationService.setLandscape();
     _initAndPlayAudio();
-  }
-
-  /// Locks the device to landscape mode for an immersive story scene
-  void _setupLandscapeOrientation() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
   }
 
   /// Initializes the audio engine and triggers the narration
@@ -51,11 +45,7 @@ class _Sorry1ScreenState extends State<Sorry1Screen> {
 
   @override
   void dispose() {
-    // Free up system memory and stop audio when leaving the screen
     _audioPlayer.dispose();
-
-    // Optional: Reset orientation back to standard if exiting to a portrait screen
-    // SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
 

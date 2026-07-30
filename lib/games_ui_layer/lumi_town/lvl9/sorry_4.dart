@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 // IMPORTANT: Make sure this path matches where your sorry_5.dart is located!
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_5.dart';
 
+import '../../../business_layer/orientation_service.dart';
+
 class Sorry4Screen extends StatefulWidget {
   const Sorry4Screen({super.key});
 
@@ -25,19 +27,12 @@ class _Sorry4ScreenState extends State<Sorry4Screen>
     super.initState();
     _walkController = AnimationController(vsync: this, duration: _walkDuration);
 
-    _setupLandscapeOrientation();
+    OrientationService.setLandscape();
 
     // Start walking animation and navigate when it's done!
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startWalkAndTransition();
     });
-  }
-
-  void _setupLandscapeOrientation() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
   }
 
   /// Plays the walking animation and immediately transitions to the puzzle!
@@ -58,13 +53,6 @@ class _Sorry4ScreenState extends State<Sorry4Screen>
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-
     _walkController.dispose();
     super.dispose();
   }

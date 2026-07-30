@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../../business_layer/orientation_service.dart';
+
 class Emotion4Screen extends StatefulWidget {
   const Emotion4Screen({super.key});
 
@@ -32,10 +34,7 @@ class _Emotion4ScreenState extends State<Emotion4Screen>
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.landscapeLeft,
-    ]);
+    OrientationService.setLandscape();
 
     _audioPlayer = AudioPlayer();
     _narratorPlayer = AudioPlayer();
@@ -74,15 +73,8 @@ class _Emotion4ScreenState extends State<Emotion4Screen>
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     _audioPlayer.dispose();
-    _narratorPlayer
-        .dispose(); // Always clean up the new player to prevent memory leaks
+    _narratorPlayer.dispose(); // Always clean up the new player to prevent memory leaks
     super.dispose();
   }
 

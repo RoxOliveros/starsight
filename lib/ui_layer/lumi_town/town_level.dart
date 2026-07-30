@@ -25,6 +25,7 @@ class LumiLevelScreen extends StatefulWidget {
 
 class _LumiLevelScreenState extends State<LumiLevelScreen> {
   int _unlockedLevel = 1;
+  int _page = 0;
   bool _isLoadingProgress = true;
   StreamSubscription<int>? _progressSub;
   final DateTime _loadStart = DateTime.now();
@@ -125,7 +126,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: List.generate(4, (i) {
-                                final level = i + 1;
+                                final level = _page * 8 + i + 1;              // CHANGED
                                 return level <= _unlockedLevel
                                     ? _LevelTile(level: level, size: tileSize)
                                     : _LockedTile(size: tileSize);
@@ -135,7 +136,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: List.generate(4, (i) {
-                                final level = i + 5;
+                                final level = _page * 8 + i + 5;               // CHANGED
                                 return level <= _unlockedLevel
                                     ? _LevelTile(level: level, size: tileSize)
                                     : _LockedTile(size: tileSize);
@@ -207,6 +208,42 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                           ],
                         ),
                       ),
+                      // Left arrow
+                      Positioned(
+                        left: -35,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (_page > 0) setState(() => _page--);
+                          },
+                          child: Opacity(
+                            opacity: _page > 0 ? 1.0 : 0.3,
+                            child: Image.asset(
+                              'assets/images/arrows/bttn_lumi_arrow_left.png', // swap for a lumi asset if you have one
+                              width: 70,
+                            ),
+                          ),
+                        ),
+                      ),
+// Right arrow
+                      Positioned(
+                        right: -35,
+                        top: 0,
+                        bottom: 0,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (_page < 1) setState(() => _page++);   // 1 = max page index (9 levels / 8 per page)
+                          },
+                          child: Opacity(
+                            opacity: _page < 1 ? 1.0 : 0.3,
+                            child: Image.asset(
+                              'assets/images/arrows/bttn_lumi_arrow_right.png',
+                              width: 70,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -273,6 +310,7 @@ class _LevelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (level > 9) return SizedBox(width: size, height: size);
     return GestureDetector(
       onTap: () {
         final screen = _screenForLevel();

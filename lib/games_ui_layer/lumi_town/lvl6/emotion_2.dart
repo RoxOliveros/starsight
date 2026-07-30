@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_3.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -37,11 +38,7 @@ class _Emotion2State extends State<Emotion2> {
   void initState() {
     super.initState();
 
-    // Lock to landscape universally for this screen
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
 
     // Initialize our audio and timing sequence
     _initAudioAndSequence();
@@ -108,13 +105,6 @@ class _Emotion2State extends State<Emotion2> {
     _audioPlayer.dispose();
     _scrollController.dispose();
 
-    // Reset orientations when leaving the screen
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     super.dispose();
   }
 

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../../business_layer/orientation_service.dart';
+
 class Respect1Screen extends StatefulWidget {
   const Respect1Screen({Key? key}) : super(key: key);
 
@@ -32,10 +34,7 @@ class _Respect1ScreenState extends State<Respect1Screen>
     _walkController = AnimationController(vsync: this, duration: _walkDuration);
 
     // Lock to landscape
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.landscapeLeft,
-    ]);
+    OrientationService.setLandscape();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Start the walk animation immediately (Roxie enters)
@@ -46,14 +45,6 @@ class _Respect1ScreenState extends State<Respect1Screen>
 
   @override
   void dispose() {
-    // Reset orientations
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-
     _walkController.dispose();
     _audioPlayer.dispose();
     super.dispose();

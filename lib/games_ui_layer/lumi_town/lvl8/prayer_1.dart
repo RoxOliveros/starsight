@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../../../business_layer/orientation_service.dart';
 import 'prayer_prompt_card.dart';
 
 class Prayer1 extends StatefulWidget {
@@ -39,10 +40,7 @@ class _Prayer1State extends State<Prayer1> {
     super.initState();
 
     // Force Landscape & Immersive Full-Screen
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     _initializeSequence();
@@ -152,7 +150,6 @@ class _Prayer1State extends State<Prayer1> {
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
     // Clean up all timers & audio

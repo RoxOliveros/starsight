@@ -10,6 +10,8 @@ import 'package:audioplayers/audioplayers.dart';
 // TODO: Update these imports to match your project structure if needed
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+
+import '../../../business_layer/orientation_service.dart';
 // import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
 
 class RespectEnding extends StatefulWidget {
@@ -38,15 +40,8 @@ class _RespectEndingState extends State<RespectEnding> {
   @override
   void initState() {
     super.initState();
-    _lockOrientation();
+    OrientationService.setLandscape();
     _startEndingSequence();
-  }
-
-  Future<void> _lockOrientation() async {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.landscapeLeft,
-    ]);
   }
 
   void _startEndingSequence() {
@@ -68,12 +63,6 @@ class _RespectEndingState extends State<RespectEnding> {
   @override
   void dispose() {
     _audioPlayer.dispose();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     super.dispose();
   }
 

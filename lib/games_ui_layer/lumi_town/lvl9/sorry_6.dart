@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../../business_layer/orientation_service.dart';
+
 class Sorry6Screen extends StatefulWidget {
   const Sorry6Screen({super.key});
 
@@ -17,19 +19,12 @@ class _Sorry6ScreenState extends State<Sorry6Screen> {
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
-    _setupLandscapeOrientation();
+    OrientationService.setLandscape();
 
     // Trigger sorry_7.wav right after the scene loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playSceneAudio();
     });
-  }
-
-  void _setupLandscapeOrientation() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
   }
 
   /// Plays sorry_7.wav while the characters stand together in the classroom
@@ -54,12 +49,6 @@ class _Sorry6ScreenState extends State<Sorry6Screen> {
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     _audioPlayer.dispose();
     super.dispose();
   }

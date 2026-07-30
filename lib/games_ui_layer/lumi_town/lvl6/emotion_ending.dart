@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../../business_layer/orientation_service.dart';
+
 // Make sure to import your GoodJobOverlay file here
 // import 'goodjob_prompt.dart';
 
@@ -33,10 +35,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
   void initState() {
     super.initState();
 
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
 
     // Set up the continuous flicker animation
     _flickerController = AnimationController(
@@ -68,13 +67,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-
     _flickerController.dispose();
     _audioPlayer.dispose();
     super.dispose();
