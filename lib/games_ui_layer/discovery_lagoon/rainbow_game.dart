@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/perfume_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_theme.dart';
@@ -35,10 +38,7 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
     super.initState();
     _audioPlayer = AudioPlayer();
 
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
 
     _startLevel1Intro();
   }
@@ -46,7 +46,7 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
   @override
   void dispose() {
     _audioPlayer.dispose();
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    OrientationService.setLandscape();
     super.dispose();
   }
 
@@ -354,7 +354,16 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
                 GoodJobOverlay(
                   characterImage: 'assets/images/characters/kiki_tryagain.png',
                   closeButtonColor: LagoonColorTheme.wasteland,
-                  onNext: _restartGame,
+                  onNext: () async {
+                    // Mark Level 1 as complete to unlock Level 2
+                    await LagoonProgressService.instance.markLevelComplete(1);
+                    if (context.mounted) {
+                      // Jump to Level 2 (Perfume)
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const PerfumeGame()),
+                      );
+                    }
+                  },
                   onRestart: _restartGame,
                   onBack: () => Navigator.of(context).pop(),
                 ),

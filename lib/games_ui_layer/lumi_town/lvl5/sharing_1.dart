@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl5/sharing_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -49,10 +50,7 @@ class _Sharing1State extends State<Sharing1> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.landscapeLeft,
-    ]);
+    OrientationService.setLandscape();
 
     // Play the audio intro as soon as the screen initializes
     _audioPlayer.play(AssetSource('audio/lumi_town/level5/intro.wav'));
@@ -133,12 +131,7 @@ class _Sharing1State extends State<Sharing1> {
   /// not when progressing forward to the next screen — see the comment in
   /// dispose() for why this distinction matters.
   Future<void> _exitLevel() async {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     if (!mounted) return;
     Navigator.of(context).maybePop();
   }

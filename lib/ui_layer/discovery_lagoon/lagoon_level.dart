@@ -1,6 +1,11 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_intro.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/catching_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/listening_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/perfume_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/rainbow_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/soft_hard_game.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
@@ -60,9 +65,9 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
   }
 
   void _listenToProgress() {
-    _progressSub = LagoonProgressService.instance
-        .streamUnlockedLevel()
-        .listen((level) async {
+    _progressSub = LagoonProgressService.instance.streamUnlockedLevel().listen((
+      level,
+    ) async {
       if (!mounted) return;
 
       if (_isLoading) {
@@ -92,9 +97,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        body: LoadingScreen.discoveryLagoon(),
-      );
+      return Scaffold(body: LoadingScreen.discoveryLagoon());
     }
 
     return Scaffold(
@@ -156,7 +159,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                             if (_currentPage == 0) ...[
                               Row(
                                 mainAxisAlignment:
-                                MainAxisAlignment.spaceEvenly,
+                                    MainAxisAlignment.spaceEvenly,
                                 children: [
                                   buildTile(1),
                                   buildTile(2),
@@ -167,7 +170,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                               const SizedBox(height: 16),
                               Row(
                                 mainAxisAlignment:
-                                MainAxisAlignment.spaceEvenly,
+                                    MainAxisAlignment.spaceEvenly,
                                 children: [
                                   buildTile(5),
                                   buildTile(6),
@@ -181,7 +184,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                             if (_currentPage == 1) ...[
                               Row(
                                 mainAxisAlignment:
-                                MainAxisAlignment.spaceEvenly,
+                                    MainAxisAlignment.spaceEvenly,
                                 children: [
                                   buildTile(9),
                                   buildTile(10),
@@ -192,7 +195,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                               const SizedBox(height: 16),
                               Row(
                                 mainAxisAlignment:
-                                MainAxisAlignment.spaceEvenly,
+                                    MainAxisAlignment.spaceEvenly,
                                 children: [
                                   buildTile(13),
                                   buildTile(14),
@@ -206,7 +209,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                             if (_currentPage == 2) ...[
                               Row(
                                 mainAxisAlignment:
-                                MainAxisAlignment.spaceEvenly,
+                                    MainAxisAlignment.spaceEvenly,
                                 children: [
                                   buildTile(17),
                                   buildTile(18),
@@ -217,7 +220,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                               const SizedBox(height: 16),
                               Row(
                                 mainAxisAlignment:
-                                MainAxisAlignment.spaceEvenly,
+                                    MainAxisAlignment.spaceEvenly,
                                 children: [
                                   buildTile(21),
                                   buildTile(22),
@@ -373,35 +376,27 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'feet', level: level),
+                builder: (context) => const RainbowGameScreen(),
               ),
             );
             break;
           case 2:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'knee', level: level),
-              ),
+              MaterialPageRoute(builder: (context) => const PerfumeGame()),
             );
             break;
           case 3:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'shoulder', level: level),
-              ),
+              MaterialPageRoute(builder: (context) => const ListeningGame()),
             );
             break;
           case 4:
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'head', level: level),
+                builder: (context) => const CatchingGameScreen(),
               ),
             );
             break;
@@ -409,8 +404,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'lips', level: level),
+                builder: (context) => const SoftHardGameScreen(),
               ),
             );
             break;

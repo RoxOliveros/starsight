@@ -1,4 +1,6 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -23,6 +25,8 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   late final AudioPlayer _audioPlayer;
   final Random _random = Random();
 
+  bool _isIntroPlaying = true;
+
   // List of all items to sort
   late List<SortableItem> _remainingItems;
   SortableItem? _currentItem;
@@ -41,15 +45,38 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   @override
   void initState() {
     super.initState();
-    // 1. FORCE LANDSCAPE ORIENTATION & FULLSCREEN
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
+
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     _audioPlayer = AudioPlayer();
+
+    // --- NEW: Listen for when the intro audio finishes playing ---
+    _audioPlayer.onPlayerComplete.listen((event) {
+      if (mounted && _isIntroPlaying) {
+        setState(() {
+          _isIntroPlaying = false; // Hide Kiki and show the game!
+        });
+      }
+    });
+
     _initGame();
+    _playIntro(); // Start the intro sequence
+  }
+
+  Future<void> _playIntro() async {
+    try {
+      // Ensure the path matches where you placed soft&hard_intro&tutorial.wav in your assets folder
+      await _audioPlayer.play(
+        AssetSource('audio/discovery_lagoon/soft&hard_intro&tutorial.wav'),
+      );
+    } catch (e) {
+      debugPrint("Error playing intro audio: $e");
+      // Fallback just in case the audio fails to load, so the game isn't stuck
+      if (mounted) {
+        setState(() => _isIntroPlaying = false);
+      }
+    }
   }
 
   void _initGame() {
@@ -165,12 +192,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   @override
   void dispose() {
     _audioPlayer.dispose();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -283,12 +305,40 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
               ),
             ),
 
+          if (_isIntroPlaying)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(
+                  0.5,
+                ), // Dims the background slightly
+                // Align to the bottom and push down by 50% of the image's height
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: FractionalTranslation(
+                    translation: const Offset(0.0, 0.2),
+                    child: Image.asset(
+                      'assets/images/characters/kiki_the_cat.png',
+                      height: sh * 1, // Your adjusted height
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           // F. GOOD JOB VICTORY OVERLAY (Appears once all 8 items are sorted!)
           if (_isGameWon)
             GoodJobOverlay(
               characterImage: 'assets/images/characters/kiki_tryagain.png',
               closeButtonColor: Colors.orange,
-              onNext: () => Navigator.of(context).pop(),
+              onNext: () async {
+                // Mark Level 5 as complete to unlock Level 6
+                await LagoonProgressService.instance.markLevelComplete(5);
+                if (context.mounted) {
+                  // Pop back to the Level Selection Screen
+                  Navigator.of(context).pop();
+                }
+              },
               onRestart: () {
                 setState(() {
                   _isGameWon = false;

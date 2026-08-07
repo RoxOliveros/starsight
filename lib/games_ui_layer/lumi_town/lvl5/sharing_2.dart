@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
@@ -131,10 +132,7 @@ class _Sharing2State extends State<Sharing2> {
   }
 
   Future<void> _lockOrientationThenStartEntrance() async {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.landscapeLeft,
-    ]);
+    OrientationService.setLandscape();
 
     await WidgetsBinding.instance.endOfFrame;
     await Future.delayed(const Duration(milliseconds: 250));
@@ -151,12 +149,7 @@ class _Sharing2State extends State<Sharing2> {
     _cancelBtnTimer?.cancel();
     _audioPlayer.dispose();
 
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     super.dispose();
   }
 

@@ -1,4 +1,8 @@
-import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/listening_game.dart';
+import 'package:StarSight/games_ui_layer/goodjob_prompt.dart'
+    hide GoodJobOverlay;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -49,10 +53,7 @@ class _PerfumeGameState extends State<PerfumeGame> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.landscapeLeft,
-    ]);
+    OrientationService.setLandscape();
 
     _startAudioSequence();
   }
@@ -301,12 +302,7 @@ class _PerfumeGameState extends State<PerfumeGame> {
   }
 
   Future<void> _exitLevel() async {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     if (!mounted) return;
     Navigator.of(context).maybePop();
   }
@@ -863,8 +859,15 @@ class _PerfumeGameState extends State<PerfumeGame> {
             GoodJobOverlay(
               characterImage: 'assets/images/characters/kiki_tryagain.png',
               closeButtonColor: const Color(0xFF266589),
-              onNext: () {
-                _exitLevel();
+              onNext: () async {
+                // Mark Level 2 as complete to unlock Level 3
+                await LagoonProgressService.instance.markLevelComplete(2);
+                if (context.mounted) {
+                  // Jump to Level 3 (Listening)
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const ListeningGame()),
+                  );
+                }
               },
               onRestart: () {
                 Navigator.of(context).pushReplacement(

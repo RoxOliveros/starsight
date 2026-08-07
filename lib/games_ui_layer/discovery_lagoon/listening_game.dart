@@ -1,4 +1,7 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/catching_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -56,10 +59,7 @@ class _ListeningGameState extends State<ListeningGame> {
   void initState() {
     super.initState();
     // 1. FORCE LANDSCAPE ORIENTATION[cite: 7]
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
 
     // 2. ENABLE TRUE IMMERSIVE FULLSCREEN (Hides system status & navigation bars)[cite: 7]
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -252,12 +252,7 @@ class _ListeningGameState extends State<ListeningGame> {
   @override
   void dispose() {
     _audioPlayer.dispose();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -360,19 +355,25 @@ class _ListeningGameState extends State<ListeningGame> {
             ),
           ],
 
-          // F. GOOD JOB OVERLAY LAYER (Appears after winning!)[cite: 8]
+          // F. GOOD JOB OVERLAY LAYER (Appears after winning!)
           if (_currentPhase == GamePhase.goodJob)
             GoodJobOverlay(
-              characterImage:
-                  'assets/images/characters/kiki_tryagain.png', // Using kiki_tryagain!
-              closeButtonColor: Colors.orange, // Change color if desired!
-              onNext: () {
-                // Navigate to your next level here!
-                Navigator.of(context).pop();
+              characterImage: 'assets/images/characters/kiki_tryagain.png',
+              closeButtonColor: Colors.orange,
+              onNext: () async {
+                // Mark Level 3 as complete to unlock Level 4
+                await LagoonProgressService.instance.markLevelComplete(3);
+                if (context.mounted) {
+                  // Jump to Level 4 (Catching)
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => const CatchingGameScreen(),
+                    ),
+                  );
+                }
               },
-              onRestart: _restartGame, // Restarts the listening game!
+              onRestart: _restartGame,
               onBack: () {
-                // Navigate back to menu here!
                 Navigator.of(context).pop();
               },
             ),

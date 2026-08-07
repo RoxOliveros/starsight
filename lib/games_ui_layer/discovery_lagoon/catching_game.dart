@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/soft_hard_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -112,10 +115,8 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   void initState() {
     super.initState();
     // 1. FORCE LANDSCAPE ORIENTATION & FULLSCREEN
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
+
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     // 2. SETUP AUDIO & START INTRO
@@ -471,12 +472,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   void dispose() {
     _gameLoopController.dispose();
     _audioPlayer.dispose();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -682,8 +678,17 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
               GoodJobOverlay(
                 characterImage: 'assets/images/characters/kiki_tryagain.png',
                 closeButtonColor: Colors.orange,
-                onNext: () {
-                  Navigator.of(context).pop();
+                onNext: () async {
+                  // Mark Level 4 as complete to unlock Level 5
+                  await LagoonProgressService.instance.markLevelComplete(4);
+                  if (context.mounted) {
+                    // Jump to Level 5 (Soft & Hard)
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (_) => const SoftHardGameScreen(),
+                      ),
+                    );
+                  }
                 },
                 onRestart: _restartGame,
                 onBack: () {
