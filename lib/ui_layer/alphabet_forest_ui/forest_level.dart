@@ -6,9 +6,12 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_acorn_basket.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_apple_tree.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_berry_bush_harvest.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_butterfly_flower.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_catterpillar_letter_match.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_fishing.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_letter_fireflies.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_letter_match.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_mushroom_hidenseek.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_paw_print.dart';
@@ -398,11 +401,11 @@ class _LevelTile extends StatelessWidget {
       case 19:
         return const CaterpillarLetterMatchGame(level: 19);
       case 20:
-        return null;
+        return const AlphabetAppleTreeGame(level: 20);
       case 21:
-        return null;
+        return const LetterFirefliesGame(level: 21);
       case 22:
-        return null;
+        return const AlphabetFishingGame(level: 22);
       case 23:
         return null;
       case 24:

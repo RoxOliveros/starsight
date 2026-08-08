@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/arctic_numberland/number_introduction_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -11,6 +12,7 @@ import '../../ui_layer/loading_screen.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
+import 'forest_game_apple_tree.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -302,8 +304,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
-              // TODO: fix nav
-              MaterialPageRoute(builder: (_) => AlphabetIntroScreen(letter: 'A')),
+              MaterialPageRoute(builder: (_) => AlphabetAppleTreeGame(level: 20)),
             );
           },
           onRestart: () {
