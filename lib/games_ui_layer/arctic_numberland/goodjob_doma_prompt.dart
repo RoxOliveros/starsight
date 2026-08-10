@@ -95,110 +95,156 @@ class _DomaGoodJobOverlayState extends State<DomaGoodJobOverlay>
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fadeAnim,
-      child: Container(
-        width: double.infinity,
-        height: double.infinity,
-        // Semi-transparent dark overlay so game background shows through
-        color: Colors.black.withValues(alpha: 0.45),
-        child: Stack(
-          children: [
-            Positioned(
-              top: 50,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: ScaleTransition(
-                    scale: _bannerScale,
-                    child: const _ArcedGoodJobBanner(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Fall back to MediaQuery if this widget is given unbounded/loose
+        // constraints (e.g. wrapped in a Stack without explicit size).
+        final mq = MediaQuery.of(context).size;
+        final double screenWidth =
+        constraints.maxWidth.isFinite ? constraints.maxWidth : mq.width;
+        final double screenHeight =
+        constraints.maxHeight.isFinite ? constraints.maxHeight : mq.height;
+
+        // Use the shorter side so layout stays sane in both portrait and
+        // landscape, and on tablets/desktop as well as phones.
+        final double shortestSide =
+        screenWidth < screenHeight ? screenWidth : screenHeight;
+
+        // Reference: a 390pt-wide phone is "1.0" scale. Clamp so things
+        // don't get comically small on tiny screens or huge on tablets.
+        final double scale = (shortestSide / 390).clamp(0.7, 1.6);
+
+        // ── Responsive metrics ────────────────────────────────────────
+        final double bannerWidth =
+        (550 * scale).clamp(220.0, screenWidth * 0.9);
+        final double bannerTop =
+        (screenHeight * 0.06).clamp(24.0, 70.0);
+
+        final double characterHeight =
+        (350 * scale).clamp(160.0, screenHeight * 0.42);
+        final double characterTop =
+        (screenHeight * 0.11).clamp(60.0, 130.0);
+
+        final double actionButtonSize =
+        (88 * scale).clamp(56.0, 120.0);
+        final double edgeMargin =
+        (screenWidth * 0.08).clamp(16.0, 48.0);
+        final double bottomMargin =
+        (screenHeight * 0.035).clamp(16.0, 44.0);
+
+        final double closeButtonSize =
+        (48 * scale).clamp(38.0, 58.0);
+        final double closeButtonInset =
+        (12 * scale).clamp(10.0, 22.0);
+
+        return FadeTransition(
+          opacity: _fadeAnim,
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            // Semi-transparent dark overlay so game background shows through
+            color: Colors.black.withValues(alpha: 0.45),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: bannerTop,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 8 * scale),
+                      child: ScaleTransition(
+                        scale: _bannerScale,
+                        child: _ArcedGoodJobBanner(width: bannerWidth),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            Positioned(
-              top: 90,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: AnimatedBuilder(
-                  animation: _charBounceCtrl,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(0, _charBounce.value),
-                    child: child,
-                  ),
-                  child: ScaleTransition(
-                    scale: _charScale,
-                    child: _buildCharacter(),
+                Positioned(
+                  top: characterTop,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: _charBounceCtrl,
+                      builder: (_, child) => Transform.translate(
+                        offset: Offset(0, _charBounce.value * scale),
+                        child: child,
+                      ),
+                      child: ScaleTransition(
+                        scale: _charScale,
+                        child: _buildCharacter(characterHeight),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            // ── Restart button — bottom left ──────────────────────────
-            Positioned(
-              bottom: 28,
-              left: 32,
-              child: _ImageButton(
-                imagePath: 'assets/images/buttons/restart.png',
-                onTap: widget.onRestart,
-                size: 88,
-                tooltip: 'Restart',
-              ),
-            ),
+                // ── Restart button — bottom left ──────────────────────
+                Positioned(
+                  bottom: bottomMargin,
+                  left: edgeMargin,
+                  child: _ImageButton(
+                    imagePath: 'assets/images/buttons/restart.png',
+                    onTap: widget.onRestart,
+                    size: actionButtonSize,
+                    tooltip: 'Restart',
+                  ),
+                ),
 
-            // ── Next button — bottom right ────────────────────────────
-            Positioned(
-              bottom: 28,
-              right: 32,
-              child: _ImageButton(
-                imagePath: 'assets/images/buttons/next.png',
-                onTap: widget.onNext,
-                size: 88,
-                tooltip: 'Next Level',
-              ),
-            ),
+                // ── Next button — bottom right ────────────────────────
+                Positioned(
+                  bottom: bottomMargin,
+                  right: edgeMargin,
+                  child: _ImageButton(
+                    imagePath: 'assets/images/buttons/next.png',
+                    onTap: widget.onNext,
+                    size: actionButtonSize,
+                    tooltip: 'Next Level',
+                  ),
+                ),
 
-            // ── X (Back) button — top left ────────────────────────────
-            Positioned(
-              top: 16,
-              left: 16,
-              child: _CloseButton(
-                onTap: widget.onBack,
-                color: widget.closeButtonColor,
-              ),
+                // ── X (Back) button — top left ────────────────────────
+                Positioned(
+                  top: closeButtonInset,
+                  left: closeButtonInset,
+                  child: _CloseButton(
+                    onTap: widget.onBack,
+                    color: widget.closeButtonColor,
+                    size: closeButtonSize,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildCharacter() {
+  Widget _buildCharacter(double height) {
     return Image.asset(
       widget.characterImage,
-      height: 350,
+      height: height,
       fit: BoxFit.contain,
       errorBuilder: (_, __, ___) =>
-          const Icon(Icons.pets, size: 120, color: Colors.white),
+          Icon(Icons.pets, size: height * 0.34, color: Colors.white),
     );
   }
 }
 
 // ── Arced "GOOD JOB!" banner ──────────────────────────────────────────────────
 
-// WITH this:
 class _ArcedGoodJobBanner extends StatelessWidget {
-  const _ArcedGoodJobBanner();
+  final double width;
+
+  const _ArcedGoodJobBanner({required this.width});
 
   @override
   Widget build(BuildContext context) {
     return Image.asset(
       'assets/images/goodjob.png',
-      width: 550,
+      width: width,
       fit: BoxFit.contain,
     );
   }
@@ -209,29 +255,38 @@ class _ArcedGoodJobBanner extends StatelessWidget {
 class _CloseButton extends StatelessWidget {
   final VoidCallback onTap;
   final Color color;
+  final double size;
 
-  const _CloseButton({required this.onTap, required this.color});
+  const _CloseButton({
+    required this.onTap,
+    required this.color,
+    required this.size,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 48,
-        height: 48,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 3),
+          border: Border.all(color: Colors.white, width: size * 0.06),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+              blurRadius: size * 0.17,
+              offset: Offset(0, size * 0.06),
             ),
           ],
         ),
-        child: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+        child: Icon(
+          Icons.close_rounded,
+          color: Colors.white,
+          size: size * 0.5,
+        ),
       ),
     );
   }

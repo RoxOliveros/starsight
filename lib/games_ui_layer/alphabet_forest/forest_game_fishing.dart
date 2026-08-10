@@ -106,12 +106,13 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _rodImage = 'assets/images/objects/forest/rod.png';
   static const String _fishImage = 'assets/images/objects/forest/fish.png';
+  static const String _rodFishImage = 'assets/images/objects/forest/rod_fish.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _sfxBase = ForestAudioAssets.sfxBase;
 
   static const String _audioIntro = '$_audioBase/alphabet_fishing_intro.wav';
-  static const String _audioCatchPrefix = '$_audioBase/alphabet_fishing_catch_prefix.wav';
+  static const String _audioCatch = '$_audioBase/alphabet_fishing_catch.wav';
   static const String _audioWin = '$_audioBase/alphabet_fishing_win.wav';
 
   static const String _sfxCatch = '$_sfxBase/fish_catch_splash.wav';
@@ -161,6 +162,10 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   bool _rodInitialized = false;
 
   double _rodSize = 0;
+
+  double _pondW = 0;
+  double _pondH = 0;
+  static const double _pondTopOffset = 190; // matches the Padding below
 
   /// The actual hook/catch point is near the lower-right corner
   /// of the rod PNG.
@@ -249,11 +254,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     await _announceInstruction();
   }
 
-  /// Plays "Catch the letter ___!" — a shared lead-in clip followed by the
-  /// existing per-letter clip. Also used to replay the instruction when the
-  /// child taps the banner, at any point in the game.
   Future<void> _announceInstruction() async {
-    await playVoice(_audioCatchPrefix);
+    await playVoice(_audioCatch);
     if (!mounted) return;
     await playVoice(ForestAudioAssets.forLetter(_targetLetter));
   }
@@ -276,13 +278,15 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
     _rodInitialized = false;
 
-    _sceneEnterCtrl.forward(from: 0);
-    _instructionCtrl.forward(from: 0);
+    if (isFirstRound) {
+      _sceneEnterCtrl.forward(from: 0);   // ← only pop-in on round 1
+    }
 
     setState(() {});
-    // NOTE: deliberately no automatic instruction/voice playback here for
-    // rounds after the first — see the audio-timing rule in the intro flow
-    // and _handleCorrectAnswer. The banner remains tappable at all times.
+
+    if (!isFirstRound) {
+      _announceInstruction();             // ← play "Catch the letter ___!" each new round
+    }
   }
 
   // ═════════════════════════════════════════════════════════════════════
@@ -324,10 +328,6 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     }
   }
 
-  /// Rejection-samples fractional lane centers within the pond area so fish
-  /// don't spawn stacked on each other, staying clear of the target-letter
-  /// and instruction-banner zone up top. Falls back to whatever it has
-  /// after a bounded number of tries rather than looping forever.
   List<Offset> _generateLanes(int count, Random rng) {
     final lanes = <Offset>[];
     final minDist = max(0.16, 0.32 - 0.02 * count);
@@ -336,7 +336,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
       Offset candidate = Offset.zero;
       for (int attempt = 0; attempt < 20; attempt++) {
         candidate = Offset(
-          0.18 + rng.nextDouble() * 0.64,
+          0.30 + rng.nextDouble() * 0.52,
           0.20 + rng.nextDouble() * 0.68,
         );
         final farEnough = lanes.every((l) => (l - candidate).distance >= minDist);
@@ -345,20 +345,6 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
       lanes.add(candidate);
     }
     return lanes;
-  }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // GAMEPLAY
-  // ═════════════════════════════════════════════════════════════════════
-
-  Future<void> _handleFishTap(_FishData fish, int index) async {
-    if (_interactionLocked || fish.caught) return;
-
-    if (fish.letter == _targetLetter) {
-      await _handleCorrectAnswer(fish, index);
-    } else {
-      await _handleWrongAnswer(fish, index);
-    }
   }
 
   // ═════════════════════════════════════════════════════════════════════
@@ -441,6 +427,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
+                //TODO: @Tin fix nav
                 builder: (_) => AlphabetIntroScreen(letter: 'A'),
               ),
             );
@@ -470,11 +457,9 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
     _rodSize = min(h * 0.58, 260.0);
 
-    // Initial position of the rod.
-    // This is the TOP-LEFT corner of the PNG.
     _rodPosition = Offset(
-      w * 0.55,
-      h * 0.02,
+      w - _rodSize * 1.3,
+      -_rodSize * 1,
     );
 
     _rodInitialized = true;
@@ -483,10 +468,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   }
 
   void _updateRodHookPoint() {
-    // The hook in the supplied rod image is approximately
-    // at the lower-right portion of the square PNG.
     _rodHookPoint = _rodPosition + Offset(
-      _rodSize * 0.95,
+      _rodSize * 0.05,
       _rodSize * 0.91,
     );
   }
@@ -495,10 +478,10 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     if (_interactionLocked) return;
 
     final newX = (_rodPosition.dx + delta.dx)
-        .clamp(-_rodSize * 0.1, w - _rodSize * 0.85);
+        .clamp(-_rodSize * 0.85, w - _rodSize * 0.15);
 
     final newY = (_rodPosition.dy + delta.dy)
-        .clamp(-_rodSize * 0.5, h - _rodSize * 0.75);
+        .clamp(-_rodSize * 0.85, h - _rodSize * 0.15);
 
     setState(() {
       _rodPosition = Offset(newX, newY);
@@ -644,12 +627,15 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
                 ),
                 child: Image.asset(
                   _dogImage,
-                  height: screenH * 0.72,
+                  height: screenH * 0.60,
                   errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 80)),
                 ),
               ),
               const SizedBox(width: 120),
-              const Text('🎣', style: TextStyle(fontSize: 90)),
+              Image.asset(
+                _rodFishImage,
+                height: screenH * 0.60,
+              ),
             ],
           ),
         ),
@@ -669,9 +655,15 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   Widget _buildGameUI() {
     return LayoutBuilder(
       builder: (context, constraints) {
+        const progressDotsHeight = 26.0; // dot height + vertical padding
+        _pondW = constraints.maxWidth;
+        _pondH = (constraints.maxHeight - _pondTopOffset - progressDotsHeight)
+            .clamp(0.0, double.infinity);
+
         return ScaleTransition(
           scale: _sceneEnter,
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
               const Positioned(top: 25, left: 20, child: ForestBackButton()),
               Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
@@ -698,9 +690,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
                 child: Column(
                   children: [
                     Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, inner) => _buildPond(inner.maxWidth, inner.maxHeight),
-                      ),
+                      child: _buildPond(_pondW, _pondH), // no inner LayoutBuilder
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -709,6 +699,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
                   ],
                 ),
               ),
+
+              _buildDraggableRod(_pondW, _pondH),
             ],
           ),
         );
@@ -727,75 +719,29 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Water surface, lower/middle of the play area.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: h * 0.82,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    ForestColorTheme.seagreen.withValues(alpha: 0.18),
-                    ForestColorTheme.darkseagreen.withValues(alpha: 0.32),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Decorative, non-interactive lily pads and reeds around the edges.
-          Positioned(left: w * 0.03, bottom: h * 0.05, child: const Text('🌿', style: TextStyle(fontSize: 34))),
-          Positioned(right: w * 0.04, bottom: h * 0.08, child: const Text('🌾', style: TextStyle(fontSize: 30))),
-          Positioned(left: w * 0.1, top: h * 0.12, child: const Text('🍃', style: TextStyle(fontSize: 22))),
-          Positioned(right: w * 0.12, top: h * 0.08, child: const Text('🍂', style: TextStyle(fontSize: 22))),
-          const Positioned(left: 24, bottom: 18, child: _LilyPad(size: 46)),
-          const Positioned(right: 40, bottom: 30, child: _LilyPad(size: 36)),
-
-          // Slow-rising bubbles, purely decorative.
+          // Slow-rising bubbles
           for (int i = 0; i < 4; i++) _buildBubble(i, w, h),
 
-          // The fish themselves, on top of the decorations.
-          for (int i = 0; i < _fish.length; i++) _buildFish(_fish[i], i, w, h),
-
-          _buildDraggableRod(w, h),
+          // Fish
+          for (int i = 0; i < _fish.length; i++)
+            _buildFish(_fish[i], i, w, h),
         ],
       ),
     );
   }
 
-  Widget _buildDraggableRod(
-      double w,
-      double h,
-      ) {
+  Widget _buildDraggableRod(double w, double h) {
     _initializeRod(w, h);
 
     return Positioned(
       left: _rodPosition.dx,
-      top: _rodPosition.dy,
+      top: _rodPosition.dy + _pondTopOffset, // shift into outer Stack's coords
       width: _rodSize,
       height: _rodSize,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-
-        onPanUpdate: (details) {
-          _moveRod(
-            details.delta,
-            w,
-            h,
-          );
-        },
-
-        child: Image.asset(
-          _rodImage,
-          width: _rodSize,
-          height: _rodSize,
-          fit: BoxFit.contain,
-        ),
+        onPanUpdate: (details) => _moveRod(details.delta, w, h),
+        child: Image.asset(_rodImage, width: _rodSize, height: _rodSize, fit: BoxFit.contain),
       ),
     );
   }
@@ -885,9 +831,6 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
             ? _shakeAnims[index].value
             : 0.0;
 
-        final flip =
-        direction < 0 ? -1.0 : 1.0;
-
         final fishX =
             (fish.startX + swimOffset) * w -
                 size / 2;
@@ -903,12 +846,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
           height: size,
           child: Transform.rotate(
             angle: angle,
-            child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity()
-                ..scale(flip, 1.0),
-              child: child,
-            ),
+            child: child,
           ),
         );
       },
@@ -1110,84 +1048,4 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
       }),
     );
   }
-}
-
-// ═════════════════════════════════════════════════════════════════════════
-// DECORATIVE HELPERS
-// ═════════════════════════════════════════════════════════════════════════
-
-/// A simple painted lily pad — purely decorative, non-interactive.
-class _LilyPad extends StatelessWidget {
-  final double size;
-  const _LilyPad({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: CustomPaint(
-        size: Size(size, size),
-        painter: _LilyPadPainter(),
-      ),
-    );
-  }
-}
-
-class _LilyPadPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()..color = ForestColorTheme.mediumseagreen.withValues(alpha: 0.85),
-    );
-
-    // A simple notch wedge to read as a classic lily-pad shape.
-    final notch = Path()
-      ..moveTo(center.dx, center.dy)
-      ..lineTo(center.dx + radius, center.dy - radius * 0.15)
-      ..lineTo(center.dx + radius, center.dy + radius * 0.15)
-      ..close();
-    canvas.drawPath(notch, Paint()..color = ForestColorTheme.darkseagreen.withValues(alpha: 0.4));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// A simple painted fish body (oval + tail triangle) — no art asset needed.
-class _FishPainter extends CustomPainter {
-  final Color bodyColor;
-  const _FishPainter({required this.bodyColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = bodyColor;
-    final bodyRect = Rect.fromLTWH(size.width * 0.18, 0, size.width * 0.68, size.height);
-    canvas.drawOval(bodyRect, paint);
-
-    final tailPath = Path()
-      ..moveTo(size.width * 0.18, size.height * 0.1)
-      ..lineTo(0, size.height * 0.5)
-      ..lineTo(size.width * 0.18, size.height * 0.9)
-      ..close();
-    canvas.drawPath(tailPath, paint);
-
-    // Simple eye for personality.
-    canvas.drawCircle(
-      Offset(size.width * 0.78, size.height * 0.38),
-      size.height * 0.08,
-      Paint()..color = Colors.white,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.80, size.height * 0.38),
-      size.height * 0.04,
-      Paint()..color = Colors.black87,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _FishPainter oldDelegate) => oldDelegate.bodyColor != bodyColor;
 }
