@@ -11,6 +11,7 @@ import '../../ui_layer/loading_screen.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
+import 'forest_game_letter_treehouse.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -347,9 +348,8 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
-              //TODO: @Tin fix nav
               MaterialPageRoute(
-                builder: (_) => const AlphabetIntroScreen(letter: 'A'),
+                builder: (_) => const LetterTreehouseGame(level: 24),
               ),
             );
           },

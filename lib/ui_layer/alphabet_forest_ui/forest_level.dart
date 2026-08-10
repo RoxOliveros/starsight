@@ -13,6 +13,7 @@ import '../../games_ui_layer/alphabet_forest/forest_game_catterpillar_letter_mat
 import '../../games_ui_layer/alphabet_forest/forest_game_fishing.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_letter_fireflies.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_letter_match.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_letter_treehouse.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_mushroom_hidenseek.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_paw_print.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_stick_letter_builder.dart';
@@ -410,7 +411,7 @@ class _LevelTile extends StatelessWidget {
       case 23:
         return const AlphabetTrainGame(level: 23);
       case 24:
-        return null;
+        return const LetterTreehouseGame(level: 24);
 
       // TODO: @Tin forest ending game
       case 25:
