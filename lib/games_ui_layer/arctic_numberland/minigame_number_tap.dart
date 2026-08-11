@@ -1,7 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import 'arctic_game_ui.dart';
 
 /// A "tap N of the correct object, avoid the decoys" mini-game.
 /// Fully self-contained — plug it into any NumberLevelConfig via
@@ -18,6 +20,7 @@ class TapObjectMiniGame extends StatefulWidget {
   final int decoyCount;
   final AudioPlayer player;
   final VoidCallback onComplete;
+  final int level;
 
   const TapObjectMiniGame({
     super.key,
@@ -31,6 +34,7 @@ class TapObjectMiniGame extends StatefulWidget {
     this.decoyCount = 1,
     required this.player,
     required this.onComplete,
+    required this.level,
   });
 
   @override
@@ -39,19 +43,32 @@ class TapObjectMiniGame extends StatefulWidget {
 
 class _TapObjectMiniGameState extends State<TapObjectMiniGame>
     with TickerProviderStateMixin {
-  static const List<Offset> _slotGrid = [
-    Offset(0.60, 0.26),
-    Offset(0.82, 0.26),
-    Offset(0.60, 0.52),
-    Offset(0.82, 0.52),
-    Offset(0.60, 0.78),
-    Offset(0.82, 0.78),
-  ];
-
   late List<_ObjectSlot> _objectSlots;
   int _tappedTargets = 0;
   int? _wrongSlotId;
   bool _roundWon = false;
+
+  final Random _random = Random();
+
+  List<Offset> _generateSlotGrid(int count) {
+    final cols = sqrt(count).ceil().clamp(1, count);
+    final rows = (count / cols).ceil();
+    final cellW = 0.40 / cols;   // objects live in right ~40% of width
+    final cellH = 0.62 / rows;   // matches ice-path game's vertical band
+    final positions = <Offset>[];
+    for (int r = 0; r < rows; r++) {
+      for (int c = 0; c < cols; c++) {
+        if (positions.length >= count) break;
+        final jitterX = (_random.nextDouble() - 0.5) * cellW * 0.3;
+        final jitterY = (_random.nextDouble() - 0.5) * cellH * 0.3;
+        positions.add(Offset(
+          (0.58 + c * cellW + cellW / 2 + jitterX).clamp(0.55, 0.96),
+          (0.20 + r * cellH + cellH / 2 + jitterY).clamp(0.20, 0.85),
+        ));
+      }
+    }
+    return positions;
+  }
 
   late AnimationController _objectWiggleCtrl;
 
@@ -75,8 +92,8 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
   }
 
   void _generateObjectSlots() {
-    final total = (widget.targetCount + widget.decoyCount).clamp(1, _slotGrid.length);
-    final positions = List<Offset>.from(_slotGrid)..shuffle(Random());
+    final total = widget.targetCount + widget.decoyCount;
+    final positions = _generateSlotGrid(total)..shuffle(_random);
     final slots = <_ObjectSlot>[];
     for (int i = 0; i < total; i++) {
       final isTarget = i < widget.targetCount;
@@ -129,15 +146,20 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final h = constraints.maxHeight;
-        final objSize = (h * 0.28).clamp(72.0, 120.0);
+        final objSize = (h * 0.28 / (sqrt(widget.targetCount + widget.decoyCount) * 0.6)).clamp(48.0, 120.0);
 
         return Stack(
           children: [
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Center(child: _buildBanner(h)),
+            Padding(
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+              child: Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  Align(alignment: Alignment.topLeft, child: ArcticBackButton()),
+                  Align(alignment: Alignment.topRight, child: ArcticLevelBadge(level: widget.level)),
+                  Align(alignment: Alignment.topCenter, child: _buildBanner(h)),
+                ],
+              ),
             ),
             ..._objectSlots.map((slot) => _buildObjectSlot(slot, w, h, objSize)),
           ],

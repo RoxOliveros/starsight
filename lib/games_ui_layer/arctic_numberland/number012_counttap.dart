@@ -572,6 +572,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
           MaterialPageRoute(
             builder: (_) => NumberIntroductionScreen.forSequence(
               [3, 4, 5],
+              level: 5,
               nextScreen: Number345CountingObjectsScreen(level: widget.level + 1),
             ),
           ),

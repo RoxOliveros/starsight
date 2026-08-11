@@ -156,8 +156,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                 children: [
                   // --- HEADER ---
                   Padding(
-                    padding: const EdgeInsets.only(
-                        left: 20, right: 20, top: 25),
+                    padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
                     child: Stack(
                       alignment: Alignment.topCenter,
                       children: [

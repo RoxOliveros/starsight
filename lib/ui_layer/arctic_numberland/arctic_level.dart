@@ -278,16 +278,6 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
               },
             ),
           ),
-          // Positioned(
-          //   bottom: 15,
-          //   right: 15,
-          //   child: Lottie.asset(
-          //     'assets/animations/movie_clapperboard.json',
-          //     width: 60,
-          //     height: 60,
-          //     errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-          //   ),
-          // ),
         ],
       ),
     );
@@ -310,10 +300,11 @@ class _LevelTile extends StatelessWidget {
   Widget? _screenForLevel() {
     switch (level) {
 
-      //TODO: @Tin update 1-3 intro here
+      //TODO: @Tin update 1-2 intro here
       case 1:
         return NumberIntroductionScreen.forSequence(
           [0, 1, 2],
+          level: 1,
           nextScreen: const Number012RecognitionScreen(level: 2),
         );
 
@@ -324,9 +315,11 @@ class _LevelTile extends StatelessWidget {
       case 4:
         return const Number012TapCountScreen(level: 4);
 
+      //TODO: @Tin update 3-5 intro here
       case 5:
         return NumberIntroductionScreen.forSequence(
           [3, 4, 5],
+          level: 5,
           nextScreen: const Number345CountingObjectsScreen(level: 6),
         );
 

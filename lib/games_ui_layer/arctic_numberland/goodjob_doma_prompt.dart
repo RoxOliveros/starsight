@@ -121,7 +121,7 @@ class _DomaGoodJobOverlayState extends State<DomaGoodJobOverlay>
         (screenHeight * 0.06).clamp(24.0, 70.0);
 
         final double characterHeight =
-        (350 * scale).clamp(160.0, screenHeight * 0.42);
+        (350 * scale);
         final double characterTop =
         (screenHeight * 0.11).clamp(60.0, 130.0);
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import 'arctic_game_ui.dart';
 
 const String kDefaultTracingSuccessAudio = 'assets/audio/arctic_numberland/mahusay.wav';
 
@@ -119,12 +121,14 @@ class NumberTracingWidget extends StatefulWidget {
   final AudioPlayer player;
   final VoidCallback onComplete;
   final String successAudio;
+  final int level;
 
   const NumberTracingWidget({
     super.key,
     required this.number,
     required this.player,
     required this.onComplete,
+    required this.level,
     this.successAudio = kDefaultTracingSuccessAudio,
   });
 
@@ -153,16 +157,16 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 
   Widget _buildTracingLayer(double w, double h) {
     final caneSize = h * 0.14;
-    final numberSize = h * 0.75;
+    final numberSize = h * 0.70;
     final traceW = numberSize * 0.78;
     final traceH = numberSize;
     final traceLeft = w / 2 - traceW / 2;
-    final traceTop = h / 2 - traceH / 2 + 15;
+    final traceTop = h / 2 - traceH / 2 + 20;
 
     final containerW = traceW;        // CHANGED — container now bigger than traceW, not smaller
     final containerH = traceH * 0.85;        // CHANGED — container now bigger than traceH, not smaller
     final containerLeft = w / 2 - containerW / 2;
-    final containerTop = h / 2 - containerH / 2 + 15;
+    final containerTop = h / 2 - containerH / 2 + 20;
 
     final numberOffsetX = 0.0;   // ADD — positive moves number right, negative moves left
     final numberOffsetY = 0.0;   // ADD — positive moves number down, negative moves up
@@ -199,10 +203,17 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
           ),
 
         Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: Center(child: _buildBanner(h)),
+          left: 20,
+          right: 20,
+          top: 25,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+              Align(alignment: Alignment.centerRight, child: ArcticLevelBadge(level: widget.level)),
+              Center(child: _buildBanner(h)),
+            ],
+          ),
         ),
 
         Positioned(
