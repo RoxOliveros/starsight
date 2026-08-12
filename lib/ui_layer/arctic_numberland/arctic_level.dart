@@ -300,7 +300,7 @@ class _LevelTile extends StatelessWidget {
   Widget? _screenForLevel() {
     switch (level) {
 
-      //TODO: @Tin update 1-2 intro here
+      //1-2 intro here
       case 1:
         return NumberIntroductionScreen.forSequence(
           [0, 1, 2],
@@ -315,7 +315,7 @@ class _LevelTile extends StatelessWidget {
       case 4:
         return const Number012TapCountScreen(level: 4);
 
-      //TODO: @Tin update 3-5 intro here
+      //3-5 intro here
       case 5:
         return NumberIntroductionScreen.forSequence(
           [3, 4, 5],
@@ -336,9 +336,13 @@ class _LevelTile extends StatelessWidget {
       case 11:
         return const Number1to5MatchSnowglobesScreen(level: 11);
 
-      //TODO: @Tin add 6-8 intro here
+      //6-8 intro here
       case 12:
-        return null;
+        return NumberIntroductionScreen.forSequence(
+          [6, 7, 8],
+          level: 12,
+          nextScreen: const PenguinLineWalkGame(level: 13),
+        );
 
       case 13:
         return const PenguinLineWalkGame(level: 13);
@@ -347,9 +351,13 @@ class _LevelTile extends StatelessWidget {
       case 15:
         return const BuildSnowmanGame(level: 15);
 
-      //TODO: @Tin add 9-10 intro here
+      //9-10 intro here
       case 16:
-        return null;
+        return NumberIntroductionScreen.forSequence(
+          [9, 10],
+          level: 16,
+          nextScreen: const NumberMemoryMatchGame(level: 17),
+        );
 
       case 17:
         return const NumberMemoryMatchGame(level: 17);

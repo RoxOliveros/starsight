@@ -114,6 +114,24 @@ const Map<int, List<List<Offset>>> kNumberStrokes = {
       Offset(0.5, 0.8),
     ],
   ],
+  10: [                              // NEW
+    // "1" — left digit
+    [
+      Offset(0.18, 0.3),
+      Offset(0.28, 0.2),
+      Offset(0.28, 0.8),
+    ],
+    // "0" — right digit
+    [
+      Offset(0.65, 0.2),
+      Offset(0.48, 0.3),
+      Offset(0.48, 0.7),
+      Offset(0.65, 0.8),
+      Offset(0.82, 0.7),
+      Offset(0.82, 0.3),
+      Offset(0.65, 0.2),
+    ],
+  ],
 };
 
 class NumberTracingWidget extends StatefulWidget {
