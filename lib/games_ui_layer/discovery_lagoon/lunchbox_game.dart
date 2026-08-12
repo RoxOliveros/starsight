@@ -1,13 +1,126 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart'; // Ensure audioplayers is in your pubspec.yaml
 
-// --- Data Model for the freehand drawing ---
+// ==========================================
+// DATA MODELS
+// ==========================================
+
+/// Data Model for the freehand drawing
 class SauceStroke {
   final String sauceId;
   final List<Offset> points;
 
   SauceStroke({required this.sauceId, required this.points});
 }
+
+// ==========================================
+// INTRO SCREEN
+// ==========================================
+
+class LunchboxGameIntro extends StatefulWidget {
+  const LunchboxGameIntro({Key? key}) : super(key: key);
+
+  @override
+  State<LunchboxGameIntro> createState() => _LunchboxGameIntroState();
+}
+
+class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  void initState() {
+    super.initState();
+    OrientationService.setLandscape();
+    _playIntroAudio();
+
+    // Listen for the audio to finish playing, then automatically start the game
+    _audioPlayer.onPlayerComplete.listen((event) {
+      if (mounted) {
+        _startGame();
+      }
+    });
+  }
+
+  Future<void> _playIntroAudio() async {
+    // Plays the audio file from your assets folder
+    await _audioPlayer.play(
+      AssetSource('audio/discovery_lagoon/lunchboxgame_intro.wav'),
+    );
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    OrientationService.setLandscape();
+    super.dispose();
+  }
+
+  void _startGame() {
+    _audioPlayer.stop();
+    // Navigate to the main LunchboxGame screen, which is in this same file
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LunchboxGame()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenWidth = constraints.maxWidth;
+          final screenHeight = constraints.maxHeight;
+
+          return Stack(
+            children: [
+              // 1. Background (Rainbow Lagoon)
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/backgrounds/bg_rainbow_lagoon.png',
+                  fit: BoxFit.cover,
+                ),
+              ),
+
+              // 2. Kiki (Left Side - Scaled up and pushed down)
+              Positioned(
+                bottom:
+                    -screenHeight * 0.15, // Changed from -0.35 to bring her up
+                left:
+                    screenWidth *
+                    0.02, // Changed from 0.12 to push her closer to the left edge
+                child: Image.asset(
+                  'assets/images/characters/kiki_the_cat.png',
+                  height: screenHeight * 1.00,
+                  fit: BoxFit.contain,
+                ),
+              ),
+
+              // 3. Roxie (Right Side - Scaled up and pushed down)
+              Positioned(
+                bottom:
+                    -screenHeight * 0.15, // Changed from -0.35 to bring her up
+                right:
+                    screenWidth *
+                    0.02, // Changed from 0.12 to push her closer to the right edge
+                child: Image.asset(
+                  'assets/images/characters/roxie_standing.png',
+                  height: screenHeight * 1.00,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ==========================================
+// MAIN GAME SCREEN
+// ==========================================
 
 class LunchboxGame extends StatefulWidget {
   const LunchboxGame({Key? key}) : super(key: key);
@@ -704,6 +817,10 @@ class _LunchboxGameState extends State<LunchboxGame> {
     );
   }
 }
+
+// ==========================================
+// SHARED WIDGETS
+// ==========================================
 
 /// A reusable widget to stack draggable food items on top of the static plate graphic
 class PlateWithFood extends StatelessWidget {
