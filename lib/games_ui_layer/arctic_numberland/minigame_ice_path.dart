@@ -13,7 +13,6 @@ class IceNumberPathGame extends StatefulWidget {
   final VoidCallback onComplete;
   final int level;
 
-  /// Optional custom voice line for this round (e.g. "Help the penguin find 1!").
   final String instructionAudio;
 
   const IceNumberPathGame({
@@ -52,7 +51,7 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
 
   late AnimationController _penguinMoveCtrl;
   Animation<Offset>? _penguinMoveAnim;
-  Offset _penguinPos = const Offset(0.05, 0.85); // start bottom-left
+  Offset _penguinPos = const Offset(0.10, 0.90);
 
   late AnimationController _penguinCelebrateCtrl;
   late Animation<double> _penguinCelebrateScale;
@@ -90,6 +89,14 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
   }
 
   Future<void> _playInstruction() async {
+    await widget.player.stop();
+    try {
+      await widget.player.play(
+        AssetSource('audio/arctic_numberland/ice_path_instruction.wav'),
+      );
+      await widget.player.onPlayerComplete.first;
+    } catch (_) {}
+
     if (widget.instructionAudio.isEmpty) return;
     try {
       await widget.player.play(
@@ -102,7 +109,7 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
     _sequence = [for (int n = widget.minNumber; n <= widget.maxNumber; n++) n];
     _currentIndex = 0;
     _roundWon = false;
-    _penguinPos = const Offset(0.05, 0.85);
+    _penguinPos = const Offset(0.10, 0.90);
     _icePaths = _generateNonOverlappingIcePaths(_sequence);
   }
 
@@ -113,7 +120,7 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
 
     final cellW = 1.0 / cols;
     final cellH = 0.62 / rows;
-    const topMargin = 0.16;
+    const topMargin = 0.24;
 
     final cells = <Point<int>>[
       for (int r = 0; r < rows; r++)
@@ -128,7 +135,7 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
       final jitterY = (_random.nextDouble() - 0.5) * cellH * 0.4;
       final x = (cell.x * cellW + cellW / 2 + jitterX).clamp(0.06, 0.94);
       final y = (topMargin + cell.y * cellH + cellH / 2 + jitterY)
-          .clamp(topMargin, topMargin + 0.62);
+          .clamp(topMargin, topMargin + 0.54);
       return _IcePath(number: shuffledNumbers[i], pos: Offset(x, y));
     });
   }
@@ -153,17 +160,17 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
     await _penguinMoveCtrl.forward(from: 0);
     setState(() => _penguinPos = icePath.pos);
 
-    try {
-      await widget.player.play(AssetSource('audio/sound_effects/bubble_pop.wav'));
-      await widget.player.play(AssetSource('audio/arctic_numberland/${icePath.number}.wav'));
-      await widget.player.onPlayerComplete.first;
-    } catch (_) {}
-
     if (_currentIndex + 1 >= _sequence.length) {
       await _winRound();
     } else {
       setState(() => _currentIndex++);
     }
+
+    try {
+      await widget.player.play(AssetSource('audio/sound_effects/bubble_pop.wav'));
+      await widget.player.play(AssetSource('audio/arctic_numberland/${icePath.number}.wav'));
+      await widget.player.onPlayerComplete.first;
+    } catch (_) {}
   }
 
   void _handleWrong(_IcePath icePath) {
@@ -260,7 +267,7 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
             ],
           ),
           child: Text(
-            _roundWon ? 'Great job!' : 'Help the penguin find $_target!',
+            _roundWon ? 'Great job!' : 'Help Doma go to $_target!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
               fontSize: 20,

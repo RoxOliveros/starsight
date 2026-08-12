@@ -10,37 +10,12 @@ import 'arctic_game_ui.dart';
 import 'goodjob_doma_prompt.dart';
 import 'minigame_ice_path.dart';
 import 'minigame_number_tap.dart';
-import 'minigame_snowflakes.dart';
+import 'minigame_snowflake.dart';
 import 'number_tracing_widget.dart';
 
 // ═════════════════════════════════════════════════════════════════════════
 // CONFIG
 // ═════════════════════════════════════════════════════════════════════════
-
-/// Data every mini-game needs to know what "correct" looks like for this
-/// number — pop, sort, match, drag, whatever you build later all read from
-/// the same struct instead of getting a hand-wired constructor call.
-class NumberObjectSet {
-  final String correctObjectAsset;
-  final String correctObjectEmoji;
-  final List<String> decoyObjectAssets;
-  final String decoyObjectEmoji;
-  final int targetCount;
-  final int decoyCount;
-  final String instructionText;
-  final String instructionAudio;
-
-  const NumberObjectSet({
-    required this.correctObjectAsset,
-    required this.correctObjectEmoji,
-    required this.decoyObjectAssets,
-    required this.decoyObjectEmoji,
-    required this.targetCount,
-    this.decoyCount = 0,
-    required this.instructionText,
-    this.instructionAudio = '',
-  });
-}
 
 /// The shape every number mini-game widget builder must match.
 typedef NumberMiniGameBuilder =
@@ -76,26 +51,28 @@ class _MiniGameRotator {
 final List<NumberMiniGameBuilder> kNumberMiniGames = [
       ({required number, required numberWord, required objects, required player, required onComplete, required level}) =>
       TapObjectMiniGame(
-        instructionText: objects.instructionText,
-        instructionAudio: objects.instructionAudio,
-        correctObjectAsset: objects.correctObjectAsset,
-        correctObjectEmoji: objects.correctObjectEmoji,
-        decoyObjectAssets: objects.decoyObjectAssets,
-        decoyObjectEmoji: objects.decoyObjectEmoji,
-        targetCount: objects.targetCount,
-        decoyCount: objects.decoyCount,
-        player: player,
-        onComplete: onComplete,
-        level: level
+          instructionText: objects.instructionText,
+          instructionAudio: objects.instructionAudio,
+          targetCountAudio: objects.targetCountAudio,    // NEW
+          targetObjectAudio: objects.targetObjectAudio,
+          correctObjectAsset: objects.correctObjectAsset,
+          correctObjectEmoji: objects.correctObjectEmojis,
+          decoyObjectAssets: objects.decoyObjectAssets,
+          decoyObjectEmojis: objects.decoyObjectEmoji,
+          targetCount: objects.targetCount,
+          decoyCount: objects.decoyCount,
+          player: player,
+          onComplete: onComplete,
+          level: level
       ),
 
       ({required number, required numberWord, required objects, required player, required onComplete, required level}) =>
       PenguinSnowflakesMiniGame(
-        number: number,
-        player: player,
-        onComplete: onComplete,
-        instructionAudio: objects.instructionAudio,
-        level: level
+          number: number,
+          player: player,
+          onComplete: onComplete,
+          instructionAudio: objects.instructionAudio,
+          level: level
       ),
 
       ({required number, required numberWord, required objects, required player, required onComplete, required level}) =>
@@ -108,6 +85,45 @@ final List<NumberMiniGameBuilder> kNumberMiniGames = [
         level: level,
       ),
 ];
+
+// ─────────────────────────────────────────────────────────────────────────
+// Object pool — every arctic object used across the mini-games lives here
+// once, so numbers just reference it by id instead of re-typing asset
+// paths, emojis, and labels every time.
+// ─────────────────────────────────────────────────────────────────────────
+
+class ArcticObjectAsset {
+  final String id;
+  final String singularLabel;
+  final String pluralLabel;
+  final String emoji;
+  final String assetPath;
+
+  const ArcticObjectAsset({
+    required this.id,
+    required this.singularLabel,
+    required this.pluralLabel,
+    required this.emoji,
+  }) : assetPath = 'assets/images/objects/arctic/$id.png';
+}
+
+const Map<String, ArcticObjectAsset> kArcticObjectPool = {
+  'igloo': ArcticObjectAsset(id: 'igloo', singularLabel: 'Igloo', pluralLabel: 'Igloos', emoji: '🏠'),
+  'candy_cane': ArcticObjectAsset(id: 'candy_cane', singularLabel: 'Candy Cane', pluralLabel: 'Candy Canes', emoji: '🍬'),
+  'snowglobe': ArcticObjectAsset(id: 'snowglobe', singularLabel: 'Snow Globe', pluralLabel: 'Snow Globes', emoji: '🔮'),
+  'ice_1': ArcticObjectAsset(id: 'ice', singularLabel: 'Ice', pluralLabel: 'Ice', emoji: '🧊'),
+  'icecream': ArcticObjectAsset(id: 'icecream', singularLabel: 'Ice Cream', pluralLabel: 'Ice Creams', emoji: '🍦'),
+  'sled': ArcticObjectAsset(id: 'sled', singularLabel: 'Sled', pluralLabel: 'Sleds', emoji: '🛷'),
+  'snowball': ArcticObjectAsset(id: 'snowball', singularLabel: 'Snowball', pluralLabel: 'Snowballs', emoji: '⚪️'),
+  'snowflake': ArcticObjectAsset(id: 'snowflake', singularLabel: 'Snowflake', pluralLabel: 'Snowflakes', emoji: '❄️'),
+  'snowman': ArcticObjectAsset(id: 'snowman', singularLabel: 'Snowman', pluralLabel: 'Snowmen', emoji: '⛄'),
+};
+
+ArcticObjectAsset _obj(String id) {
+  final a = kArcticObjectPool[id];
+  assert(a != null, 'No ArcticObjectAsset registered for id "$id" — add it to kArcticObjectPool');
+  return a!;
+}
 
 class NumberLevelConfig {
   final int number;
@@ -134,108 +150,222 @@ class NumberLevelConfig {
   });
 }
 
+const String _kAudioDir = 'assets/audio/arctic_numberland';
+
+String _audioPath(String name) => '$_kAudioDir/$name.wav';
+
+NumberLevelConfig _buildConfig({
+  required int number,
+  required String numberWord,
+  required int levelId,
+  NumberObjectSet? objects,
+  String? introAudioOverride,
+  String? numberRevealAudioOverride,
+  String? writeAudioOverride,
+  String? correctTapAudioOverride,
+}) {
+  final wordKey = numberWord.toLowerCase();
+  return NumberLevelConfig(
+    number: number,
+    numberWord: numberWord,
+    levelId: levelId,
+    introAudio: introAudioOverride ?? _audioPath('${wordKey}_intro'),
+    numberRevealAudio: numberRevealAudioOverride ?? _audioPath('${wordKey}_know'),
+    writeAudio: writeAudioOverride ?? _audioPath('${wordKey}_write'),
+    correctTapAudio: correctTapAudioOverride ?? _audioPath('$number'),
+    objects: objects,
+  );
+}
+
+class NumberObjectSet {
+  final String correctObjectAsset;
+  final String correctObjectEmojis;
+  final List<String> decoyObjectAssets;
+  final List<String> decoyObjectEmoji;
+  final int targetCount;
+  final int decoyCount;
+  final String instructionText;
+  final String instructionAudio;
+  final String targetCountAudio;   // NEW
+  final String targetObjectAudio;  // NEW
+
+  const NumberObjectSet({
+    required this.correctObjectAsset,
+    required this.correctObjectEmojis,
+    required this.decoyObjectAssets,
+    required this.decoyObjectEmoji,
+    required this.targetCount,
+    this.decoyCount = 0,
+    required this.instructionText,
+    this.instructionAudio = '',
+    this.targetCountAudio = '',    // NEW
+    this.targetObjectAudio = '',   // NEW
+  });
+}
+
+NumberObjectSet _buildObjects({
+  required String numberWord,
+  required String correctObjectId,
+  required List<String> decoyObjectIds,
+  required int targetCount,
+  int? decoyCount,
+  String? instructionTextOverride,
+  String? instructionAudioOverride,
+}) {
+  final correct = _obj(correctObjectId);
+  final decoys = decoyObjectIds.map(_obj).toList();
+  assert(decoys.isNotEmpty, 'decoyObjectIds must have at least one entry');
+
+  final wordKey = numberWord.toLowerCase();
+  final label = targetCount == 1 ? correct.singularLabel : correct.pluralLabel;
+
+  return NumberObjectSet(
+    instructionText: instructionTextOverride ?? 'Tap $numberWord $label!',
+    instructionAudio: instructionAudioOverride ??
+        _audioPath('${wordKey}_click_$correctObjectId'),
+    targetCountAudio: _audioPath('$targetCount'),        // NEW
+    targetObjectAudio: _audioPath(correctObjectId),
+    correctObjectAsset: correct.assetPath,
+    correctObjectEmojis: correct.emoji,
+    decoyObjectAssets: decoys.map((d) => d.assetPath).toList(),
+    decoyObjectEmoji: decoys.map((d) => d.emoji).toList(),
+    targetCount: targetCount,
+    decoyCount: decoyCount ?? targetCount,
+  );
+}
+
+
 final Map<int, NumberLevelConfig> kNumberLevels = {
-  0: const NumberLevelConfig(
+  0: _buildConfig(
     number: 0,
     numberWord: 'ZERO',
     levelId: 1,
-    introAudio: 'assets/audio/arctic_numberland/zero_intro.wav',
-    numberRevealAudio: 'assets/audio/arctic_numberland/zero_know.wav',
-    writeAudio: 'assets/audio/arctic_numberland/zero_write.wav',
-    correctTapAudio: 'assets/audio/arctic_numberland/0.wav',
+    // zero has no tap mini-game, so objects stays null
   ),
-  1: NumberLevelConfig(
+  1: _buildConfig(
     number: 1,
     numberWord: 'ONE',
     levelId: 2,
-    introAudio: 'assets/audio/arctic_numberland/one_intro.wav',
-    numberRevealAudio: 'assets/audio/arctic_numberland/one_know.wav',
-    writeAudio: 'assets/audio/arctic_numberland/one_write.wav',
-    correctTapAudio: 'assets/audio/arctic_numberland/1.wav',
-    objects: const NumberObjectSet(
-      instructionText: 'Tap ONE Snowman!',
-      instructionAudio: 'assets/audio/arctic_numberland/one_click_snowman.wav',
-      correctObjectAsset: 'assets/images/objects/arctic/snowman.png',
-      correctObjectEmoji: '⛄',
-      decoyObjectAssets: ['assets/images/objects/arctic/icecream.png'],
-      decoyObjectEmoji: '🍦',
+    objects: _buildObjects(
+      numberWord: 'ONE',
+      correctObjectId: 'snowman',
+      decoyObjectIds: ['icecream'],
       targetCount: 1,
+      decoyCount: 0,
+      instructionAudioOverride: '',
     ),
   ),
-  2: NumberLevelConfig(
+  2: _buildConfig(
     number: 2,
     numberWord: 'TWO',
     levelId: 3,
-    introAudio: 'assets/audio/arctic_numberland/two_intro.wav',
-    numberRevealAudio: 'assets/audio/arctic_numberland/two_know.wav',
-    writeAudio: 'assets/audio/arctic_numberland/two_write.wav',
-    correctTapAudio: 'assets/audio/arctic_numberland/2.wav',
-    objects: const NumberObjectSet(
-      instructionText: 'Tap TWO Ice Cream!',
-      instructionAudio: 'assets/audio/arctic_numberland/two_click_icecream.wav',
-      correctObjectAsset: 'assets/images/objects/arctic/icecream.png',
-      correctObjectEmoji: '🍦',
-      decoyObjectAssets: ['assets/images/objects/arctic/snowman.png'],
-      decoyObjectEmoji: '⛄',
+    objects: _buildObjects(
+      numberWord: 'TWO',
+      correctObjectId: 'icecream',
+      decoyObjectIds: ['snowman'],
       targetCount: 2,
-      decoyCount: 2,
+      instructionAudioOverride: '',
     ),
   ),
-  3: NumberLevelConfig(
+  3: _buildConfig(
     number: 3,
     numberWord: 'THREE',
     levelId: 4,
-    introAudio: 'assets/audio/arctic_numberland/three_intro.wav',
-    numberRevealAudio: 'assets/audio/arctic_numberland/three_know.wav',
-    writeAudio: 'assets/audio/arctic_numberland/three_write.wav',
-    correctTapAudio: 'assets/audio/arctic_numberland/3.wav',
-    objects: const NumberObjectSet(
-      instructionText: 'Tap THREE Trees!',
-      instructionAudio: '',
-      correctObjectAsset: 'assets/images/objects/arctic/snowy_tree.png',
-      correctObjectEmoji: '🌲',
-      decoyObjectAssets: ['assets/images/objects/arctic/sled.png'],
-      decoyObjectEmoji: '🛷',
+    objects: _buildObjects(
+      numberWord: 'THREE',
+      correctObjectId: 'snowman',
+      decoyObjectIds: ['sled'],
       targetCount: 3,
-      decoyCount: 3,
+      instructionAudioOverride: '',
     ),
   ),
-  4: NumberLevelConfig(
+  4: _buildConfig(
     number: 4,
     numberWord: 'FOUR',
     levelId: 5,
-    introAudio: 'assets/audio/arctic_numberland/four_intro.wav',
-    numberRevealAudio: 'assets/audio/arctic_numberland/four_know.wav',
-    writeAudio: 'assets/audio/arctic_numberland/four_write.wav',
-    correctTapAudio: 'assets/audio/arctic_numberland/4.wav',
-    objects: const NumberObjectSet(
-      instructionText: 'Tap FOUR Snowballs!',
-      instructionAudio: '',
-      correctObjectAsset: 'assets/images/objects/arctic/snowball.png',
-      correctObjectEmoji: '⚪️',
-      decoyObjectAssets: ['assets/images/objects/arctic/ice_1.png'],
-      decoyObjectEmoji: '🧊',
+    objects: _buildObjects(
+      numberWord: 'FOUR',
+      correctObjectId: 'snowball',
+      decoyObjectIds: ['ice_1'],
       targetCount: 4,
-      decoyCount: 4,
+      instructionAudioOverride: '',
     ),
   ),
-  5: NumberLevelConfig(
+  5: _buildConfig(
     number: 5,
     numberWord: 'FIVE',
     levelId: 6,
-    introAudio: 'assets/audio/arctic_numberland/five_intro.wav',
-    numberRevealAudio: 'assets/audio/arctic_numberland/five_know.wav',
-    writeAudio: 'assets/audio/arctic_numberland/five_write.wav',
-    correctTapAudio: 'assets/audio/arctic_numberland/5.wav',
-    objects: const NumberObjectSet(
-      instructionText: 'Tap FIVE Hats!',
-      instructionAudio: '',
-      correctObjectAsset: 'assets/images/objects/arctic/winter_hat.png',
-      correctObjectEmoji: '⚪️',
-      decoyObjectAssets: ['assets/images/objects/arctic/candy_cane.png'],
-      decoyObjectEmoji: '🍬',
+    objects: _buildObjects(
+      numberWord: 'FIVE',
+      correctObjectId: 'snowflake',
+      decoyObjectIds: ['candy_cane'],
       targetCount: 5,
-      decoyCount: 5,
+      instructionAudioOverride: '',
+    ),
+  ),
+  6: _buildConfig(
+    number: 6,
+    numberWord: 'SIX',
+    levelId: 7,
+    numberRevealAudioOverride: '',
+    objects: _buildObjects(
+      numberWord: 'SIX',
+      correctObjectId: 'igloo',
+      decoyObjectIds: ['sled'],
+      targetCount: 6,
+      instructionAudioOverride: '',
+    ),
+  ),
+  7: _buildConfig(
+    number: 7,
+    numberWord: 'SEVEN',
+    levelId: 8,
+    numberRevealAudioOverride: '',
+    objects: _buildObjects(
+      numberWord: 'SEVEN',
+      correctObjectId: 'candy_cane',
+      decoyObjectIds: ['icecream', 'snowball'],
+      targetCount: 7,
+      instructionAudioOverride: '',
+    ),
+  ),
+  8: _buildConfig(
+    number: 8,
+    numberWord: 'EIGHT',
+    levelId: 9,
+    numberRevealAudioOverride: '',
+    objects: _buildObjects(
+      numberWord: 'EIGHT',
+      correctObjectId: 'snowflake',
+      decoyObjectIds: ['ice_1', 'snowglobe'],
+      targetCount: 8,
+      instructionAudioOverride: '',
+    ),
+  ),
+  9: _buildConfig(
+    number: 9,
+    numberWord: 'NINE',
+    levelId: 10,
+    numberRevealAudioOverride: '',
+    objects: _buildObjects(
+      numberWord: 'NINE',
+      correctObjectId: 'snowglobe',
+      decoyObjectIds: ['snowball', 'sled'],
+      targetCount: 9,
+      instructionAudioOverride: '',
+    ),
+  ),
+  10: _buildConfig(
+    number: 10,
+    numberWord: 'TEN',
+    levelId: 11,
+    numberRevealAudioOverride: '',
+    objects: _buildObjects(
+      numberWord: 'TEN',
+      correctObjectId: 'igloo',
+      decoyObjectIds: ['sled', 'snowman'],
+      targetCount: 10,
+      instructionAudioOverride: '',
     ),
   ),
 };
@@ -302,6 +432,8 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
   // Tap mini-game state
   bool _showWinDialog = false;
   bool _isCompletingLevel = false;
+
+  int? _miniGameIndex;
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _domaSlideCtrl;
@@ -385,19 +517,29 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
     if (!mounted) return;
     _domaSlideCtrl.forward(from: 0);
 
-    _setIntroPhase(_IntroPhase.playingIntro);
-    await _playAudio(_config.introAudio);
-    if (!mounted) return;
+    final hasRevealAudio = _config.numberRevealAudio.isNotEmpty;
 
-    _setIntroPhase(_IntroPhase.playingReveal);
-    _numberPopCtrl.forward(from: 0);
-    _numberDanceCtrl.repeat(reverse: true);
-    await Future.delayed(const Duration(milliseconds: 1500));
-    if (!mounted) return;
-    await _playAudio(_config.numberRevealAudio);
-    if (!mounted) return;
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
+    if (hasRevealAudio) {
+      _setIntroPhase(_IntroPhase.playingIntro);
+      await _playAudio(_config.introAudio);
+      if (!mounted) return;
+
+      _setIntroPhase(_IntroPhase.playingReveal);
+      _numberPopCtrl.forward(from: 0);
+      _numberDanceCtrl.repeat(reverse: true);
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
+      await _playAudio(_config.numberRevealAudio);
+      if (!mounted) return;
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+    } else {
+      _setIntroPhase(_IntroPhase.playingReveal);
+      _numberPopCtrl.forward(from: 0);
+      _numberDanceCtrl.repeat(reverse: true);
+      await _playAudio(_config.introAudio);
+      if (!mounted) return;
+    }
 
     _setIntroPhase(_IntroPhase.listening);
     _numberDanceCtrl.stop();
@@ -433,11 +575,13 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       _introPhase = _IntroPhase.domaEntering;
       _miniGamePhase = _MiniGamePhase.tracing;
       _isCompletingLevel = false;
+      _miniGameIndex = null;
     });
     _startIntroFlow();
   }
 
   Future<void> _playAudio(String asset) async {
+    if (asset.isEmpty) return;
     if (!mounted) return;
     try {
       final completer = Completer<void>();
@@ -679,9 +823,12 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                   player: _player,
                   onComplete: () {
                     if (_config.objects != null) {
-                      setState(() => _miniGamePhase = _MiniGamePhase.tapping);
+                      setState(() {
+                        _miniGamePhase = _MiniGamePhase.tapping;
+                        _miniGameIndex = _miniGameRotator.next(); // ← pick once here
+                      });
                     } else {
-                      _completeLevel(); // ← this fires for 0, since objects is null
+                      _completeLevel();
                     }
                   },
                   level: widget.level,
@@ -696,7 +843,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                     size: h * 0.3,
                   ),
                 ),
-                kNumberMiniGames[_miniGameRotator.next()](
+                kNumberMiniGames[_miniGameIndex!](
                   number: _config.number,
                   numberWord: _config.numberWord,
                   objects: _config.objects!,
@@ -725,9 +872,15 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
         }
       },
       onRestart: () {
-        Navigator.pop(
+        Navigator.pushReplacement(
           context,
-          NumberIntroductionScreen(configs: widget.configs, nextScreen: widget.nextScreen, level: widget.level),
+          MaterialPageRoute(
+            builder: (_) => NumberIntroductionScreen(
+              configs: widget.configs,
+              nextScreen: widget.nextScreen,
+              level: widget.level,
+            ),
+          ),
         );
       },
       onBack: () {
@@ -753,22 +906,25 @@ class _NumberCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardWidth = number == 10 ? size * 2 : size;
     return SizedBox(
-      width: size,
+      width: cardWidth,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Image.asset(
-            'assets/fonts/game_numbers/$number.png',
-            width: size,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Text(
-              '$number',
-              style: TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: size * 0.75,
-                fontWeight: FontWeight.bold,
-                color: ArcticColorTheme.pictonblue,
+          Center(
+            child: Image.asset(
+              'assets/fonts/game_numbers/$number.png',
+              width: cardWidth,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Text(
+                '$number',
+                style: TextStyle(
+                  fontFamily: ArcticAppTextStyles.fredoka,
+                  fontSize: size * 0.75,
+                  fontWeight: FontWeight.bold,
+                  color: ArcticColorTheme.pictonblue,
+                ),
               ),
             ),
           ),

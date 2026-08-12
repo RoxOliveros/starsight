@@ -80,7 +80,16 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   }
 
   Future<void> _playInstruction() async {
+    await widget.player.stop();
+    try {
+      await widget.player.play(
+        AssetSource('audio/arctic_numberland/snowflake_instruction.wav'),
+      );
+      await widget.player.onPlayerComplete.first;
+    } catch (_) {}
+
     if (widget.instructionAudio.isEmpty) return;
+    if (!mounted) return;
     try {
       await widget.player.play(
         AssetSource(widget.instructionAudio.replaceFirst('assets/', '')),
@@ -134,6 +143,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   Future<void> _handleDelivery(int id) async {
     if (_roundWon) return;
 
+    if (!mounted) return;
     setState(() {
       _flakes.removeWhere((f) => f.id == id);
       _delivered++;
@@ -145,12 +155,14 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
       await widget.player.onPlayerComplete.first;
     } catch (_) {}
 
+    if (!mounted) return;
     if (_delivered >= widget.number) {
       await _winRound();
     }
   }
 
   Future<void> _winRound() async {
+    if (!mounted) return;
     setState(() => _roundWon = true);
     _spawnTimer?.cancel();
     _gameTimer?.cancel();
@@ -160,9 +172,9 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
       await widget.player.play(
         AssetSource('audio/arctic_numberland/mahusay.wav'),
       );
+      await widget.player.onPlayerComplete.first;
     } catch (_) {}
-
-    await Future.delayed(const Duration(milliseconds: 900));
+    await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) widget.onComplete();
   }
 

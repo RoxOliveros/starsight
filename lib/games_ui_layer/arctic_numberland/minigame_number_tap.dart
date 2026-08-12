@@ -4,18 +4,17 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'arctic_game_ui.dart';
+import 'dart:async';
 
-/// A "tap N of the correct object, avoid the decoys" mini-game.
-/// Fully self-contained — plug it into any NumberLevelConfig via
-/// miniGameBuilder, or write a different mini-game widget with the same
-/// {player, onComplete} shape and swap it in instead.
 class TapObjectMiniGame extends StatefulWidget {
   final String instructionText;
   final String instructionAudio;
+  final String targetCountAudio;
+  final String targetObjectAudio;
   final String correctObjectAsset;
   final String correctObjectEmoji;
   final List<String> decoyObjectAssets;
-  final String decoyObjectEmoji;
+  final List<String> decoyObjectEmojis;
   final int targetCount;
   final int decoyCount;
   final AudioPlayer player;
@@ -26,10 +25,12 @@ class TapObjectMiniGame extends StatefulWidget {
     super.key,
     required this.instructionText,
     required this.instructionAudio,
+    this.targetCountAudio = '',    // NEW
+    this.targetObjectAudio = '',
     required this.correctObjectAsset,
     this.correctObjectEmoji = '⭐',
     required this.decoyObjectAssets,
-    this.decoyObjectEmoji = '❔',
+    this.decoyObjectEmojis = const ['❔'],
     required this.targetCount,
     this.decoyCount = 1,
     required this.player,
@@ -49,12 +50,13 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
   bool _roundWon = false;
 
   final Random _random = Random();
+  final AudioPlayer _sfxPlayer = AudioPlayer();
 
   List<Offset> _generateSlotGrid(int count) {
     final cols = sqrt(count).ceil().clamp(1, count);
     final rows = (count / cols).ceil();
-    final cellW = 0.40 / cols;   // objects live in right ~40% of width
-    final cellH = 0.62 / rows;   // matches ice-path game's vertical band
+    final cellW = 0.60 / cols;   // objects live in right ~60% of width now
+    final cellH = 0.62 / rows;
     final positions = <Offset>[];
     for (int r = 0; r < rows; r++) {
       for (int c = 0; c < cols; c++) {
@@ -62,8 +64,8 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
         final jitterX = (_random.nextDouble() - 0.5) * cellW * 0.3;
         final jitterY = (_random.nextDouble() - 0.5) * cellH * 0.3;
         positions.add(Offset(
-          (0.58 + c * cellW + cellW / 2 + jitterX).clamp(0.55, 0.96),
-          (0.20 + r * cellH + cellH / 2 + jitterY).clamp(0.20, 0.85),
+          (0.38 + c * cellW + cellW / 2 + jitterX).clamp(0.35, 0.98),
+          (0.28 + r * cellH + cellH / 2 + jitterY).clamp(0.28, 0.90),
         ));
       }
     }
@@ -75,6 +77,7 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
   @override
   void initState() {
     super.initState();
+    _sfxPlayer.setReleaseMode(ReleaseMode.stop);
     _objectWiggleCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -84,19 +87,24 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
   }
 
   Future<void> _playInstruction() async {
+    await widget.player.stop();
     try {
-      await widget.player.play(
-        AssetSource(widget.instructionAudio.replaceFirst('assets/', '')),
-      );
+      if (widget.targetCountAudio.isNotEmpty) {
+        await _playAndWait(widget.player, widget.targetCountAudio.replaceFirst('assets/', ''));
+      }
+      if (!mounted) return;
+      if (widget.targetObjectAudio.isNotEmpty) {
+        await _playAndWait(widget.player, widget.targetObjectAudio.replaceFirst('assets/', ''));
+      }
     } catch (_) {}
   }
 
   void _generateObjectSlots() {
-    final total = widget.targetCount + widget.decoyCount;
+    final total = (widget.targetCount + widget.decoyCount).clamp(1, 16);
     final positions = _generateSlotGrid(total)..shuffle(_random);
     final slots = <_ObjectSlot>[];
     for (int i = 0; i < total; i++) {
-      final isTarget = i < widget.targetCount;
+      final isTarget = i < widget.targetCount.clamp(0, total);
       slots.add(_ObjectSlot(
         id: i,
         pos: positions[i],
@@ -104,10 +112,26 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
         asset: isTarget
             ? widget.correctObjectAsset
             : widget.decoyObjectAssets[i % widget.decoyObjectAssets.length],
-        emoji: isTarget ? widget.correctObjectEmoji : widget.decoyObjectEmoji,
+        emoji: isTarget
+            ? widget.correctObjectEmoji
+            : widget.decoyObjectEmojis[i % widget.decoyObjectEmojis.length],
       ));
     }
     _objectSlots = slots;
+  }
+
+  Future<void> _playAndWait(AudioPlayer player, String assetPath) async {
+    if (!mounted) return;
+    final completer = Completer<void>();
+    final sub = player.onPlayerComplete.listen((_) {
+      if (!completer.isCompleted) completer.complete();
+    });
+    try {
+      await player.play(AssetSource(assetPath));
+      await completer.future;
+    } finally {
+      await sub.cancel();
+    }
   }
 
   Future<void> _onSlotTapped(_ObjectSlot slot) async {
@@ -119,13 +143,23 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
         _tappedTargets++;
       });
       try {
-        await widget.player.play(
-          AssetSource('audio/arctic_numberland/pop.wav'),
-        );
+        await _sfxPlayer.stop();
+        if (!mounted) return;
+        try {
+          await _playAndWait(_sfxPlayer, 'audio/sound_effects/bubble_pop.wav');
+          if (!mounted) return;
+          await _playAndWait(_sfxPlayer, 'audio/arctic_numberland/$_tappedTargets.wav');
+        } catch (_) {}
       } catch (_) {}
+      if (!mounted) return;
       if (_tappedTargets >= widget.targetCount) {
         setState(() => _roundWon = true);
-        widget.onComplete();
+        try {
+          await widget.player.play(AssetSource('audio/arctic_numberland/mahusay.wav'));
+          await widget.player.onPlayerComplete.first;
+        } catch (_) {}
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (mounted) widget.onComplete();
       }
     } else {
       setState(() => _wrongSlotId = slot.id);
@@ -137,6 +171,7 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
   @override
   void dispose() {
     _objectWiggleCtrl.dispose();
+    _sfxPlayer.dispose();
     super.dispose();
   }
 
@@ -146,8 +181,7 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final h = constraints.maxHeight;
-        final objSize = (h * 0.28 / (sqrt(widget.targetCount + widget.decoyCount) * 0.6)).clamp(48.0, 120.0);
-
+        final objSize = (h * 0.38 / (sqrt(widget.targetCount + widget.decoyCount) * 0.6)).clamp(72.0, 160.0);
         return Stack(
           children: [
             Padding(
@@ -197,8 +231,8 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
   }
 
   Widget _buildObjectSlot(_ObjectSlot slot, double w, double h, double objSize) {
-    final left = (slot.pos.dx * w - objSize / 2).clamp(w * 0.55, w - objSize);
-    final top = (slot.pos.dy * h - objSize / 2).clamp(h * 0.22, h - objSize);
+    final left = (slot.pos.dx * w - objSize / 2).clamp(w * 0.35, w - objSize);
+    final top = (slot.pos.dy * h - objSize / 2).clamp(h * 0.28, h - objSize);
     final wrong = _wrongSlotId == slot.id;
 
     return Positioned(
