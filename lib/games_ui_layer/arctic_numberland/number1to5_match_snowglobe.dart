@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
+import 'package:StarSight/games_ui_layer/arctic_numberland/penguin_line_walk.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -11,6 +12,7 @@ import '../../ui_layer/loading_screen.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'number_introduction_screen.dart';
 
 class Number1to5MatchSnowglobesScreen extends StatefulWidget {
   final int level;
@@ -714,15 +716,16 @@ class _Number1to5MatchSnowglobesScreenState
       characterImage: _characterImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        //TODO: @Tin navigation after number intro is done
-        // onNext: () {
-        //   Navigator.pushReplacement(
-        //     context,
-        //     MaterialPageRoute(
-        //       builder: (_) => (level: widget.level + 1),
-        //     ),
-        //   );
-        // },
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NumberIntroductionScreen.forSequence(
+              [6, 7, 8],
+              level: 12,
+              nextScreen: const PenguinLineWalkGame(level: 13),
+            ),
+          ),
+        );
       },
       onRestart: () {
         Navigator.pop(context, Number1to5MatchSnowglobesScreen(level: widget.level));

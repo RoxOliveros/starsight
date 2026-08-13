@@ -12,6 +12,8 @@ import 'arctic_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'number_introduction_screen.dart';
+import 'number_memory_match.dart';
 
 class BuildSnowmanGame extends StatefulWidget {
   final int level;
@@ -579,15 +581,16 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: @Tin navigate after number intro is done
-        // onNext: () {
-        //   Navigator.pushReplacement(
-        //     context,
-        //     MaterialPageRoute(
-        //       builder: (_) => (level: widget.level + 1),
-        //     ),
-        //   );
-        // },
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NumberIntroductionScreen.forSequence(
+              [9, 10],
+              level: 16,
+              nextScreen: const NumberMemoryMatchGame(level: 17),
+            ),
+          ),
+        );
       },
       onRestart: () {
         setState(() {

@@ -881,7 +881,10 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         if (widget.nextScreen != null) {
-          Navigator.pop(context, widget.nextScreen);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => widget.nextScreen!),
+          );
         } else {
           Navigator.pop(context);
         }
