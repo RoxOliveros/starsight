@@ -79,7 +79,7 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
               // 1. Background (Rainbow Lagoon)
               Positioned.fill(
                 child: Image.asset(
-                  'assets/images/backgrounds/bg_rainbow_lagoon.png',
+                  'assets/images/backgrounds/bg_rainbow_closeup2.png',
                   fit: BoxFit.cover,
                 ),
               ),
@@ -181,7 +181,7 @@ class _LunchboxGameUnhealthyEndingState
               // 1. Background (Rainbow Lagoon)
               Positioned.fill(
                 child: Image.asset(
-                  'assets/images/backgrounds/bg_rainbow_lagoon.png',
+                  'assets/images/backgrounds/bg_rainbow_closeup2.png',
                   fit: BoxFit.cover,
                 ),
               ),
@@ -327,7 +327,7 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
               // 1. Background (Rainbow Lagoon)
               Positioned.fill(
                 child: Image.asset(
-                  'assets/images/backgrounds/bg_rainbow_lagoon.png',
+                  'assets/images/backgrounds/bg_rainbow_closeup2.png',
                   fit: BoxFit.cover,
                 ),
               ),
