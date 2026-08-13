@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
+import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl8_whats_missing.dart';
+import 'whats_missing.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -57,31 +60,28 @@ class _SizeItem {
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class Lvl7SizeSortScreen extends StatefulWidget {
-  const Lvl7SizeSortScreen({super.key});
+class SizeSortScreen extends StatefulWidget {
+  final int level;
+
+  const SizeSortScreen({super.key, required this.level});
 
   @override
-  State<Lvl7SizeSortScreen> createState() => _Lvl7SizeSortScreenState();
+  State<SizeSortScreen> createState() => _SizeSortScreenState();
 }
 
-class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<Lvl7SizeSortScreen> {
+class _SizeSortScreenState extends State<SizeSortScreen>
+    with TickerProviderStateMixin, RoxieReactionMixin<SizeSortScreen>, GameLoadingMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/level7/intro.wav';
-  static const String _audioWelcome =
-      'assets/audio/puzzle_glade/level7/welcome.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/level7/instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/level7/complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/level7/intro.wav';
+  static const String _audioWelcome = 'assets/audio/puzzle_glade/level7/welcome.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/level7/instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/level7/complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -141,7 +141,7 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
   }
 
   @override
@@ -353,8 +353,10 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
+            Stack(
+              children: [
           Positioned.fill(
             child: Stack(
               children: [
@@ -368,22 +370,21 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
               ],
             ),
           ),
-          SafeArea(
-            child: _screenPhase == _ScreenPhase.intro
-                ? _buildIntroContent()
+          _screenPhase == _ScreenPhase.intro
+                ? _buildIntroLayer()
                 : Stack(
                     children: [
                       FadeTransition(
                         opacity: _gameFade,
-                        child: _buildGameContent(),
+                        child: _buildGameLayer(),
                       ),
                       buildRoxie(context),
                     ],
                   ),
-          ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
       ),
+        ),
     );
   }
 
@@ -391,12 +392,21 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
   // INTRO
   // ══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildIntroContent() {
-    return Stack(
+  Widget _buildIntroLayer() {
+    return Column(
       children: [
-        Positioned(top: 8, left: 12, child: PuzzleBackButton()),
-        Positioned.fill(
-          top: 48,
+        Padding(
+          padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+          child:Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
+              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Size Sort')),
+              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+            ],
+          ),
+        ),
+        Expanded(
           child: Row(
             children: [
               Expanded(flex: 4, child: _buildIntroRoxie()),
@@ -504,57 +514,32 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
   // GAME
   // ══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildGameContent() {
+  Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _enterAnim,
       child: Column(
         children: [
-          const SizedBox(height: 10),
-          _buildGameHeader(),
-          const SizedBox(height: 8),
-          Expanded(child: _buildGameArea()),
-          _buildProgressDots(),
-          const SizedBox(height: 10),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGameHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SizedBox(
-        height: 50,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black12, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Text(
-                'Fix the Size',
-                style: TextStyle(
-                  fontFamily: PuzzleAppTextStyles.fredoka,
-                  fontSize: 22,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+          Padding(
+            padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+            child:
+            Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
+                Align(alignment: Alignment.center, child: PuzzleGameInstruction(instruction: 'Sort the objects from small to large')),
+                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              ],
             ),
-          ],
-        ),
+          ),
+          Expanded(child: _buildGameArea()),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 15),
+            child: PuzzleProgressDots(
+              currentRound: _round,
+              totalRounds: _kTotalRounds,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -721,32 +706,6 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
     );
   }
 
-  // ── Progress dots ──────────────────────────────────────────────────────────
-
-  Widget _buildProgressDots() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_kTotalRounds, (i) {
-        final done = i + 1 < _round;
-        final current = i + 1 == _round;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(horizontal: 5),
-          width: current ? 28 : 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: done
-                ? PuzzleColorTheme.darkdesaturatedblue
-                : current
-                ? PuzzleColorTheme.sunnyhue
-                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
-            borderRadius: BorderRadius.circular(8),
-          ),
-        );
-      }),
-    );
-  }
-
   // ── Win overlay ────────────────────────────────────────────────────────────
 
   Widget _buildWinOverlay() {
@@ -754,10 +713,20 @@ class _Lvl7SizeSortScreenState extends State<Lvl7SizeSortScreen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.pop(context, const Lvl8WhatsMissingScreen());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WhatsMissingScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
-        Navigator.pop(context, const Lvl7SizeSortScreen());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SizeSortScreen(level: widget.level),
+          ),
+        );
       },
       onBack: () {
         Navigator.pop(context);

@@ -5,47 +5,47 @@ import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/generating_summary_card.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
+import 'package:StarSight/games_ui_layer/puzzle_glade/shadow_match.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl2_pattern_match.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
 
 enum _IntroPhase { playingIntro, playingWelcome, done }
 
-class Lvl1JarColorSortScreen extends StatefulWidget {
-  const Lvl1JarColorSortScreen({super.key});
+class JarColorSortScreen extends StatefulWidget {
+  final int level;
+
+  const JarColorSortScreen({super.key, required this.level});
 
   @override
-  State<Lvl1JarColorSortScreen> createState() => _Lvl1JarColorSortScreenState();
+  State<JarColorSortScreen> createState() => _JarColorSortScreenState();
 }
 
-class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, AiCameraMixin {
+class _JarColorSortScreenState extends State<JarColorSortScreen>
+    with TickerProviderStateMixin, RoxieReactionMixin, AiCameraMixin, GameLoadingMixin {
   //wag tong AiCameraMixin tin
   // Required by the mixin — point it to your existing _player
   @override
   AudioPlayer get roxiePlayer => _player;
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/level1/intro.wav';
-  static const String _audioWelcome =
-      'assets/audio/puzzle_glade/level1/welcome.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/level1/instruction.wav';
-  static const String _audioCorrect =
-      'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/level1/intro.wav';
+  static const String _audioWelcome = 'assets/audio/puzzle_glade/level1/welcome.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/level1/instruction.wav';
+  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
@@ -53,8 +53,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   static const String _jarImage = 'assets/images/objects/puzzle/jar_bnw.png';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioGameComplete =
-      'assets/audio/puzzle_glade/level1/complete.wav';
+  static const String _audioGameComplete = 'assets/audio/puzzle_glade/level1/complete.wav';
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -145,7 +144,7 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
     _initAnimations();
     _startRound();
     startAiCamera(); //wag to tin
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
   }
 
   @override
@@ -439,54 +438,56 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Stack(
-              children: [
-                Image.asset(
-                  _bgImage,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-
-                // soft fade overlay
-                Container(color: Colors.black.withValues(alpha: 0.15)),
-              ],
-            ),
-          ),
-          SafeArea(
-            child: _screenPhase == _ScreenPhase.intro
-                ? _buildIntroContent()
-                : FadeTransition(
-                    opacity: _gameFade,
-                    child: _buildGameContent(),
-                  ),
-          ),
-          //wag to tin
-          // ---> LIVE DEMO CAMERA <---
-          if (isCameraInitialized && aiCameraController != null)
-            const SizedBox.shrink(),
-
-          // ---> CONDITIONAL LIGHTING PROMPT <---
-          if ((!isCameraInitialized || !isFaceDetected) && !_hideLightingPrompt)
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
+          Stack(
+            children: [
             Positioned.fill(
-              child: LightingPromptCard(
-                onClose: () {
-                  setState(() {
-                    _hideLightingPrompt =
-                        true; // This forces it to stay hidden!
-                  });
-                },
+              child: Stack(
+                children: [
+                  Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+
+                  // soft fade overlay
+                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                ],
               ),
             ),
+            _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : FadeTransition(
+                opacity: _gameFade,
+                child: _buildGameLayer(),
+              ),
+            //wag to tin
+            // ---> LIVE DEMO CAMERA <---
+            if (isCameraInitialized && aiCameraController != null)
+              const SizedBox.shrink(),
 
-          if (_isGeneratingSummary)
-            const Positioned.fill(child: GeneratingSummaryCard()),
+            // ---> CONDITIONAL LIGHTING PROMPT <---
+            if ((!isCameraInitialized || !isFaceDetected) &&
+                !_hideLightingPrompt)
+              Positioned.fill(
+                child: LightingPromptCard(
+                  onClose: () {
+                    setState(() {
+                      _hideLightingPrompt =
+                      true; // This forces it to stay hidden!
+                    });
+                  },
+                ),
+              ),
 
-          if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-        ],
+            if (_isGeneratingSummary)
+              const Positioned.fill(child: GeneratingSummaryCard()),
+
+            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+          ],
+          ),
       ),
     );
   }
@@ -494,13 +495,21 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   // ══════════════════════════════════════════════════════════════════════════
   // INTRO
   // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildIntroContent() {
-    return Stack(
+  Widget _buildIntroLayer() {
+    return Column(
       children: [
-        Positioned(top: 8, left: 12, child: PuzzleBackButton()),
-
-        Positioned.fill(
-          top: 48,
+        Padding(
+          padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
+              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Star Color Sort')),
+              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+            ],
+          ),
+        ),
+        Expanded(
           child: Row(
             children: [
               // LEFT — Roxie sliding in
@@ -612,15 +621,24 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
   // ══════════════════════════════════════════════════════════════════════════
   // GAME
   // ══════════════════════════════════════════════════════════════════════════
-  Widget _buildGameContent() {
+  Widget _buildGameLayer() {
     return Stack(
       // ← wrap in Stack
       children: [
         Column(
           children: [
-            const SizedBox(height: 10),
-            _buildGameHeader(),
-            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+              child:
+              Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
+                  Align(alignment: Alignment.center, child: PuzzleGameInstruction(instruction: 'Put the star in the matching color jar',)),
+                  Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                ],
+              ),
+            ),
             Expanded(
               child: Row(
                 children: [
@@ -629,60 +647,15 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
                 ],
               ),
             ),
-            _buildProgressDots(),
-            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 15),
+              child:
+              _buildProgressDots(),
+            ),
           ],
         ),
         buildRoxie(context),
       ],
-    );
-  }
-
-  Widget _buildGameHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SizedBox(
-        height: 50,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // LEFT
-            Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-
-            // CENTER TITLE
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black12, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Star Color Sort',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: PuzzleAppTextStyles.fredoka,
-                      fontSize: 22,
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -948,10 +921,20 @@ class _Lvl1JarColorSortScreenState extends State<Lvl1JarColorSortScreen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.pop(context, const Lvl2PatternMatchScreen());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ShadowMatchScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
-        Navigator.pop(context, const Lvl1JarColorSortScreen());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => JarColorSortScreen(level: widget.level),
+          ),
+        );
       },
       onBack: () {
         Navigator.pop(context);

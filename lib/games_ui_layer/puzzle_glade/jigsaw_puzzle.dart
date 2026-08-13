@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
+import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl6_basket_sort.dart';
+import 'basket_sort.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -47,15 +50,17 @@ class _Piece {
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class Lvl5JigsawPuzzleScreen extends StatefulWidget {
-  const Lvl5JigsawPuzzleScreen({super.key});
+class JigsawPuzzleScreen extends StatefulWidget {
+  final int level;
+
+  const JigsawPuzzleScreen({super.key, required this.level});
 
   @override
-  State<Lvl5JigsawPuzzleScreen> createState() => _Lvl5JigsawPuzzleScreenState();
+  State<JigsawPuzzleScreen> createState() => _JigsawPuzzleScreenState();
 }
 
-class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<Lvl5JigsawPuzzleScreen> {
+class _JigsawPuzzleScreenState extends State<JigsawPuzzleScreen>
+    with TickerProviderStateMixin, RoxieReactionMixin<JigsawPuzzleScreen>, GameLoadingMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
@@ -127,7 +132,7 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
   }
 
   @override
@@ -367,8 +372,10 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
+            Stack(
+              children: [
           Positioned.fill(
             child: Stack(
               children: [
@@ -382,23 +389,22 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
               ],
             ),
           ),
-          SafeArea(
-            child: _screenPhase == _ScreenPhase.intro
-                ? _buildIntroContent()
+          _screenPhase == _ScreenPhase.intro
+                ? _buildIntroLayer()
                 : Stack(
                     children: [
                       FadeTransition(
                         opacity: _gameFade,
-                        child: _buildGameContent(),
+                        child: _buildGameLayer(),
                       ),
 
                       buildRoxie(context),
                     ],
                   ),
-          ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
       ),
+        ),
     );
   }
 
@@ -406,12 +412,21 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
   // INTRO
   // ══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildIntroContent() {
-    return Stack(
+  Widget _buildIntroLayer() {
+    return Column(
       children: [
-        Positioned(top: 8, left: 12, child: PuzzleBackButton()),
-        Positioned.fill(
-          top: 48,
+        Padding(
+          padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+          child:Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
+              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Puzzle Object')),
+              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+            ],
+          ),
+        ),
+        Expanded(
           child: Row(
             children: [
               Expanded(flex: 4, child: _buildIntroRoxie()),
@@ -539,57 +554,32 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
   // GAME
   // ══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildGameContent() {
+  Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _enterAnim,
       child: Column(
         children: [
-          const SizedBox(height: 10),
-          _buildGameHeader(),
-          const SizedBox(height: 12),
-          Expanded(child: _buildGameArea()),
-          _buildProgressDots(),
-          const SizedBox(height: 10),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGameHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SizedBox(
-        height: 50,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black12, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Text(
-                'Jigsaw Puzzle',
-                style: TextStyle(
-                  fontFamily: PuzzleAppTextStyles.fredoka,
-                  fontSize: 22,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+          Padding(
+            padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+            child:
+            Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
+                Align(alignment: Alignment.center, child: PuzzleGameInstruction(instruction: 'Match the puzzle pieces')),
+                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              ],
             ),
-          ],
-        ),
+          ),
+          Expanded(child: _buildGameArea()),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 15),
+            child: PuzzleProgressDots(
+              currentRound: _round,
+              totalRounds: _kTotalRounds,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -928,32 +918,6 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
     );
   }
 
-  // ── Progress dots ──────────────────────────────────────────────────────────
-
-  Widget _buildProgressDots() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_kTotalRounds, (i) {
-        final done = i + 1 < _round;
-        final current = i + 1 == _round;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(horizontal: 5),
-          width: current ? 28 : 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: done
-                ? PuzzleColorTheme.darkdesaturatedblue
-                : current
-                ? PuzzleColorTheme.sunnyhue
-                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
-            borderRadius: BorderRadius.circular(8),
-          ),
-        );
-      }),
-    );
-  }
-
   // ── Win overlay ────────────────────────────────────────────────────────────
 
   Widget _buildWinOverlay() {
@@ -961,10 +925,20 @@ class _Lvl5JigsawPuzzleScreenState extends State<Lvl5JigsawPuzzleScreen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.pop(context, const Lvl6BasketSortScreen());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BasketSortScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
-        Navigator.pop(context, const Lvl5JigsawPuzzleScreen());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => JigsawPuzzleScreen(level: widget.level),
+          ),
+        );
       },
       onBack: () {
         Navigator.pop(context);

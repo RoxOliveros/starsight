@@ -2,26 +2,16 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/puzzle_progress_service.dart';
-import '../../games_ui_layer/puzzle_glade/lvl10_memory_match2.dart';
-import '../../games_ui_layer/puzzle_glade/lvl11_shadow_match2.dart';
-import '../../games_ui_layer/puzzle_glade/lvl12_jigsaw_puzzle2.dart';
-import '../../games_ui_layer/puzzle_glade/lvl13_basket_sort2.dart';
-import '../../games_ui_layer/puzzle_glade/lvl14_size_sort2.dart';
-import '../../games_ui_layer/puzzle_glade/lvl15_whats_missing2.dart';
-import '../../games_ui_layer/puzzle_glade/lvl16_copy_the_pattern.dart';
-import '../../games_ui_layer/puzzle_glade/lvl17_spot_the_difference.dart';
-import '../../games_ui_layer/puzzle_glade/lvl18_star_color_sort2.dart';
-import '../../games_ui_layer/puzzle_glade/lvl19_memory_match3.dart';
-import '../../games_ui_layer/puzzle_glade/lvl1_star_color_sort.dart';
-import '../../games_ui_layer/puzzle_glade/lvl20_copy_the_pattern2.dart';
-import '../../games_ui_layer/puzzle_glade/lvl2_pattern_match.dart';
-import '../../games_ui_layer/puzzle_glade/lvl3_memory_match.dart';
-import '../../games_ui_layer/puzzle_glade/lvl4_shadow_match.dart';
-import '../../games_ui_layer/puzzle_glade/lvl5_jigsaw_puzzle.dart';
-import '../../games_ui_layer/puzzle_glade/lvl6_basket_sort.dart';
-import '../../games_ui_layer/puzzle_glade/lvl7_size_sort.dart';
-import '../../games_ui_layer/puzzle_glade/lvl8_whats_missing.dart';
-import '../../games_ui_layer/puzzle_glade/lvl9_pattern_match2.dart';
+import '../../games_ui_layer/puzzle_glade/copy_the_pattern.dart';
+import '../../games_ui_layer/puzzle_glade/spot_the_difference.dart';
+import '../../games_ui_layer/puzzle_glade/star_color_sort.dart';
+import '../../games_ui_layer/puzzle_glade/pattern_match.dart';
+import '../../games_ui_layer/puzzle_glade/memory_match.dart';
+import '../../games_ui_layer/puzzle_glade/shadow_match.dart';
+import '../../games_ui_layer/puzzle_glade/jigsaw_puzzle.dart';
+import '../../games_ui_layer/puzzle_glade/basket_sort.dart';
+import '../../games_ui_layer/puzzle_glade/size_sort.dart';
+import '../../games_ui_layer/puzzle_glade/whats_missing.dart';
 import '../loading_screen.dart';
 import 'puzzle_buttons.dart';
 import 'puzzle_theme.dart';
@@ -317,45 +307,47 @@ class _LevelTile extends StatelessWidget {
   Widget? _screenForLevel() {
     switch (level) {
       case 1:
-        return const Lvl1JarColorSortScreen();
+        return const JarColorSortScreen(level: 1);
       case 2:
-        return const Lvl2PatternMatchScreen();
+        return const ShadowMatchScreen(level: 2);
       case 3:
-        return const Lvl3JarMemoryMatchScreen();
+        return const JigsawPuzzleScreen(level: 3);
       case 4:
-        return const Lvl4ShadowMatchScreen();
+        return const BasketSortScreen(level: 4);
       case 5:
-        return const Lvl5JigsawPuzzleScreen();
+        return const SizeSortScreen(level: 5);
       case 6:
-        return const Lvl6BasketSortScreen();
+        return const WhatsMissingScreen(level: 6);
       case 7:
-        return const Lvl7SizeSortScreen();
+        return const CopyPatternScreen(level: 7);
       case 8:
-        return const Lvl8WhatsMissingScreen();
+        return const SpotDifferenceScreen(level: 8);
       case 9:
-        return const Lvl9PatternMatch2Screen();
+        return const PatternMatchScreen(level: 9);
       case 10:
-        return const Lvl10JarMemoryMatch2Screen();
+        return const JarMemoryMatchScreen(level: 10);
+
+        // TODO: @Tin add games
       case 11:
-        return const Lvl11ShadowMatch2Screen();
+        return null;
       case 12:
-        return const Lvl12JigsawPuzzle2Screen();
+        return null;
       case 13:
-        return const Lvl13BasketSort2Screen();
+        return null;
       case 14:
-        return const Lvl14SizeSort2Screen();
+        return null;
       case 15:
-        return const Lvl15WhatsMissing2Screen();
+        return null;
       case 16:
-        return const Lvl16CopyPatternScreen();
+        return null;
       case 17:
-        return const Lvl17SpotDifferenceScreen();
+        return null;
       case 18:
-        return const Lvl18JarColorSort2Screen();
+        return null;
       case 19:
-        return const Lvl19JarMemoryMatch3Screen();
+        return null;
       case 20:
-        return const Lvl20CopyPattern2Screen();
+        return null;
       default:
         return null;
     }

@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
+import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl17_spot_the_difference.dart';
+import 'spot_the_difference.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, memorize, recall, result }
@@ -38,15 +41,17 @@ const int _kGridSize = 2; // 2 objects per round
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class Lvl16CopyPatternScreen extends StatefulWidget {
-  const Lvl16CopyPatternScreen({super.key});
+class CopyPatternScreen extends StatefulWidget {
+  final int level;
+
+  const CopyPatternScreen({super.key, required this.level});
 
   @override
-  State<Lvl16CopyPatternScreen> createState() => _Lvl16CopyPatternScreenState();
+  State<CopyPatternScreen> createState() => _CopyPatternScreenState();
 }
 
-class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin {
+class _CopyPatternScreenState extends State<CopyPatternScreen>
+    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
@@ -116,7 +121,7 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
   }
 
   @override
@@ -397,8 +402,10 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
+            Stack(
+              children: [
           Positioned.fill(
             child: Stack(
               children: [
@@ -412,22 +419,21 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
               ],
             ),
           ),
-          SafeArea(
-            child: _phase == _ScreenPhase.intro
-                ? _buildIntroContent()
+          _phase == _ScreenPhase.intro
+                ? _buildIntroLayer()
                 : Stack(
                     children: [
                       FadeTransition(
                         opacity: _gameFade,
-                        child: _buildGameContent(),
+                        child: _buildGameLayer(),
                       ),
                       buildRoxie(context),
                     ],
                   ),
-          ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
       ),
+        ),
     );
   }
 
@@ -435,12 +441,21 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
   // INTRO
   // ══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildIntroContent() {
-    return Stack(
+  Widget _buildIntroLayer() {
+    return Column(
       children: [
-        Positioned(top: 8, left: 12, child: PuzzleBackButton()),
-        Positioned.fill(
-          top: 48,
+        Padding(
+          padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+          child:Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
+              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Remember the Pattern')),
+              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+            ],
+          ),
+        ),
+        Expanded(
           child: Row(
             children: [
               Expanded(flex: 4, child: _buildIntroRoxie()),
@@ -575,88 +590,34 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
   // GAME
   // ══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildGameContent() {
+  Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _phaseAnim,
       child: Column(
         children: [
-          const SizedBox(height: 8),
-          _buildGameHeader(),
-          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+            child:
+            Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
+                Align(alignment: Alignment.center, child: PuzzleGameInstruction(instruction: 'Memorize the pattern, then make it')),
+                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              ],
+            ),
+          ),
           Expanded(
             child: Row(children: [Expanded(child: _buildMainArea())]),
           ),
-          _buildProgressDots(),
-          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 15),
+            child: PuzzleProgressDots(
+              currentRound: _round,
+              totalRounds: _kTotalRounds,
+            ),
+          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildGameHeader() {
-    final phaseLabel = _phase == _ScreenPhase.memorize
-        ? 'Remember!'
-        : _phase == _ScreenPhase.result
-        ? _roundCorrect
-              ? 'Tama!'
-              : 'Subukan ulit!'
-        : 'Ano ang pattern?';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SizedBox(
-        height: 48,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black12, width: 2),
-              ),
-              child: Text(
-                'Remember the Pattern',
-                style: TextStyle(
-                  fontFamily: PuzzleAppTextStyles.fredoka,
-                  fontSize: 20,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _phase == _ScreenPhase.memorize
-                      ? PuzzleColorTheme.sunnyhue.withValues(alpha: 0.9)
-                      : _roundCorrect
-                      ? Colors.green.withValues(alpha: 0.85)
-                      : Colors.white.withValues(alpha: 0.75),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  phaseLabel,
-                  style: TextStyle(
-                    fontFamily: PuzzleAppTextStyles.fredoka,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: _phase == _ScreenPhase.memorize
-                        ? Colors.white
-                        : Colors.black87,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -910,32 +871,6 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
     );
   }
 
-  // ── Progress dots ──────────────────────────────────────────────────────────
-
-  Widget _buildProgressDots() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_kTotalRounds, (i) {
-        final done = i + 1 < _round;
-        final current = i + 1 == _round;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(horizontal: 5),
-          width: current ? 28 : 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: done
-                ? PuzzleColorTheme.darkdesaturatedblue
-                : current
-                ? PuzzleColorTheme.sunnyhue
-                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
-            borderRadius: BorderRadius.circular(8),
-          ),
-        );
-      }),
-    );
-  }
-
   // ── Win overlay ────────────────────────────────────────────────────────────
 
   Widget _buildWinOverlay() {
@@ -943,10 +878,20 @@ class _Lvl16CopyPatternScreenState extends State<Lvl16CopyPatternScreen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.pop(context, const Lvl17SpotDifferenceScreen());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SpotDifferenceScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
-        Navigator.pop(context, const Lvl16CopyPatternScreen());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CopyPatternScreen(level: widget.level),
+          ),
+        );
       },
       onBack: () {
         Navigator.pop(context);

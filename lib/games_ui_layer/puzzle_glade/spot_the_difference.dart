@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
+import 'package:StarSight/games_ui_layer/puzzle_glade/pattern_match.dart';
+import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
@@ -58,16 +62,18 @@ class _RoundData {
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class Lvl17SpotDifferenceScreen extends StatefulWidget {
-  const Lvl17SpotDifferenceScreen({super.key});
+class SpotDifferenceScreen extends StatefulWidget {
+  final int level;
+
+  const SpotDifferenceScreen({super.key, required this.level});
 
   @override
-  State<Lvl17SpotDifferenceScreen> createState() =>
-      _Lvl17SpotDifferenceScreenState();
+  State<SpotDifferenceScreen> createState() =>
+      _SpotDifferenceScreenState();
 }
 
-class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin {
+class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
+    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
@@ -128,7 +134,7 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
   }
 
   @override
@@ -343,8 +349,10 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
+            Stack(
+              children: [
           // Background
           Positioned.fill(
             child: Stack(
@@ -359,22 +367,21 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
               ],
             ),
           ),
-          SafeArea(
-            child: _phase == _ScreenPhase.intro
-                ? _buildIntroContent()
+          _phase == _ScreenPhase.intro
+                ? _buildIntroLayer()
                 : Stack(
                     children: [
                       FadeTransition(
                         opacity: _gameFade,
-                        child: _buildGameContent(),
+                        child: _buildGameLayer(),
                       ),
                       buildRoxie(context),
                     ],
                   ),
-          ),
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
       ),
+        ),
     );
   }
 
@@ -382,12 +389,21 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
   // INTRO
   // ══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildIntroContent() {
-    return Stack(
+  Widget _buildIntroLayer() {
+    return Column(
       children: [
-        Positioned(top: 8, left: 12, child: PuzzleBackButton()),
-        Positioned.fill(
-          top: 48,
+        Padding(
+          padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+          child:Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
+              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Spot the Difference')),
+              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+            ],
+          ),
+        ),
+        Expanded(
           child: Row(
             children: [
               Expanded(flex: 4, child: _buildIntroRoxie()),
@@ -538,74 +554,34 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
   // GAME
   // ══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildGameContent() {
+  Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _roundFade,
       child: Column(
         children: [
-          const SizedBox(height: 8),
-          _buildGameHeader(),
-          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+            child:
+            Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
+                Align(alignment: Alignment.center, child: PuzzleGameInstruction(instruction: 'Find the difference between the two')),
+                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              ],
+            ),
+          ),
           Expanded(
             child: Row(children: [Expanded(child: _buildMainArea())]),
           ),
-          _buildProgressDots(),
-          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 15),
+            child: PuzzleProgressDots(
+              currentRound: _round,
+              totalRounds: _kTotalRounds,
+            ),
+          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildGameHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: SizedBox(
-        height: 48,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black12, width: 2),
-              ),
-              child: Text(
-                'Spot the Difference',
-                style: TextStyle(
-                  fontFamily: PuzzleAppTextStyles.fredoka,
-                  fontSize: 20,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.75),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  'Round $_round / $_kTotalRounds',
-                  style: TextStyle(
-                    fontFamily: PuzzleAppTextStyles.fredoka,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -804,32 +780,6 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
     );
   }
 
-  // ── Progress dots ──────────────────────────────────────────────────────────
-
-  Widget _buildProgressDots() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_kTotalRounds, (i) {
-        final done = i + 1 < _round;
-        final current = i + 1 == _round;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(horizontal: 5),
-          width: current ? 28 : 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: done
-                ? PuzzleColorTheme.darkdesaturatedblue
-                : current
-                ? PuzzleColorTheme.sunnyhue
-                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20),
-            borderRadius: BorderRadius.circular(8),
-          ),
-        );
-      }),
-    );
-  }
-
   // ── Win overlay ────────────────────────────────────────────────────────────
 
   Widget _buildWinOverlay() {
@@ -837,10 +787,20 @@ class _Lvl17SpotDifferenceScreenState extends State<Lvl17SpotDifferenceScreen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.pop(context, const Lvl18JarColorSort2Screen());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PatternMatchScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
-        Navigator.pop(context, const Lvl17SpotDifferenceScreen());
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SpotDifferenceScreen(level: widget.level),
+          ),
+        );
       },
       onBack: () {
         Navigator.pop(context);

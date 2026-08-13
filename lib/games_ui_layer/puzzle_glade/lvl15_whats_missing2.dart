@@ -8,7 +8,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
-import 'lvl16_copy_the_pattern.dart';
+import 'copy_the_pattern.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -927,7 +927,7 @@ class _Lvl15WhatsMissing2ScreenState extends State<Lvl15WhatsMissing2Screen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.pop(context, const Lvl16CopyPatternScreen());
+        // Navigator.pop(context, const CopyPatternScreen());
       },
       onRestart: () {
         Navigator.pop(context, const Lvl15WhatsMissing2Screen());
