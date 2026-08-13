@@ -6,6 +6,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -23,7 +25,7 @@ class Number1to5CountingTreesScreen extends StatefulWidget {
 
 class _Number1to5CountingTreesScreenState
     extends State<Number1to5CountingTreesScreen>
-    with TickerProviderStateMixin, DomaReactionMixin {
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -83,7 +85,7 @@ class _Number1to5CountingTreesScreenState
     _roundPool = [1, 2, 3, 4, 5]..shuffle();
 
     _initAnimations();
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
   }
 
   void _initAnimations() {
@@ -317,8 +319,10 @@ class _Number1to5CountingTreesScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () => Stack(
+            children: [
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
           Padding(
@@ -330,6 +334,7 @@ class _Number1to5CountingTreesScreenState
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
+        ),
     );
   }
 

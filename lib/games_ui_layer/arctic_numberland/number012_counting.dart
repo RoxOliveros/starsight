@@ -5,6 +5,8 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -24,7 +26,7 @@ class Number012CountingObjectsScreen extends StatefulWidget {
 
 class _Number012CountingObjectsScreenState
     extends State<Number012CountingObjectsScreen>
-    with TickerProviderStateMixin, DomaReactionMixin {
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -89,7 +91,7 @@ class _Number012CountingObjectsScreenState
       CurvedAnimation(parent: _numberDanceCtrl, curve: Curves.easeInOut),
     );
 
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
     _generateRound();
   }
 
@@ -182,177 +184,190 @@ class _Number012CountingObjectsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ArcticColorTheme.lightgrayishcyan,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/backgrounds/bg_game_arctic.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-          if (_screenPhase == _ScreenPhase.intro)
-            _buildIntroLayer()
-          else
-            Padding(
-              padding: const EdgeInsets.only(top: 5, bottom: 5),
-              child: Column(
-                children: [
-                  // --- HEADER ---
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.arctic(),
+        gameBuilder: () =>
+            Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    'assets/images/backgrounds/bg_game_arctic.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                if (_screenPhase == _ScreenPhase.intro)
+                  _buildIntroLayer()
+                else
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-                    child: Stack(
-                      alignment: Alignment.topCenter,
+                    padding: const EdgeInsets.only(top: 5, bottom: 5),
+                    child: Column(
                       children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: ArcticBackButton(),
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: ArcticLevelBadge(level: widget.level),
-                        ),
-                        Container(
+                        // --- HEADER ---
+                        Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ArcticColorTheme.pictonblue.withValues(
-                                alpha: 0.92),
-                            borderRadius: BorderRadius.circular(32),
-                            border: Border.all(color: Colors.white, width: 3),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ArcticColorTheme.pictonblue.withValues(
-                                    alpha: 0.4),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
+                              horizontal: 20, vertical: 25),
+                          child: Stack(
+                            alignment: Alignment.topCenter,
+                            children: [
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: ArcticBackButton(),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: ArcticLevelBadge(level: widget.level),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: ArcticColorTheme.pictonblue.withValues(
+                                      alpha: 0.92),
+                                  borderRadius: BorderRadius.circular(32),
+                                  border: Border.all(
+                                      color: Colors.white, width: 3),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: ArcticColorTheme.pictonblue
+                                          .withValues(
+                                          alpha: 0.4),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  'How many are there?',
+                                  style: TextStyle(
+                                    fontFamily: ArcticAppTextStyles.fredoka,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    shadows: const [
+                                      Shadow(color: Color(0x55003366),
+                                          blurRadius: 6,
+                                          offset: Offset(0, 2))
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          child: Text(
-                            'How many are there?',
-                            style: TextStyle(
-                              fontFamily: ArcticAppTextStyles.fredoka,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              shadows: const [
-                                Shadow(color: Color(0x55003366),
-                                    blurRadius: 6,
-                                    offset: Offset(0, 2))
-                              ],
-                            ),
-                          ),
                         ),
-                      ],
-                    ),
-                  ),
 
-                  const SizedBox(height: 8),
+                        const SizedBox(height: 8),
 
-                  // --- MAIN CONTENT ---
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // OBJECTS DISPLAY BOX
+                        // --- MAIN CONTENT ---
                         Expanded(
-                          flex: 3,
-                          child: Container(
-                            height: double.infinity,
-                            margin: const EdgeInsets.only(
-                              bottom: 16,
-                              left: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: ArcticColorTheme.cotton,
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: ArcticColorTheme.pictonblue,
-                                width: 4,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: ArcticColorTheme.pictonblue
-                                      .withValues(alpha: 0.3),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // OBJECTS DISPLAY BOX
+                              Expanded(
+                                flex: 3,
+                                child: Container(
+                                  height: double.infinity,
+                                  margin: const EdgeInsets.only(
+                                    bottom: 16,
+                                    left: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: ArcticColorTheme.cotton,
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(
+                                      color: ArcticColorTheme.pictonblue,
+                                      width: 4,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: ArcticColorTheme.pictonblue
+                                            .withValues(alpha: 0.3),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: _buildObjectGrid(),
+                                  ),
                                 ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: _buildObjectGrid(),
-                            ),
-                          ),
-                        ),
+                              ),
 
-                        // CHOICES
-                        Expanded(
-                          flex: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12,
-                                vertical: 16),
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                return Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: List.generate(
-                                      _choices.length, (index) {
-                                    return Expanded(
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 7),
-                                        child: GestureDetector(
-                                          onTap: () => _onChoiceTap(index),
-                                          child: AnimatedContainer(
-                                            duration: const Duration(
-                                                milliseconds: 250),
-                                            width: double.infinity,
-                                            decoration: BoxDecoration(
-                                              color: _choiceColor(index),
-                                              borderRadius: BorderRadius
-                                                  .circular(18),
-                                              border: Border.all(
-                                                color: _choiceBorderColor(
-                                                    index),
-                                                width: 3,
-                                              ),
-                                            ),
-                                            child: Center(
-                                              child: Padding(
-                                                padding: const EdgeInsets.all(
-                                                    10),
-                                                child: Image.asset(
-                                                  'assets/fonts/game_numbers/${_choices[index]}.png',
-                                                  fit: BoxFit.contain,
+                              // CHOICES
+                              Expanded(
+                                flex: 2,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 16),
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return Column(
+                                        mainAxisAlignment: MainAxisAlignment
+                                            .center,
+                                        children: List.generate(
+                                            _choices.length, (index) {
+                                          return Expanded(
+                                            child: Padding(
+                                              padding: const EdgeInsets
+                                                  .symmetric(
+                                                  vertical: 7),
+                                              child: GestureDetector(
+                                                onTap: () =>
+                                                    _onChoiceTap(index),
+                                                child: AnimatedContainer(
+                                                  duration: const Duration(
+                                                      milliseconds: 250),
+                                                  width: double.infinity,
+                                                  decoration: BoxDecoration(
+                                                    color: _choiceColor(index),
+                                                    borderRadius: BorderRadius
+                                                        .circular(18),
+                                                    border: Border.all(
+                                                      color: _choiceBorderColor(
+                                                          index),
+                                                      width: 3,
+                                                    ),
+                                                  ),
+                                                  child: Center(
+                                                    child: Padding(
+                                                      padding: const EdgeInsets
+                                                          .all(
+                                                          10),
+                                                      child: Image.asset(
+                                                        'assets/fonts/game_numbers/${_choices[index]}.png',
+                                                        fit: BoxFit.contain,
+                                                      ),
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
                                             ),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }),
-                                );
-                              },
-                            ),
+                                          );
+                                        }),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        _buildProgressDots(),
+                        const SizedBox(height: 10),
                       ],
                     ),
                   ),
-                  _buildProgressDots(),
-                  const SizedBox(height: 10),
-                ],
-              ),
-            ),
 
-          if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
+                if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
+                if (_showWinDialog) Positioned.fill(
+                    child: _buildGoodJobOverlay()),
+              ],
+            ),
       ),
     );
   }

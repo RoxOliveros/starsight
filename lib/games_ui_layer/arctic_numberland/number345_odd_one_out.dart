@@ -6,6 +6,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -22,7 +24,7 @@ class Number345OddOneOutScreen extends StatefulWidget {
 }
 
 class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
-    with TickerProviderStateMixin, DomaReactionMixin {
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -104,7 +106,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
   }
 
   void _initAnimations() {
@@ -274,8 +276,10 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () => Stack(
+            children: [
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
           _introPlaying ? _buildIntroLayer() : _buildGameContent(),
@@ -284,6 +288,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
+        ),
     );
   }
 

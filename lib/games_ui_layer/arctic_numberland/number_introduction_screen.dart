@@ -6,6 +6,8 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import 'arctic_game_ui.dart';
 import 'goodjob_doma_prompt.dart';
 import 'minigame_ice_path.dart';
@@ -414,10 +416,14 @@ class NumberIntroductionScreen extends StatefulWidget {
 }
 
 class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, GameLoadingMixin<NumberIntroductionScreen> {
   int _configIndex = 0;
   NumberLevelConfig get _config => widget.configs[_configIndex];
   bool get _isLastInSequence => _configIndex == widget.configs.length - 1;
+
+  static const List<int> _loadingScreenNumbers = [0, 3, 6, 9];
+  bool get _shouldShowLoading =>
+      _loadingScreenNumbers.contains(widget.configs.first.number);
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   _IntroPhase _introPhase = _IntroPhase.domaEntering;
@@ -453,7 +459,11 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    _startIntroFlow();
+    if (_shouldShowLoading) {
+      finishLoading(_startIntroFlow);
+    } else {
+      _startIntroFlow();
+    }
   }
 
   void _initAnimations() {
@@ -628,41 +638,46 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
   // ── Build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/backgrounds/bg_game_arctic.png',
-              fit: BoxFit.cover,
-            ),
+    final content = Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/backgrounds/bg_game_arctic.png',
+            fit: BoxFit.cover,
           ),
-          if (_screenPhase == _ScreenPhase.intro)
-            Column(
-              children: [
-                // ── HEADER ──────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-                  child: Stack(
-                    alignment: Alignment.topCenter,
-                    children: [
-                      Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
-                      Align(alignment: Alignment.centerRight, child: ArcticLevelBadge(level: widget.level)),
-                      Center(child: _buildInstructionBanner()),
-                    ],
-                  ),
+        ),
+        if (_screenPhase == _ScreenPhase.intro)
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                child: Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                    Align(alignment: Alignment.centerRight, child: ArcticLevelBadge(level: widget.level)),
+                    Center(child: _buildInstructionBanner()),
+                  ],
                 ),
-                // ── CONTENT ──────────────────────────────
-                Expanded(child: _buildIntroContent()),
-              ],
-            ),
-          if (_screenPhase == _ScreenPhase.miniGame)
-            Positioned.fill(
-              child: FadeTransition(opacity: _mgFade, child: _buildMiniGame()),
-            ),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
-      ),
+              ),
+              Expanded(child: _buildIntroContent()),
+            ],
+          ),
+        if (_screenPhase == _ScreenPhase.miniGame)
+          Positioned.fill(
+            child: FadeTransition(opacity: _mgFade, child: _buildMiniGame()),
+          ),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    return Scaffold(
+      body: _shouldShowLoading
+          ? buildWithLoading(
+        loadingScreen: LoadingScreen.arctic(),
+        gameBuilder: () => content,
+      )
+          : content,
     );
   }
 

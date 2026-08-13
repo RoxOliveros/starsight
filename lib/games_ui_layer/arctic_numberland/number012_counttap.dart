@@ -6,6 +6,8 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -25,7 +27,7 @@ class Number012TapCountScreen extends StatefulWidget {
 }
 
 class _Number012TapCountScreenState extends State<Number012TapCountScreen>
-    with TickerProviderStateMixin, DomaReactionMixin {
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
   @override
   AudioPlayer get domaPlayer => _player;
   // ── Constants ──────────────────────────────────────────────────────────────
@@ -112,7 +114,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       CurvedAnimation(parent: _numberDanceCtrl, curve: Curves.easeInOut),
     );
 
-    _startIntroFlow();
+    finishLoading(_startIntroFlow);
 
     _numberBounce = AnimationController(
       vsync: this,
@@ -267,8 +269,10 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ArcticColorTheme.lightgrayishcyan,
-      body: Stack(
-        children: [
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () => Stack(
+            children: [
           Positioned.fill(
             child: Image.asset(
               'assets/images/backgrounds/bg_game_arctic.png',
@@ -369,6 +373,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
+        ),
     );
   }
 
