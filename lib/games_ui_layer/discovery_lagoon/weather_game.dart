@@ -18,6 +18,9 @@ class _WeatherGameState extends State<WeatherGame> {
   int currentLevelIndex = 0;
   bool _isGameComplete = false; // Tracks if the final level is finished
 
+  // Tracks if the intro voice prompt is currently playing
+  bool _isPromptPlaying = false;
+
   final List<Map<String, String>> levelSequence = [
     {'bg': 'assets/images/backgrounds/bg_park_sunny.png', 'target': 'sunny'},
     {'bg': 'assets/images/backgrounds/bg_lake_rainy.png', 'target': 'rainy'},
@@ -34,6 +37,18 @@ class _WeatherGameState extends State<WeatherGame> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    // Listen for when the audio finishes playing to re-enable buttons
+    _audioPlayer.onPlayerComplete.listen((event) {
+      if (mounted && _isPromptPlaying) {
+        setState(() {
+          _isPromptPlaying = false;
+        });
+      }
+    });
+
+    // Play the intro prompt when the screen loads
+    _playIntroPrompt();
   }
 
   @override
@@ -41,6 +56,15 @@ class _WeatherGameState extends State<WeatherGame> {
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
+  }
+
+  Future<void> _playIntroPrompt() async {
+    setState(() {
+      _isPromptPlaying = true; // Disable buttons
+    });
+
+    // Adjust this path if your audio file is stored in a different folder
+    await _playAudio('assets/audio/discovery_lagoon/weather_game_intro.wav');
   }
 
   Future<void> _playAudio(String assetPath) async {
@@ -55,8 +79,9 @@ class _WeatherGameState extends State<WeatherGame> {
   }
 
   Future<void> handleAnswer(String selectedWeather) async {
-    // Prevent multiple clicks while Kiki is reacting or if the game is over
-    if (_kikiState != KikiState.normal || _isGameComplete) return;
+    // Prevent multiple clicks while Kiki is reacting, game is over, OR intro is playing
+    if (_kikiState != KikiState.normal || _isGameComplete || _isPromptPlaying)
+      return;
 
     String currentTarget = levelSequence[currentLevelIndex]['target']!;
 
@@ -73,6 +98,8 @@ class _WeatherGameState extends State<WeatherGame> {
           _kikiState = KikiState.normal;
           if (currentLevelIndex < levelSequence.length - 1) {
             currentLevelIndex++;
+            // Uncomment the line below if you want the intro to play on every new level
+            // _playIntroPrompt();
           } else {
             // Trigger the overlay on the last level
             _isGameComplete = true;
@@ -195,6 +222,7 @@ class _WeatherGameState extends State<WeatherGame> {
                     currentLevelIndex = 0;
                     _isGameComplete = false;
                     _kikiState = KikiState.normal;
+                    _playIntroPrompt(); // Re-play intro when restarting
                   });
                 },
                 onBack: () {
@@ -217,20 +245,24 @@ class _WeatherGameState extends State<WeatherGame> {
   }) {
     return GestureDetector(
       onTap: () => handleAnswer(weatherType),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(size * 0.15),
-          border: Border.all(
-            color: isHighlighted ? Colors.orange : borderColor,
-            width: size * 0.04,
+      child: Opacity(
+        // Dims the button visually while the intro prompt is playing
+        opacity: _isPromptPlaying ? 0.5 : 1.0,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(size * 0.15),
+            border: Border.all(
+              color: isHighlighted ? Colors.orange : borderColor,
+              width: size * 0.04,
+            ),
           ),
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(size * 0.15),
-          child: Image.asset(imagePath, fit: BoxFit.contain),
+          child: Padding(
+            padding: EdgeInsets.all(size * 0.15),
+            child: Image.asset(imagePath, fit: BoxFit.contain),
+          ),
         ),
       ),
     );
