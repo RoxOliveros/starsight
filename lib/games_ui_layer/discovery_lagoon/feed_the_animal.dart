@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -39,11 +40,15 @@ class FeedTheAnimalGame extends StatefulWidget {
 
 class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  StreamSubscription? _audioSub;
 
   int _currentLevelIndex = 0;
   bool _isHappy = false;
   bool _showSuccessUI = false;
   bool _readyForEntrance = false;
+
+  // Controls the intro screen visibility
+  bool _showIntro = true;
 
   // Define the sequence based on the new idea
   late final List<AnimalLevel> _levels = [
@@ -173,17 +178,42 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-
-    // Trigger the very first entrance animation
-    Future.microtask(() {
-      if (mounted) setState(() => _readyForEntrance = true);
-    });
+    _playIntroSequence();
   }
 
   @override
   void dispose() {
+    _audioSub?.cancel();
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  void _playIntroSequence() async {
+    setState(() {
+      _showIntro = true;
+    });
+
+    // Play the intro audio
+    await _audioPlayer.play(
+      AssetSource('audio/discovery_lagoon/feed_the_animal_game_intro.wav'),
+    );
+
+    // Listen for the audio to finish, then transition to the game
+    _audioSub = _audioPlayer.onPlayerComplete.listen((_) {
+      _audioSub?.cancel();
+      if (mounted) {
+        setState(() {
+          _showIntro = false;
+        });
+
+        // Small delay before the first character walks in
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) {
+            setState(() => _readyForEntrance = true);
+          }
+        });
+      }
+    });
   }
 
   void _handleFoodAccepted(String foodId) {
@@ -224,10 +254,97 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
     }
   }
 
+  // ── Builds the Intro Screen with Kiki and the Basket ───────────
+  Widget _buildIntroScreen(double sw, double sh) {
+    final double animalHeight = sh * 0.95;
+
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background
+          Image.asset(
+            'assets/images/backgrounds/bg_rainbow_lagoon.png',
+            fit: BoxFit.cover,
+            errorBuilder: (ctx, err, st) =>
+                Container(color: const Color(0xFF90D060)),
+          ),
+
+          // Kiki + Basket animated together in the center
+          // Kiki + Basket anchored to the bottom and pushed down
+          Positioned(
+            bottom: -sh * 0.23, // Adjust this number to move her up or down!
+            left: 0,
+            right: 0,
+            child:
+                Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        Image.asset(
+                          'assets/images/characters/kiki_the_cat.png',
+                          height: animalHeight,
+                          fit: BoxFit.contain,
+                        ),
+                        Positioned(
+                          // Positioning the basket over Kiki's belly/hands
+                          bottom: animalHeight * 0.10,
+                          child: Image.asset(
+                            'assets/images/objects/lagoon/basket.png',
+                            width: animalHeight * 0.50,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ],
+                    )
+                    .animate(onPlay: (c) => c.repeat(reverse: true))
+                    .moveY(
+                      begin: 0,
+                      end: -10,
+                      duration: const Duration(milliseconds: 900),
+                      curve: Curves.easeInOut,
+                    ),
+          ),
+          // Close button allows the user to exit early
+          Positioned(
+            top: sh * 0.05,
+            left: sw * 0.03,
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).maybePop(),
+              child: Image.asset(
+                'assets/images/buttons/x_blue.png',
+                width: sw * 0.065,
+                fit: BoxFit.contain,
+                errorBuilder: (ctx, err, st) => Container(
+                  width: sw * 0.065,
+                  height: sw * 0.065,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF266589),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: sw * 0.04,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final double sw = MediaQuery.of(context).size.width;
     final double sh = MediaQuery.of(context).size.height;
+
+    // ── Show Intro Sequence ────────────────────────────────────────────────
+    if (_showIntro) {
+      return _buildIntroScreen(sw, sh);
+    }
 
     // Layout constants
     final double tableBottom = -sh * 0.60;
@@ -450,6 +567,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
                     _currentLevelIndex = 0;
                     _isHappy = false;
                     _showSuccessUI = false;
+                    _showIntro = false; // Skip the intro on restart
                   });
                   // Trigger the first walk-in again upon restart
                   Future.delayed(const Duration(milliseconds: 200), () {
