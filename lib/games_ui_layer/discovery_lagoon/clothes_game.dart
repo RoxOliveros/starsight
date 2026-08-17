@@ -12,10 +12,13 @@ class ClothesGame extends StatefulWidget {
 
 class _ClothesGameState extends State<ClothesGame> {
   // Game State variables
+  bool showIntro = true; // New state to track if we are in the intro sequence
   int currentWeatherIndex = 0;
+
   // List of weathers including the new winter state
   final List<String> weathers = ['sunny', 'cloudy', 'rainy', 'windy', 'winter'];
   bool isDressed = false;
+
   // Shown once the bear is correctly dressed for the last weather (winter).
   bool showGoodJobOverlay = false;
 
@@ -26,6 +29,25 @@ class _ClothesGameState extends State<ClothesGame> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    // Listen for when the intro audio finishes playing to start the game
+    _audioPlayer.onPlayerComplete.listen((event) {
+      if (mounted && showIntro) {
+        setState(() {
+          showIntro = false;
+        });
+      }
+    });
+
+    // Start the intro sequence
+    _playIntroAudio();
+  }
+
+  Future<void> _playIntroAudio() async {
+    // Assuming the audio is placed in this directory based on previous files
+    await _audioPlayer.play(
+      AssetSource('audio/discovery_lagoon/clothes_game_intro.wav'),
+    );
   }
 
   @override
@@ -174,6 +196,47 @@ class _ClothesGameState extends State<ClothesGame> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+
+    // --- Intro Sequence UI ---
+    if (showIntro) {
+      return Scaffold(
+        body: Stack(
+          children: [
+            // Intro Background
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/backgrounds/bg_lumi_bed.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+
+            // Kiki the Cat (Left side)
+            Positioned(
+              left: size.width * 0.20,
+              bottom: size.height * -0.05,
+              child: Image.asset(
+                'assets/images/characters/kiki_the_cat.png',
+                width: size.width * 0.35,
+                fit: BoxFit.contain,
+              ),
+            ),
+
+            // Little Bear (Right side)
+            Positioned(
+              right: size.width * 0.20,
+              bottom: size.height * -0.08,
+              child: Image.asset(
+                'assets/images/characters/little_bear.png',
+                width: size.width * 0.30,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // --- Main Game UI ---
     final sidebarWidth = size.width * 0.22;
 
     // --- Independent sizing/positioning per bear asset ---
