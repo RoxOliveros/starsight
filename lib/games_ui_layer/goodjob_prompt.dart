@@ -1,30 +1,6 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
-// SAMPLE
-// Widget _buildGoodJobOverlay() {
-//   return GoodJobOverlay(
-//     characterImage: 'CHARACTERPATH' <-- CHANGE THIS,
-//     closeButtonColor: ___ColorTheme.(BUTTONCOLOR <-- CHANGE THIS),
-//     onNext: () {
-//       Navigator.of(context).pushReplacement(
-//          MaterialPageRoute(builder: (_) => const NextLevelScreen() <-- CHANGE THIS),
-//        );
-//     },
-//     onRestart: () {
-//         Navigator.of(context).pushReplacement(
-//           MaterialPageRoute(builder: (_) => const GameScreen()<-- CHANGE THIS),
-//        );
-//       },
-//     onBack: () {
-//         Navigator.of(context).pushAndRemoveUntil(
-//           MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-//                (route) => route.isFirst,
-//         );
-//      },
-//    );
-// }
-
 class GoodJobOverlay extends StatefulWidget {
   final String characterImage;
   final Color closeButtonColor;
@@ -145,7 +121,7 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
         (screenHeight * 0.06).clamp(24.0, 70.0);
 
         final double characterHeight =
-        (300 * scale).clamp(140.0, screenHeight * 0.38);
+        (350 * scale);
         final double characterTop =
         (screenHeight * 0.17).clamp(90.0, 190.0);
 

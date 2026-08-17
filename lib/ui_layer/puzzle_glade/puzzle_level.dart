@@ -2,16 +2,16 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/puzzle_progress_service.dart';
-import '../../games_ui_layer/puzzle_glade/copy_the_pattern.dart';
-import '../../games_ui_layer/puzzle_glade/spot_the_difference.dart';
-import '../../games_ui_layer/puzzle_glade/star_color_sort.dart';
-import '../../games_ui_layer/puzzle_glade/pattern_match.dart';
-import '../../games_ui_layer/puzzle_glade/memory_match.dart';
-import '../../games_ui_layer/puzzle_glade/shadow_match.dart';
-import '../../games_ui_layer/puzzle_glade/jigsaw_puzzle.dart';
-import '../../games_ui_layer/puzzle_glade/basket_sort.dart';
-import '../../games_ui_layer/puzzle_glade/size_sort.dart';
-import '../../games_ui_layer/puzzle_glade/whats_missing.dart';
+import '../../games_ui_layer/puzzle_glade/game_copy_pattern.dart';
+import '../../games_ui_layer/puzzle_glade/game_spot_the_difference.dart';
+import '../../games_ui_layer/puzzle_glade/game_star_color_sort.dart';
+import '../../games_ui_layer/puzzle_glade/game_pattern_match.dart';
+import '../../games_ui_layer/puzzle_glade/game_memory_match.dart';
+import '../../games_ui_layer/puzzle_glade/game_shadow_match.dart';
+import '../../games_ui_layer/puzzle_glade/game_puzzle_object.dart';
+import '../../games_ui_layer/puzzle_glade/game_basket_sort.dart';
+import '../../games_ui_layer/puzzle_glade/game_size_sort.dart';
+import '../../games_ui_layer/puzzle_glade/game_whats_missing.dart';
 import '../loading_screen.dart';
 import 'puzzle_buttons.dart';
 import 'puzzle_theme.dart';
@@ -307,11 +307,11 @@ class _LevelTile extends StatelessWidget {
   Widget? _screenForLevel() {
     switch (level) {
       case 1:
-        return const JarColorSortScreen(level: 1);
+        return const StarColorSortScreen(level: 1);
       case 2:
         return const ShadowMatchScreen(level: 2);
       case 3:
-        return const JigsawPuzzleScreen(level: 3);
+        return const PuzzleObjectScreen(level: 3);
       case 4:
         return const BasketSortScreen(level: 4);
       case 5:
@@ -325,7 +325,7 @@ class _LevelTile extends StatelessWidget {
       case 9:
         return const PatternMatchScreen(level: 9);
       case 10:
-        return const JarMemoryMatchScreen(level: 10);
+        return const MemoryMatchScreen(level: 10);
 
         // TODO: @Tin add games
       case 11:
