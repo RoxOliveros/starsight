@@ -16,6 +16,7 @@ import '../../games_ui_layer/puzzle_glade/game_puzzle_object.dart';
 import '../../games_ui_layer/puzzle_glade/game_basket_sort.dart';
 import '../../games_ui_layer/puzzle_glade/game_size_sort.dart';
 import '../../games_ui_layer/puzzle_glade/game_whats_missing.dart';
+import '../../games_ui_layer/puzzle_glade/game_which_comes_first.dart';
 import '../loading_screen.dart';
 import 'puzzle_buttons.dart';
 import 'puzzle_theme.dart';
@@ -334,14 +335,14 @@ class _LevelTile extends StatelessWidget {
         return const ShapeFitScreen(level: 11);
       case 12:
         return const MazePathScreen(level: 12);
-
-      // TODO: @Tin add games
       case 13:
         return const HiddenObjectScreen(level: 13);
       case 14:
         return const RotateTheShapeScreen(level: 14);
       case 15:
-        return null;
+        return const WhichComesFirstScreen(level: 15);
+
+      // TODO: @Tin add games
       case 16:
         return null;
       case 17:
