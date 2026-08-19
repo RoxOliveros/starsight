@@ -5,6 +5,7 @@ import '../../business_layer/puzzle_progress_service.dart';
 import '../../games_ui_layer/puzzle_glade/game_copy_pattern.dart';
 import '../../games_ui_layer/puzzle_glade/game_hidden_object.dart';
 import '../../games_ui_layer/puzzle_glade/game_maze_path.dart';
+import '../../games_ui_layer/puzzle_glade/game_rotate_shape.dart';
 import '../../games_ui_layer/puzzle_glade/game_shape_fit.dart';
 import '../../games_ui_layer/puzzle_glade/game_spot_the_difference.dart';
 import '../../games_ui_layer/puzzle_glade/game_star_color_sort.dart';
@@ -338,7 +339,7 @@ class _LevelTile extends StatelessWidget {
       case 13:
         return const HiddenObjectScreen(level: 13);
       case 14:
-        return null;
+        return const RotateTheShapeScreen(level: 14);
       case 15:
         return null;
       case 16:
