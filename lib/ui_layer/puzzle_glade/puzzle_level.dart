@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/puzzle_progress_service.dart';
 import '../../games_ui_layer/puzzle_glade/game_copy_pattern.dart';
+import '../../games_ui_layer/puzzle_glade/game_hidden_object.dart';
 import '../../games_ui_layer/puzzle_glade/game_maze_path.dart';
 import '../../games_ui_layer/puzzle_glade/game_shape_fit.dart';
 import '../../games_ui_layer/puzzle_glade/game_spot_the_difference.dart';
@@ -335,7 +336,7 @@ class _LevelTile extends StatelessWidget {
 
       // TODO: @Tin add games
       case 13:
-        return null;
+        return const HiddenObjectScreen(level: 13);
       case 14:
         return null;
       case 15:

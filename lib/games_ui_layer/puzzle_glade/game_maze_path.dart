@@ -12,6 +12,7 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
+import 'game_hidden_object.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -675,12 +676,12 @@ class _MazePathScreenState extends State<MazePathScreen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        // Navigator.pushReplacement( TODO: @Tin add next game navigation
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (context) => (level: widget.level + 1),
-        //   ),
-        // );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HiddenObjectScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         Navigator.pushReplacement(
