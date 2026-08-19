@@ -10,14 +10,16 @@ mixin RoxieReactionMixin<T extends StatefulWidget> on State<T> {
   // Override this in your screen to provide the AudioPlayer
   AudioPlayer get roxiePlayer;
 
-  Future<void> showRoxieReaction(RoxieState state) async {
+  Future<void> showRoxieReaction(RoxieState state, {bool playSound = true}) async {
     if (!mounted) return;
     setState(() => roxieState = state);
 
-    if (state == RoxieState.correct) {
-      await _playRoxieAudio('assets/audio/sound_effects/shine.wav');
-    } else if (state == RoxieState.wrong) {
-      await _playRoxieAudio('assets/audio/puzzle_glade/try_again.wav');
+    if (playSound) {
+      if (state == RoxieState.correct) {
+        await _playRoxieAudio('assets/audio/sound_effects/shine.wav');
+      } else if (state == RoxieState.wrong) {
+        await _playRoxieAudio('assets/audio/puzzle_glade/try_again.wav');
+      }
     }
 
     await Future.delayed(const Duration(seconds: 2));

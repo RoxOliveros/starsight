@@ -414,7 +414,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
           closeButtonColor: ForestColorTheme.seagreen,
           onNext: () {
             Navigator.of(context).pop();
-            // TODO: @Tin fix nav
+            // TODO: @Tin fix nav after ending game
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
                 builder: (_) => AlphabetIntroScreen(letter: 'A'),
