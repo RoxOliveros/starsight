@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/puzzle_progress_service.dart';
 import '../../games_ui_layer/puzzle_glade/game_copy_pattern.dart';
+import '../../games_ui_layer/puzzle_glade/game_maze_path.dart';
+import '../../games_ui_layer/puzzle_glade/game_shape_fit.dart';
 import '../../games_ui_layer/puzzle_glade/game_spot_the_difference.dart';
 import '../../games_ui_layer/puzzle_glade/game_star_color_sort.dart';
 import '../../games_ui_layer/puzzle_glade/game_pattern_match.dart';
@@ -326,12 +328,12 @@ class _LevelTile extends StatelessWidget {
         return const PatternMatchScreen(level: 9);
       case 10:
         return const MemoryMatchScreen(level: 10);
-
-        // TODO: @Tin add games
       case 11:
-        return null;
+        return const ShapeFitScreen(level: 11);
       case 12:
-        return null;
+        return const MazePathScreen(level: 12);
+
+      // TODO: @Tin add games
       case 13:
         return null;
       case 14:

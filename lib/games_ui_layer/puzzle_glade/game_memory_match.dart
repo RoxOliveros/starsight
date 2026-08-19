@@ -11,6 +11,7 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
+import 'game_shape_fit.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -721,12 +722,12 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        // Navigator.pushReplacement(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (context) => (level: widget.level + 1),
-        //   ),
-        // );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ShapeFitScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         Navigator.pushReplacement(
