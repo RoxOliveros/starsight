@@ -7,9 +7,12 @@ import 'package:audioplayers/audioplayers.dart';
 // 1. Define a class to hold specific size and position for each character
 class CharacterConfig {
   final String imagePath;
-  final double leftOffset; // Percentage of screen width (e.g., 0.36 = 36%)
+  final double leftOffset; // Final resting Percentage of screen width
   final double bottomOffset; // Percentage of screen height
   final double startHeight; // Percentage of screen height
+
+  // New! Where the character starts off-screen or from a previous position
+  final double entranceLeftOffset;
 
   // Adjusters for when the child moves to the parent
   final double endLeftOffset;
@@ -21,6 +24,7 @@ class CharacterConfig {
     required this.leftOffset,
     required this.bottomOffset,
     required this.startHeight,
+    required this.entranceLeftOffset,
     this.endLeftOffset = 0.34, // Default fallback values
     this.endBottomOffset = -0.10,
     this.endHeight = 0.55,
@@ -52,7 +56,14 @@ class PickupGame extends StatefulWidget {
 class _PickupGameState extends State<PickupGame> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   int _currentLevelIndex = 0;
-  bool _hasChildMoved = false;
+
+  // State variables for our various animations!
+  bool _forceEntrancePositions =
+      true; // Snaps children to their starting offsets
+  bool _isChildrenEntering = false; // Bounces children while they slide in
+  bool _isTargetMoving = false; // Bounces target child while moving to parent
+  bool _isWalkingAway =
+      false; // Bounces parent and child while walking off-screen
   bool _showSuccessUI = false; // Tracks end-game overlay
 
   // 3. Configure your levels and character adjusters here!
@@ -64,6 +75,7 @@ class _PickupGameState extends State<PickupGame> {
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/little_bear_uniform.png',
         leftOffset: 0.36,
+        entranceLeftOffset: 1.05, // Walks in from off-screen right
         bottomOffset: 0.30,
         startHeight: 0.40,
         endLeftOffset: 0.34,
@@ -74,6 +86,7 @@ class _PickupGameState extends State<PickupGame> {
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/jack_the_fox.png',
         leftOffset: 0.48,
+        entranceLeftOffset: 1.25, // Trailing behind
         bottomOffset: 0.31,
         startHeight: 0.36,
       ),
@@ -81,6 +94,7 @@ class _PickupGameState extends State<PickupGame> {
       wrongChild2: CharacterConfig(
         imagePath: 'assets/images/characters/roxie_standing.png',
         leftOffset: 0.59,
+        entranceLeftOffset: 1.45, // Trailing behind
         bottomOffset: 0.30,
         startHeight: 0.42,
       ),
@@ -93,6 +107,7 @@ class _PickupGameState extends State<PickupGame> {
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/jack_the_fox.png',
         leftOffset: 0.36,
+        entranceLeftOffset: 0.48, // Shifting from his old Level 1 position
         bottomOffset: 0.31,
         startHeight: 0.36,
         endLeftOffset: 0.32,
@@ -103,6 +118,7 @@ class _PickupGameState extends State<PickupGame> {
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/roxie_standing.png',
         leftOffset: 0.48,
+        entranceLeftOffset: 0.59, // Shifting from her old Level 1 position
         bottomOffset: 0.30,
         startHeight: 0.42,
       ),
@@ -110,6 +126,7 @@ class _PickupGameState extends State<PickupGame> {
       wrongChild2: CharacterConfig(
         imagePath: 'assets/images/characters/chicken.png',
         leftOffset: 0.62,
+        entranceLeftOffset: 1.05, // Walking in new from off-screen
         bottomOffset: 0.30,
         startHeight: 0.34,
       ),
@@ -122,6 +139,7 @@ class _PickupGameState extends State<PickupGame> {
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/roxie_standing.png',
         leftOffset: 0.35,
+        entranceLeftOffset: 0.48, // Shifting left
         bottomOffset: 0.30,
         startHeight: 0.42,
         endLeftOffset: 0.26,
@@ -132,6 +150,7 @@ class _PickupGameState extends State<PickupGame> {
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/chicken.png',
         leftOffset: 0.48,
+        entranceLeftOffset: 0.62, // Shifting left
         bottomOffset: 0.30,
         startHeight: 0.34,
       ),
@@ -139,6 +158,7 @@ class _PickupGameState extends State<PickupGame> {
       wrongChild2: CharacterConfig(
         imagePath: 'assets/images/characters/doma_the_penguin2.png',
         leftOffset: 0.59,
+        entranceLeftOffset: 1.05, // Walking in new
         bottomOffset: 0.30,
         startHeight: 0.38,
       ),
@@ -150,7 +170,8 @@ class _PickupGameState extends State<PickupGame> {
       // Chicken (Target)
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/chicken.png',
-        leftOffset: 0.48,
+        leftOffset: 0.35,
+        entranceLeftOffset: 0.48, // Shifting left
         bottomOffset: 0.30,
         startHeight: 0.34,
         endLeftOffset: 0.34,
@@ -160,7 +181,8 @@ class _PickupGameState extends State<PickupGame> {
       // Doma the Penguin
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/doma_the_penguin2.png',
-        leftOffset: 0.35,
+        leftOffset: 0.48,
+        entranceLeftOffset: 0.59, // Shifting left
         bottomOffset: 0.30,
         startHeight: 0.38,
       ),
@@ -168,6 +190,7 @@ class _PickupGameState extends State<PickupGame> {
       wrongChild2: CharacterConfig(
         imagePath: 'assets/images/characters/pig_dressed.png',
         leftOffset: 0.62,
+        entranceLeftOffset: 1.05, // Walking in new
         bottomOffset: 0.30,
         startHeight: 0.36,
       ),
@@ -179,7 +202,8 @@ class _PickupGameState extends State<PickupGame> {
       // Doma the Penguin (Target)
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/doma_the_penguin2.png',
-        leftOffset: 0.59,
+        leftOffset: 0.35,
+        entranceLeftOffset: 0.48, // Shifting left
         bottomOffset: 0.30,
         startHeight: 0.38,
         endLeftOffset: 0.34,
@@ -189,14 +213,16 @@ class _PickupGameState extends State<PickupGame> {
       // Pig
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/pig_dressed.png',
-        leftOffset: 0.34,
+        leftOffset: 0.50,
+        entranceLeftOffset: 0.62, // Shifting left
         bottomOffset: 0.30,
         startHeight: 0.36,
       ),
       // Snake
       wrongChild2: CharacterConfig(
         imagePath: 'assets/images/characters/snake.png',
-        leftOffset: 0.46,
+        leftOffset: 0.62,
+        entranceLeftOffset: 1.05, // Walking in new
         bottomOffset: 0.30,
         startHeight: 0.34,
       ),
@@ -209,6 +235,7 @@ class _PickupGameState extends State<PickupGame> {
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/pig_dressed.png',
         leftOffset: 0.42,
+        entranceLeftOffset: 0.50, // Shifting left
         bottomOffset: 0.30,
         startHeight: 0.36,
         endLeftOffset: 0.34,
@@ -219,6 +246,7 @@ class _PickupGameState extends State<PickupGame> {
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/snake.png',
         leftOffset: 0.56,
+        entranceLeftOffset: 0.62, // Shifting left
         bottomOffset: 0.30,
         startHeight: 0.34,
       ),
@@ -228,10 +256,11 @@ class _PickupGameState extends State<PickupGame> {
     // --- LEVEL 7: Dad Snake ---
     PickupLevel(
       parentImage: 'assets/images/characters/dad_snake.png',
-      // Snake (Target - Only choice in center)
+      // Snake (Target)
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/snake.png',
         leftOffset: 0.48,
+        entranceLeftOffset: 0.56, // Shifting left
         bottomOffset: 0.30,
         startHeight: 0.34,
         endLeftOffset: 0.34,
@@ -247,6 +276,31 @@ class _PickupGameState extends State<PickupGame> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+    _triggerEntranceAnimation();
+  }
+
+  // Orchestrates the kids sliding and bouncing into view
+  void _triggerEntranceAnimation() {
+    setState(() {
+      _forceEntrancePositions = true;
+      _isChildrenEntering = true;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      setState(() {
+        _forceEntrancePositions = false; // Triggers the slide
+      });
+
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) {
+          setState(() {
+            _isChildrenEntering = false; // Stops the bounce
+          });
+        }
+      });
+    });
   }
 
   Future<void> _playAudio(String path) async {
@@ -258,6 +312,144 @@ class _PickupGameState extends State<PickupGame> {
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
+  }
+
+  // Handles the full success sequence
+  void _handleTargetTap() {
+    if (_isTargetMoving ||
+        _isWalkingAway ||
+        _isChildrenEntering ||
+        _forceEntrancePositions)
+      return;
+
+    _playAudio('audio/sound_effects/shine.wav');
+
+    // 1. Child slides to the parent
+    setState(() {
+      _isTargetMoving = true;
+    });
+
+    // 2. Wait for child to reach parent (1.2 seconds)
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
+
+      // 3. Parent and child walk away together
+      setState(() {
+        _isWalkingAway = true;
+      });
+
+      // 4. Wait for walk away to finish (1.8 seconds)
+      Future.delayed(const Duration(milliseconds: 1800), () {
+        if (!mounted) return;
+
+        setState(() {
+          _isTargetMoving = false;
+          _isWalkingAway = false;
+        });
+
+        if (_currentLevelIndex < _levels.length - 1) {
+          // Advance to next level & trigger entrance
+          _currentLevelIndex++;
+          _triggerEntranceAnimation();
+        } else {
+          // Finished the final level -> Show GoodJobOverlay
+          setState(() {
+            _showSuccessUI = true;
+          });
+        }
+      });
+    });
+  }
+
+  // Clean helper method to render children uniformly based on current state
+  Widget _buildChildCharacter({
+    required CharacterConfig config,
+    required bool isTarget,
+    required Size screenSize,
+  }) {
+    double currentLeft;
+    double currentBottom;
+    double currentHeight;
+    Duration animDuration;
+    Curve animCurve;
+    bool shouldBounce;
+
+    if (isTarget) {
+      if (_isWalkingAway) {
+        currentLeft = screenSize.width * (config.endLeftOffset - 0.75);
+        currentBottom = screenSize.height * config.endBottomOffset;
+        currentHeight = screenSize.height * config.endHeight;
+        animDuration = const Duration(milliseconds: 1800);
+        animCurve = Curves.linear;
+        shouldBounce = true;
+      } else if (_isTargetMoving) {
+        currentLeft = screenSize.width * config.endLeftOffset;
+        currentBottom = screenSize.height * config.endBottomOffset;
+        currentHeight = screenSize.height * config.endHeight;
+        animDuration = const Duration(milliseconds: 1200);
+        animCurve = Curves.easeInOut;
+        shouldBounce = true;
+      } else if (_forceEntrancePositions) {
+        currentLeft = screenSize.width * config.entranceLeftOffset;
+        currentBottom = screenSize.height * config.bottomOffset;
+        currentHeight = screenSize.height * config.startHeight;
+        animDuration = Duration.zero;
+        animCurve = Curves.linear;
+        shouldBounce = _isChildrenEntering;
+      } else {
+        currentLeft = screenSize.width * config.leftOffset;
+        currentBottom = screenSize.height * config.bottomOffset;
+        currentHeight = screenSize.height * config.startHeight;
+        animDuration = const Duration(milliseconds: 1500);
+        animCurve = Curves.easeInOut;
+        shouldBounce = _isChildrenEntering;
+      }
+    } else {
+      // Wrong Choices Behavior
+      if (_forceEntrancePositions) {
+        currentLeft = screenSize.width * config.entranceLeftOffset;
+        currentBottom = screenSize.height * config.bottomOffset;
+        currentHeight = screenSize.height * config.startHeight;
+        animDuration = Duration.zero;
+        animCurve = Curves.linear;
+        shouldBounce = _isChildrenEntering;
+      } else {
+        currentLeft = screenSize.width * config.leftOffset;
+        currentBottom = screenSize.height * config.bottomOffset;
+        currentHeight = screenSize.height * config.startHeight;
+        animDuration = const Duration(milliseconds: 1500);
+        animCurve = Curves.easeInOut;
+        shouldBounce = _isChildrenEntering;
+      }
+    }
+
+    return AnimatedPositioned(
+      duration: animDuration,
+      curve: animCurve,
+      left: currentLeft,
+      bottom: currentBottom,
+      height: currentHeight,
+      child: _WalkingBounce(
+        isWalking: shouldBounce,
+        bounceHeightPx: screenSize.height * 0.045, // Stronger bounce effect!
+        child: GestureDetector(
+          onTap: () {
+            if (_isTargetMoving ||
+                _isWalkingAway ||
+                _isChildrenEntering ||
+                _forceEntrancePositions)
+              return;
+
+            if (isTarget) {
+              _handleTargetTap();
+            } else {
+              _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
+            }
+          },
+          child: Image.asset(config.imagePath),
+        ),
+      ),
+    );
   }
 
   @override
@@ -276,106 +468,60 @@ class _PickupGameState extends State<PickupGame> {
             ),
           ),
 
-          // 2. The Parent
-          Positioned(
+          // 2. The Parent (AnimatedPositioned so they can walk away!)
+          AnimatedPositioned(
+            duration: _isWalkingAway
+                ? const Duration(milliseconds: 1800)
+                : Duration.zero,
+            curve: Curves.linear,
             bottom: -screenSize.height * 0.05,
-            left: screenSize.width * 0.15,
+            left: _isWalkingAway
+                ? -screenSize.width * 0.60
+                : screenSize.width * 0.15,
             height: screenSize.height * 0.65,
-            child: GestureDetector(
-              onTap: () {
-                if (!_hasChildMoved)
-                  _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
-              },
-              child: _WalkingAnimalEntrance(
-                key: ValueKey(currentLevel.parentImage),
-                bounceHeightPx: screenSize.height * 0.65 * 0.045,
-                child: Image.asset(currentLevel.parentImage),
+            child: _WalkingBounce(
+              isWalking: _isWalkingAway,
+              bounceHeightPx: screenSize.height * 0.045,
+              child: GestureDetector(
+                onTap: () {
+                  if (!_isTargetMoving &&
+                      !_isWalkingAway &&
+                      !_isChildrenEntering)
+                    _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
+                },
+                child: _WalkingAnimalEntrance(
+                  key: ValueKey(currentLevel.parentImage),
+                  bounceHeightPx: screenSize.height * 0.045,
+                  child: Image.asset(currentLevel.parentImage),
+                ),
               ),
             ),
           ),
 
-          // 3. Wrong Choice 1 (Conditionally rendered)
+          // 3. Wrong Choice 1
           if (currentLevel.wrongChild1 != null)
-            Positioned(
-              bottom:
-                  screenSize.height * currentLevel.wrongChild1!.bottomOffset,
-              left: screenSize.width * currentLevel.wrongChild1!.leftOffset,
-              height: screenSize.height * currentLevel.wrongChild1!.startHeight,
-              child: GestureDetector(
-                onTap: () {
-                  if (!_hasChildMoved)
-                    _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
-                },
-                child: Image.asset(currentLevel.wrongChild1!.imagePath),
-              ),
+            _buildChildCharacter(
+              config: currentLevel.wrongChild1!,
+              isTarget: false,
+              screenSize: screenSize,
             ),
 
-          // 4. Wrong Choice 2 (Conditionally rendered)
+          // 4. Wrong Choice 2
           if (currentLevel.wrongChild2 != null)
-            Positioned(
-              bottom:
-                  screenSize.height * currentLevel.wrongChild2!.bottomOffset,
-              left: screenSize.width * currentLevel.wrongChild2!.leftOffset,
-              height: screenSize.height * currentLevel.wrongChild2!.startHeight,
-              child: GestureDetector(
-                onTap: () {
-                  if (!_hasChildMoved)
-                    _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
-                },
-                child: Image.asset(currentLevel.wrongChild2!.imagePath),
-              ),
+            _buildChildCharacter(
+              config: currentLevel.wrongChild2!,
+              isTarget: false,
+              screenSize: screenSize,
             ),
 
           // 5. Target Child
-          AnimatedPositioned(
-            duration: _hasChildMoved
-                ? const Duration(milliseconds: 1200)
-                : Duration.zero,
-            curve: Curves.easeInOut,
-
-            // Using custom "end" adjusters when moved
-            bottom: _hasChildMoved
-                ? screenSize.height * currentLevel.targetChild.endBottomOffset
-                : screenSize.height * currentLevel.targetChild.bottomOffset,
-            left: _hasChildMoved
-                ? screenSize.width * currentLevel.targetChild.endLeftOffset
-                : screenSize.width * currentLevel.targetChild.leftOffset,
-            height: _hasChildMoved
-                ? screenSize.height * currentLevel.targetChild.endHeight
-                : screenSize.height * currentLevel.targetChild.startHeight,
-
-            child: GestureDetector(
-              onTap: () {
-                if (_hasChildMoved) return;
-
-                _playAudio('audio/sound_effects/shine.wav');
-                setState(() {
-                  _hasChildMoved = true;
-                });
-
-                Future.delayed(const Duration(seconds: 3), () {
-                  if (mounted) {
-                    if (_currentLevelIndex < _levels.length - 1) {
-                      // Advance to next level
-                      setState(() {
-                        _hasChildMoved = false;
-                        _currentLevelIndex++;
-                      });
-                    } else {
-                      // Finished the final level -> Show GoodJobOverlay
-                      setState(() {
-                        _hasChildMoved = false;
-                        _showSuccessUI = true;
-                      });
-                    }
-                  }
-                });
-              },
-              child: Image.asset(currentLevel.targetChild.imagePath),
-            ),
+          _buildChildCharacter(
+            config: currentLevel.targetChild,
+            isTarget: true,
+            screenSize: screenSize,
           ),
 
-          // 6. Good Job Prompt Overlay (Shown after completing the final level)
+          // 6. Good Job Prompt Overlay
           if (_showSuccessUI)
             Positioned.fill(
               child: GoodJobOverlay(
@@ -387,9 +533,10 @@ class _PickupGameState extends State<PickupGame> {
                 onRestart: () {
                   setState(() {
                     _currentLevelIndex = 0;
-                    _hasChildMoved = false;
                     _showSuccessUI = false;
                   });
+                  // Restart the entrance for the first level!
+                  _triggerEntranceAnimation();
                 },
                 onBack: () {
                   Navigator.of(context).maybePop();
@@ -402,7 +549,81 @@ class _PickupGameState extends State<PickupGame> {
   }
 }
 
-// ── CUSTOM WALKING ENTRANCE ──────────────────────────────────────────────────
+// ── CUSTOM CONTINUOUS WALKING BOUNCE ──────────────────────────────────────────
+
+class _WalkingBounce extends StatefulWidget {
+  final Widget child;
+  final bool isWalking;
+  final double bounceHeightPx;
+
+  const _WalkingBounce({
+    super.key,
+    required this.child,
+    required this.isWalking,
+    required this.bounceHeightPx,
+  });
+
+  @override
+  State<_WalkingBounce> createState() => _WalkingBounceState();
+}
+
+class _WalkingBounceState extends State<_WalkingBounce>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500), // Speed of the walk cycle
+    );
+    if (widget.isWalking) {
+      _ctrl.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _WalkingBounce oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isWalking != oldWidget.isWalking) {
+      if (widget.isWalking) {
+        _ctrl.repeat();
+      } else {
+        _ctrl.animateTo(0, duration: const Duration(milliseconds: 150));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) {
+        // Absolute sine wave for a snappy vertical bounce
+        final double bounce =
+            (math.sin(_ctrl.value * math.pi * 2)).abs() * widget.bounceHeightPx;
+
+        // Standard sine wave for a subtle side-to-side waddle rotation
+        final double angle = math.sin(_ctrl.value * math.pi * 2) * 0.06;
+
+        return Transform.translate(
+          offset: Offset(0, -bounce),
+          child: Transform.rotate(angle: angle, child: child),
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+// ── CUSTOM WALKING ENTRANCE (For Parents) ────────────────────────────────────
 
 class _WalkingAnimalEntrance extends StatefulWidget {
   final Widget child;
@@ -461,11 +682,19 @@ class _WalkingAnimalEntranceState extends State<_WalkingAnimalEntrance>
         final double easedT = Curves.easeOutCubic.transform(t);
         final double dx = startX * (1 - easedT);
 
+        // Matching bouncy math for the parents
         final double bounce = t < 1.0
             ? (math.sin(t * stepCount * math.pi)).abs() * widget.bounceHeightPx
             : 0.0;
 
-        return Transform.translate(offset: Offset(dx, -bounce), child: child);
+        final double angle = t < 1.0
+            ? math.sin(t * stepCount * math.pi) * 0.04
+            : 0.0;
+
+        return Transform.translate(
+          offset: Offset(dx, -bounce),
+          child: Transform.rotate(angle: angle, child: child),
+        );
       },
       child: widget.child,
     );
