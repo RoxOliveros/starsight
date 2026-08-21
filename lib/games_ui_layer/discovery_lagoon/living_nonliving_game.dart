@@ -1,7 +1,8 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+
+import '../goodjob_prompt.dart';
 
 // --- Game Phase Enum ---
 enum GamePhase { intro1, playLiving, intro2, playNonLiving, finished }
@@ -63,8 +64,6 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
 
   GamePhase _phase = GamePhase.intro1;
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer =
-      AudioPlayer(); // <--- ADDED: Dedicated SFX player
 
   @override
   void initState() {
@@ -97,7 +96,6 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
   @override
   void dispose() {
     _audioPlayer.dispose();
-    _sfxPlayer.dispose(); // <--- ADDED: Dispose SFX player
     super.dispose();
   }
 
@@ -125,11 +123,6 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
     await _audioPlayer.play(
       AssetSource('audio/discovery_lagoon/living_nonliving_game_part2.wav'),
     );
-  }
-
-  // <--- ADDED: Helper method for sound effects
-  void _playAudio(String path) async {
-    await _sfxPlayer.play(AssetSource(path));
   }
 
   void _checkProgress() {
@@ -285,7 +278,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
   final AssetConfig kiki = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/kiki_nc.png',
     coloredImagePath: 'assets/images/characters/kiki_the_cat.png',
-    isLiving: true,
+    isLiving: true, // <--- CHANGED: Kiki is now a living target!
     bottomOffset: 0.05,
     rightOffset: 0.04,
     heightOffset: 0.6,
@@ -322,23 +315,8 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
         if (!config.isClickable) return;
         if (isTapped) return;
 
-        // <--- ADDED: Check if tap is correct or wrong
-        bool isWrongTap = false;
-        if (_phase == GamePhase.playLiving && !config.isLiving) {
-          isWrongTap = true;
-        } else if (_phase == GamePhase.playNonLiving && config.isLiving) {
-          isWrongTap = true;
-        }
-
-        if (isWrongTap) {
-          _playAudio(
-            'audio/discovery_lagoon/kiki_tryagain.wav',
-          ); // Play try again audio
-          return; // Stop here, don't color it!
-        }
-
-        // If it was the correct tap, play the shine sound
-        _playAudio('audio/sound_effects/shine.wav');
+        if (_phase == GamePhase.playLiving && !config.isLiving) return;
+        if (_phase == GamePhase.playNonLiving && config.isLiving) return;
 
         setState(() {
           _tappedAssets.add(config);
@@ -376,7 +354,8 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
     final size = MediaQuery.of(context).size;
 
     bool isIntro = _phase == GamePhase.intro1 || _phase == GamePhase.intro2;
-    bool isFinished = _phase == GamePhase.finished;
+    bool isFinished =
+        _phase == GamePhase.finished; // <--- ADDED: Track finished state
 
     return Scaffold(
       body: Stack(
