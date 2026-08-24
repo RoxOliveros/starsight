@@ -99,12 +99,9 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/hidden_object/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/hidden_object/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/hidden_object/hidden_object_instruction.wav';
-  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/hidden_object/complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/hidden_object_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/hidden_object_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/hidden_object_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -227,8 +224,6 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     await _playBgAudio(_audioIntro);
 
     _speechBubbleCtrl.forward(from: 0);
-    await _playBgAudio(_audioWelcome);
-    await Future.delayed(const Duration(milliseconds: 400));
 
     _gameEnterCtrl.forward();
     _startRound();
@@ -374,7 +369,6 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     }
     _lastWrongFeedback = now;
 
-    _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
     unawaited(showRoxieReaction(RoxieState.wrong));
     setState(() => _wrongObjectId = obj.item.id);
     Future.delayed(const Duration(milliseconds: 400), () {
@@ -387,7 +381,6 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
       _isCompleting = true;
       _foundObjectId = obj.item.id;
     });
-    _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
     unawaited(showRoxieReaction(RoxieState.correct));
     await Future.delayed(const Duration(milliseconds: 900));
     await _advanceRound();
@@ -531,10 +524,14 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     );
   }
 
-  // Small preview: a handful of faint objects with a magnifying glass
-  // sweeping over them, teasing the search mechanic before the round starts.
   Widget _buildIntroPreview() {
-    const previewItems = ['🧭', '🗺️', '🧩', '🔭', '🖊️'];
+    const previewItems = [
+      'assets/images/objects/puzzle/compass.png',
+      'assets/images/objects/puzzle/map.png',
+      'assets/images/objects/puzzle/puzzle_piece.png',
+      'assets/images/objects/puzzle/telescope.png',
+      'assets/images/objects/puzzle/pen.png',
+    ];
     return AnimatedBuilder(
       animation: _magnifier,
       builder: (_, __) {
@@ -565,9 +562,13 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
                   children: previewItems
                       .map((e) => Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(e, style: const TextStyle(fontSize: 30)),
-                  ))
-                      .toList(),
+                    child: Image.asset(
+                      e,
+                      width: 42,
+                      height: 42,
+                      fit: BoxFit.contain,
+                    ),
+                  )).toList(),
                 ),
               ),
               Transform.translate(

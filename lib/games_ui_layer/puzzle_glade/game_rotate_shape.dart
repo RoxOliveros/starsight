@@ -100,10 +100,7 @@ import 'game_which_comes_first.dart';
     static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
     static const String _audioIntro = 'assets/audio/puzzle_glade/rotate_shape/intro.wav';
-    static const String _audioWelcome = 'assets/audio/puzzle_glade/rotate_shape/welcome.wav';
     static const String _audioInstructions = 'assets/audio/puzzle_glade/rotate_shape/rotate_shape_instruction.wav';
-    static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-    static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
     static const String _audioComplete = 'assets/audio/puzzle_glade/rotate_shape/complete.wav';
 
     // ── Phase ──────────────────────────────────────────────────────────────────
@@ -260,8 +257,6 @@ import 'game_which_comes_first.dart';
       await _playBgAudio(_audioIntro);
 
       _speechBubbleCtrl.forward(from: 0);
-      await _playBgAudio(_audioWelcome);
-      await Future.delayed(const Duration(milliseconds: 400));
 
       _gameEnterCtrl.forward();
       _startRound();
@@ -377,7 +372,6 @@ import 'game_which_comes_first.dart';
       }
       _lastWrongFeedback = now;
 
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
       unawaited(showRoxieReaction(RoxieState.wrong));
       setState(() => _isWrongFlash = true);
       _wiggleCtrl.forward(from: 0);
@@ -388,7 +382,6 @@ import 'game_which_comes_first.dart';
 
     Future<void> _handleCorrectRotation() async {
       setState(() => _isCompleting = true);
-      _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
       unawaited(showRoxieReaction(RoxieState.correct));
       await _celebrateCtrl.forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 300));
