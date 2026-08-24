@@ -58,18 +58,18 @@ const List<_SequenceSet> _sequencePool = [
     id: 'seed_flower',
     title: 'From Seed to Flower',
     steps: [
-      _SequenceStep(id: 'seed', label: 'Seed', asset: 'assets/images/objects/sequence/seed.png', emoji: '🌰'),
-      _SequenceStep(id: 'sprout', label: 'Sprout', asset: 'assets/images/objects/sequence/sprout.png', emoji: '🌱'),
-      _SequenceStep(id: 'flower', label: 'Flower', asset: 'assets/images/objects/sequence/flower.png', emoji: '🌸'),
+      _SequenceStep(id: 'seed', label: 'Seed', asset: 'assets/images/objects/puzzle/seed.png', emoji: '🌰'),
+      _SequenceStep(id: 'sprout', label: 'Sprout', asset: 'assets/images/objects/puzzle/sprout.png', emoji: '🌱'),
+      _SequenceStep(id: 'flower', label: 'Flower', asset: 'assets/images/objects/puzzle/flower.png', emoji: '🌸'),
     ],
   ),
   _SequenceSet(
     id: 'egg_chicken',
     title: 'From Egg to Chicken',
     steps: [
-      _SequenceStep(id: 'egg', label: 'Egg', asset: 'assets/images/objects/sequence/egg.png', emoji: '🥚'),
-      _SequenceStep(id: 'chick', label: 'Chick', asset: 'assets/images/objects/sequence/chick.png', emoji: '🐣'),
-      _SequenceStep(id: 'chicken', label: 'Chicken', asset: 'assets/images/objects/sequence/chicken.png', emoji: '🐔'),
+      _SequenceStep(id: 'egg', label: 'Egg', asset: 'assets/images/objects/lumi/egg.png', emoji: '🥚'),
+      _SequenceStep(id: 'chick', label: 'Chick', asset: 'assets/images/characters/chick.png', emoji: '🐣'),
+      _SequenceStep(id: 'chicken', label: 'Chicken', asset: 'assets/images/characters/mom_chichken.png', emoji: '🐔'),
     ],
   ),
   _SequenceSet(

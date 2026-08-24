@@ -62,6 +62,20 @@ const List<_HiddenObjectItem> _objectPool = [
   _HiddenObjectItem(id: 'telescope', name: 'Telescope', asset: 'assets/images/objects/puzzle/telescope.png', emoji: '🔭', colorFamily: 'brass', shapeFamily: 'long'),
 ];
 
+class _GrassTuft {
+  final Offset topLeft;
+  final double size;
+  final double rotation;
+  final double opacity;
+
+  const _GrassTuft({
+    required this.topLeft,
+    required this.size,
+    required this.rotation,
+    required this.opacity,
+  });
+}
+
 // A pool item placed somewhere in the scene for the current round.
 class _PlacedObject {
   final _HiddenObjectItem item;
@@ -97,7 +111,8 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
 
   // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle_grass.png';
+  static const String _grassImage = 'assets/images/objects/puzzle/grass.png';
 
   static const String _audioIntro = 'assets/audio/puzzle_glade/hidden_object_intro.wav';
   static const String _audioInstructions = 'assets/audio/puzzle_glade/hidden_object_instruction.wav';
@@ -110,6 +125,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   int _round = 1;
   late _HiddenObjectItem _targetItem;
   List<_PlacedObject> _sceneObjects = [];
+  List<_GrassTuft> _grassTufts = [];
   String? _wrongObjectId;
   String? _foundObjectId;
   bool _isCompleting = false;
@@ -292,16 +308,53 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
 
     setState(() {
       _targetItem = target;
-      // Positions are assigned in the LayoutBuilder at build time (needs
-      // the scene's real pixel size), so stash the un-placed list for now
-      // and let _layoutScene fill in offsets.
       _sceneObjects = _layoutScene(sceneItems, targetSizeFactor, target.id, rng);
+      _grassTufts = _generateGrassTufts(_sceneObjects, rng); // ← add this
       _wrongObjectId = null;
       _foundObjectId = null;
       _isCompleting = false;
     });
 
     _enterCtrl.forward(from: 0);
+  }
+
+  List<_GrassTuft> _generateGrassTufts(List<_PlacedObject> objects, Random rng) {
+    final tufts = <_GrassTuft>[];
+
+    // Tufts nestled around the base of each placed object
+    for (final obj in objects) {
+      final tuftCount = 2 + rng.nextInt(2); // 2–3 per object
+      for (int i = 0; i < tuftCount; i++) {
+        final tuftSize = obj.size * (0.28 + rng.nextDouble() * 0.18);
+        final dx = (obj.topLeft.dx + rng.nextDouble() * obj.size - tuftSize * 0.3)
+            .clamp(0.0, 1000.0 - tuftSize);
+        final dy = (obj.topLeft.dy + obj.size * (0.62 + rng.nextDouble() * 0.32) - tuftSize * 0.3)
+            .clamp(0.0, 600.0 - tuftSize);
+        tufts.add(_GrassTuft(
+          topLeft: Offset(dx, dy),
+          size: tuftSize,
+          rotation: (rng.nextDouble() - 0.5) * 0.6,
+          opacity: 0.85 + rng.nextDouble() * 0.15,
+        ));
+      }
+    }
+
+    // A few loose tufts scattered across the whole scene for extra texture
+    final extraCount = 6 + rng.nextInt(4);
+    for (int i = 0; i < extraCount; i++) {
+      final tuftSize = 40.0 + rng.nextDouble() * 30.0;
+      tufts.add(_GrassTuft(
+        topLeft: Offset(
+          rng.nextDouble() * (1000.0 - tuftSize),
+          rng.nextDouble() * (600.0 - tuftSize),
+        ),
+        size: tuftSize,
+        rotation: (rng.nextDouble() - 0.5) * 0.6,
+        opacity: 0.7 + rng.nextDouble() * 0.2,
+      ));
+    }
+
+    return tufts;
   }
 
   // Places items on a jittered grid sized to fit exactly `items.length`
@@ -693,34 +746,42 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
         }
         final scale = sceneWidth / 1000.0;
 
-        return Container(
+        return SizedBox(
           width: sceneWidth,
           height: sceneHeight,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
-              width: 3,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.15),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
             child: Stack(
-              children: _sceneObjects
-                  .map((obj) => _buildSceneObject(obj, scale))
-                  .toList(),
+              fit: StackFit.expand,
+              children: [
+                ..._sceneObjects.map((obj) => _buildSceneObject(obj, scale)),
+                ..._grassTufts.map((tuft) => _buildGrassTuft(tuft, scale)), // ← new, drawn on top
+              ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildGrassTuft(_GrassTuft tuft, double scale) {
+    return Positioned(
+      left: tuft.topLeft.dx * scale,
+      top: tuft.topLeft.dy * scale,
+      width: tuft.size * scale,
+      height: tuft.size * scale,
+      child: IgnorePointer( // never blocks the object tap underneath
+        child: Opacity(
+          opacity: tuft.opacity,
+          child: Transform.rotate(
+            angle: tuft.rotation,
+            child: Image.asset(
+              _grassImage,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
