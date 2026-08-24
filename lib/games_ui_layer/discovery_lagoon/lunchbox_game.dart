@@ -1,5 +1,5 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/goodjob_prompt.dart'; // <-- Imported your existing overlay here
+import 'package:StarSight/games_ui_layer/goodjob_prompt.dart'; 
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
