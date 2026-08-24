@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart'; // Standard Flutter audio package
 import 'package:StarSight/business_layer/orientation_service.dart';
+import '../goodjob_prompt.dart'; // Add your specific import path for the overlay here
 
 class AnimalLifecycleGame extends StatefulWidget {
   const AnimalLifecycleGame({Key? key}) : super(key: key);
@@ -12,6 +13,20 @@ class AnimalLifecycleGame extends StatefulWidget {
 class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
   // Initialize the audio player
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  // Intro & End state
+  bool showIntro = true;
+  bool showGoodJob = false; // Added state for the final overlay
+
+  // ==========================================
+  // 🛠️ KIKI ADJUSTER
+  // Change these values to move Kiki manually.
+  // X: Negative (LEFT), Positive (RIGHT)
+  // Y: Negative (UP), Positive (DOWN)
+  // ==========================================
+  final double kikiHorizontalOffset = 0.0;
+  final double kikiVerticalOffset = 40.0;
+  final double kikiSizeFactor = 1.20;
 
   // Track the current level (0 = First Seed, 1 = Strawberry, 2 = Mango)
   int currentLevelIndex = 0;
@@ -80,6 +95,25 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
     // Load the first level's sequence on startup
     currentSequence = List.from(allInitialSequences[currentLevelIndex]);
     OrientationService.setLandscape();
+
+    // Start the intro sequence
+    _playIntro();
+  }
+
+  void _playIntro() async {
+    // Play the requested intro audio
+    await _audioPlayer.play(
+      AssetSource('audio/discovery_lagoon/animal_lifecycle_game_intro.wav'),
+    );
+
+    // Wait for the audio to finish completely, then update the UI
+    _audioPlayer.onPlayerComplete.first.then((_) {
+      if (mounted) {
+        setState(() {
+          showIntro = false;
+        });
+      }
+    });
   }
 
   @override
@@ -90,8 +124,8 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
   }
 
   void _onItemDropped(int oldIndex, int newIndex) {
-    // Prevent dragging if the current level is already solved and waiting to transition
-    if (isCorrect) return;
+    // Prevent dragging if the current level is already solved or the game is finished
+    if (isCorrect || showGoodJob) return;
 
     setState(() {
       final temp = currentSequence[oldIndex];
@@ -117,7 +151,6 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
 
     if (isCorrect) {
       // Play the success sound effect
-      // AssetSource automatically prefixes 'assets/', so this targets 'assets/audio/sound_effects/shine.wav'
       _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
 
       // Progress to the next level if there are more levels remaining
@@ -133,7 +166,14 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
           });
         });
       } else {
-        // TODO: All levels completed. Trigger final celebration dialog or navigation here
+        // Last level completed - show the Good Job Overlay
+        Future.delayed(const Duration(seconds: 2), () {
+          if (!mounted) return;
+
+          setState(() {
+            showGoodJob = true;
+          });
+        });
       }
     }
   }
@@ -143,7 +183,7 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image
+          // Background Image (Always visible)
           Positioned.fill(
             child: Image.asset(
               'assets/images/backgrounds/bg_rainbow_closeup2.png',
@@ -151,44 +191,83 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
             ),
           ),
 
-          // Universal Responsive Game Area
-          SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // Determine max size based on height and width to prevent overflow
-                double maxByHeight = constraints.maxHeight * 0.45;
-                double maxByWidth = constraints.maxWidth / 5.5;
+          // Show Kiki during the intro, show the game board after
+          if (showIntro)
+            Center(
+              child: Transform.translate(
+                offset: Offset(kikiHorizontalOffset, kikiVerticalOffset),
+                child: FractionallySizedBox(
+                  heightFactor: kikiSizeFactor,
+                  child: Image.asset(
+                    'assets/images/characters/kiki_standing.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            )
+          else
+            // Universal Responsive Game Area
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Determine max size based on height and width to prevent overflow
+                  double maxByHeight = constraints.maxHeight * 0.45;
+                  double maxByWidth = constraints.maxWidth / 5.5;
 
-                // Pick the smaller one to guarantee it fits entirely
-                double universalCardSize = maxByHeight < maxByWidth
-                    ? maxByHeight
-                    : maxByWidth;
+                  // Pick the smaller one to guarantee it fits entirely
+                  double universalCardSize = maxByHeight < maxByWidth
+                      ? maxByHeight
+                      : maxByWidth;
 
-                return Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: SizedBox(
-                      height: universalCardSize,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(7, (index) {
-                          if (index % 2 == 1) {
-                            return _buildArrow(universalCardSize);
-                          }
-                          int cardIndex = index ~/ 2;
-                          // Pass the exact card size down to prevent any squishing
-                          return _buildDraggableSlot(
-                            cardIndex,
-                            universalCardSize,
-                          );
-                        }),
+                  return Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: SizedBox(
+                        height: universalCardSize,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(7, (index) {
+                            if (index % 2 == 1) {
+                              return _buildArrow(universalCardSize);
+                            }
+                            int cardIndex = index ~/ 2;
+                            // Pass the exact card size down to prevent any squishing
+                            return _buildDraggableSlot(
+                              cardIndex,
+                              universalCardSize,
+                            );
+                          }),
+                        ),
                       ),
                     ),
-                  ),
-                );
+                  );
+                },
+              ),
+            ),
+
+          // ── Final Success Overlay ──
+          if (showGoodJob)
+            GoodJobOverlay(
+              characterImage: 'assets/images/characters/kiki_smiling.png',
+              closeButtonColor: const Color(0xFFF44336),
+              onNext: () {
+                // Navigates out of the game screen
+                Navigator.of(context).pop();
+              },
+              onRestart: () {
+                // Resets the game seamlessly to the first level
+                setState(() {
+                  currentLevelIndex = 0;
+                  currentSequence = List.from(allInitialSequences[0]);
+                  isCorrect = false;
+                  showGoodJob = false;
+                });
+              },
+              onBack: () {
+                // Navigates out of the game screen
+                Navigator.of(context).pop();
               },
             ),
-          ),
         ],
       ),
     );
@@ -217,8 +296,8 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
       builder: (context, candidateData, rejectedData) {
         return Draggable<int>(
           data: index,
-          // Disable dragging if the sequence is solved and waiting to transition
-          maxSimultaneousDrags: isCorrect ? 0 : 1,
+          // Disable dragging if the sequence is solved or the game is finished
+          maxSimultaneousDrags: isCorrect || showGoodJob ? 0 : 1,
           feedback: Material(
             color: Colors.transparent,
             child: _buildCardUI(currentSequence[index], true, cardSize),
@@ -243,7 +322,9 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isCorrect ? const Color(0xFF81C784) : Colors.grey.shade500,
+            color: isCorrect
+                ? Colors.orange
+                : Colors.grey.shade500, // Changed to Orange!
             width: 5,
           ),
           color: Colors.white,
