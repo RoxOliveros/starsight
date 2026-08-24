@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/puzzle_progress_service.dart';
 import '../../games_ui_layer/puzzle_glade/game_copy_pattern.dart';
+import '../../games_ui_layer/puzzle_glade/game_find_the_pair_screen.dart';
 import '../../games_ui_layer/puzzle_glade/game_hidden_object.dart';
 import '../../games_ui_layer/puzzle_glade/game_maze_path.dart';
+import '../../games_ui_layer/puzzle_glade/game_odd_one_out_screen.dart';
 import '../../games_ui_layer/puzzle_glade/game_rotate_shape.dart';
 import '../../games_ui_layer/puzzle_glade/game_shape_fit.dart';
 import '../../games_ui_layer/puzzle_glade/game_spot_the_difference.dart';
@@ -341,12 +343,12 @@ class _LevelTile extends StatelessWidget {
         return const RotateTheShapeScreen(level: 14);
       case 15:
         return const WhichComesFirstScreen(level: 15);
+      case 16:
+        return const OddOneOutScreen(level: 16);
+      case 17:
+        return const FindThePairScreen(level: 17);
 
       // TODO: @Tin add games
-      case 16:
-        return null;
-      case 17:
-        return null;
       case 18:
         return null;
       case 19:
