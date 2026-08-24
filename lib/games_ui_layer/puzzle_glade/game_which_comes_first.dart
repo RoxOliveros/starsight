@@ -43,7 +43,7 @@ class _SequenceStep {
 class _SequenceSet {
   final String id;
   final String title;
-  final List<_SequenceStep> steps; // always in correct order
+  final List<_SequenceStep> steps;
 
   const _SequenceSet({
     required this.id,
@@ -68,7 +68,7 @@ const List<_SequenceSet> _sequencePool = [
     title: 'From Egg to Chicken',
     steps: [
       _SequenceStep(id: 'egg', label: 'Egg', asset: 'assets/images/objects/lumi/egg.png', emoji: '🥚'),
-      _SequenceStep(id: 'chick', label: 'Chick', asset: 'assets/images/characters/chick.png', emoji: '🐣'),
+      _SequenceStep(id: 'chick', label: 'Chick', asset: 'assets/images/characters/chicken.png', emoji: '🐣'),
       _SequenceStep(id: 'chicken', label: 'Chicken', asset: 'assets/images/characters/mom_chichken.png', emoji: '🐔'),
     ],
   ),
@@ -76,39 +76,20 @@ const List<_SequenceSet> _sequencePool = [
     id: 'caterpillar_butterfly',
     title: 'From Caterpillar to Butterfly',
     steps: [
-      _SequenceStep(id: 'caterpillar', label: 'Caterpillar', asset: 'assets/images/objects/sequence/caterpillar.png', emoji: '🐛'),
-      _SequenceStep(id: 'cocoon', label: 'Cocoon', asset: 'assets/images/objects/sequence/cocoon.png', emoji: '🤎'),
-      _SequenceStep(id: 'butterfly', label: 'Butterfly', asset: 'assets/images/objects/sequence/butterfly.png', emoji: '🦋'),
-    ],
-  ),
-  _SequenceSet(
-    id: 'cloud_puddle',
-    title: 'From Clouds to Puddle',
-    steps: [
-      _SequenceStep(id: 'clouds', label: 'Clouds', asset: 'assets/images/objects/sequence/clouds.png', emoji: '☁️'),
-      _SequenceStep(id: 'rain', label: 'Rain', asset: 'assets/images/objects/sequence/rain.png', emoji: '🌧️'),
-      _SequenceStep(id: 'puddle', label: 'Puddle', asset: 'assets/images/objects/sequence/puddle.png', emoji: '💦'),
+      _SequenceStep(id: 'caterpillar', label: 'Caterpillar', asset: 'assets/images/objects/puzzle/caterpillar.png', emoji: '🐛'),
+      _SequenceStep(id: 'cocoon', label: 'Cocoon', asset: 'assets/images/objects/puzzle/cocoon.png', emoji: '🤎'),
+      _SequenceStep(id: 'butterfly', label: 'Butterfly', asset: 'assets/images/objects/puzzle/butterfly.png', emoji: '🦋'),
     ],
   ),
   // ── 4-step sequences ──────────────────────────────────────────────────────
   _SequenceSet(
-    id: 'seed_fruit',
-    title: 'From Seed to Fruit',
-    steps: [
-      _SequenceStep(id: 'seed2', label: 'Seed', asset: 'assets/images/objects/sequence/seed.png', emoji: '🌰'),
-      _SequenceStep(id: 'sprout2', label: 'Sprout', asset: 'assets/images/objects/sequence/sprout.png', emoji: '🌱'),
-      _SequenceStep(id: 'flower2', label: 'Flower', asset: 'assets/images/objects/sequence/flower.png', emoji: '🌸'),
-      _SequenceStep(id: 'fruit', label: 'Fruit', asset: 'assets/images/objects/sequence/fruit.png', emoji: '🍎'),
-    ],
-  ),
-  _SequenceSet(
     id: 'sun_day',
     title: 'A Day in the Sky',
     steps: [
-      _SequenceStep(id: 'sunrise', label: 'Sunrise', asset: 'assets/images/objects/sequence/sunrise.png', emoji: '🌅'),
-      _SequenceStep(id: 'noon', label: 'Noon', asset: 'assets/images/objects/sequence/noon.png', emoji: '☀️'),
-      _SequenceStep(id: 'sunset', label: 'Sunset', asset: 'assets/images/objects/sequence/sunset.png', emoji: '🌇'),
-      _SequenceStep(id: 'night', label: 'Night', asset: 'assets/images/objects/sequence/night.png', emoji: '🌙'),
+      _SequenceStep(id: 'sunrise', label: 'Sunrise', asset: 'assets/images/objects/puzzle/sunrise.png', emoji: '🌅'),
+      _SequenceStep(id: 'noon', label: 'Noon', asset: 'assets/images/objects/puzzle/noon.png', emoji: '☀️'),
+      _SequenceStep(id: 'sunset', label: 'Sunset', asset: 'assets/images/objects/puzzle/sunset.png', emoji: '🌇'),
+      _SequenceStep(id: 'night', label: 'Night', asset: 'assets/images/objects/puzzle/night.png', emoji: '🌙'),
     ],
   ),
   // ── 5-step sequence (hardest round) ──────────────────────────────────────
@@ -116,11 +97,11 @@ const List<_SequenceSet> _sequencePool = [
     id: 'frog_life',
     title: 'The Life of a Frog',
     steps: [
-      _SequenceStep(id: 'frogegg', label: 'Egg', asset: 'assets/images/objects/sequence/frog_egg.png', emoji: '🥚'),
-      _SequenceStep(id: 'tadpole', label: 'Tadpole', asset: 'assets/images/objects/sequence/tadpole.png', emoji: '🐟'),
-      _SequenceStep(id: 'froglet', label: 'Froglet', asset: 'assets/images/objects/sequence/froglet.png', emoji: '🐸'),
-      _SequenceStep(id: 'frog', label: 'Frog', asset: 'assets/images/objects/sequence/frog.png', emoji: '🐸'),
-      _SequenceStep(id: 'lilypad', label: 'On a Lily Pad', asset: 'assets/images/objects/sequence/lilypad.png', emoji: '🪷'),
+      _SequenceStep(id: 'frogegg', label: 'Egg', asset: 'assets/images/objects/puzzle/frogegg.png', emoji: '🥚'),
+      _SequenceStep(id: 'tadpole', label: 'Tadpole', asset: 'assets/images/objects/puzzle/tadpole.png', emoji: '🐟'),
+      _SequenceStep(id: 'froglet', label: 'Froglet', asset: 'assets/images/objects/puzzle/froglet.png', emoji: '🐸'),
+      _SequenceStep(id: 'frog', label: 'Frog', asset: 'assets/images/objects/puzzle/frog.png', emoji: '🐸'),
+      _SequenceStep(id: 'frog_on_lilypad', label: 'On a Lily Pad', asset: 'assets/images/objects/puzzle/frog_on_lilypad.png', emoji: '🪷'),
     ],
   ),
 ];
@@ -129,9 +110,6 @@ const List<_SequenceSet> _sequencePool = [
 // Difficulty
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Returns how many steps the sequence for this round should have. Ramps up
-// gradually so early rounds are simple 3-step orderings and the final round
-// asks for a longer, less obvious 5-step sequence.
 int _stepCountForRound(int round) {
   switch (round) {
     case 1:
@@ -139,7 +117,7 @@ int _stepCountForRound(int round) {
     case 2:
       return 3;
     case 3:
-      return 4;
+      return 3;
     case 4:
       return 4;
     default:
@@ -597,9 +575,9 @@ class _WhichComesFirstScreenState extends State<WhichComesFirstScreen>
   // middle picture, teasing the ordering mechanic before the round starts.
   Widget _buildIntroPreview() {
     const demoSteps = [
-      _SequenceStep(id: 'seed', label: 'Seed', asset: 'assets/images/objects/sequence/seed.png', emoji: '🌰'),
-      _SequenceStep(id: 'sprout', label: 'Sprout', asset: 'assets/images/objects/sequence/sprout.png', emoji: '🌱'),
-      _SequenceStep(id: 'flower', label: 'Flower', asset: 'assets/images/objects/sequence/flower.png', emoji: '🌸'),
+      _SequenceStep(id: 'seed', label: 'Seed', asset: 'assets/images/objects/puzzle/seed.png', emoji: '🌰'),
+      _SequenceStep(id: 'sprout', label: 'Sprout', asset: 'assets/images/objects/puzzle/sprout.png', emoji: '🌱'),
+      _SequenceStep(id: 'flower', label: 'Flower', asset: 'assets/images/objects/puzzle/flower.png', emoji: '🌸'),
     ];
     return AnimatedBuilder(
       animation: _demoCtrl,

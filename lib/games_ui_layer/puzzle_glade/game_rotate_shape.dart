@@ -99,9 +99,9 @@ import 'game_which_comes_first.dart';
     static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
     static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-    static const String _audioIntro = 'assets/audio/puzzle_glade/rotate_shape/intro.wav';
-    static const String _audioInstructions = 'assets/audio/puzzle_glade/rotate_shape/rotate_shape_instruction.wav';
-    static const String _audioComplete = 'assets/audio/puzzle_glade/rotate_shape/complete.wav';
+    static const String _audioIntro = 'assets/audio/puzzle_glade/rotate_shape_intro.wav';
+    static const String _audioInstructions = 'assets/audio/puzzle_glade/rotate_shape_instruction.wav';
+    static const String _audioComplete = 'assets/audio/puzzle_glade/rotate_shape_complete.wav';
 
     // ── Phase ──────────────────────────────────────────────────────────────────
     _ScreenPhase _screenPhase = _ScreenPhase.intro;
