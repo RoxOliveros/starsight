@@ -93,8 +93,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
   static const String _audioIntro = 'assets/audio/puzzle_glade/intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
   static const String _audioComplete = 'assets/audio/puzzle_glade/level17/complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
