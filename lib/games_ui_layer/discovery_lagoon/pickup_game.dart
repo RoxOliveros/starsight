@@ -1,476 +1,730 @@
+import 'dart:math' as math;
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-// --- Game Phase Enum ---
-enum GamePhase { intro1, playLiving, intro2, playNonLiving, finished }
-
-// --- Configuration Model ---
-class AssetConfig {
+// 1. Define a class to hold specific size and position for each character
+class CharacterConfig {
   final String imagePath;
-  final String coloredImagePath;
+  final double leftOffset;
+  final double bottomOffset;
+  final double startHeight;
 
-  final bool isLiving;
-  final bool isClickable;
+  final double entranceLeftOffset;
 
-  final double? leftOffset;
-  final double? rightOffset;
-  final double? topOffset;
-  final double? bottomOffset;
-  final double? widthOffset;
-  final double? heightOffset;
-  final double? rotation;
-  final double? coloredLeftOffset;
-  final double? coloredRightOffset;
-  final double? coloredTopOffset;
-  final double? coloredBottomOffset;
-  final double? coloredWidthOffset;
-  final double? coloredHeightOffset;
+  final double endLeftOffset;
+  final double endBottomOffset;
+  final double endHeight;
 
-  const AssetConfig({
+  CharacterConfig({
     required this.imagePath,
-    required this.coloredImagePath,
-    this.isLiving = false,
-    this.isClickable = true,
-    this.leftOffset,
-    this.rightOffset,
-    this.topOffset,
-    this.bottomOffset,
-    this.widthOffset,
-    this.heightOffset,
-    this.rotation,
-    this.coloredLeftOffset,
-    this.coloredRightOffset,
-    this.coloredTopOffset,
-    this.coloredBottomOffset,
-    this.coloredWidthOffset,
-    this.coloredHeightOffset,
+    required this.leftOffset,
+    required this.bottomOffset,
+    required this.startHeight,
+    required this.entranceLeftOffset,
+    this.endLeftOffset = 0.34,
+    this.endBottomOffset = -0.10,
+    this.endHeight = 0.55,
   });
 }
 
-class LivingNonLivingGame extends StatefulWidget {
-  const LivingNonLivingGame({Key? key}) : super(key: key);
+// 2. Define the level to accept the configurations
+class PickupLevel {
+  final String parentImage;
+  final CharacterConfig targetChild;
+  final CharacterConfig? wrongChild1;
+  final CharacterConfig? wrongChild2;
 
-  @override
-  State<LivingNonLivingGame> createState() => _LivingNonLivingGameState();
+  PickupLevel({
+    required this.parentImage,
+    required this.targetChild,
+    this.wrongChild1,
+    this.wrongChild2,
+  });
 }
 
-class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
-  // --- STATE VARIABLES ---
-  final Set<AssetConfig> _tappedAssets = {};
-  late List<AssetConfig> _gameItems;
+class PickupGame extends StatefulWidget {
+  const PickupGame({super.key});
 
-  GamePhase _phase = GamePhase.intro1;
+  @override
+  State<PickupGame> createState() => _PickupGameState();
+}
+
+class _PickupGameState extends State<PickupGame> {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer =
-      AudioPlayer(); // <--- ADDED: Dedicated SFX player
+  int _currentLevelIndex = 0;
+
+  // State variables for our various animations!
+  bool _isIntro = true; // Tracks if the Kiki intro is playing
+  bool _forceEntrancePositions = true;
+  bool _isChildrenEntering = false;
+  bool _isTargetMoving = false;
+  bool _isWalkingAway = false;
+  bool _showSuccessUI = false;
+
+  // 3. Configure your levels and character adjusters here!
+  late final List<PickupLevel> _levels = [
+    // --- LEVEL 1: Mom Bear ---
+    PickupLevel(
+      parentImage: 'assets/images/characters/mom_bear.png',
+      // Little Bear
+      targetChild: CharacterConfig(
+        imagePath: 'assets/images/characters/little_bear_uniform.png',
+        leftOffset: 0.36,
+        entranceLeftOffset: 1.05,
+        bottomOffset: 0.30,
+        startHeight: 0.40,
+        endLeftOffset: 0.34,
+        endBottomOffset: -0.10,
+        endHeight: 0.55,
+      ),
+      // Jack the Fox
+      wrongChild1: CharacterConfig(
+        imagePath: 'assets/images/characters/jack_the_fox.png',
+        leftOffset: 0.48,
+        entranceLeftOffset: 1.25,
+        bottomOffset: 0.31,
+        startHeight: 0.36,
+      ),
+      // Roxie the Bunny
+      wrongChild2: CharacterConfig(
+        imagePath: 'assets/images/characters/roxie_standing.png',
+        leftOffset: 0.59,
+        entranceLeftOffset: 1.45,
+        bottomOffset: 0.30,
+        startHeight: 0.42,
+      ),
+    ),
+
+    // --- LEVEL 2: Dad Jack ---
+    PickupLevel(
+      parentImage: 'assets/images/characters/dad_jack.png',
+      // Jack the Fox (Target)
+      targetChild: CharacterConfig(
+        imagePath: 'assets/images/characters/jack_the_fox.png',
+        leftOffset: 0.36,
+        entranceLeftOffset: 0.48,
+        bottomOffset: 0.31,
+        startHeight: 0.36,
+        endLeftOffset: 0.32,
+        endBottomOffset: -0.05,
+        endHeight: 0.50,
+      ),
+      // Roxie the Bunny
+      wrongChild1: CharacterConfig(
+        imagePath: 'assets/images/characters/roxie_standing.png',
+        leftOffset: 0.48,
+        entranceLeftOffset: 0.59,
+        bottomOffset: 0.30,
+        startHeight: 0.42,
+      ),
+      // Chicken
+      wrongChild2: CharacterConfig(
+        imagePath: 'assets/images/characters/chicken.png',
+        leftOffset: 0.62,
+        entranceLeftOffset: 1.05,
+        bottomOffset: 0.30,
+        startHeight: 0.34,
+      ),
+    ),
+
+    // --- LEVEL 3: Mom Roxie ---
+    PickupLevel(
+      parentImage: 'assets/images/characters/mom_roxie.png',
+      // Roxie the Bunny (Target)
+      targetChild: CharacterConfig(
+        imagePath: 'assets/images/characters/roxie_standing.png',
+        leftOffset: 0.35,
+        entranceLeftOffset: 0.48,
+        bottomOffset: 0.30,
+        startHeight: 0.42,
+        endLeftOffset: 0.26,
+        endBottomOffset: -0.08,
+        endHeight: 0.58,
+      ),
+      // Chicken
+      wrongChild1: CharacterConfig(
+        imagePath: 'assets/images/characters/chicken.png',
+        leftOffset: 0.48,
+        entranceLeftOffset: 0.62,
+        bottomOffset: 0.30,
+        startHeight: 0.34,
+      ),
+      // Doma the Penguin
+      wrongChild2: CharacterConfig(
+        imagePath: 'assets/images/characters/doma_the_penguin2.png',
+        leftOffset: 0.59,
+        entranceLeftOffset: 1.05,
+        bottomOffset: 0.30,
+        startHeight: 0.38,
+      ),
+    ),
+
+    // --- LEVEL 4: Mom Chicken ---
+    PickupLevel(
+      parentImage: 'assets/images/characters/mom_chichken.png',
+      // Chicken (Target)
+      targetChild: CharacterConfig(
+        imagePath: 'assets/images/characters/chicken.png',
+        leftOffset: 0.35,
+        entranceLeftOffset: 0.48,
+        bottomOffset: 0.30,
+        startHeight: 0.34,
+        endLeftOffset: 0.34,
+        endBottomOffset: -0.05,
+        endHeight: 0.48,
+      ),
+      // Doma the Penguin
+      wrongChild1: CharacterConfig(
+        imagePath: 'assets/images/characters/doma_the_penguin2.png',
+        leftOffset: 0.48,
+        entranceLeftOffset: 0.59,
+        bottomOffset: 0.30,
+        startHeight: 0.38,
+      ),
+      // Pig
+      wrongChild2: CharacterConfig(
+        imagePath: 'assets/images/characters/pig_dressed.png',
+        leftOffset: 0.62,
+        entranceLeftOffset: 1.05,
+        bottomOffset: 0.30,
+        startHeight: 0.36,
+      ),
+    ),
+
+    // --- LEVEL 5: Mom Doma ---
+    PickupLevel(
+      parentImage: 'assets/images/characters/mom_doma.png',
+      // Doma the Penguin (Target)
+      targetChild: CharacterConfig(
+        imagePath: 'assets/images/characters/doma_the_penguin2.png',
+        leftOffset: 0.35,
+        entranceLeftOffset: 0.48,
+        bottomOffset: 0.30,
+        startHeight: 0.38,
+        endLeftOffset: 0.34,
+        endBottomOffset: -0.05,
+        endHeight: 0.50,
+      ),
+      // Pig
+      wrongChild1: CharacterConfig(
+        imagePath: 'assets/images/characters/pig_dressed.png',
+        leftOffset: 0.50,
+        entranceLeftOffset: 0.62,
+        bottomOffset: 0.30,
+        startHeight: 0.36,
+      ),
+      // Snake
+      wrongChild2: CharacterConfig(
+        imagePath: 'assets/images/characters/snake.png',
+        leftOffset: 0.62,
+        entranceLeftOffset: 1.05,
+        bottomOffset: 0.30,
+        startHeight: 0.34,
+      ),
+    ),
+
+    // --- LEVEL 6: Dad Pig ---
+    PickupLevel(
+      parentImage: 'assets/images/characters/dad_pig.png',
+      // Pig (Target)
+      targetChild: CharacterConfig(
+        imagePath: 'assets/images/characters/pig_dressed.png',
+        leftOffset: 0.42,
+        entranceLeftOffset: 0.50,
+        bottomOffset: 0.30,
+        startHeight: 0.36,
+        endLeftOffset: 0.34,
+        endBottomOffset: -0.05,
+        endHeight: 0.50,
+      ),
+      // Snake
+      wrongChild1: CharacterConfig(
+        imagePath: 'assets/images/characters/snake.png',
+        leftOffset: 0.56,
+        entranceLeftOffset: 0.62,
+        bottomOffset: 0.30,
+        startHeight: 0.34,
+      ),
+      wrongChild2: null,
+    ),
+
+    // --- LEVEL 7: Dad Snake ---
+    PickupLevel(
+      parentImage: 'assets/images/characters/dad_snake.png',
+      // Snake (Target)
+      targetChild: CharacterConfig(
+        imagePath: 'assets/images/characters/snake.png',
+        leftOffset: 0.48,
+        entranceLeftOffset: 0.56,
+        bottomOffset: 0.30,
+        startHeight: 0.34,
+        endLeftOffset: 0.34,
+        endBottomOffset: -0.05,
+        endHeight: 0.46,
+      ),
+      wrongChild1: null,
+      wrongChild2: null,
+    ),
+  ];
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+    _playIntroSequence();
+  }
 
-    // Grouping all clickable items into a list so we can easily count them for win conditions
-    _gameItems = [
-      sun,
-      cloud1,
-      cloud2,
-      bird,
-      tree,
-      flowerbed,
-      butterfly,
-      wateringCan,
-      puddle,
-      antnest,
-      rock,
-      blanket,
-      basket,
-      apple,
-      ant,
-      kiki,
-    ];
+  // Orchestrates Kiki walking in and playing the audio
+  Future<void> _playIntroSequence() async {
+    // 1. Wait for Kiki to finish her walking entrance (1.8 seconds)
+    await Future.delayed(const Duration(milliseconds: 1800));
 
-    _startPhase1();
+    // 2. Play the Schoolbell and wait for it to finish
+    await _audioPlayer.play(
+      AssetSource('audio/discovery_lagoon/pickup_game_schoolbell.wav'),
+    );
+    await _audioPlayer.onPlayerComplete.first;
+
+    // 3. Play the Intro sequence and wait for it to finish
+    await _audioPlayer.play(
+      AssetSource('audio/discovery_lagoon/pickup_game_intro.wav'),
+    );
+    await _audioPlayer.onPlayerComplete.first;
+
+    // 4. Hide intro and start the actual game entrance
+    if (mounted) {
+      setState(() {
+        _isIntro = false;
+      });
+      _triggerEntranceAnimation();
+    }
+  }
+
+  // Orchestrates the kids sliding and bouncing into view
+  void _triggerEntranceAnimation() {
+    setState(() {
+      _forceEntrancePositions = true;
+      _isChildrenEntering = true;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      setState(() {
+        _forceEntrancePositions = false;
+      });
+
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) {
+          setState(() {
+            _isChildrenEntering = false;
+          });
+        }
+      });
+    });
+  }
+
+  Future<void> _playAudio(String path) async {
+    await _audioPlayer.play(AssetSource(path));
   }
 
   @override
   void dispose() {
     _audioPlayer.dispose();
-    _sfxPlayer.dispose(); // <--- ADDED: Dispose SFX player
+    OrientationService.setLandscape();
     super.dispose();
   }
 
-  // --- AUDIO & PHASE LOGIC ---
+  void _handleTargetTap() {
+    if (_isTargetMoving ||
+        _isWalkingAway ||
+        _isChildrenEntering ||
+        _forceEntrancePositions ||
+        _isIntro)
+      return;
 
-  void _startPhase1() async {
-    setState(() => _phase = GamePhase.intro1);
+    _playAudio('audio/sound_effects/shine.wav');
 
-    await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/living_nonliving_game_part1.wav'),
-    );
+    setState(() {
+      _isTargetMoving = true;
+    });
 
-    _audioPlayer.onPlayerComplete.listen((event) {
+    Future.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted) return;
-      if (_phase == GamePhase.intro1) {
-        setState(() => _phase = GamePhase.playLiving);
-      } else if (_phase == GamePhase.intro2) {
-        setState(() => _phase = GamePhase.playNonLiving);
-      }
+
+      setState(() {
+        _isWalkingAway = true;
+      });
+
+      Future.delayed(const Duration(milliseconds: 1800), () {
+        if (!mounted) return;
+
+        setState(() {
+          _isTargetMoving = false;
+          _isWalkingAway = false;
+        });
+
+        if (_currentLevelIndex < _levels.length - 1) {
+          _currentLevelIndex++;
+          _triggerEntranceAnimation();
+        } else {
+          setState(() {
+            _showSuccessUI = true;
+          });
+        }
+      });
     });
   }
 
-  void _startPhase2() async {
-    setState(() => _phase = GamePhase.intro2);
-    await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/living_nonliving_game_part2.wav'),
-    );
-  }
+  Widget _buildChildCharacter({
+    required CharacterConfig config,
+    required bool isTarget,
+    required Size screenSize,
+  }) {
+    double currentLeft;
+    double currentBottom;
+    double currentHeight;
+    Duration animDuration;
+    Curve animCurve;
+    bool shouldBounce;
 
-  // <--- ADDED: Helper method for sound effects
-  void _playAudio(String path) async {
-    await _sfxPlayer.play(AssetSource(path));
-  }
-
-  void _checkProgress() {
-    if (_phase == GamePhase.playLiving) {
-      final tappedLiving = _tappedAssets.where((a) => a.isLiving).length;
-      final totalLiving = _gameItems.where((a) => a.isLiving).length;
-
-      if (tappedLiving >= totalLiving) {
-        _startPhase2();
+    if (isTarget) {
+      if (_isWalkingAway) {
+        currentLeft = screenSize.width * (config.endLeftOffset - 0.75);
+        currentBottom = screenSize.height * config.endBottomOffset;
+        currentHeight = screenSize.height * config.endHeight;
+        animDuration = const Duration(milliseconds: 1800);
+        animCurve = Curves.linear;
+        shouldBounce = true;
+      } else if (_isTargetMoving) {
+        currentLeft = screenSize.width * config.endLeftOffset;
+        currentBottom = screenSize.height * config.endBottomOffset;
+        currentHeight = screenSize.height * config.endHeight;
+        animDuration = const Duration(milliseconds: 1200);
+        animCurve = Curves.easeInOut;
+        shouldBounce = true;
+      } else if (_forceEntrancePositions) {
+        currentLeft = screenSize.width * config.entranceLeftOffset;
+        currentBottom = screenSize.height * config.bottomOffset;
+        currentHeight = screenSize.height * config.startHeight;
+        animDuration = Duration.zero;
+        animCurve = Curves.linear;
+        shouldBounce = _isChildrenEntering;
+      } else {
+        currentLeft = screenSize.width * config.leftOffset;
+        currentBottom = screenSize.height * config.bottomOffset;
+        currentHeight = screenSize.height * config.startHeight;
+        animDuration = const Duration(milliseconds: 1500);
+        animCurve = Curves.easeInOut;
+        shouldBounce = _isChildrenEntering;
       }
-    } else if (_phase == GamePhase.playNonLiving) {
-      final tappedNonLiving = _tappedAssets.where((a) => !a.isLiving).length;
-      final totalNonLiving = _gameItems.where((a) => !a.isLiving).length;
-
-      if (tappedNonLiving >= totalNonLiving) {
-        setState(() => _phase = GamePhase.finished);
+    } else {
+      if (_forceEntrancePositions) {
+        currentLeft = screenSize.width * config.entranceLeftOffset;
+        currentBottom = screenSize.height * config.bottomOffset;
+        currentHeight = screenSize.height * config.startHeight;
+        animDuration = Duration.zero;
+        animCurve = Curves.linear;
+        shouldBounce = _isChildrenEntering;
+      } else {
+        currentLeft = screenSize.width * config.leftOffset;
+        currentBottom = screenSize.height * config.bottomOffset;
+        currentHeight = screenSize.height * config.startHeight;
+        animDuration = const Duration(milliseconds: 1500);
+        animCurve = Curves.easeInOut;
+        shouldBounce = _isChildrenEntering;
       }
     }
-  }
 
-  // --- Asset Configurations ---
+    return AnimatedPositioned(
+      duration: animDuration,
+      curve: animCurve,
+      left: currentLeft,
+      bottom: currentBottom,
+      height: currentHeight,
+      child: _WalkingBounce(
+        isWalking: shouldBounce,
+        bounceHeightPx: screenSize.height * 0.045,
+        child: GestureDetector(
+          onTap: () {
+            if (_isTargetMoving ||
+                _isWalkingAway ||
+                _isChildrenEntering ||
+                _forceEntrancePositions ||
+                _isIntro)
+              return;
 
-  final AssetConfig sun = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/sun_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/sun.png',
-    topOffset: 0.10,
-    rightOffset: 0.33,
-    widthOffset: 0.12,
-  );
-
-  final AssetConfig cloud1 = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/cloud_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/cloud_wc.png',
-    topOffset: 0.160,
-    leftOffset: 0.78,
-    widthOffset: 0.16,
-  );
-
-  final AssetConfig cloud2 = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/cloud_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/cloud_wc.png',
-    topOffset: -0.03,
-    leftOffset: 0.65,
-    widthOffset: 0.16,
-  );
-
-  final AssetConfig bird = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/bird_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/bird_wc.png',
-    isLiving: true,
-    topOffset: 0.12,
-    leftOffset: 0.35,
-    widthOffset: 0.08,
-  );
-
-  final AssetConfig tree = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/tree_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/t5_tree.png',
-    isLiving: true,
-    topOffset: -0.14,
-    leftOffset: -0.02,
-    heightOffset: 1.02,
-    coloredTopOffset: -0.12,
-    coloredLeftOffset: -0.04,
-    coloredHeightOffset: 1.02,
-  );
-
-  final AssetConfig flowerbed = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/flowerbed_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/flowerbed_wc.png',
-    isLiving: true,
-    topOffset: 0.53,
-    leftOffset: 0.35,
-    widthOffset: 0.25,
-  );
-
-  final AssetConfig butterfly = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/butterfly_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/b4_butterfly.png',
-    isLiving: true,
-    topOffset: 0.43,
-    leftOffset: 0.55,
-    widthOffset: 0.06,
-    rotation: 0.8,
-  );
-
-  final AssetConfig wateringCan = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/wateringcan_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/wateringcan_wc.png',
-    topOffset: 0.62,
-    leftOffset: 0.58,
-    widthOffset: 0.07,
-  );
-
-  final AssetConfig puddle = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/puddle_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/puddle_wc.png',
-    bottomOffset: 0.20,
-    leftOffset: 0.28,
-    widthOffset: 0.07,
-  );
-
-  final AssetConfig antnest = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/antnest_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/antnest_wc.png',
-    bottomOffset: 0.01,
-    leftOffset: 0.03,
-    widthOffset: 0.08,
-  );
-
-  final AssetConfig rock = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/rock_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/rock_wc.png',
-    bottomOffset: 0.13,
-    leftOffset: 0.35,
-    widthOffset: 0.08,
-  );
-
-  final AssetConfig blanket = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/blanket_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/blanket_wc.png',
-    bottomOffset: 0.02,
-    leftOffset: 0.42,
-    widthOffset: 0.32,
-  );
-
-  final AssetConfig basket = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/basket_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/basket.png',
-    bottomOffset: 0.14,
-    leftOffset: 0.48,
-    widthOffset: 0.1,
-  );
-
-  final AssetConfig apple = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/apple_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/apple_colored.png',
-    bottomOffset: 0.10,
-    leftOffset: 0.60,
-    widthOffset: 0.06,
-    rotation: 0.8,
-  );
-
-  final AssetConfig ant = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/ant_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/ant_wc.png',
-    isLiving: true,
-    bottomOffset: 0.08,
-    leftOffset: 0.45,
-    widthOffset: 0.05,
-  );
-
-  final AssetConfig kiki = const AssetConfig(
-    imagePath: 'assets/images/objects/lagoon/kiki_nc.png',
-    coloredImagePath: 'assets/images/characters/kiki_the_cat.png',
-    isLiving: true,
-    bottomOffset: 0.05,
-    rightOffset: 0.04,
-    heightOffset: 0.6,
-  );
-
-  // --- Widget Builder ---
-  Widget _buildAsset(AssetConfig config, Size size) {
-    bool isTapped = _tappedAssets.contains(config);
-    String currentImagePath = isTapped
-        ? config.coloredImagePath
-        : config.imagePath;
-
-    double? currentLeft = isTapped
-        ? (config.coloredLeftOffset ?? config.leftOffset)
-        : config.leftOffset;
-    double? currentRight = isTapped
-        ? (config.coloredRightOffset ?? config.rightOffset)
-        : config.rightOffset;
-    double? currentTop = isTapped
-        ? (config.coloredTopOffset ?? config.topOffset)
-        : config.topOffset;
-    double? currentBottom = isTapped
-        ? (config.coloredBottomOffset ?? config.bottomOffset)
-        : config.bottomOffset;
-    double? currentWidth = isTapped
-        ? (config.coloredWidthOffset ?? config.widthOffset)
-        : config.widthOffset;
-    double? currentHeight = isTapped
-        ? (config.coloredHeightOffset ?? config.heightOffset)
-        : config.heightOffset;
-
-    Widget imageContent = GestureDetector(
-      onTap: () {
-        if (!config.isClickable) return;
-        if (isTapped) return;
-
-        // <--- ADDED: Check if tap is correct or wrong
-        bool isWrongTap = false;
-        if (_phase == GamePhase.playLiving && !config.isLiving) {
-          isWrongTap = true;
-        } else if (_phase == GamePhase.playNonLiving && config.isLiving) {
-          isWrongTap = true;
-        }
-
-        if (isWrongTap) {
-          _playAudio(
-            'audio/discovery_lagoon/kiki_tryagain.wav',
-          ); // Play try again audio
-          return; // Stop here, don't color it!
-        }
-
-        // If it was the correct tap, play the shine sound
-        _playAudio('audio/sound_effects/shine.wav');
-
-        setState(() {
-          _tappedAssets.add(config);
-          _checkProgress();
-        });
-      },
-      behavior: HitTestBehavior.deferToChild,
-      child: Image.asset(
-        currentImagePath,
-        width: currentWidth != null ? size.width * currentWidth : null,
-        height: currentHeight != null ? size.height * currentHeight : null,
-        fit: BoxFit.contain,
-        alignment: Alignment.topLeft,
+            if (isTarget) {
+              _handleTargetTap();
+            } else {
+              _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
+            }
+          },
+          child: Image.asset(config.imagePath),
+        ),
       ),
-    );
-
-    if (config.rotation != null) {
-      imageContent = Transform.rotate(
-        angle: config.rotation!,
-        child: imageContent,
-      );
-    }
-
-    return Positioned(
-      left: currentLeft != null ? size.width * currentLeft : null,
-      right: currentRight != null ? size.width * currentRight : null,
-      top: currentTop != null ? size.height * currentTop : null,
-      bottom: currentBottom != null ? size.height * currentBottom : null,
-      child: imageContent,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
-    bool isIntro = _phase == GamePhase.intro1 || _phase == GamePhase.intro2;
-    bool isFinished = _phase == GamePhase.finished;
+    final Size screenSize = MediaQuery.of(context).size;
+    final currentLevel = _levels[_currentLevelIndex];
 
     return Scaffold(
       body: Stack(
         children: [
-          // 1. The Main Game Board
-          Container(
-            width: size.width,
-            height: size.height,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage(
-                  'assets/images/backgrounds/bg_lagoon_fields_closeup.png',
-                ),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                _buildAsset(sun, size),
-                _buildAsset(cloud1, size),
-                _buildAsset(cloud2, size),
-                _buildAsset(bird, size),
-                _buildAsset(tree, size),
-                _buildAsset(flowerbed, size),
-                _buildAsset(butterfly, size),
-                _buildAsset(wateringCan, size),
-                _buildAsset(puddle, size),
-                _buildAsset(antnest, size),
-                _buildAsset(rock, size),
-                _buildAsset(blanket, size),
-                _buildAsset(basket, size),
-                _buildAsset(apple, size),
-                _buildAsset(ant, size),
-                _buildAsset(kiki, size),
-              ],
+          // 1. Background Layer
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/bg_school.png',
+              fit: BoxFit.cover,
             ),
           ),
 
-          // 2. The Intro Overlay (Only visible during audio phases)
-          if (isIntro)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () {
-                  _audioPlayer.stop();
-                  setState(() {
-                    if (_phase == GamePhase.intro1)
-                      _phase = GamePhase.playLiving;
-                    if (_phase == GamePhase.intro2)
-                      _phase = GamePhase.playNonLiving;
-                  });
-                },
-                child: Container(
-                  color: Colors.black.withOpacity(0.7),
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Transform.translate(
-                      offset: Offset(0, size.height * 0.25),
-                      child: Image.asset(
-                        'assets/images/characters/kiki_the_cat.png',
-                        height: size.height * 0.8,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
+          // 2. Kiki The Cat Intro Overlay (Only shows if _isIntro is true)
+          if (_isIntro)
+            Positioned(
+              bottom: -screenSize.height * 0.05,
+              left: screenSize.width * 0.15, // Exact same spot as the parents
+              height: screenSize.height * 0.65,
+              child: _WalkingAnimalEntrance(
+                walkDuration: const Duration(milliseconds: 1800),
+                stepDuration: const Duration(milliseconds: 260),
+                bounceHeightPx: screenSize.height * 0.045,
+                child: Image.asset('assets/images/characters/kiki_the_cat.png'),
+              ),
+            ),
+
+          // 3. The Parent (Only shown after Intro is done)
+          if (!_isIntro)
+            AnimatedPositioned(
+              duration: _isWalkingAway
+                  ? const Duration(milliseconds: 1800)
+                  : Duration.zero,
+              curve: Curves.linear,
+              bottom: -screenSize.height * 0.05,
+              left: _isWalkingAway
+                  ? -screenSize.width * 0.60
+                  : screenSize.width * 0.15,
+              height: screenSize.height * 0.65,
+              child: _WalkingBounce(
+                isWalking: _isWalkingAway,
+                bounceHeightPx: screenSize.height * 0.045,
+                child: GestureDetector(
+                  onTap: () {
+                    if (!_isTargetMoving &&
+                        !_isWalkingAway &&
+                        !_isChildrenEntering)
+                      _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
+                  },
+                  child: _WalkingAnimalEntrance(
+                    key: ValueKey(currentLevel.parentImage),
+                    bounceHeightPx: screenSize.height * 0.045,
+                    child: Image.asset(currentLevel.parentImage),
                   ),
                 ),
               ),
             ),
 
-          // 3. The Good Job Overlay (Visible only when finished)
-          if (isFinished)
+          // 4. Wrong Choice 1
+          if (!_isIntro && currentLevel.wrongChild1 != null)
+            _buildChildCharacter(
+              config: currentLevel.wrongChild1!,
+              isTarget: false,
+              screenSize: screenSize,
+            ),
+
+          // 5. Wrong Choice 2
+          if (!_isIntro && currentLevel.wrongChild2 != null)
+            _buildChildCharacter(
+              config: currentLevel.wrongChild2!,
+              isTarget: false,
+              screenSize: screenSize,
+            ),
+
+          // 6. Target Child
+          if (!_isIntro)
+            _buildChildCharacter(
+              config: currentLevel.targetChild,
+              isTarget: true,
+              screenSize: screenSize,
+            ),
+
+          // 7. Good Job Prompt Overlay
+          if (_showSuccessUI)
             Positioned.fill(
               child: GoodJobOverlay(
-                characterImage: 'assets/images/characters/kiki_the_cat.png',
-                closeButtonColor: const Color.fromARGB(255, 252, 214, 0),
+                characterImage: 'assets/images/characters/kiki_smiling.png',
+                closeButtonColor: const Color(0xFF266589),
                 onNext: () {
-                  // Handle navigating to your next level here
-                  print("Next Level Tapped");
+                  Navigator.of(context).maybePop();
                 },
                 onRestart: () {
-                  // This instantly resets everything to play again
                   setState(() {
-                    _tappedAssets.clear();
-                    _startPhase1();
+                    _currentLevelIndex = 0;
+                    _showSuccessUI = false;
+                    _isIntro = true; // Show intro again on restart
                   });
+                  _playIntroSequence();
                 },
                 onBack: () {
-                  // Return to the menu
-                  Navigator.of(context).pop();
+                  Navigator.of(context).maybePop();
                 },
               ),
             ),
         ],
       ),
+    );
+  }
+}
+
+// ── CUSTOM CONTINUOUS WALKING BOUNCE ──────────────────────────────────────────
+
+class _WalkingBounce extends StatefulWidget {
+  final Widget child;
+  final bool isWalking;
+  final double bounceHeightPx;
+
+  const _WalkingBounce({
+    super.key,
+    required this.child,
+    required this.isWalking,
+    required this.bounceHeightPx,
+  });
+
+  @override
+  State<_WalkingBounce> createState() => _WalkingBounceState();
+}
+
+class _WalkingBounceState extends State<_WalkingBounce>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    if (widget.isWalking) {
+      _ctrl.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _WalkingBounce oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isWalking != oldWidget.isWalking) {
+      if (widget.isWalking) {
+        _ctrl.repeat();
+      } else {
+        _ctrl.animateTo(0, duration: const Duration(milliseconds: 150));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) {
+        final double bounce =
+            (math.sin(_ctrl.value * math.pi * 2)).abs() * widget.bounceHeightPx;
+        final double angle = math.sin(_ctrl.value * math.pi * 2) * 0.06;
+
+        return Transform.translate(
+          offset: Offset(0, -bounce),
+          child: Transform.rotate(angle: angle, child: child),
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+// ── CUSTOM WALKING ENTRANCE ──────────────────────────────────────────────────
+
+class _WalkingAnimalEntrance extends StatefulWidget {
+  final Widget child;
+  final Duration walkDuration;
+  final Duration stepDuration;
+  final double bounceHeightPx;
+
+  const _WalkingAnimalEntrance({
+    super.key,
+    required this.child,
+    this.walkDuration = const Duration(milliseconds: 1800),
+    this.stepDuration = const Duration(milliseconds: 260),
+    required this.bounceHeightPx,
+  });
+
+  @override
+  State<_WalkingAnimalEntrance> createState() => _WalkingAnimalEntranceState();
+}
+
+class _WalkingAnimalEntranceState extends State<_WalkingAnimalEntrance>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.walkDuration,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double sw = MediaQuery.of(context).size.width;
+    final double startX = -sw;
+
+    final int stepCount =
+        (widget.walkDuration.inMilliseconds /
+                widget.stepDuration.inMilliseconds)
+            .round()
+            .clamp(2, 10);
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final double t = _controller.value;
+
+        final double easedT = Curves.easeOutCubic.transform(t);
+        final double dx = startX * (1 - easedT);
+
+        final double bounce = t < 1.0
+            ? (math.sin(t * stepCount * math.pi)).abs() * widget.bounceHeightPx
+            : 0.0;
+
+        final double angle = t < 1.0
+            ? math.sin(t * stepCount * math.pi) * 0.04
+            : 0.0;
+
+        return Transform.translate(
+          offset: Offset(dx, -bounce),
+          child: Transform.rotate(angle: angle, child: child),
+        );
+      },
+      child: widget.child,
     );
   }
 }
