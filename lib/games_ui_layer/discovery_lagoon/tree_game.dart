@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../goodjob_prompt.dart';
 
@@ -98,8 +99,11 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
 
   final Set<String> _placed = {};
 
-  // NEW: State variable to track when to show the prompt
   bool _showOverlay = false;
+
+  // NEW: State variables for the intro sequence
+  bool _showIntro = true;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   bool get isCompleted => _placed.length == _parts.length;
 
@@ -107,10 +111,28 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+    _playIntroAudio();
+  }
+
+  /// Plays the intro audio and removes the intro overlay when finished
+  Future<void> _playIntroAudio() async {
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) {
+        setState(() {
+          _showIntro = false;
+        });
+      }
+    });
+
+    // NOTE: Make sure this path matches where you stored the audio file in your assets directory
+    await _audioPlayer.play(
+      AssetSource('audio/discovery_lagoon/tree_game_intro.wav'),
+    );
   }
 
   @override
   void dispose() {
+    _audioPlayer.dispose();
     OrientationService.setPortrait();
     super.dispose();
   }
@@ -130,14 +152,15 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
             // 1. The Tree (Either Building Phase or Completed)
             isCompleted ? _buildCompletedTree() : _buildGameArea(),
 
-            // 2. Kiki the Cat (Moved here so she never disappears)
-            Align(
-              alignment: const Alignment(_kikiAlignX, _kikiAlignY),
-              child: Image.asset(
-                'assets/images/characters/kiki_the_cat.png',
-                height: _kikiHeight,
+            // 2. Kiki the Cat (Only shows when intro is NOT playing)
+            if (!_showIntro)
+              Align(
+                alignment: const Alignment(_kikiAlignX, _kikiAlignY),
+                child: Image.asset(
+                  'assets/images/characters/kiki_the_cat.png',
+                  height: _kikiHeight,
+                ),
               ),
-            ),
 
             // 3. The Delayed "Good Job" Overlay
             if (_showOverlay)
@@ -158,6 +181,31 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
                   // TODO: Pop screen or go home
                   Navigator.of(context).pop();
                 },
+              ),
+
+            // 4. The Intro Overlay (Placed last so it renders on top of everything)
+            if (_showIntro)
+              Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: Colors.black.withOpacity(0.75), // Dark gray opacity
+                child: Stack(
+                  children: [
+                    Positioned(
+                      bottom:
+                          -150, // Pushes Kiki down so only the top half shows
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Image.asset(
+                          'assets/images/characters/kiki_the_cat.png',
+                          height:
+                              500, // Scaled up to make her prominent in the center
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
           ],
         ),
@@ -239,6 +287,9 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
 
             // Check if game was just completed
             if (_placed.length == _parts.length) {
+              // Play shine audio sound effect
+              _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+
               // Wait 2 seconds, then show the prompt
               Future.delayed(const Duration(seconds: 2), () {
                 if (mounted) {
