@@ -1,6 +1,20 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'dart:async';
+import '../goodjob_prompt.dart';
+
+class CharacterAdjustment {
+  final double size;
+  final double offsetX;
+  final double offsetY;
+
+  const CharacterAdjustment({
+    this.size = 150.0,
+    this.offsetX = 0.0,
+    this.offsetY = 0.0,
+  });
+}
 
 class HabitantGame extends StatefulWidget {
   const HabitantGame({Key? key}) : super(key: key);
@@ -10,10 +24,12 @@ class HabitantGame extends StatefulWidget {
 }
 
 class _HabitantGameState extends State<HabitantGame> {
-  // The AudioPlayer instance
   final AudioPlayer _audioPlayer = AudioPlayer();
+  StreamSubscription? _audioSubscription;
 
-  // We now map the zone to the character ID rather than the image directly
+  bool _showIntro = true;
+  bool _isGameWon = false; // Tracks if the player has won
+
   Map<String, String> currentPlacements = {
     'arctic': 'dog',
     'town': 'frog',
@@ -21,7 +37,6 @@ class _HabitantGameState extends State<HabitantGame> {
     'forest': 'penguin',
   };
 
-  // Defines the correct winning zones for each character
   final Map<String, String> correctHabitats = {
     'dog': 'town',
     'frog': 'waterfall',
@@ -29,7 +44,6 @@ class _HabitantGameState extends State<HabitantGame> {
     'penguin': 'arctic',
   };
 
-  // The images to show when the character is in the WRONG habitat
   final Map<String, String> sadImages = {
     'dog': 'tofi_cold.png',
     'frog': 'frog_sad.png',
@@ -37,7 +51,6 @@ class _HabitantGameState extends State<HabitantGame> {
     'penguin': 'doma_sweat.png',
   };
 
-  // The images to show when the character is in the RIGHT habitat
   final Map<String, String> happyImages = {
     'dog': 'tofi_smiling.png',
     'frog': 'frog.png',
@@ -45,28 +58,73 @@ class _HabitantGameState extends State<HabitantGame> {
     'penguin': 'doma_smiling.png',
   };
 
+  final Map<String, CharacterAdjustment> adjustments = {
+    'dog': const CharacterAdjustment(
+      size: 200.0,
+      offsetX: -15.0,
+      offsetY: 60.0,
+    ),
+    'frog': const CharacterAdjustment(
+      size: 175.0,
+      offsetX: 10.0,
+      offsetY: 60.0,
+    ),
+    'bear': const CharacterAdjustment(
+      size: 200.0,
+      offsetX: -15.0,
+      offsetY: 50.0,
+    ),
+    'penguin': const CharacterAdjustment(
+      size: 210.0,
+      offsetX: 10.0,
+      offsetY: 40.0,
+    ),
+  };
+
+  // Adjusters for the Intro Cat
+  final CharacterAdjustment introCatAdjustment = const CharacterAdjustment(
+    size: 400.0,
+    offsetX: 0.0,
+    offsetY: 80.0,
+  );
+
+  final double introHeightFactor = 1.0;
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+    _playIntro();
+  }
+
+  Future<void> _playIntro() async {
+    _audioSubscription = _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted && _showIntro) {
+        setState(() {
+          _showIntro = false;
+        });
+      }
+    });
+
+    await _audioPlayer.play(
+      AssetSource('audio/discovery_lagoon/habitant_game_intro_tutorial.wav'),
+    );
   }
 
   @override
   void dispose() {
     OrientationService.setPortrait();
+    _audioSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
 
-  /// Plays the shine sound only when the drop is correct
   Future<void> _playSound(bool isCorrect) async {
     if (isCorrect) {
       await _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
     }
-    // Removed the else block for the 'try again' audio
   }
 
-  /// Determines which image to display based on the character's current location
   String _getCharacterImage(String characterId, String currentZone) {
     if (correctHabitats[characterId] == currentZone) {
       return happyImages[characterId]!;
@@ -74,31 +132,107 @@ class _HabitantGameState extends State<HabitantGame> {
     return sadImages[characterId]!;
   }
 
+  /// Checks if every character is currently in their correct habitat
+  void _checkForWin() {
+    bool allCorrect = true;
+    currentPlacements.forEach((zoneId, characterId) {
+      if (correctHabitats[characterId] != zoneId) {
+        allCorrect = false;
+      }
+    });
+
+    if (allCorrect) {
+      setState(() {
+        _isGameWon = true;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(child: _buildDropZone('arctic', 'bg_arctic.png')),
-                Expanded(child: _buildDropZone('town', 'bg_town.png')),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildDropZone('waterfall', 'bg_rainbow_closeup2.png'),
+          // --- THE MAIN GAME ---
+          Column(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(child: _buildDropZone('arctic', 'bg_arctic.png')),
+                    Expanded(child: _buildDropZone('town', 'bg_town.png')),
+                  ],
                 ),
-                Expanded(
-                  child: _buildDropZone('forest', 'bg_forest_closeup.png'),
+              ),
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildDropZone(
+                        'waterfall',
+                        'bg_rainbow_closeup2.png',
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildDropZone('forest', 'bg_forest_closeup.png'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+
+          // --- THE INTRO OVERLAY ---
+          if (_showIntro)
+            Container(
+              color: Colors.black.withOpacity(0.8),
+              child: Center(
+                child: Transform.translate(
+                  offset: Offset(
+                    introCatAdjustment.offsetX,
+                    introCatAdjustment.offsetY,
+                  ),
+                  child: ClipRect(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      heightFactor: introHeightFactor,
+                      child: Image.asset(
+                        'assets/images/characters/kiki_the_cat.png',
+                        height: introCatAdjustment.size,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // --- THE GOOD JOB OVERLAY ---
+          if (_isGameWon)
+            GoodJobOverlay(
+              // Using Kiki for the congratulations screen, but you can change this!
+              characterImage: 'assets/images/characters/kiki_the_cat.png',
+              closeButtonColor: Colors.orange,
+              onNext: () {
+                // Add your logic here to go to the next level/game
+                print("Proceeding to next level!");
+              },
+              onRestart: () {
+                setState(() {
+                  _isGameWon = false;
+                  // Reset animals to their incorrect starting positions
+                  currentPlacements = {
+                    'arctic': 'dog',
+                    'town': 'frog',
+                    'waterfall': 'bear',
+                    'forest': 'penguin',
+                  };
+                });
+              },
+              onBack: () {
+                // Pops the screen to go back to the previous menu
+                Navigator.of(context).pop();
+              },
+            ),
         ],
       ),
     );
@@ -111,6 +245,17 @@ class _HabitantGameState extends State<HabitantGame> {
       zoneId,
     );
 
+    CharacterAdjustment adjustment =
+        adjustments[currentCharacterId] ?? const CharacterAdjustment();
+
+    Widget characterImageWidget = Transform.translate(
+      offset: Offset(adjustment.offsetX, adjustment.offsetY),
+      child: Image.asset(
+        'assets/images/characters/$currentCharacterFileName',
+        height: adjustment.size,
+      ),
+    );
+
     return DragTarget<String>(
       onWillAccept: (sourceZoneId) => sourceZoneId != zoneId,
       onAccept: (sourceZoneId) {
@@ -118,13 +263,14 @@ class _HabitantGameState extends State<HabitantGame> {
           String movingCharacter = currentPlacements[sourceZoneId]!;
           String displacedCharacter = currentPlacements[zoneId]!;
 
-          // Swap their positions
           currentPlacements[zoneId] = movingCharacter;
           currentPlacements[sourceZoneId] = displacedCharacter;
 
-          // Check if the character being dropped is now in its correct habitat
           bool isCorrect = correctHabitats[movingCharacter] == zoneId;
           _playSound(isCorrect);
+
+          // Check if the game is won after this move
+          _checkForWin();
         });
       },
       builder: (context, candidateData, rejectedData) {
@@ -142,22 +288,13 @@ class _HabitantGameState extends State<HabitantGame> {
               data: zoneId,
               feedback: Material(
                 color: Colors.transparent,
-                child: Image.asset(
-                  'assets/images/characters/$currentCharacterFileName',
-                  height: 150,
-                ),
+                child: characterImageWidget,
               ),
               childWhenDragging: Opacity(
                 opacity: 0.3,
-                child: Image.asset(
-                  'assets/images/characters/$currentCharacterFileName',
-                  height: 150,
-                ),
+                child: characterImageWidget,
               ),
-              child: Image.asset(
-                'assets/images/characters/$currentCharacterFileName',
-                height: 150,
-              ),
+              child: characterImageWidget,
             ),
           ),
         );
