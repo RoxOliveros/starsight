@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import '../goodjob_prompt.dart';
 
 class TreeGameScreen extends StatefulWidget {
   const TreeGameScreen({super.key});
@@ -13,11 +14,11 @@ class TreeGameScreen extends StatefulWidget {
 class _TreePart {
   final String id;
   final String asset;
-  final double width; // fraction of canvas width — piece's own size
-  final double height; // fraction of canvas height — piece's own size
-  final double targetLeft; // fraction of canvas width — correct spot
-  final double targetTop; // fraction of canvas height — correct spot
-  final Alignment scatterPosition; // where it sits before being placed
+  final double width;
+  final double height;
+  final double targetLeft;
+  final double targetTop;
+  final Alignment scatterPosition;
   final double scatterTilt;
 
   const _TreePart({
@@ -36,12 +37,22 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
   static const String _fullTreeAsset =
       'assets/images/objects/lagoon/t5_tree.png';
 
-  // Canvas matches t5_tree.png's aspect ratio (281x336 native).
   static const double _canvasWidth = 260;
   static const double _canvasHeight = 311;
 
-  // SIZE + correct TARGET position are both fixed per piece. Centering
-  // formula for targetLeft: (1 - width) / 2.
+  // ==========================================
+  // MANUAL ADJUSTERS
+  // ==========================================
+
+  static const double _kikiAlignX = -1.00;
+  static const double _kikiAlignY = 1.70;
+  static const double _kikiHeight = 250.0;
+
+  static const double _trunkScatterX = -0.45;
+  static const double _trunkScatterY = 0.55;
+
+  // ==========================================
+
   static const List<_TreePart> _parts = [
     _TreePart(
       id: 'leaves',
@@ -70,7 +81,7 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
       height: 0.30,
       targetLeft: 0.394,
       targetTop: 0.564,
-      scatterPosition: Alignment(-0.9, 0.55),
+      scatterPosition: Alignment(_trunkScatterX, _trunkScatterY),
       scatterTilt: -0.10,
     ),
     _TreePart(
@@ -86,6 +97,9 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
   ];
 
   final Set<String> _placed = {};
+
+  // NEW: State variable to track when to show the prompt
+  bool _showOverlay = false;
 
   bool get isCompleted => _placed.length == _parts.length;
 
@@ -111,7 +125,42 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
             fit: BoxFit.cover,
           ),
         ),
-        child: isCompleted ? _buildCompletedTree() : _buildGameArea(),
+        child: Stack(
+          children: [
+            // 1. The Tree (Either Building Phase or Completed)
+            isCompleted ? _buildCompletedTree() : _buildGameArea(),
+
+            // 2. Kiki the Cat (Moved here so she never disappears)
+            Align(
+              alignment: const Alignment(_kikiAlignX, _kikiAlignY),
+              child: Image.asset(
+                'assets/images/characters/kiki_the_cat.png',
+                height: _kikiHeight,
+              ),
+            ),
+
+            // 3. The Delayed "Good Job" Overlay
+            if (_showOverlay)
+              GoodJobOverlay(
+                characterImage: 'assets/images/characters/kiki_the_cat.png',
+                closeButtonColor: Colors.orange,
+                onNext: () {
+                  // TODO: Navigate to the next level
+                },
+                onRestart: () {
+                  // Reset game
+                  setState(() {
+                    _placed.clear();
+                    _showOverlay = false;
+                  });
+                },
+                onBack: () {
+                  // TODO: Pop screen or go home
+                  Navigator.of(context).pop();
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -143,7 +192,6 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
           ),
 
           // Scattered draggable pieces, each starting off in a corner
-          // until dropped on its correct target.
           for (final part in _parts)
             if (!_placed.contains(part.id))
               Align(
@@ -186,7 +234,19 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
       child: DragTarget<String>(
         onWillAcceptWithDetails: (details) => details.data == part.id,
         onAcceptWithDetails: (details) {
-          setState(() => _placed.add(part.id));
+          setState(() {
+            _placed.add(part.id);
+
+            // Check if game was just completed
+            if (_placed.length == _parts.length) {
+              // Wait 2 seconds, then show the prompt
+              Future.delayed(const Duration(seconds: 2), () {
+                if (mounted) {
+                  setState(() => _showOverlay = true);
+                }
+              });
+            }
+          });
         },
         builder: (context, candidateData, rejectedData) {
           final isPlaced = _placed.contains(part.id);
