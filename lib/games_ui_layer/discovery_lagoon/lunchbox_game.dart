@@ -1,5 +1,8 @@
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/goodjob_prompt.dart'; 
+import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_game.dart';
+import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -83,6 +86,8 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
                   fit: BoxFit.cover,
                 ),
               ),
+
+              const Positioned(top: 25, left: 20, child: LagoonBackButton()),
 
               // 2. Kiki (Left Side)
               Positioned(
@@ -373,12 +378,26 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
               if (_showOverlay)
                 Positioned.fill(
                   child: GoodJobOverlay(
-                    characterImage:
-                        'assets/images/characters/kiki_tryagain.png',
+                    characterImage: 'assets/images/characters/kiki_smiling.png',
                     closeButtonColor: Colors.deepOrange,
-                    onNext: _restartGame,
+                    onNext: () async {
+                      // 1. Mark the current level as complete (Change the number for each game)
+                      await LagoonProgressService.instance.markLevelComplete(7);
+
+                      if (context.mounted) {
+                        // 2. Push directly to the next level's screen
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const WeatherGame(),
+                          ),
+                        );
+                      }
+                    },
                     onRestart: _restartGame,
-                    onBack: _restartGame,
+                    onBack: () {
+                      Navigator.of(context).maybePop();
+                    },
                   ),
                 ),
             ],

@@ -2,10 +2,16 @@ import 'dart:async';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_intro.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/catching_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/clothes_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/feed_the_animal.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/habitant_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/listening_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/lunchbox_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/perfume_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/rainbow_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/seed_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/soft_hard_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_game.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
@@ -412,8 +418,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'nose', level: level),
+                builder: (context) => const FeedTheAnimalGame(),
               ),
             );
             break;
@@ -421,45 +426,32 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'eye', level: level),
+                builder: (context) => const LunchboxGameIntro(),
               ),
             );
             break;
           case 8:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'ear', level: level),
-              ),
+              MaterialPageRoute(builder: (context) => const WeatherGame()),
             );
             break;
           case 9:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'eyebrows', level: level),
-              ),
+              MaterialPageRoute(builder: (context) => const ClothesGame()),
             );
             break;
           case 10:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'hair', level: level),
-              ),
+              MaterialPageRoute(builder: (context) => const HabitantGame()),
             );
             break;
           case 11:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BodyPartsIntroScreen(bodyPart: 'hand', level: level),
-              ),
+              MaterialPageRoute(builder: (context) => const SeedGame()),
             );
             break;
           case 12:

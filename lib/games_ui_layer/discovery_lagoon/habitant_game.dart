@@ -1,4 +1,7 @@
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/seed_game.dart';
+import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
@@ -113,7 +116,7 @@ class _HabitantGameState extends State<HabitantGame> {
 
   @override
   void dispose() {
-    OrientationService.setPortrait();
+    OrientationService.setLandscape();
     _audioSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
@@ -181,6 +184,7 @@ class _HabitantGameState extends State<HabitantGame> {
               ),
             ],
           ),
+          const Positioned(top: 25, left: 20, child: LagoonBackButton()),
 
           // --- THE INTRO OVERLAY ---
           if (_showIntro)
@@ -210,11 +214,19 @@ class _HabitantGameState extends State<HabitantGame> {
           if (_isGameWon)
             GoodJobOverlay(
               // Using Kiki for the congratulations screen, but you can change this!
-              characterImage: 'assets/images/characters/kiki_the_cat.png',
+              characterImage: 'assets/images/characters/kiki_smiling.png',
               closeButtonColor: Colors.orange,
-              onNext: () {
-                // Add your logic here to go to the next level/game
-                print("Proceeding to next level!");
+              onNext: () async {
+                // 1. Mark the current level as complete (Change the number for each game)
+                await LagoonProgressService.instance.markLevelComplete(10);
+
+                if (context.mounted) {
+                  // 2. Push directly to the next level's screen
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SeedGame()),
+                  );
+                }
               },
               onRestart: () {
                 setState(() {

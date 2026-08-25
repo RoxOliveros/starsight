@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/lunchbox_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -557,10 +559,21 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
           if (_showSuccessUI)
             Positioned.fill(
               child: GoodJobOverlay(
-                characterImage: 'assets/images/characters/kiki_tryagain.png',
+                characterImage: 'assets/images/characters/kiki_smiling.png',
                 closeButtonColor: const Color(0xFF266589),
-                onNext: () {
-                  Navigator.of(context).maybePop();
+                onNext: () async {
+                  // 1. Mark the current level as complete (Change the number for each game)
+                  await LagoonProgressService.instance.markLevelComplete(6);
+
+                  if (context.mounted) {
+                    // 2. Push directly to the next level's screen
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LunchboxGameIntro(),
+                      ),
+                    );
+                  }
                 },
                 onRestart: () {
                   setState(() {

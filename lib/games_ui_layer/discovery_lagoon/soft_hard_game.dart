@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/feed_the_animal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -329,14 +330,19 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
           // F. GOOD JOB VICTORY OVERLAY (Appears once all 8 items are sorted!)
           if (_isGameWon)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/kiki_tryagain.png',
+              characterImage: 'assets/images/characters/kiki_smiling.png',
               closeButtonColor: Colors.orange,
               onNext: () async {
                 // Mark Level 5 as complete to unlock Level 6
                 await LagoonProgressService.instance.markLevelComplete(5);
                 if (context.mounted) {
-                  // Pop back to the Level Selection Screen
-                  Navigator.of(context).pop();
+                  // 2. Push directly to the next level's screen
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FeedTheAnimalGame(),
+                    ),
+                  );
                 }
               },
               onRestart: () {
