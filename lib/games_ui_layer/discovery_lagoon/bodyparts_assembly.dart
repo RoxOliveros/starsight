@@ -1,3 +1,4 @@
+import 'package:StarSight/games_ui_layer/discovery_lagoon/tree_game.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
@@ -5,7 +6,6 @@ import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_background.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../goodjob_prompt.dart';
-import 'animal_habitant_match.dart';
 import 'audio_helper.dart';
 import 'bodyparts_drag.dart';
 import 'intro_phase.dart';
@@ -81,7 +81,8 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
     _resetGame();
 
     startLagoonIntro(
-      introAudioAsset: 'assets/audio/discovery_lagoon/bodyparts_assembly_intro.wav',
+      introAudioAsset:
+          'assets/audio/discovery_lagoon/bodyparts_assembly_intro.wav',
       onGameStart: () {
         if (mounted) setState(() => _screenPhase = LagoonScreenPhase.game);
       },
@@ -111,15 +112,13 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
       barrierColor: Colors.black54,
       barrierDismissible: false,
       builder: (context) => GoodJobOverlay(
-        characterImage: 'assets/images/characters/cat_holding_fishbone.png',
+        characterImage: 'assets/images/characters/kiki_smiling.png',
         closeButtonColor: LagoonTheme.wasteland,
         onNext: () {
           Navigator.pop(context);
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-              builder: (context) => AnimalHabitatMatchScreen(level: 13),
-            ),
+            MaterialPageRoute(builder: (context) => TreeGameScreen()),
           );
         },
         onRestart: () {

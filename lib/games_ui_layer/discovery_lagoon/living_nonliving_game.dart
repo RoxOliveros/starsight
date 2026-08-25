@@ -1,4 +1,6 @@
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -394,7 +396,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
               ],
             ),
           ),
-
+          const Positioned(top: 25, left: 20, child: LagoonBackButton()),
           // 2. The Intro Overlay (Only visible during audio phases)
           if (isIntro)
             Positioned.fill(
@@ -429,11 +431,11 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
           if (isFinished)
             Positioned.fill(
               child: GoodJobOverlay(
-                characterImage: 'assets/images/characters/kiki_the_cat.png',
+                characterImage: 'assets/images/characters/kiki_smiling.png',
                 closeButtonColor: const Color.fromARGB(255, 252, 214, 0),
-                onNext: () {
-                  // Handle navigating to your next level here
-                  print("Next Level Tapped");
+                onNext: () async {
+                  // 1. Mark the current level as complete (Change the number for each game)
+                  await LagoonProgressService.instance.markLevelComplete(20);
                 },
                 onRestart: () {
                   // This instantly resets everything to play again

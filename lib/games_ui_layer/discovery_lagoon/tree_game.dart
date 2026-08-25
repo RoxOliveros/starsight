@@ -1,3 +1,6 @@
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
+import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -133,7 +136,7 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
   @override
   void dispose() {
     _audioPlayer.dispose();
-    OrientationService.setPortrait();
+    OrientationService.setLandscape();
     super.dispose();
   }
 
@@ -152,6 +155,8 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
             // 1. The Tree (Either Building Phase or Completed)
             isCompleted ? _buildCompletedTree() : _buildGameArea(),
 
+            const Positioned(top: 25, left: 20, child: LagoonBackButton()),
+
             // 2. Kiki the Cat (Only shows when intro is NOT playing)
             if (!_showIntro)
               Align(
@@ -165,10 +170,22 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
             // 3. The Delayed "Good Job" Overlay
             if (_showOverlay)
               GoodJobOverlay(
-                characterImage: 'assets/images/characters/kiki_the_cat.png',
+                characterImage: 'assets/images/characters/kiki_smiling.png',
                 closeButtonColor: Colors.orange,
-                onNext: () {
-                  // TODO: Navigate to the next level
+                onNext: () async {
+                  // 1. Mark the current level as complete (Change the number for each game)
+                  await LagoonProgressService.instance.markLevelComplete(13);
+
+                  if (context.mounted) {
+                    // 2. Push directly to the next level's screen
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const SeasonSceneTapScreen(level: 14),
+                      ),
+                    );
+                  }
                 },
                 onRestart: () {
                   // Reset game

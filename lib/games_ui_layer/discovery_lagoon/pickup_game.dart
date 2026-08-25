@@ -1,6 +1,10 @@
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart'
+    show LagoonBackButton;
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -483,7 +487,7 @@ class _PickupGameState extends State<PickupGame> {
               fit: BoxFit.cover,
             ),
           ),
-
+          const Positioned(top: 25, left: 20, child: LagoonBackButton()),
           // 2. Kiki The Cat Intro Overlay (Only shows if _isIntro is true)
           if (_isIntro)
             Positioned(
@@ -559,8 +563,20 @@ class _PickupGameState extends State<PickupGame> {
               child: GoodJobOverlay(
                 characterImage: 'assets/images/characters/kiki_smiling.png',
                 closeButtonColor: const Color(0xFF266589),
-                onNext: () {
-                  Navigator.of(context).maybePop();
+                onNext: () async {
+                  // 1. Mark the current level as complete (Change the number for each game)
+                  await LagoonProgressService.instance.markLevelComplete(15);
+
+                  if (context.mounted) {
+                    // 2. Push directly to the next level's screen
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const WeatherSceneBuilderScreen(level: 16),
+                      ),
+                    );
+                  }
                 },
                 onRestart: () {
                   setState(() {

@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/season_object_match_screen.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/pickup_game.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
@@ -30,7 +30,6 @@ class SeasonSceneTapScreen extends StatefulWidget {
 
 class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     with TickerProviderStateMixin, LagoonIntroMixin {
-
   final AudioPlayer _introPlayer = AudioPlayer();
 
   @override
@@ -425,14 +424,19 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
   Widget _buildGoodJobOverlay() {
     LagoonProgressService.instance.markLevelComplete(widget.level);
     return GoodJobOverlay(
-      characterImage: 'assets/images/characters/cat_holding_fishbone.png',
+      characterImage: 'assets/images/characters/kiki_smiling.png',
       closeButtonColor: LagoonColorTheme.darkbrown,
-      onNext: () {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const SeasonObjectMatchScreen(level: 15),
-          ),
-        );
+      onNext: () async {
+        // 1. Mark the current level as complete (Change the number for each game)
+        await LagoonProgressService.instance.markLevelComplete(14);
+
+        if (context.mounted) {
+          // 2. Push directly to the next level's screen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const PickupGame()),
+          );
+        }
       },
       onRestart: () {
         _restart();

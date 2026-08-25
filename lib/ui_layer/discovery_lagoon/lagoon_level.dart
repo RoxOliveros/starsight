@@ -1,16 +1,21 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/animal_lifecycle_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_intro.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/catching_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/clothes_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/cold_hot_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/feed_the_animal.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/habitant_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/listening_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/living_nonliving_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/lunchbox_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/perfume_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/pickup_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/rainbow_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/seed_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/soft_hard_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/tree_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_game.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
@@ -465,9 +470,7 @@ class _LevelTile extends StatelessWidget {
           case 13:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => AnimalHabitatMatchScreen(level: 13),
-              ),
+              MaterialPageRoute(builder: (context) => TreeGameScreen()),
             );
             break;
           case 14:
@@ -481,9 +484,7 @@ class _LevelTile extends StatelessWidget {
           case 15:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => SeasonObjectMatchScreen(level: 15),
-              ),
+              MaterialPageRoute(builder: (context) => PickupGame()),
             );
             break;
           case 16:
@@ -497,17 +498,13 @@ class _LevelTile extends StatelessWidget {
           case 17:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => WeatherClothesMatchScreen(level: 17),
-              ),
+              MaterialPageRoute(builder: (context) => AnimalLifecycleGame()),
             );
             break;
           case 18:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => WeatherDressUpScreen(level: 18),
-              ),
+              MaterialPageRoute(builder: (context) => ColdHotGame()),
             );
             break;
           case 19:
@@ -521,12 +518,10 @@ class _LevelTile extends StatelessWidget {
           case 20:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => TreePartsAssemblyScreen(level: 20),
-              ),
+              MaterialPageRoute(builder: (context) => LivingNonLivingGame()),
             );
             break;
-          case 21:
+          /* case 21:
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -534,6 +529,7 @@ class _LevelTile extends StatelessWidget {
               ),
             );
             break;
+            */
         }
       },
       child: Stack(

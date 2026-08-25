@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/animal_lifecycle_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_clothes_match.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -35,7 +36,6 @@ class WeatherSceneBuilderScreen extends StatefulWidget {
 
 class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
     with TickerProviderStateMixin, LagoonIntroMixin {
-
   // ── Intro phase ──────────────────────────────────────────────────────────
 
   final AudioPlayer _introPlayer = AudioPlayer();
@@ -48,21 +48,81 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
   // ── Data ─────────────────────────────────────────────────────────────────
 
   final List<Map<String, String>> _weathers = [
-    {'id': 'sunny',  'label': 'Build a Sunny Day!',   'qKey': 'weather_q_sunny',  'winKey': 'weather_win_sunny'},
-    {'id': 'rainy',  'label': 'Build a Rainy Day!',   'qKey': 'weather_q_rainy',  'winKey': 'weather_win_rainy'},
-    {'id': 'cloudy', 'label': 'Build a Cloudy Day!',  'qKey': 'weather_q_cloudy', 'winKey': 'weather_win_cloudy'},
-    {'id': 'windy',  'label': 'Build a Windy Day!',   'qKey': 'weather_q_windy',  'winKey': 'weather_win_windy'},
+    {
+      'id': 'sunny',
+      'label': 'Build a Sunny Day!',
+      'qKey': 'weather_q_sunny',
+      'winKey': 'weather_win_sunny',
+    },
+    {
+      'id': 'rainy',
+      'label': 'Build a Rainy Day!',
+      'qKey': 'weather_q_rainy',
+      'winKey': 'weather_win_rainy',
+    },
+    {
+      'id': 'cloudy',
+      'label': 'Build a Cloudy Day!',
+      'qKey': 'weather_q_cloudy',
+      'winKey': 'weather_win_cloudy',
+    },
+    {
+      'id': 'windy',
+      'label': 'Build a Windy Day!',
+      'qKey': 'weather_q_windy',
+      'winKey': 'weather_win_windy',
+    },
   ];
 
   final List<WeatherElement> _allElements = [
-    WeatherElement(id: 'sun',         imagePath: 'assets/images/objects/lagoon/sun.png',         weatherId: 'sunny',  scenePosition: const Alignment(0.6, -0.8)),
-    WeatherElement(id: 'rainbow',     imagePath: 'assets/images/objects/lagoon/rainbow.png',     weatherId: 'sunny',  scenePosition: const Alignment(-0.2, -0.5)),
-    WeatherElement(id: 'raincloud',   imagePath: 'assets/images/objects/lagoon/raincloud.png',   weatherId: 'rainy',  scenePosition: const Alignment(0.0, -0.9)),
-    WeatherElement(id: 'raindrop',    imagePath: 'assets/images/objects/lagoon/raindrop.png',    weatherId: 'rainy',  scenePosition: const Alignment(-0.5, 0.0)),
-    WeatherElement(id: 'suncloud',    imagePath: 'assets/images/objects/lagoon/suncloud.png',    weatherId: 'cloudy', scenePosition: const Alignment(0.3, -0.7)),
-    WeatherElement(id: 'graycloud',   imagePath: 'assets/images/objects/lagoon/graycloud.png',   weatherId: 'cloudy', scenePosition: const Alignment(-0.4, -0.5)),
-    WeatherElement(id: 'windy',       imagePath: 'assets/images/objects/lagoon/windy.png',       weatherId: 'windy',  scenePosition: const Alignment(0.0, -0.2)),
-    WeatherElement(id: 'strong_wind', imagePath: 'assets/images/objects/lagoon/strong_wind.png', weatherId: 'windy',  scenePosition: const Alignment(0.5, 0.1)),
+    WeatherElement(
+      id: 'sun',
+      imagePath: 'assets/images/objects/lagoon/sun.png',
+      weatherId: 'sunny',
+      scenePosition: const Alignment(0.6, -0.8),
+    ),
+    WeatherElement(
+      id: 'rainbow',
+      imagePath: 'assets/images/objects/lagoon/rainbow.png',
+      weatherId: 'sunny',
+      scenePosition: const Alignment(-0.2, -0.5),
+    ),
+    WeatherElement(
+      id: 'raincloud',
+      imagePath: 'assets/images/objects/lagoon/raincloud.png',
+      weatherId: 'rainy',
+      scenePosition: const Alignment(0.0, -0.9),
+    ),
+    WeatherElement(
+      id: 'raindrop',
+      imagePath: 'assets/images/objects/lagoon/raindrop.png',
+      weatherId: 'rainy',
+      scenePosition: const Alignment(-0.5, 0.0),
+    ),
+    WeatherElement(
+      id: 'suncloud',
+      imagePath: 'assets/images/objects/lagoon/suncloud.png',
+      weatherId: 'cloudy',
+      scenePosition: const Alignment(0.3, -0.7),
+    ),
+    WeatherElement(
+      id: 'graycloud',
+      imagePath: 'assets/images/objects/lagoon/graycloud.png',
+      weatherId: 'cloudy',
+      scenePosition: const Alignment(-0.4, -0.5),
+    ),
+    WeatherElement(
+      id: 'windy',
+      imagePath: 'assets/images/objects/lagoon/windy.png',
+      weatherId: 'windy',
+      scenePosition: const Alignment(0.0, -0.2),
+    ),
+    WeatherElement(
+      id: 'strong_wind',
+      imagePath: 'assets/images/objects/lagoon/strong_wind.png',
+      weatherId: 'windy',
+      scenePosition: const Alignment(0.5, 0.1),
+    ),
   ];
 
   int _roundIndex = 0;
@@ -84,7 +144,9 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
     OrientationService.setLandscape();
 
     _popCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 400));
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
     _itemCtrls = {};
 
     _startRound(playPrompt: false);
@@ -92,7 +154,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
     initLagoonIntro();
     startLagoonIntro(
       introAudioAsset:
-      'assets/audio/discovery_lagoon/weather_builder_intro.wav',
+          'assets/audio/discovery_lagoon/weather_builder_intro.wav',
       onGameStart: () {
         if (!mounted) return;
         setState(() => _screenPhase = LagoonScreenPhase.game);
@@ -116,14 +178,14 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
 
   void _startRound({bool playPrompt = true}) {
     _currentWeather = _weathers[_roundIndex];
-    _currentElements =
-        _allElements.where((e) => e.weatherId == _currentWeather['id']).toList();
+    _currentElements = _allElements
+        .where((e) => e.weatherId == _currentWeather['id'])
+        .toList();
     _currentPhases = _weatherPhases[_currentWeather['id']] ?? [];
 
-    final decoys = _allElements
-        .where((e) => e.weatherId != _currentWeather['id'])
-        .toList()
-      ..shuffle();
+    final decoys =
+        _allElements.where((e) => e.weatherId != _currentWeather['id']).toList()
+          ..shuffle();
     _choices = [..._currentElements, ...decoys.take(2)]..shuffle();
     _placed.clear();
     _roundLocked = false;
@@ -131,7 +193,9 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
     for (final e in _choices) {
       _itemCtrls[e.id]?.dispose();
       _itemCtrls[e.id] = AnimationController(
-          vsync: this, duration: const Duration(milliseconds: 500));
+        vsync: this,
+        duration: const Duration(milliseconds: 500),
+      );
     }
 
     if (playPrompt) {
@@ -149,20 +213,17 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
       if (_placed.length == _currentElements.length) {
         _roundLocked = true;
         // Play round-complete audio, then advance
-        LagoonAudio.instance.playThenCallback(
-          _currentWeather['winKey']!,
-              () {
-            if (!mounted) return;
-            if (_roundIndex >= _weathers.length - 1) {
-              _showSuccessDialog();
-            } else {
-              setState(() {
-                _roundIndex++;
-                _startRound();
-              });
-            }
-          },
-        );
+        LagoonAudio.instance.playThenCallback(_currentWeather['winKey']!, () {
+          if (!mounted) return;
+          if (_roundIndex >= _weathers.length - 1) {
+            _showSuccessDialog();
+          } else {
+            setState(() {
+              _roundIndex++;
+              _startRound();
+            });
+          }
+        });
       }
     } else {
       // Wrong tap — brief red flash via controller forward/reverse
@@ -181,14 +242,21 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
       useSafeArea: false,
       barrierColor: Colors.black54,
       builder: (_) => GoodJobOverlay(
-        characterImage: 'assets/images/characters/cat_holding_fishbone.png',
+        characterImage: 'assets/images/characters/kiki_smiling.png',
         closeButtonColor: LagoonColorTheme.darkbrown,
-        onNext: () {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => const WeatherClothesMatchScreen(level: 17),
-            ),
-          );
+        onNext: () async {
+          // 1. Mark the current level as complete (Change the number for each game)
+          await LagoonProgressService.instance.markLevelComplete(16);
+
+          if (context.mounted) {
+            // 2. Push directly to the next level's screen
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AnimalLifecycleGame(),
+              ),
+            );
+          }
         },
         onRestart: () {
           Navigator.pop(context);
@@ -200,7 +268,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
         onBack: () {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const LagoonLevelScreen()),
-                (route) => route.isFirst,
+            (route) => route.isFirst,
           );
         },
       ),
@@ -217,30 +285,34 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
           Positioned.fill(
             child: _screenPhase == LagoonScreenPhase.intro
                 ? Image.asset(
-              'assets/images/backgrounds/bg_game_lagoon.png',
-              fit: BoxFit.cover,
-            )
+                    'assets/images/backgrounds/bg_game_lagoon.png',
+                    fit: BoxFit.cover,
+                  )
                 : AnimatedSwitcher(
-              duration: const Duration(milliseconds: 800),
-              layoutBuilder: (currentChild, previousChildren) => Stack(
-                fit: StackFit.expand,
-                children: [
-                  ...previousChildren,
-                  if (currentChild != null) currentChild,
-                ],
-              ),
-              child: Image.asset(
-                _currentPhases.isEmpty
-                    ? 'assets/images/objects/lagoon/summer.png'
-                    : _currentPhases[
-                _placed.length.clamp(0, _currentPhases.length - 1)],
-                key: ValueKey('${_currentWeather['id']}_${_placed.length}'),
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-              ),
-            ),
+                    duration: const Duration(milliseconds: 800),
+                    layoutBuilder: (currentChild, previousChildren) => Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ...previousChildren,
+                        if (currentChild != null) currentChild,
+                      ],
+                    ),
+                    child: Image.asset(
+                      _currentPhases.isEmpty
+                          ? 'assets/images/objects/lagoon/summer.png'
+                          : _currentPhases[_placed.length.clamp(
+                              0,
+                              _currentPhases.length - 1,
+                            )],
+                      key: ValueKey(
+                        '${_currentWeather['id']}_${_placed.length}',
+                      ),
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                    ),
+                  ),
           ),
           SafeArea(
             child: _screenPhase == LagoonScreenPhase.intro
@@ -272,16 +344,21 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
               alignment: Alignment.center,
               children: [
                 const Align(
-                    alignment: Alignment.centerLeft,
-                    child: LagoonBackButton()),
+                  alignment: Alignment.centerLeft,
+                  child: LagoonBackButton(),
+                ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 6),
+                    horizontal: 20,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: LagoonColorTheme.pastelorange,
                     borderRadius: BorderRadius.circular(30),
                     border: Border.all(
-                        color: LagoonColorTheme.wasteland, width: 5),
+                      color: LagoonColorTheme.wasteland,
+                      width: 5,
+                    ),
                   ),
                   child: Text(
                     _currentWeather['label']!,
@@ -302,8 +379,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
 
         // Choice buttons
         Container(
-          padding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: _choices.map((el) {
@@ -328,10 +404,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
                       ],
                     ),
                     padding: const EdgeInsets.all(10),
-                    child: Image.asset(
-                      el.imagePath,
-                      fit: BoxFit.contain,
-                    ),
+                    child: Image.asset(el.imagePath, fit: BoxFit.contain),
                   ),
                 ),
               );
@@ -355,8 +428,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
                       ? LagoonColorTheme.darkbrown
                       : i == _roundIndex
                       ? LagoonColorTheme.ferngreen
-                      : LagoonColorTheme.darkbrown
-                      .withValues(alpha: 0.2),
+                      : LagoonColorTheme.darkbrown.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
               );

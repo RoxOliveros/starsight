@@ -1,3 +1,6 @@
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/cold_hot_game.dart';
+import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart'; // Standard Flutter audio package
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -190,7 +193,7 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
               fit: BoxFit.cover,
             ),
           ),
-
+          const Positioned(top: 25, left: 20, child: LagoonBackButton()),
           // Show Kiki during the intro, show the game board after
           if (showIntro)
             Center(
@@ -250,9 +253,19 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
             GoodJobOverlay(
               characterImage: 'assets/images/characters/kiki_smiling.png',
               closeButtonColor: const Color(0xFFF44336),
-              onNext: () {
-                // Navigates out of the game screen
-                Navigator.of(context).pop();
+              onNext: () async {
+                // 1. Mark the current level as complete (Change the number for each game)
+                await LagoonProgressService.instance.markLevelComplete(17);
+
+                if (context.mounted) {
+                  // 2. Push directly to the next level's screen
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ColdHotGame(),
+                    ),
+                  );
+                }
               },
               onRestart: () {
                 // Resets the game seamlessly to the first level
