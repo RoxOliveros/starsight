@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/town_progress_service.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl10/picking_trash_game.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl5/sharing_1.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
@@ -126,7 +127,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: List.generate(4, (i) {
-                                final level = _page * 8 + i + 1;              // CHANGED
+                                final level = _page * 8 + i + 1; // CHANGED
                                 return level <= _unlockedLevel
                                     ? _LevelTile(level: level, size: tileSize)
                                     : _LockedTile(size: tileSize);
@@ -136,7 +137,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: List.generate(4, (i) {
-                                final level = _page * 8 + i + 5;               // CHANGED
+                                final level = _page * 8 + i + 5; // CHANGED
                                 return level <= _unlockedLevel
                                     ? _LevelTile(level: level, size: tileSize)
                                     : _LockedTile(size: tileSize);
@@ -226,14 +227,17 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                           ),
                         ),
                       ),
-// Right arrow
+                      // Right arrow
                       Positioned(
                         right: -35,
                         top: 0,
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
-                            if (_page < 1) setState(() => _page++);   // 1 = max page index (9 levels / 8 per page)
+                            if (_page < 1)
+                              setState(
+                                () => _page++,
+                              ); // 1 = max page index (9 levels / 8 per page)
                           },
                           child: Opacity(
                             opacity: _page < 1 ? 1.0 : 0.3,
@@ -302,6 +306,8 @@ class _LevelTile extends StatelessWidget {
         return Prayer1();
       case 9:
         return Sorry1Screen();
+      case 10:
+        return PickingTrashGame();
 
       default:
         return null;

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl10/picking_trash_game.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -263,6 +264,11 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
               closeButtonColor: const Color(0xFF266589),
               onNext: () async {
                 await TownProgressService.instance.markLevelComplete(9);
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => const PickingTrashGame(),
+                  ),
+                );
               },
               onRestart: () {
                 Navigator.of(context).pushReplacement(
