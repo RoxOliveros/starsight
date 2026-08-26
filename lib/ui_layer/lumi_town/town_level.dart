@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl10/picking_trash_game.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl11/throwing_trash_game.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl5/sharing_1.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
@@ -308,7 +309,8 @@ class _LevelTile extends StatelessWidget {
         return Sorry1Screen();
       case 10:
         return PickingTrashGame();
-
+      case 11:
+        return ThrowingTrashGame();
       default:
         return null;
     }

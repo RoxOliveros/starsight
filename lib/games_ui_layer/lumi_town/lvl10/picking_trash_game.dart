@@ -2,6 +2,7 @@ import 'dart:async'; // Added for StreamSubscription
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl11/throwing_trash_game.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -310,8 +311,15 @@ class _PickingTrashGameState extends State<PickingTrashGame> {
                 closeButtonColor: Colors.blueAccent,
                 onNext: () async {
                   await TownProgressService.instance.markLevelComplete(10);
-                  // TODO: Navigate to the next level
-                  print("Proceed to next level!");
+
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const ThrowingTrashGame(),
+                      ),
+                      (route) => route.isFirst,
+                    );
+                  }
                 },
                 onRestart: () {
                   // Resets everything back to the beginning
