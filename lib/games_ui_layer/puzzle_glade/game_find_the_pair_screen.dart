@@ -120,10 +120,16 @@ class _FindThePairScreenState extends State<FindThePairScreen>
 
   @override
   void dispose() {
+    _bgPlayer.stop();
+    _sfxPlayer.stop();
+    _completePlayer.stop();
+    _roxiePlayer.stop();
+
     _bgPlayer.dispose();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
     _roxiePlayer.dispose();
+
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _previewPulseCtrl.dispose();
@@ -134,7 +140,9 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     _bounceCtrl.dispose();
     _shakeCtrl.dispose();
     _revealCtrl.dispose();
+
     OrientationService.setLandscape();
+
     super.dispose();
   }
 
@@ -223,17 +231,28 @@ class _FindThePairScreenState extends State<FindThePairScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    _roxieSlideCtrl.forward();
 
+    if (!mounted) return;
+
+    _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
+
     await _playBgAudio(_audioIntro);
 
-    _speechBubbleCtrl.forward(from: 0);
+    if (!mounted) return;
 
+    _speechBubbleCtrl.forward(from: 0);
     _gameEnterCtrl.forward();
+
     _startRound();
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
+
+    if (!mounted) return;
+
+    setState(() => _screenPhase = _ScreenPhase.game);
+
     await _playBgAudio(_audioInstructions);
+
+    if (!mounted) return;
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -255,16 +274,30 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   // ── Round setup ────────────────────────────────────────────────────────────
 
   void _startRound() {
+    if (!mounted) return;
+
     final rng = Random();
     final pool = _kRoundObjectPools[_round - 1];
 
-    final available = pool.where((o) => !_usedMatches.contains(o)).toList();
-    final matchCandidates = available.isNotEmpty ? available : pool;
-    _matchingObject = matchCandidates[rng.nextInt(matchCandidates.length)];
+    final available =
+    pool.where((o) => !_usedMatches.contains(o)).toList();
+
+    final matchCandidates =
+    available.isNotEmpty ? available : pool;
+
+    _matchingObject =
+    matchCandidates[rng.nextInt(matchCandidates.length)];
+
     _usedMatches.add(_matchingObject);
 
-    final distractors = pool.where((o) => o != _matchingObject).toList();
-    _choices = [...distractors, _matchingObject, _matchingObject]..shuffle(rng);
+    final distractors =
+    pool.where((o) => o != _matchingObject).toList();
+
+    _choices = [
+      ...distractors,
+      _matchingObject,
+      _matchingObject,
+    ]..shuffle(rng);
 
     _firstSelectedIndex = null;
     _secondSelectedIndex = null;
@@ -298,31 +331,49 @@ class _FindThePairScreenState extends State<FindThePairScreen>
 
     if (isMatch) {
       setState(() => _roundComplete = true);
+
       _bounceCtrl.forward(from: 0);
       _revealCtrl.forward(from: 0);
+
       unawaited(showRoxieReaction(RoxieState.correct));
 
       await Future.delayed(const Duration(milliseconds: 1100));
+
+      if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
         await _bgPlayer.stop();
         await _sfxPlayer.stop();
 
+        if (!mounted) return;
+
         final completer = Completer<void>();
         final sub = _completePlayer.onPlayerComplete.listen((_) {
           if (!completer.isCompleted) completer.complete();
         });
-        await _completePlayer.play(
-          AssetSource(_audioComplete.replaceFirst('assets/', '')),
-        );
-        await completer.future.timeout(const Duration(seconds: 10));
-        await sub.cancel();
+
+        try {
+          await _completePlayer.play(
+            AssetSource(_audioComplete.replaceFirst('assets/', '')),
+          );
+
+          await completer.future.timeout(const Duration(seconds: 10));
+        } finally {
+          await sub.cancel();
+        }
+
+        if (!mounted) return;
 
         await PuzzleProgressService.instance.markLevelComplete(widget.level);
 
-        if (mounted) setState(() => _showWinDialog = true);
+        if (!mounted) return;
+
+        setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
+
+        if (!mounted) return;
+
         setState(() {
           _round++;
           _startRound();
@@ -330,20 +381,24 @@ class _FindThePairScreenState extends State<FindThePairScreen>
       }
     } else {
       unawaited(showRoxieReaction(RoxieState.wrong));
+
       setState(() {
         _wrongFlash = true;
         _wrongIndex = index;
       });
+
       _shakeCtrl.forward(from: 0);
+
       await Future.delayed(const Duration(milliseconds: 650));
-      if (mounted) {
-        setState(() {
-          _firstSelectedIndex = null;
-          _secondSelectedIndex = null;
-          _wrongFlash = false;
-          _wrongIndex = null;
-        });
-      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _firstSelectedIndex = null;
+        _secondSelectedIndex = null;
+        _wrongFlash = false;
+        _wrongIndex = null;
+      });
     }
   }
 
