@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:StarSight/business_layer/town_progress_service.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl12/appreciation_game.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -420,8 +421,14 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
                 onNext: () async {
                   await TownProgressService.instance.markLevelComplete(11);
 
-                  // TODO: Navigate to the next level
-                  print("Proceed to next level!");
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const AppreciationGame(),
+                      ),
+                      (route) => route.isFirst,
+                    );
+                  }
                 },
                 onRestart: () {
                   setState(() {
