@@ -539,7 +539,6 @@ class _SizeSortScreenState extends State<SizeSortScreen>
               alignment: Alignment.topCenter,
               children: [
                 Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-                Align(alignment: Alignment.center, child: PuzzleGameInstruction(instruction: 'Sort the objects from small to large')),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),

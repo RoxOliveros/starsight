@@ -625,7 +625,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
               alignment: Alignment.topCenter,
               children: [
                 Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-                Align(alignment: Alignment.center, child: PuzzleGameInstruction(instruction: 'Memorize the pattern, then make it')),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),

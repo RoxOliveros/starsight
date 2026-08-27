@@ -647,10 +647,6 @@ class _WhichComesFirstScreenState extends State<WhichComesFirstScreen>
               alignment: Alignment.topCenter,
               children: [
                 Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-                Align(
-                  alignment: Alignment.center,
-                  child: PuzzleGameInstruction(instruction: 'Drag them into order!'),
-                ),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),

@@ -663,7 +663,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
                 alignment: Alignment.topCenter,
                 children: [
                   Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-                  Align(alignment: Alignment.center, child: PuzzleGameInstruction(instruction: 'Put the star in the matching color jar',)),
                   Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
                 ],
               ),

@@ -661,7 +661,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
               alignment: Alignment.topCenter,
               children: [
                 Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-                Align(alignment: Alignment.center, child: PuzzleGameInstruction(instruction: 'Choose the correct star in the pattern')),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),

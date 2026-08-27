@@ -567,12 +567,6 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
               alignment: Alignment.topCenter,
               children: [
                 Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-                Align(
-                  alignment: Alignment.center,
-                  child: PuzzleGameInstruction(
-                    instruction: 'Tap the object that doesn\'t belong!',
-                  ),
-                ),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),

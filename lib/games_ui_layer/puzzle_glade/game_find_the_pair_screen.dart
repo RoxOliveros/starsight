@@ -566,12 +566,6 @@ class _FindThePairScreenState extends State<FindThePairScreen>
               alignment: Alignment.topCenter,
               children: [
                 Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-                Align(
-                  alignment: Alignment.center,
-                  child: PuzzleGameInstruction(
-                    instruction: 'Find the two objects that are the same!',
-                  ),
-                ),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),

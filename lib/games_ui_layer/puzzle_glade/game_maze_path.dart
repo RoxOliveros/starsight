@@ -550,12 +550,6 @@
                 alignment: Alignment.topCenter,
                 children: [
                   Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-                  Align(
-                    alignment: Alignment.center,
-                    child: PuzzleGameInstruction(
-                      instruction: 'Guide the baby chicken through the maze',
-                    ),
-                  ),
                   Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
                 ],
               ),

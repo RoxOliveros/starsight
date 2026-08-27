@@ -588,7 +588,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
               alignment: Alignment.topCenter,
               children: [
                 Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-                Align(alignment: Alignment.center, child: PuzzleGameInstruction(instruction: 'Remember the objects, then find what’s missing')),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),
