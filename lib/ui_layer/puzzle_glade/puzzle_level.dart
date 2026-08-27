@@ -316,45 +316,42 @@ class _LevelTile extends StatelessWidget {
       case 1:
         return const StarColorSortScreen(level: 1);
       case 2:
-        return const ShadowMatchScreen(level: 2);
+        return const FindThePairScreen(level: 2);
       case 3:
-        return const PuzzleObjectScreen(level: 3);
+        return const ShadowMatchScreen(level: 3);
       case 4:
-        return const BasketSortScreen(level: 4);
+        return const PuzzleObjectScreen(level: 4);
       case 5:
-        return const SizeSortScreen(level: 5);
+        return const BasketSortScreen(level: 5);
       case 6:
-        return const WhatsMissingScreen(level: 6);
+        return const SizeSortScreen(level: 6);
       case 7:
-        return const CopyPatternScreen(level: 7);
+        return const WhatsMissingScreen(level: 7);
       case 8:
-        return const SpotDifferenceScreen(level: 8);
+        return const CopyPatternScreen(level: 8);
       case 9:
-        return const PatternMatchScreen(level: 9);
+        return const SpotDifferenceScreen(level: 9);
       case 10:
-        return const MemoryMatchScreen(level: 10);
+        return const PatternMatchScreen(level: 10);
       case 11:
-        return const ShapeFitScreen(level: 11);
+        return const MemoryMatchScreen(level: 11);
       case 12:
-        return const MazePathScreen(level: 12);
+        return const ShapeFitScreen(level: 12);
       case 13:
-        return const HiddenObjectScreen(level: 13);
+        return const MazePathScreen(level: 13);
       case 14:
-        return const RotateTheShapeScreen(level: 14);
+        return const HiddenObjectScreen(level: 14);
       case 15:
-        return const WhichComesFirstScreen(level: 15);
+        return const RotateTheShapeScreen(level: 15);
       case 16:
-        return const OddOneOutScreen(level: 16);
+        return const WhichComesFirstScreen(level: 16);
       case 17:
-        return const FindThePairScreen(level: 17);
+        return const OddOneOutScreen(level: 17);
 
-      // TODO: @Tin add games
+      // TODO: @Tin add games for levels 18–20
       case 18:
-        return null;
       case 19:
-        return null;
       case 20:
-        return null;
       default:
         return null;
     }

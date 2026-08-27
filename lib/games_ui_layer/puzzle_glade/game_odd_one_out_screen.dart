@@ -676,12 +676,12 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => FindThePairScreen(level: widget.level + 1),
-          ),
-        );
+        // Navigator.pushReplacement( TODO: @Tin Fix nav
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (context) => (level: widget.level + 1),
+        //   ),
+        // );
       },
       onRestart: () {
         Navigator.pushReplacement(

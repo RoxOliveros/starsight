@@ -177,20 +177,22 @@
 
     Future<void> _startIntroFlow() async {
       await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
       _roxieSlideCtrl.forward();
 
       _speechBubbleCtrl.forward(from: 0);
       await _playBgAudio(_audioIntro);
+      if (!mounted) return;
 
       _speechBubbleCtrl.forward(from: 0);
-
       _gameEnterCtrl.forward();
       _startRound();
-      if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
+      setState(() => _screenPhase = _ScreenPhase.game);
       await _playBgAudio(_audioInstructions);
     }
 
     Future<void> _playBgAudio(String asset) async {
+      if (!mounted) return;
       StreamSubscription? sub;
       try {
         final completer = Completer<void>();
@@ -228,6 +230,7 @@
     // ── Round setup ────────────────────────────────────────────────────────────
 
     void _startRound() {
+      if (!mounted) return;
       final rng = Random();
       final (rows, cols, deadEnds) = _mazeConfigForRound(_round);
 

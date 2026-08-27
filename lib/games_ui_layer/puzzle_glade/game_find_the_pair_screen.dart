@@ -11,6 +11,7 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
+import 'game_shadow_match.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -19,50 +20,15 @@ enum _ScreenPhase { intro, game }
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _FindThePairQuestion {
-  final List<String> objects;
-  final String matchingObject;
 
-  const _FindThePairQuestion({
-    required this.objects,
-    required this.matchingObject,
-  });
-}
-
-const List<_FindThePairQuestion> _kQuestions = [
-  // Round 1
-  _FindThePairQuestion(
-    objects: ['apple', 'banana', 'apple', 'orange', 'ball', 'flower'],
-    matchingObject: 'apple',
-  ),
-
-  // Round 2
-  _FindThePairQuestion(
-    objects: ['dog', 'car', 'rabbit', 'dog', 'cat', 'bus'],
-    matchingObject: 'dog',
-  ),
-
-  // Round 3
-  _FindThePairQuestion(
-    objects: ['flower', 'tree', 'leaf', 'flower', 'car', 'banana'],
-    matchingObject: 'flower',
-  ),
-
-  // Round 4
-  _FindThePairQuestion(
-    objects: ['pencil', 'notebook', 'book', 'pencil', 'banana', 'apple'],
-    matchingObject: 'pencil',
-  ),
-
-  // Round 5
-  _FindThePairQuestion(
-    objects: ['car', 'bus', 'airplane', 'car', 'dog', 'tree'],
-    matchingObject: 'car',
-  ),
+const List<List<String>> _kRoundObjectPools = [
+  ['apple', 'banana', 'ball'],
+  ['dog', 'cat', 'bus'],
+  ['flower', 'tree', 'leaf', 'car', 'banana'],
+  ['pencil', 'notebook', 'book', 'banana', 'apple'],
+  ['car', 'bus', 'banana', 'dog', 'tree', 'ball', 'flower'],
 ];
 
-// Dart does not allow `List.length` in a const expression, so this is
-// hardcoded to match _kQuestions.length.
 const int _kTotalRounds = 5;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,10 +46,6 @@ class FindThePairScreen extends StatefulWidget {
 
 class _FindThePairScreenState extends State<FindThePairScreen>
     with TickerProviderStateMixin, RoxieReactionMixin<FindThePairScreen>, GameLoadingMixin {
-  // IMPORTANT: roxiePlayer must point at its own dedicated AudioPlayer
-  // instance, never be aliased to _sfxPlayer — aliasing causes
-  // RoxieReactionMixin's audio to interrupt/steal correct/wrong SFX
-  // playback (the bug fixed in Shape Fit and Maze Path).
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
@@ -92,9 +54,9 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/intro.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/find_the_pair_intro.wav';
   static const String _audioInstructions = 'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level17/complete.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/find_the_pair_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -102,7 +64,8 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
   late String _matchingObject;
-  late List<String> _choices; // 6 objects: one matching pair + 4 distinct
+  late List<String> _choices;
+  final Set<String> _usedMatches = {};
   int? _firstSelectedIndex;
   int? _secondSelectedIndex;
   bool _wrongFlash = false;
@@ -293,13 +256,15 @@ class _FindThePairScreenState extends State<FindThePairScreen>
 
   void _startRound() {
     final rng = Random();
-    final question = _kQuestions[_round - 1];
+    final pool = _kRoundObjectPools[_round - 1];
 
-    _matchingObject = question.matchingObject;
+    final available = pool.where((o) => !_usedMatches.contains(o)).toList();
+    final matchCandidates = available.isNotEmpty ? available : pool;
+    _matchingObject = matchCandidates[rng.nextInt(matchCandidates.length)];
+    _usedMatches.add(_matchingObject);
 
-    // Randomize the position of every card (and therefore the matching
-    // pair's positions) every round.
-    _choices = List<String>.from(question.objects)..shuffle(rng);
+    final distractors = pool.where((o) => o != _matchingObject).toList();
+    _choices = [...distractors, _matchingObject, _matchingObject]..shuffle(rng);
 
     _firstSelectedIndex = null;
     _secondSelectedIndex = null;
@@ -317,8 +282,6 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   // ── Tap handling ───────────────────────────────────────────────────────────
 
   Future<void> _onObjectTapped(int index) async {
-    // Block taps while a round is already won or a wrong-answer animation
-    // is playing, but otherwise always allow another attempt.
     if (_roundComplete || _wrongFlash) return;
 
     if (_firstSelectedIndex == null) {
@@ -329,8 +292,6 @@ class _FindThePairScreenState extends State<FindThePairScreen>
 
     if (index == _firstSelectedIndex) return;
 
-    // IMPORTANT: compare the actual object values, not the indexes —
-    // several cards can share the same object name.
     final isMatch = _choices[_firstSelectedIndex!] == _choices[index];
 
     setState(() => _secondSelectedIndex = index);
@@ -491,9 +452,6 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     );
   }
 
-  /// Small non-interactive demo grid showing two identical apples among
-  /// different objects, teaching the "find the matching pair" mechanic
-  /// before play.
   Widget _buildIntroPreview() {
     const previewItems = ['apple', 'banana', 'apple', 'ball'];
     const previewMatch = 'apple';
@@ -584,20 +542,45 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   }
 
   Widget _buildGameArea() {
-    return Center(
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 20,
-        runSpacing: 20,
-        children: List.generate(
-          _choices.length,
-          (i) => KeyedSubtree(
-            key: ValueKey('$i-${_choices[i]}'),
-            child: _buildObjectCard(i),
+    return Center(child: _buildObjectGrid());
+  }
+
+  // ── Grid helper ────────────────────────────────────────────────────────────
+
+  Widget _buildObjectGrid() {
+    final int cols;
+    if (_choices.length <= 4) {
+      cols = 2;
+    } else if (_choices.length >= 8) {
+      cols = 4;
+    } else {
+      cols = 3;
+    }
+    final rows = <Widget>[];
+    for (int i = 0; i < _choices.length; i += cols) {
+      final rowIndices = List.generate(
+        min(cols, _choices.length - i),
+            (j) => i + j,
+      );
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (int j = 0; j < rowIndices.length; j++) ...[
+                if (j > 0) const SizedBox(width: 20),
+                KeyedSubtree(
+                  key: ValueKey('${rowIndices[j]}-${_choices[rowIndices[j]]}'),
+                  child: _buildObjectCard(rowIndices[j]),
+                ),
+              ],
+            ],
           ),
         ),
-      ),
-    );
+      );
+    }
+    return Column(mainAxisSize: MainAxisSize.min, children: rows);
   }
 
   Widget _buildObjectCard(int index) {
@@ -689,7 +672,12 @@ class _FindThePairScreenState extends State<FindThePairScreen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        // TODO: replace with the next game in the Puzzle Glade sequence.
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ShadowMatchScreen(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         Navigator.pushReplacement(

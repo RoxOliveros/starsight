@@ -296,7 +296,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       }
     } else {
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
-      unawaited(showRoxieReaction(RoxieState.wrong));
+      unawaited(showRoxieReaction(RoxieState.wrong, playSound: true));
       setState(() {
         _wrongSlotFlash = slot;
         _wrongPieceFlash = piece;
