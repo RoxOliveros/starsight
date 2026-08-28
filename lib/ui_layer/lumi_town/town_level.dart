@@ -3,6 +3,7 @@ import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl10/picking_trash_game.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl11/throwing_trash_game.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl12/appreciation_game.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl13/family_tree_game.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl5/sharing_1.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
@@ -314,6 +315,8 @@ class _LevelTile extends StatelessWidget {
         return ThrowingTrashGame();
       case 12:
         return AppreciationGame();
+      case 13:
+        return FamilyTreeGame();
       default:
         return null;
     }
