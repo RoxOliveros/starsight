@@ -11,104 +11,158 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
-import 'game_find_the_pair_screen.dart';
-import 'game_same_or_different.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Question model
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SameOrDifferentQuestion {
+  final String leftObject;
+  final String rightObject;
+  final Color? leftTint;
+  final Color? rightTint;
+  final double leftScale;
+  final double rightScale;
+  final bool isSame;
+
+  const _SameOrDifferentQuestion({
+    required this.leftObject,
+    required this.rightObject,
+    this.leftTint,
+    this.rightTint,
+    this.leftScale = 1.0,
+    this.rightScale = 1.0,
+    required this.isSame,
+  });
+
+  /// Unique-ish key used to avoid repeating the exact same question
+  /// within a single playthrough.
+  String get key =>
+      '$leftObject-$rightObject-$leftTint-$rightTint-$leftScale-$rightScale-$isSame';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _OddOneOutQuestion {
-  final List<String> objects;
-  final String oddObject;
+const int _kTotalRounds = 5;
 
-  const _OddOneOutQuestion({
-    required this.objects,
-    required this.oddObject,
-  });
-}
+// Round 1 — very obvious: identical object, identical everything.
+const List<_SameOrDifferentQuestion> _kRound1Pool = [
+  _SameOrDifferentQuestion(leftObject: 'apple', rightObject: 'apple', isSame: true),
+  _SameOrDifferentQuestion(leftObject: 'ball', rightObject: 'ball', isSame: true),
+  _SameOrDifferentQuestion(leftObject: 'flower', rightObject: 'flower', isSame: true),
+  _SameOrDifferentQuestion(leftObject: 'car', rightObject: 'car', isSame: true),
+  _SameOrDifferentQuestion(leftObject: 'dog', rightObject: 'dog', isSame: true),
+];
 
-const List<_OddOneOutQuestion> _kQuestions = [
-  // Round 1 – Food vs Toy
-  _OddOneOutQuestion(
-    objects: [
-      'apple',
-      'banana',
-      'orange',
-      'ball',
-    ],
-    oddObject: 'ball',
+// Round 2 — clearly different objects.
+const List<_SameOrDifferentQuestion> _kRound2Pool = [
+  _SameOrDifferentQuestion(leftObject: 'apple', rightObject: 'banana', isSame: false),
+  _SameOrDifferentQuestion(leftObject: 'dog', rightObject: 'bus', isSame: false),
+  _SameOrDifferentQuestion(leftObject: 'car', rightObject: 'tree', isSame: false),
+  _SameOrDifferentQuestion(leftObject: 'pencil', rightObject: 'cat', isSame: false),
+  _SameOrDifferentQuestion(leftObject: 'flower', rightObject: 'book', isSame: false),
+];
+
+// Round 3 — same object, different color tint.
+const List<_SameOrDifferentQuestion> _kRound3Pool = [
+  _SameOrDifferentQuestion(
+    leftObject: 'ball',
+    rightObject: 'ball',
+    leftTint: Colors.blueAccent,
+    rightTint: Colors.redAccent,
+    isSame: false,
   ),
-
-  // Round 2 – Animals vs Vehicle
-  _OddOneOutQuestion(
-    objects: [
-      'dog',
-      'cat',
-      'rabbit',
-      'car',
-    ],
-    oddObject: 'car',
+  _SameOrDifferentQuestion(
+    leftObject: 'flower',
+    rightObject: 'flower',
+    leftTint: Colors.purpleAccent,
+    rightTint: Colors.orangeAccent,
+    isSame: false,
   ),
-
-  // Round 3 – Transportation vs Nature
-  _OddOneOutQuestion(
-    objects: [
-      'car',
-      'bus',
-      'train',
-      'flower',
-    ],
-    oddObject: 'flower',
+  _SameOrDifferentQuestion(
+    leftObject: 'apple',
+    rightObject: 'apple',
+    leftTint: Colors.green,
+    rightTint: Colors.redAccent,
+    isSame: false,
   ),
-
-  // Round 4 – School / Learning vs Food
-  _OddOneOutQuestion(
-    objects: [
-      'pencil',
-      'notebook',
-      'book',
-      'banana',
-    ],
-    oddObject: 'banana',
-  ),
-
-  // Round 5 – Nature vs Vehicle
-  _OddOneOutQuestion(
-    objects: [
-      'flower',
-      'tree',
-      'leaf',
-      'car',
-    ],
-    oddObject: 'car',
+  _SameOrDifferentQuestion(
+    leftObject: 'car',
+    rightObject: 'car',
+    leftTint: Colors.yellow,
+    rightTint: Colors.blueAccent,
+    isSame: false,
   ),
 ];
 
-const int _kTotalRounds = 5;
+// Round 4 — same shape, different size.
+const List<_SameOrDifferentQuestion> _kRound4Pool = [
+  _SameOrDifferentQuestion(
+    leftObject: 'flower',
+    rightObject: 'flower',
+    leftScale: 1.0,
+    rightScale: 0.55,
+    isSame: false,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'ball',
+    rightObject: 'ball',
+    leftScale: 1.0,
+    rightScale: 0.5,
+    isSame: false,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'tree',
+    rightObject: 'tree',
+    leftScale: 0.6,
+    rightScale: 1.0,
+    isSame: false,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'car',
+    rightObject: 'car',
+    leftScale: 1.0,
+    rightScale: 0.6,
+    isSame: false,
+  ),
+];
+
+// Round 5 — visually similar but different objects; look closely.
+const List<_SameOrDifferentQuestion> _kRound5Pool = [
+  _SameOrDifferentQuestion(leftObject: 'ball', rightObject: 'apple', isSame: false),
+  _SameOrDifferentQuestion(leftObject: 'book', rightObject: 'notebook', isSame: false),
+  _SameOrDifferentQuestion(leftObject: 'leaf', rightObject: 'tree', isSame: false),
+  _SameOrDifferentQuestion(leftObject: 'cat', rightObject: 'dog', isSame: false),
+];
+
+const List<List<_SameOrDifferentQuestion>> _kRoundQuestionPools = [
+  _kRound1Pool,
+  _kRound2Pool,
+  _kRound3Pool,
+  _kRound4Pool,
+  _kRound5Pool,
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class OddOneOutScreen extends StatefulWidget {
+class SameOrDifferentScreen extends StatefulWidget {
   final int level;
 
-  const OddOneOutScreen({super.key, required this.level});
+  const SameOrDifferentScreen({super.key, required this.level});
 
   @override
-  State<OddOneOutScreen> createState() => _OddOneOutScreenState();
+  State<SameOrDifferentScreen> createState() => _SameOrDifferentScreenState();
 }
 
-class _OddOneOutScreenState extends State<OddOneOutScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<OddOneOutScreen>, GameLoadingMixin {
-  // IMPORTANT: roxiePlayer must point at its own dedicated AudioPlayer
-  // instance, never be aliased to _sfxPlayer — aliasing causes
-  // RoxieReactionMixin's audio to interrupt/steal correct/wrong SFX
-  // playback (the bug fixed in Shape Fit and Maze Path).
+class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
+    with TickerProviderStateMixin, RoxieReactionMixin<SameOrDifferentScreen>, GameLoadingMixin {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
@@ -116,27 +170,28 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
+  static const String _symbolAssetPath = 'assets/images/buttons';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/odd_one_out_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/odd_one_out_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/odd_one_out_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/same_or_different_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/same_or_different_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/same_or_different_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
 
   // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
-  late String _oddObject;
-  late List<String> _choices; // 4 objects: 3 grouped + 1 odd, randomized order
-  bool _wrongFlash = false;
+  late _SameOrDifferentQuestion _question;
+  final Set<String> _usedQuestionKeys = {};
+
+  bool? _selectedAnswer; // true = SAME tapped, false = DIFFERENT tapped
+  bool _buttonsDisabled = false;
   bool _roundComplete = false;
-  int? _tappedIndex;
-  int? _wrongIndex;
+  bool _wrongFlash = false;
   bool _showWinDialog = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
@@ -164,8 +219,6 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   late Animation<double> _bounceAnim;
   late AnimationController _shakeCtrl;
   late Animation<double> _shakeAnim;
-  late AnimationController _revealCtrl;
-  late Animation<double> _revealAnim;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -179,10 +232,14 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
 
   @override
   void dispose() {
+    _bgPlayer.stop();
+    _completePlayer.stop();
+    _roxiePlayer.stop();
+
     _bgPlayer.dispose();
-    _sfxPlayer.dispose();
     _completePlayer.dispose();
     _roxiePlayer.dispose();
+
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _previewPulseCtrl.dispose();
@@ -191,8 +248,9 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     _enterCtrl.dispose();
     _bounceCtrl.dispose();
     _shakeCtrl.dispose();
-    _revealCtrl.dispose();
+
     OrientationService.setLandscape();
+
     super.dispose();
   }
 
@@ -209,13 +267,8 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       duration: const Duration(milliseconds: 900),
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
-        .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
-    _roxieFade = CurvedAnimation(
-      parent: _roxieSlideCtrl,
-      curve: const Interval(0, 0.4),
-    );
+        .animate(CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut));
+    _roxieFade = CurvedAnimation(parent: _roxieSlideCtrl, curve: const Interval(0, 0.4));
 
     _previewPulseCtrl = AnimationController(
       vsync: this,
@@ -246,10 +299,9 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
-    _bounceAnim = Tween<double>(
-      begin: 1.0,
-      end: 1.25,
-    ).animate(CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut));
+    _bounceAnim = Tween<double>(begin: 1.0, end: 1.18).animate(
+      CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut),
+    );
 
     _shakeCtrl = AnimationController(
       vsync: this,
@@ -261,29 +313,34 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       TweenSequenceItem(tween: Tween(begin: 8.0, end: -6.0), weight: 1),
       TweenSequenceItem(tween: Tween(begin: -6.0, end: 0.0), weight: 1),
     ]).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.easeInOut));
-
-    _revealCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _revealAnim = CurvedAnimation(parent: _revealCtrl, curve: Curves.easeIn);
   }
 
   // ── Intro flow ─────────────────────────────────────────────────────────────
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    _roxieSlideCtrl.forward();
 
+    if (!mounted) return;
+
+    _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
+
     await _playBgAudio(_audioIntro);
 
-    _speechBubbleCtrl.forward(from: 0);
+    if (!mounted) return;
 
+    _speechBubbleCtrl.forward(from: 0);
     _gameEnterCtrl.forward();
+
     _startRound();
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
+
+    if (!mounted) return;
+
+    setState(() => _screenPhase = _ScreenPhase.game);
+
     await _playBgAudio(_audioInstructions);
+
+    if (!mounted) return;
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -305,81 +362,106 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   // ── Round setup ────────────────────────────────────────────────────────────
 
   void _startRound() {
+    if (!mounted) return;
+
     final rng = Random();
-    final question = _kQuestions[_round - 1];
+    final pool = _kRoundQuestionPools[_round - 1];
 
-    _oddObject = question.oddObject;
+    final available = pool.where((q) => !_usedQuestionKeys.contains(q.key)).toList();
+    final candidates = available.isNotEmpty ? available : pool;
 
-    // Randomize the position of the odd object every round.
-    _choices = List<String>.from(question.objects)..shuffle(rng);
+    _question = candidates[rng.nextInt(candidates.length)];
+    _usedQuestionKeys.add(_question.key);
 
-    _wrongFlash = false;
+    _selectedAnswer = null;
+    _buttonsDisabled = false;
     _roundComplete = false;
-    _tappedIndex = null;
-    _wrongIndex = null;
+    _wrongFlash = false;
 
     _bounceCtrl.reset();
     _shakeCtrl.reset();
-    _revealCtrl.reset();
     _enterCtrl.forward(from: 0);
   }
 
-  // ── Tap handling ───────────────────────────────────────────────────────────
+  // ── Answer handling ────────────────────────────────────────────────────────
 
-  Future<void> _onObjectTapped(String tapped, int index) async {
-    // Block taps while a round is already won or a wrong-answer animation
-    // is playing, but otherwise always allow another attempt.
-    if (_roundComplete || _wrongFlash) return;
+  Future<void> _onAnswerSelected(bool answeredSame) async {
+    if (_buttonsDisabled || _roundComplete) return;
 
-    if (tapped == _oddObject) {
+    final isCorrect = answeredSame == _question.isSame;
+
+    if (isCorrect) {
       setState(() {
-        _tappedIndex = index;
+        _selectedAnswer = answeredSame;
+        _buttonsDisabled = true;
         _roundComplete = true;
       });
+
       _bounceCtrl.forward(from: 0);
-      _revealCtrl.forward(from: 0);
+
       unawaited(showRoxieReaction(RoxieState.correct));
 
-      await Future.delayed(const Duration(milliseconds: 1200));
+      await Future.delayed(const Duration(milliseconds: 1100));
+
+      if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
         await _bgPlayer.stop();
-        await _sfxPlayer.stop();
+
+        if (!mounted) return;
 
         final completer = Completer<void>();
         final sub = _completePlayer.onPlayerComplete.listen((_) {
           if (!completer.isCompleted) completer.complete();
         });
-        await _completePlayer.play(
-          AssetSource(_audioComplete.replaceFirst('assets/', '')),
-        );
-        await completer.future.timeout(const Duration(seconds: 10));
-        await sub.cancel();
+
+        try {
+          await _completePlayer.play(
+            AssetSource(_audioComplete.replaceFirst('assets/', '')),
+          );
+          await completer.future.timeout(const Duration(seconds: 10));
+        } finally {
+          await sub.cancel();
+        }
+
+        if (!mounted) return;
 
         await PuzzleProgressService.instance.markLevelComplete(widget.level);
 
-        if (mounted) setState(() => _showWinDialog = true);
+        if (!mounted) return;
+
+        setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
+
+        if (!mounted) return;
+
         setState(() {
           _round++;
           _startRound();
         });
       }
     } else {
-      unawaited(showRoxieReaction(RoxieState.wrong));
+      // Wrong answer: flash, react, and let the child try again.
       setState(() {
+        _selectedAnswer = answeredSame;
+        _buttonsDisabled = true;
         _wrongFlash = true;
-        _wrongIndex = index;
       });
+
+      unawaited(showRoxieReaction(RoxieState.wrong));
+
       _shakeCtrl.forward(from: 0);
+
       await Future.delayed(const Duration(milliseconds: 650));
-      if (mounted) {
-        setState(() {
-          _wrongFlash = false;
-          _wrongIndex = null;
-        });
-      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _selectedAnswer = null;
+        _buttonsDisabled = false;
+        _wrongFlash = false;
+      });
     }
   }
 
@@ -436,7 +518,7 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
             alignment: Alignment.topCenter,
             children: [
               Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Odd One Out')),
+              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Same or Different?')),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),
@@ -488,67 +570,51 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     );
   }
 
-  /// Small non-interactive demo grid showing 3 explorer tools + 1 pulsing
-  /// wildcard, teaching the "spot the different one" mechanic before play.
   Widget _buildIntroPreview() {
-    const previewGroup = [
-      'apple',
-      'banana',
-      'orange',
-    ];
-    const previewOdd = 'ball';
-
-    final previewItems = [...previewGroup, previewOdd];
-
+    // A single obvious "same" example to set expectations before round 1.
     return Center(
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        runAlignment: WrapAlignment.center,
-        spacing: 14,
-        runSpacing: 14,
-        children: previewItems.map((object) {
-          final isOdd = object == previewOdd;
+      child: ScaleTransition(
+        scale: _previewPulse,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildPreviewCard('apple'),
+            const SizedBox(width: 18),
+            _buildCompareIndicator(),
+            const SizedBox(width: 18),
+            _buildPreviewCard('apple'),
+          ],
+        ),
+      ),
+    );
+  }
 
-          Widget card = Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isOdd
-                    ? PuzzleColorTheme.sunnyhue
-                    : PuzzleColorTheme.darkdesaturatedblue
-                    .withValues(alpha: 0.30),
-                width: isOdd ? 3 : 2.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.10),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Image.asset(
-                '$_objectAssetPath/$object.png',
-                width: 48,
-                height: 48,
-                fit: BoxFit.contain,
-              ),
-            ),
-          );
-
-          if (isOdd) {
-            card = ScaleTransition(
-              scale: _previewPulse,
-              child: card,
-            );
-          }
-
-          return card;
-        }).toList(),
+  Widget _buildPreviewCard(String object) {
+    return Container(
+      width: 90,
+      height: 90,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: PuzzleColorTheme.sunnyhue,
+          width: 3,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Image.asset(
+          '$_objectAssetPath/$object.png',
+          width: 58,
+          height: 58,
+          fit: BoxFit.contain,
+        ),
       ),
     );
   }
@@ -574,6 +640,10 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
           ),
           Expanded(child: _buildGameArea()),
           Padding(
+            padding: const EdgeInsets.only(bottom: 22),
+            child: _buildAnswerButtons(),
+          ),
+          Padding(
             padding: const EdgeInsets.only(bottom: 15),
             child: PuzzleProgressDots(
               currentRound: _round,
@@ -587,65 +657,94 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
 
   Widget _buildGameArea() {
     return Center(
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 20,
-        runSpacing: 20,
-        children: List.generate(
-          _choices.length,
-          (i) => KeyedSubtree(
-            key: ValueKey(_choices[i]),
-            child: _buildObjectCard(i),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildObjectCard(
+            object: _question.leftObject,
+            tint: _question.leftTint,
+            scale: _question.leftScale,
           ),
+          const SizedBox(width: 26),
+          _buildCompareIndicator(),
+          const SizedBox(width: 26),
+          _buildObjectCard(
+            object: _question.rightObject,
+            tint: _question.rightTint,
+            scale: _question.rightScale,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompareIndicator() {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.30),
+          width: 2,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        'VS',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+          color: PuzzleColorTheme.darkdesaturatedblue,
         ),
       ),
     );
   }
 
-  Widget _buildObjectCard(int index) {
-    final object = _choices[index];
-    final isOdd = object == _oddObject;
-    final isWrongTap = _wrongFlash && _wrongIndex == index;
-    final isCorrectTap = _roundComplete && isOdd;
-    final isDimmed = _roundComplete && !isOdd;
-
+  Widget _buildObjectCard({
+    required String object,
+    Color? tint,
+    double scale = 1.0,
+  }) {
     Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28);
     Color bgColor = Colors.white.withValues(alpha: 0.85);
 
-    if (isWrongTap) {
-      borderColor = const Color(0xFFE05A5A);
-      bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.10);
-    }
-    if (isCorrectTap) {
+    if (_roundComplete) {
       borderColor = PuzzleColorTheme.sunnyhue;
       bgColor = PuzzleColorTheme.goldenyellow.withValues(alpha: 0.28);
+    } else if (_wrongFlash) {
+      borderColor = const Color(0xFFE05A5A);
+      bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.10);
     }
 
     Widget image = Image.asset(
       '$_objectAssetPath/$object.png',
-      width: 72,
-      height: 72,
+      width: 88 * scale,
+      height: 88 * scale,
       fit: BoxFit.contain,
-      color: isDimmed ? PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25) : null,
-      colorBlendMode: isDimmed ? BlendMode.modulate : null,
+      color: tint,
+      colorBlendMode: tint != null ? BlendMode.modulate : null,
     );
 
-    if (isCorrectTap) {
+    if (_roundComplete) {
       image = ScaleTransition(scale: _bounceAnim, child: image);
     }
 
-    Widget card = AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: 100,
-      height: 100,
+    Widget card = Container(
+      width: 130,
+      height: 130,
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: borderColor, width: 2.5),
         boxShadow: [
           BoxShadow(
-            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
-            blurRadius: 10,
+            color: _roundComplete
+                ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.35)
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+            blurRadius: _roundComplete ? 16 : 10,
+            spreadRadius: _roundComplete ? 1 : 0,
             offset: const Offset(0, 4),
           ),
         ],
@@ -653,7 +752,7 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       child: Center(child: image),
     );
 
-    if (isWrongTap) {
+    if (_wrongFlash) {
       card = AnimatedBuilder(
         animation: _shakeAnim,
         builder: (_, child) => Transform.translate(
@@ -664,9 +763,53 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       );
     }
 
+    return card;
+  }
+
+  Widget _buildAnswerButtons() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildAnswerButton(
+          imagePath: '$_symbolAssetPath/equals.png',
+          answeredSame: true,
+          color: PuzzleColorTheme.sunnyhue,
+        ),
+        const SizedBox(width: 24),
+        _buildAnswerButton(
+          imagePath: '$_symbolAssetPath/not_equals.png',
+          answeredSame: false,
+          color: PuzzleColorTheme.darkdesaturatedblue,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnswerButton({
+    required String imagePath,
+    required bool answeredSame,
+    required Color color,
+  }) {
+    final bool isThisSelectedWrong =
+        _wrongFlash && _selectedAnswer == answeredSame;
+
     return GestureDetector(
-      onTap: () => _onObjectTapped(object, index),
-      child: card,
+      onTap: () => _onAnswerSelected(answeredSame),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: _buttonsDisabled && !isThisSelectedWrong ? 0.5 : 1.0,
+        child: Container(
+          width: 190,
+          height: 68,
+          alignment: Alignment.center,
+          child: Image.asset(
+            imagePath,
+            width: 100,
+            height: 100,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
     );
   }
 
@@ -677,18 +820,18 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SameOrDifferentScreen(level: widget.level + 1),
-          ),
-        );
+        // Navigator.pushReplacement( TODO: @Tin add nav
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (context) => (level: widget.level + 1),
+        //   ),
+        // );
       },
       onRestart: () {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => OddOneOutScreen(level: widget.level),
+            builder: (context) => SameOrDifferentScreen(level: widget.level),
           ),
         );
       },

@@ -8,6 +8,7 @@ import '../../games_ui_layer/puzzle_glade/game_hidden_object.dart';
 import '../../games_ui_layer/puzzle_glade/game_maze_path.dart';
 import '../../games_ui_layer/puzzle_glade/game_odd_one_out_screen.dart';
 import '../../games_ui_layer/puzzle_glade/game_rotate_shape.dart';
+import '../../games_ui_layer/puzzle_glade/game_same_or_different.dart';
 import '../../games_ui_layer/puzzle_glade/game_shape_fit.dart';
 import '../../games_ui_layer/puzzle_glade/game_spot_the_difference.dart';
 import '../../games_ui_layer/puzzle_glade/game_star_color_sort.dart';
@@ -281,17 +282,6 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
               },
             ),
           ),
-
-          // Positioned(
-          //   bottom: 15,
-          //   right: 15,
-          //   child: Lottie.asset(
-          //     'assets/animations/movie_clapperboard.json',
-          //     width: 60,
-          //     height: 60,
-          //     errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-          //   ),
-          // ),
         ],
       ),
     );
@@ -347,9 +337,10 @@ class _LevelTile extends StatelessWidget {
         return const WhichComesFirstScreen(level: 16);
       case 17:
         return const OddOneOutScreen(level: 17);
-
-      // TODO: @Tin add games for levels 18–20
       case 18:
+          return const SameOrDifferentScreen(level: 18);
+
+      // TODO: @Tin add games for levels 19–20
       case 19:
       case 20:
       default:
