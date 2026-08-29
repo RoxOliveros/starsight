@@ -25,7 +25,7 @@ const List<List<String>> _kRoundObjectPools = [
   ['apple', 'banana', 'ball'],
   ['dog', 'cat', 'bus'],
   ['flower', 'tree', 'leaf', 'car', 'banana'],
-  ['pencil', 'notebook', 'book', 'banana', 'apple'],
+  ['pen', 'notebook', 'book', 'banana', 'apple'],
   ['car', 'bus', 'banana', 'dog', 'tree', 'ball', 'flower'],
 ];
 

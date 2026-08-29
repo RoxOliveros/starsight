@@ -19,6 +19,7 @@ import '../../games_ui_layer/puzzle_glade/game_puzzle_object.dart';
 import '../../games_ui_layer/puzzle_glade/game_basket_sort.dart';
 import '../../games_ui_layer/puzzle_glade/game_size_sort.dart';
 import '../../games_ui_layer/puzzle_glade/game_whats_missing.dart';
+import '../../games_ui_layer/puzzle_glade/game_which_belongs_here.dart';
 import '../../games_ui_layer/puzzle_glade/game_which_comes_first.dart';
 import '../loading_screen.dart';
 import 'puzzle_buttons.dart';
@@ -339,9 +340,10 @@ class _LevelTile extends StatelessWidget {
         return const OddOneOutScreen(level: 17);
       case 18:
           return const SameOrDifferentScreen(level: 18);
-
-      // TODO: @Tin add games for levels 19–20
       case 19:
+        return const WhichBelongsHereScreen(level: 19);
+
+      // TODO: @Tin add games for level 20
       case 20:
       default:
         return null;

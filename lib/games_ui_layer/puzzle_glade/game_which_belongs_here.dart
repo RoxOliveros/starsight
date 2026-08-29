@@ -11,7 +11,6 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
-import 'game_which_belongs_here.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -20,29 +19,20 @@ enum _ScreenPhase { intro, game }
 // Question model
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _SameOrDifferentQuestion {
-  final String leftObject;
-  final String rightObject;
-  final Color? leftTint;
-  final Color? rightTint;
-  final double leftScale;
-  final double rightScale;
-  final bool isSame;
+class _WhichBelongsQuestion {
+  final String scene;
+  final String correctObject;
+  final List<String> choices;
 
-  const _SameOrDifferentQuestion({
-    required this.leftObject,
-    required this.rightObject,
-    this.leftTint,
-    this.rightTint,
-    this.leftScale = 1.0,
-    this.rightScale = 1.0,
-    required this.isSame,
+  const _WhichBelongsQuestion({
+    required this.scene,
+    required this.correctObject,
+    required this.choices,
   });
 
   /// Unique-ish key used to avoid repeating the exact same question
   /// within a single playthrough.
-  String get key =>
-      '$leftObject-$rightObject-$leftTint-$rightTint-$leftScale-$rightScale-$isSame';
+  String get key => '$scene-$correctObject-${choices.join(",")}';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,97 +41,102 @@ class _SameOrDifferentQuestion {
 
 const int _kTotalRounds = 5;
 
-// Round 1 — very obvious: identical object, identical everything.
-const List<_SameOrDifferentQuestion> _kRound1Pool = [
-  _SameOrDifferentQuestion(leftObject: 'apple', rightObject: 'apple', isSame: true),
-  _SameOrDifferentQuestion(leftObject: 'ball', rightObject: 'ball', isSame: true),
-  _SameOrDifferentQuestion(leftObject: 'flower', rightObject: 'flower', isSame: true),
-  _SameOrDifferentQuestion(leftObject: 'car', rightObject: 'car', isSame: true),
-  _SameOrDifferentQuestion(leftObject: 'dog', rightObject: 'dog', isSame: true),
-];
-
-// Round 2 — clearly different objects.
-const List<_SameOrDifferentQuestion> _kRound2Pool = [
-  _SameOrDifferentQuestion(leftObject: 'apple', rightObject: 'banana', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'dog', rightObject: 'bus', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'car', rightObject: 'tree', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'pen', rightObject: 'cat', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'flower', rightObject: 'book', isSame: false),
-];
-
-// Round 3 — same object, different color tint.
-const List<_SameOrDifferentQuestion> _kRound3Pool = [
-  _SameOrDifferentQuestion(
-    leftObject: 'ball',
-    rightObject: 'ball',
-    leftTint: Colors.blueAccent,
-    rightTint: Colors.redAccent,
-    isSame: false,
+// Round 1 — very obvious associations, clearly unrelated distractors.
+const List<_WhichBelongsQuestion> _kRound1Pool = [
+  _WhichBelongsQuestion(
+    scene: 'bg_lumi_bathroom',
+    correctObject: 'toothbrush',
+    choices: ['toothbrush', 'ball', 'pan'],
   ),
-  _SameOrDifferentQuestion(
-    leftObject: 'flower',
-    rightObject: 'flower',
-    leftTint: Colors.purpleAccent,
-    rightTint: Colors.orangeAccent,
-    isSame: false,
+  _WhichBelongsQuestion(
+    scene: 'bg_lumi_park',
+    correctObject: 'ball',
+    choices: ['ball', 'toothbrush', 'plate'],
   ),
-  _SameOrDifferentQuestion(
-    leftObject: 'apple',
-    rightObject: 'apple',
-    leftTint: Colors.green,
-    rightTint: Colors.redAccent,
-    isSame: false,
-  ),
-  _SameOrDifferentQuestion(
-    leftObject: 'car',
-    rightObject: 'car',
-    leftTint: Colors.yellow,
-    rightTint: Colors.blueAccent,
-    isSame: false,
+  _WhichBelongsQuestion(
+    scene: 'bg_lumi_classroom',
+    correctObject: 'pen',
+    choices: ['pen', 'soap', 'plate'],
   ),
 ];
 
-// Round 4 — same shape, different size.
-const List<_SameOrDifferentQuestion> _kRound4Pool = [
-  _SameOrDifferentQuestion(
-    leftObject: 'flower',
-    rightObject: 'flower',
-    leftScale: 1.0,
-    rightScale: 0.55,
-    isSame: false,
+// Round 2 — another familiar place, still obvious.
+const List<_WhichBelongsQuestion> _kRound2Pool = [
+  _WhichBelongsQuestion(
+    scene: 'bg_game_kitchen',
+    correctObject: 'frying_pan',
+    choices: ['pan', 'pillow', 'toothbrush'],
   ),
-  _SameOrDifferentQuestion(
-    leftObject: 'ball',
-    rightObject: 'ball',
-    leftScale: 1.0,
-    rightScale: 0.5,
-    isSame: false,
+  _WhichBelongsQuestion(
+    scene: 'bg_beach_sunny',
+    correctObject: 'beach_ball',
+    choices: ['beach_ball', 'pen', 'plate'],
   ),
-  _SameOrDifferentQuestion(
-    leftObject: 'tree',
-    rightObject: 'tree',
-    leftScale: 0.6,
-    rightScale: 1.0,
-    isSame: false,
-  ),
-  _SameOrDifferentQuestion(
-    leftObject: 'car',
-    rightObject: 'car',
-    leftScale: 1.0,
-    rightScale: 0.6,
-    isSame: false,
+  _WhichBelongsQuestion(
+    scene: 'bg_game_forest_garden',
+    correctObject: 'watering_can',
+    choices: ['watering_can', 'shirt', 'spork'],
   ),
 ];
 
-// Round 5 — visually similar but different objects; look closely.
-const List<_SameOrDifferentQuestion> _kRound5Pool = [
-  _SameOrDifferentQuestion(leftObject: 'ball', rightObject: 'apple', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'book', rightObject: 'notebook', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'leaf', rightObject: 'tree', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'cat', rightObject: 'dog', isSame: false),
+// Round 3 — slightly more similar (domestic) distractors from other rooms.
+const List<_WhichBelongsQuestion> _kRound3Pool = [
+  _WhichBelongsQuestion(
+    scene: 'bg_lumi_bed',
+    correctObject: 'pillow',
+    choices: ['pillow', 'plate', 'school_bag'],
+  ),
+  _WhichBelongsQuestion(
+    scene: 'bg_dining_room',
+    correctObject: 'plate',
+    choices: ['plate', 'pillow', 'notebook'],
+  ),
+  _WhichBelongsQuestion(
+    scene: 'bg_bedroom_closet',
+    correctObject: 'shirt',
+    choices: ['shirt', 'towel', 'blanket'],
+  ),
 ];
 
-const List<List<_SameOrDifferentQuestion>> _kRoundQuestionPools = [
+// Round 4 — visually similar-shaped distractors, but one clear correct answer.
+const List<_WhichBelongsQuestion> _kRound4Pool = [
+  _WhichBelongsQuestion(
+    scene: 'bg_game_kitchen',
+    correctObject: 'pot',
+    choices: ['pot', 'bucket', 'watering_can'],
+  ),
+  _WhichBelongsQuestion(
+    scene: 'bg_lumi_bathroom',
+    correctObject: 'towel',
+    choices: ['towel', 'blanket', 'shirt'],
+  ),
+  _WhichBelongsQuestion(
+    scene: 'bg_living_room',
+    correctObject: 'tv_remote',
+    choices: ['tv_remote', 'spork', 'pen'],
+  ),
+];
+
+// Round 5 — a little more thoughtful, still gentle and unambiguous.
+const List<_WhichBelongsQuestion> _kRound5Pool = [
+  _WhichBelongsQuestion(
+    scene: 'bg_game_forest_garden',
+    correctObject: 'flower_pot',
+    choices: ['flower_pot', 'bucket', 'pot'],
+  ),
+  _WhichBelongsQuestion(
+    scene: 'bg_lumi_classroom',
+    correctObject: 'notebook',
+    choices: ['notebook', 'shoes', 'spatula'],
+  ),
+  _WhichBelongsQuestion(
+    scene: 'bg_living_room',
+    correctObject: 'sofa',
+    choices: ['sofa', 'bedroom_lamp', 'bucket'],
+  ),
+];
+
+const List<List<_WhichBelongsQuestion>> _kRoundQuestionPools = [
   _kRound1Pool,
   _kRound2Pool,
   _kRound3Pool,
@@ -153,17 +148,17 @@ const List<List<_SameOrDifferentQuestion>> _kRoundQuestionPools = [
 // Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class SameOrDifferentScreen extends StatefulWidget {
+class WhichBelongsHereScreen extends StatefulWidget {
   final int level;
 
-  const SameOrDifferentScreen({super.key, required this.level});
+  const WhichBelongsHereScreen({super.key, required this.level});
 
   @override
-  State<SameOrDifferentScreen> createState() => _SameOrDifferentScreenState();
+  State<WhichBelongsHereScreen> createState() => _WhichBelongsHereScreenState();
 }
 
-class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<SameOrDifferentScreen>, GameLoadingMixin {
+class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
+    with TickerProviderStateMixin, RoxieReactionMixin<WhichBelongsHereScreen>, GameLoadingMixin {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
@@ -171,24 +166,26 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
-  static const String _symbolAssetPath = 'assets/images/buttons';
+  static const String _sceneAssetPath = 'assets/images/backgrounds';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/same_or_different_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/same_or_different_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/same_or_different_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/which_belongs_here_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/which_belongs_here_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/which_belongs_here_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
 
   // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
-  late _SameOrDifferentQuestion _question;
+  late _WhichBelongsQuestion _question;
+  late List<String> _shuffledChoices;
+  late int _correctIndex;
   final Set<String> _usedQuestionKeys = {};
 
-  bool? _selectedAnswer; // true = SAME tapped, false = DIFFERENT tapped
+  int? _selectedIndex;
+  int? _wrongIndex;
   bool _buttonsDisabled = false;
   bool _roundComplete = false;
-  bool _wrongFlash = false;
   bool _showWinDialog = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
@@ -214,8 +211,10 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   late Animation<double> _gameFade;
 
   // Round
-  late AnimationController _enterCtrl;
-  late Animation<double> _enterAnim;
+  late AnimationController _sceneEnterCtrl;
+  late Animation<double> _sceneFade;
+  late Animation<double> _sceneScale;
+  late AnimationController _choicesEnterCtrl;
   late AnimationController _bounceCtrl;
   late Animation<double> _bounceAnim;
   late AnimationController _shakeCtrl;
@@ -246,7 +245,8 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     _previewPulseCtrl.dispose();
     _speechBubbleCtrl.dispose();
     _gameEnterCtrl.dispose();
-    _enterCtrl.dispose();
+    _sceneEnterCtrl.dispose();
+    _choicesEnterCtrl.dispose();
     _bounceCtrl.dispose();
     _shakeCtrl.dispose();
 
@@ -290,17 +290,27 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     );
     _gameFade = CurvedAnimation(parent: _gameEnterCtrl, curve: Curves.easeIn);
 
-    _enterCtrl = AnimationController(
+    _sceneEnterCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 450),
     );
-    _enterAnim = CurvedAnimation(parent: _enterCtrl, curve: Curves.easeOut);
+    _sceneFade = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.easeOut);
+    _sceneScale = Tween<double>(begin: 0.92, end: 1.0).animate(
+      CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.easeOut),
+    );
+
+    // Drives a staggered entrance for the 3 choice cards via per-index
+    // Interval windows (see _choiceEntranceFor).
+    _choicesEnterCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    );
 
     _bounceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
-    _bounceAnim = Tween<double>(begin: 1.0, end: 1.18).animate(
+    _bounceAnim = Tween<double>(begin: 1.0, end: 1.2).animate(
       CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut),
     );
 
@@ -314,6 +324,15 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
       TweenSequenceItem(tween: Tween(begin: 8.0, end: -6.0), weight: 1),
       TweenSequenceItem(tween: Tween(begin: -6.0, end: 0.0), weight: 1),
     ]).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.easeInOut));
+  }
+
+  Animation<double> _choiceEntranceFor(int index) {
+    final start = index * 0.15;
+    final end = (start + 0.6).clamp(0.0, 1.0);
+    return CurvedAnimation(
+      parent: _choicesEnterCtrl,
+      curve: Interval(start, end, curve: Curves.easeOut),
+    );
   }
 
   // ── Intro flow ─────────────────────────────────────────────────────────────
@@ -374,26 +393,30 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     _question = candidates[rng.nextInt(candidates.length)];
     _usedQuestionKeys.add(_question.key);
 
-    _selectedAnswer = null;
+    _shuffledChoices = List<String>.from(_question.choices)..shuffle(rng);
+    _correctIndex = _shuffledChoices.indexOf(_question.correctObject);
+
+    _selectedIndex = null;
+    _wrongIndex = null;
     _buttonsDisabled = false;
     _roundComplete = false;
-    _wrongFlash = false;
 
     _bounceCtrl.reset();
     _shakeCtrl.reset();
-    _enterCtrl.forward(from: 0);
+    _sceneEnterCtrl.forward(from: 0);
+    _choicesEnterCtrl.forward(from: 0);
   }
 
   // ── Answer handling ────────────────────────────────────────────────────────
 
-  Future<void> _onAnswerSelected(bool answeredSame) async {
+  Future<void> _onChoiceTapped(int index) async {
     if (_buttonsDisabled || _roundComplete) return;
 
-    final isCorrect = answeredSame == _question.isSame;
+    final isCorrect = index == _correctIndex;
 
     if (isCorrect) {
       setState(() {
-        _selectedAnswer = answeredSame;
+        _selectedIndex = index;
         _buttonsDisabled = true;
         _roundComplete = true;
       });
@@ -402,7 +425,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
 
       unawaited(showRoxieReaction(RoxieState.correct));
 
-      await Future.delayed(const Duration(milliseconds: 1100));
+      await Future.delayed(const Duration(milliseconds: 1000));
 
       if (!mounted) return;
 
@@ -433,7 +456,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
 
         setState(() => _showWinDialog = true);
       } else {
-        await _enterCtrl.reverse();
+        await _sceneEnterCtrl.reverse();
 
         if (!mounted) return;
 
@@ -443,11 +466,9 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
         });
       }
     } else {
-      // Wrong answer: flash, react, and let the child try again.
       setState(() {
-        _selectedAnswer = answeredSame;
+        _wrongIndex = index;
         _buttonsDisabled = true;
-        _wrongFlash = true;
       });
 
       unawaited(showRoxieReaction(RoxieState.wrong));
@@ -459,9 +480,8 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
       if (!mounted) return;
 
       setState(() {
-        _selectedAnswer = null;
+        _wrongIndex = null;
         _buttonsDisabled = false;
-        _wrongFlash = false;
       });
     }
   }
@@ -494,7 +514,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
                     children: [
                       FadeTransition(
                         opacity: _gameFade,
-                        child: _buildGameLayer(),
+                        child: _buildGameArea(),
                       ),
                       buildRoxie(context),
                     ],
@@ -519,7 +539,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
             alignment: Alignment.topCenter,
             children: [
               Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Same or Different?')),
+              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Which Belongs Here?')),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),
@@ -572,48 +592,64 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   }
 
   Widget _buildIntroPreview() {
-    // A single obvious "same" example to set expectations before round 1.
+    // A single obvious example (bathroom → toothbrush) to set expectations.
     return Center(
-      child: ScaleTransition(
-        scale: _previewPulse,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildPreviewCard('apple'),
-            const SizedBox(width: 18),
-            _buildCompareIndicator(),
-            const SizedBox(width: 18),
-            _buildPreviewCard('apple'),
-          ],
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ScaleTransition(
+            scale: _previewPulse,
+            child: Container(
+              width: 150,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: PuzzleColorTheme.sunnyhue, width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.10),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Image.asset(
+                  '$_sceneAssetPath/bg_lumi_bathroom.png',
+                  width: 120,
+                  height: 80,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          _buildPreviewObjectCard('toothbrush', highlighted: true),
+        ],
       ),
     );
   }
 
-  Widget _buildPreviewCard(String object) {
+  Widget _buildPreviewObjectCard(String object, {bool highlighted = false}) {
     return Container(
-      width: 90,
-      height: 90,
+      width: 76,
+      height: 76,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: PuzzleColorTheme.sunnyhue,
-          width: 3,
+          color: highlighted
+              ? PuzzleColorTheme.sunnyhue
+              : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.30),
+          width: highlighted ? 3 : 2.5,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Center(
         child: Image.asset(
           '$_objectAssetPath/$object.png',
-          width: 58,
-          height: 58,
+          width: 48,
+          height: 48,
           fit: BoxFit.contain,
         ),
       ),
@@ -624,128 +660,128 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   // GAME
   // ══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildGameLayer() {
-    return FadeTransition(
-      opacity: _enterAnim,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-            child: Stack(
-              alignment: Alignment.topCenter,
-              children: [
-                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+  Widget _buildGameArea() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
+              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+            ],
+          ),
+        ),
+        Expanded(child: _buildScene()),
+        Padding(
+          padding: const EdgeInsets.only(top: 15, bottom: 15),
+          child: _buildChoiceRow(),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 15),
+          child: PuzzleProgressDots(
+            currentRound: _round,
+            totalRounds: _kTotalRounds,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScene() {
+    return Center(
+      child: FadeTransition(
+        opacity: _sceneFade,
+        child: ScaleTransition(
+          scale: _sceneScale,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 460, maxHeight: 220),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+                width: 2.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
-          ),
-          Expanded(child: _buildGameArea()),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 22),
-            child: _buildAnswerButtons(),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 15),
-            child: PuzzleProgressDots(
-              currentRound: _round,
-              totalRounds: _kTotalRounds,
+            padding: const EdgeInsets.all(12),
+            child: Image.asset(
+              '$_sceneAssetPath/${_question.scene}.png',
+              fit: BoxFit.contain,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGameArea() {
-    return Center(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildObjectCard(
-            object: _question.leftObject,
-            tint: _question.leftTint,
-            scale: _question.leftScale,
-          ),
-          const SizedBox(width: 26),
-          _buildCompareIndicator(),
-          const SizedBox(width: 26),
-          _buildObjectCard(
-            object: _question.rightObject,
-            tint: _question.rightTint,
-            scale: _question.rightScale,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCompareIndicator() {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.30),
-          width: 2,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        'VS',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-          color: PuzzleColorTheme.darkdesaturatedblue,
         ),
       ),
     );
   }
 
-  Widget _buildObjectCard({
-    required String object,
-    Color? tint,
-    double scale = 1.0,
-  }) {
+  Widget _buildChoiceRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (int i = 0; i < _shuffledChoices.length; i++) ...[
+          if (i > 0) const SizedBox(width: 24),
+          KeyedSubtree(
+            key: ValueKey('${_round}_${i}_${_shuffledChoices[i]}'),
+            child: _buildChoiceCard(i),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildChoiceCard(int index) {
+    final object = _shuffledChoices[index];
+    final isCorrectSelected = _roundComplete && index == _selectedIndex;
+    final isWrongTap = _wrongIndex == index;
+    final isDimmed = _roundComplete && index != _selectedIndex;
+
     Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28);
     Color bgColor = Colors.white.withValues(alpha: 0.85);
 
-    if (_roundComplete) {
+    if (isCorrectSelected) {
       borderColor = PuzzleColorTheme.sunnyhue;
       bgColor = PuzzleColorTheme.goldenyellow.withValues(alpha: 0.28);
-    } else if (_wrongFlash) {
+    }
+    if (isWrongTap) {
       borderColor = const Color(0xFFE05A5A);
       bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.10);
     }
 
     Widget image = Image.asset(
       '$_objectAssetPath/$object.png',
-      width: 88 * scale,
-      height: 88 * scale,
+      width: 76,
       fit: BoxFit.contain,
-      color: tint,
-      colorBlendMode: tint != null ? BlendMode.modulate : null,
+      color: isDimmed ? PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25) : null,
+      colorBlendMode: isDimmed ? BlendMode.modulate : null,
     );
 
-    if (_roundComplete) {
+    if (isCorrectSelected) {
       image = ScaleTransition(scale: _bounceAnim, child: image);
     }
 
     Widget card = Container(
-      width: 130,
-      height: 130,
+      width: 100,
+      height: 100,
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: borderColor, width: 2.5),
         boxShadow: [
           BoxShadow(
-            color: _roundComplete
+            color: isCorrectSelected
                 ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.35)
                 : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
-            blurRadius: _roundComplete ? 16 : 10,
-            spreadRadius: _roundComplete ? 1 : 0,
+            blurRadius: isCorrectSelected ? 16 : 10,
+            spreadRadius: isCorrectSelected ? 1 : 0,
             offset: const Offset(0, 4),
           ),
         ],
@@ -753,7 +789,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
       child: Center(child: image),
     );
 
-    if (_wrongFlash) {
+    if (isWrongTap) {
       card = AnimatedBuilder(
         animation: _shakeAnim,
         builder: (_, child) => Transform.translate(
@@ -764,53 +800,19 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
       );
     }
 
-    return card;
-  }
-
-  Widget _buildAnswerButtons() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildAnswerButton(
-          imagePath: '$_symbolAssetPath/equals.png',
-          answeredSame: true,
-          color: PuzzleColorTheme.sunnyhue,
-        ),
-        const SizedBox(width: 24),
-        _buildAnswerButton(
-          imagePath: '$_symbolAssetPath/not_equals.png',
-          answeredSame: false,
-          color: PuzzleColorTheme.darkdesaturatedblue,
-        ),
-      ],
+    final entrance = _choiceEntranceFor(index);
+    card = FadeTransition(
+      opacity: entrance,
+      child: SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
+            .animate(entrance),
+        child: card,
+      ),
     );
-  }
-
-  Widget _buildAnswerButton({
-    required String imagePath,
-    required bool answeredSame,
-    required Color color,
-  }) {
-    final bool isThisSelectedWrong =
-        _wrongFlash && _selectedAnswer == answeredSame;
 
     return GestureDetector(
-      onTap: () => _onAnswerSelected(answeredSame),
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: _buttonsDisabled && !isThisSelectedWrong ? 0.5 : 1.0,
-        child: Container(
-          width: 190,
-          height: 68,
-          alignment: Alignment.center,
-          child: Image.asset(
-            imagePath,
-            width: 100,
-            height: 100,
-            fit: BoxFit.contain,
-          ),
-        ),
-      ),
+      onTap: () => _onChoiceTapped(index),
+      child: card,
     );
   }
 
@@ -821,18 +823,18 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
       characterImage: _characterImage,
       closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
       onNext: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => WhichBelongsHereScreen(level: widget.level + 1),
-          ),
-        );
+        // Navigator.pushReplacement( TODO: @Tin add nav
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (context) => (level: widget.level + 1),
+        //   ),
+        // );
       },
       onRestart: () {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => SameOrDifferentScreen(level: widget.level),
+            builder: (context) => WhichBelongsHereScreen(level: widget.level),
           ),
         );
       },

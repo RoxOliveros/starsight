@@ -68,7 +68,7 @@ const List<_OddOneOutQuestion> _kQuestions = [
   // Round 4 – School / Learning vs Food
   _OddOneOutQuestion(
     objects: [
-      'pencil',
+      'pen',
       'notebook',
       'book',
       'banana',
