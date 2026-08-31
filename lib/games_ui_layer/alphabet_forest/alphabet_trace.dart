@@ -14,6 +14,10 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_hunt.
 import 'alphabet_game_ui.dart';
 import 'alphabet_minigame_fall.dart';
 import 'alphabet_minigame_find.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class TraceLevel {
   final String letterName;
@@ -37,8 +41,9 @@ class AlphabetTraceScreen extends StatefulWidget {
 }
 
 class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
-  with TofiReactionMixin {
+    with TofiReactionMixin, AiCameraMixin {
   final AudioPlayer _player = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   @override
   AudioPlayer get tofiPlayer => _player;
@@ -71,7 +76,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-
+    startAiCamera(); // <-- Start the camera
+    _tapTracker.startSession();
     if (_miniGameQueue.isEmpty) {
       _miniGameQueue = List.generate(6, (i) => i);
       _miniGameQueue.shuffle(_random);
@@ -84,6 +90,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     OrientationService.setLandscape();
     _player.dispose();
     super.dispose();
@@ -818,28 +825,16 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             letterName: "Big X",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.25, 0.2),
-                const Offset(0.75, 0.8),
-              ],
-              [
-                const Offset(0.75, 0.2),
-                const Offset(0.25, 0.8),
-              ],
+              [const Offset(0.25, 0.2), const Offset(0.75, 0.8)],
+              [const Offset(0.75, 0.2), const Offset(0.25, 0.8)],
             ],
           ),
           TraceLevel(
             letterName: "Small x",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.3, 0.45),
-                const Offset(0.7, 0.8),
-              ],
-              [
-                const Offset(0.7, 0.45),
-                const Offset(0.3, 0.8),
-              ],
+              [const Offset(0.3, 0.45), const Offset(0.7, 0.8)],
+              [const Offset(0.7, 0.45), const Offset(0.3, 0.8)],
             ],
           ),
         ];
@@ -851,18 +846,9 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             letterName: "Big Y",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.25, 0.2),
-                const Offset(0.5, 0.45),
-              ],
-              [
-                const Offset(0.75, 0.2),
-                const Offset(0.5, 0.45),
-              ],
-              [
-                const Offset(0.5, 0.45),
-                const Offset(0.5, 0.8),
-              ],
+              [const Offset(0.25, 0.2), const Offset(0.5, 0.45)],
+              [const Offset(0.75, 0.2), const Offset(0.5, 0.45)],
+              [const Offset(0.5, 0.45), const Offset(0.5, 0.8)],
             ],
           ),
           TraceLevel(
@@ -890,36 +876,18 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             letterName: "Big Z",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.2, 0.2),
-                const Offset(0.8, 0.2),
-              ],
-              [
-                const Offset(0.8, 0.2),
-                const Offset(0.2, 0.8),
-              ],
-              [
-                const Offset(0.2, 0.8),
-                const Offset(0.8, 0.8),
-              ],
+              [const Offset(0.2, 0.2), const Offset(0.8, 0.2)],
+              [const Offset(0.8, 0.2), const Offset(0.2, 0.8)],
+              [const Offset(0.2, 0.8), const Offset(0.8, 0.8)],
             ],
           ),
           TraceLevel(
             letterName: "Small z",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.3, 0.45),
-                const Offset(0.7, 0.45),
-              ],
-              [
-                const Offset(0.7, 0.45),
-                const Offset(0.3, 0.8),
-              ],
-              [
-                const Offset(0.3, 0.8),
-                const Offset(0.7, 0.8),
-              ],
+              [const Offset(0.3, 0.45), const Offset(0.7, 0.45)],
+              [const Offset(0.7, 0.45), const Offset(0.3, 0.8)],
+              [const Offset(0.3, 0.8), const Offset(0.7, 0.8)],
             ],
           ),
         ];
@@ -942,7 +910,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
 
   void _generateDensePaths() {
     final RenderBox? renderBox =
-    _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+        _canvasKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
 
     final Size size = renderBox.size;
@@ -960,7 +928,9 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
 
       List<Offset> densePoints = [];
       for (int i = 0; i < pts.length - 1; i++) {
-        final p0 = i == 0 ? pts[i] : pts[i - 1];              // ADD: neighbor points for the curve
+        final p0 = i == 0
+            ? pts[i]
+            : pts[i - 1]; // ADD: neighbor points for the curve
         final p1 = pts[i];
         final p2 = pts[i + 1];
         final p3 = i + 2 < pts.length ? pts[i + 2] : pts[i + 1];
@@ -970,7 +940,9 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
 
         for (int j = 0; j <= steps; j++) {
           final t = j / steps;
-          densePoints.add(_catmullRom(p0, p1, p2, p3, t));      // CHANGED from straight lerp
+          densePoints.add(
+            _catmullRom(p0, p1, p2, p3, t),
+          ); // CHANGED from straight lerp
         }
       }
       newDenseStrokes.add(densePoints);
@@ -981,16 +953,18 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     });
   }
 
-// ADD this helper method (same technique as number_tracing_widget.dart)
+  // ADD this helper method (same technique as number_tracing_widget.dart)
   Offset _catmullRom(Offset p0, Offset p1, Offset p2, Offset p3, double t) {
     final t2 = t * t;
     final t3 = t2 * t;
-    final x = 0.5 *
+    final x =
+        0.5 *
         ((2 * p1.dx) +
             (p2.dx - p0.dx) * t +
             (2 * p0.dx - 5 * p1.dx + 4 * p2.dx - p3.dx) * t2 +
             (3 * p1.dx - p0.dx - 3 * p2.dx + p3.dx) * t3);
-    final y = 0.5 *
+    final y =
+        0.5 *
         ((2 * p1.dy) +
             (p2.dy - p0.dy) * t +
             (2 * p0.dy - 5 * p1.dy + 4 * p2.dy - p3.dy) * t2 +
@@ -1035,6 +1009,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   }
 
   void _moveToNextStroke() {
+    _tapTracker.recordCorrectTap();
     setState(() {
       _currentStrokeIndex++;
       _currentPointIndex = 0;
@@ -1068,7 +1043,33 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
       return;
     }
 
-    // --- SMART MINI-GAME ROUTER ---
+    // --- 1. STOP CAMERA AND SAVE DATA ---
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      String parentUid = FirebaseAuth.instance.currentUser!.uid;
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(parentUid)
+          .collection('category_progress')
+          .doc('alphabet_forest')
+          .collection('games_played')
+          .doc(
+            'letter_trace_${widget.letter.toLowerCase()}',
+          ) // e.g., 'letter_trace_a'
+          .set({
+            'activityName': "Alphabet Trace (${widget.letter.toUpperCase()})",
+            'emotions': finalEmotions,
+            'totalTaps': _tapTracker.totalTaps, // Represents strokes completed
+            'mistakes': 0, // Tracing doesn't record discrete mistakes
+            'timePlayedSeconds': _tapTracker.formattedDuration,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      debugPrint("Database Error saving Trace metrics: $e");
+    }
+
+    // --- 2. SMART MINI-GAME ROUTER ---
     String letter = widget.letter.toUpperCase();
 
     final miniGames = [
@@ -1082,9 +1083,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => miniGames[_nextMiniGame()],
-      ),
+      MaterialPageRoute(builder: (_) => miniGames[_nextMiniGame()]),
     );
   }
 
@@ -1092,8 +1091,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: ForestBackground(
-        child:
-        Stack(
+        child: Stack(
           children: [
             Column(
               children: [
@@ -1113,8 +1111,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
                         right: 0,
                         child: Center(
                           child: ForestInstructionBanner(
-                            text: 'Trace ${_levels[_currentLevelIndex]
-                                .letterName}',
+                            text:
+                                'Trace ${_levels[_currentLevelIndex].letterName}',
                           ),
                         ),
                       ),
@@ -1123,9 +1121,10 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
                         top: 25,
                         right: 20,
                         child: ForestLevelBadge(
-                          level: ForestProgressService.levelNumberForLetter(
-                            widget.letter,
-                          ) ??
+                          level:
+                              ForestProgressService.levelNumberForLetter(
+                                widget.letter,
+                              ) ??
                               1,
                         ),
                       ),

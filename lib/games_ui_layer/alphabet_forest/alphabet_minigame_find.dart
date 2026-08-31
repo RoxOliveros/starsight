@@ -21,6 +21,10 @@ import 'forest_game_mushroom_hidenseek.dart';
 import 'forest_game_paw_print.dart';
 import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetFindScreen extends StatefulWidget {
   final String letter;
@@ -28,23 +32,24 @@ class AlphabetFindScreen extends StatefulWidget {
   const AlphabetFindScreen({super.key, required this.letter});
 
   @override
-  State<AlphabetFindScreen> createState() =>
-      _AlphabetFindScreenState();
+  State<AlphabetFindScreen> createState() => _AlphabetFindScreenState();
 }
 
 class _AlphabetFindScreenState extends State<AlphabetFindScreen>
-    with TickerProviderStateMixin, TofiReactionMixin {
+    with TickerProviderStateMixin, TofiReactionMixin, AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => _player;
 
   final AudioPlayer _player = AudioPlayer();
   final AudioPlayer _promptPlayer = AudioPlayer();
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   final Random _random = Random();
 
   static const String _vaseAsset = 'assets/images/objects/forest/vase.png';
 
-  static const int _totalRounds  = 3;
+  static const int _totalRounds = 3;
   int _completedRounds = 0;
 
   List<String> _vaseLetters = [];
@@ -53,8 +58,8 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   int? _shakingIndex;
   bool _choicesLocked = false;
 
-  late AnimationController _wiggleCtrl;            // ADD
-  late Animation<double> _wiggle;                  // ADD
+  late AnimationController _wiggleCtrl; // ADD
+  late Animation<double> _wiggle; // ADD
 
   bool _isPlayingJarSequence = false;
 
@@ -62,11 +67,16 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-    _wiggleCtrl = AnimationController(              // ADD
+
+    startAiCamera();
+    _tapTracker.startSession();
+    _wiggleCtrl = AnimationController(
+      // ADD
       vsync: this,
       duration: const Duration(milliseconds: 350),
     );
-    _wiggle = TweenSequence([                       // ADD
+    _wiggle = TweenSequence([
+      // ADD
       TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.12), weight: 25),
       TweenSequenceItem(tween: Tween(begin: -0.12, end: 0.12), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 0.12, end: 0.0), weight: 25),
@@ -146,20 +156,23 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   Future<void> _playLetterSound(String letter) async {
     final String lower = letter.toLowerCase();
-    StreamSubscription? sub;                                          // ADD
+    StreamSubscription? sub; // ADD
     try {
-      final completer = Completer<void>();                            // ADD
-      sub = _promptPlayer.onPlayerComplete.listen((_) {                // ADD
+      final completer = Completer<void>(); // ADD
+      sub = _promptPlayer.onPlayerComplete.listen((_) {
+        // ADD
         if (!completer.isCompleted) completer.complete();
       });
       await _promptPlayer.play(
         AssetSource('audio/alphabet_forest/sound_effects/sound_$lower.wav'),
       );
-      await completer.future.timeout(const Duration(seconds: 5));      // ADD — actually waits for playback to finish
+      await completer.future.timeout(
+        const Duration(seconds: 5),
+      ); // ADD — actually waits for playback to finish
     } catch (e) {
       debugPrint("Error playing sound for $lower: $e");
     } finally {
-      await sub?.cancel();                                             // ADD
+      await sub?.cancel(); // ADD
     }
   }
 
@@ -167,6 +180,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     if (_choicesLocked) return;
 
     if (index == _correctIndex) {
+      _tapTracker.recordCorrectTap();
       _choicesLocked = true;
       setState(() => _revealedIndex = index);
       await showTofiReaction(TofiState.correct);
@@ -174,7 +188,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
       if (_completedRounds >= _totalRounds) {
         Future.delayed(const Duration(milliseconds: 700), () {
-          if (mounted) _showApplause();
+          if (mounted) _saveDataAndShowApplause();
         });
       } else {
         Future.delayed(const Duration(milliseconds: 900), () {
@@ -182,6 +196,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
         });
       }
     } else {
+      _tapTracker.recordMistake();
       setState(() {
         _shakingIndex = index;
         _revealedIndex = index; // Reveal the chosen wrong vase
@@ -223,51 +238,82 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     }
   }
 
+  Future<void> _saveDataAndShowApplause() async {
+    // 1. Stop the camera and get the emotions
+    List<String> finalEmotions = stopAiCamera();
+
+    // 2. Save raw data silently
+    try {
+      String parentUid = FirebaseAuth.instance.currentUser!.uid;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(parentUid)
+          .collection('category_progress')
+          .doc('alphabet_forest')
+          .collection('games_played')
+          .doc(
+            'letter_find_${widget.letter.toLowerCase()}',
+          ) // e.g., 'letter_find_a'
+          .set({
+            'activityName': "Alphabet Find (${widget.letter.toUpperCase()})",
+            'emotions': finalEmotions,
+            'totalTaps': _tapTracker.totalTaps,
+            'mistakes': _tapTracker.mistakeCount,
+            'timePlayedSeconds': _tapTracker.formattedDuration,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      debugPrint("Database Error saving Find metrics: $e");
+    }
+
+    // 3. Now show the normal win dialog
+    _showApplause();
+  }
+
   void _showApplause() {
     final String currentLetter = widget.letter.toUpperCase();
 
     const skipGoodJobLetters = {
-      'A', 'B',
-      'D', 'E',
-      'G', 'H',
-      'J', 'K',
-      'M', 'N',
-      'P', 'Q',
-      'S', 'T',
-      'V', 'W',
-      'Y', 'Z',
+      'A',
+      'B',
+      'D',
+      'E',
+      'G',
+      'H',
+      'J',
+      'K',
+      'M',
+      'N',
+      'P',
+      'Q',
+      'S',
+      'T',
+      'V',
+      'W',
+      'Y',
+      'Z',
     };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
-      String nextLetter =
-      String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
+      String nextLetter = String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              AlphabetIntroScreen(letter: nextLetter),
+          builder: (context) => AlphabetIntroScreen(letter: nextLetter),
         ),
       );
       return;
     }
 
     // mark level complete for some letters
-    const completeLevelsLetters = {
-      'C',
-      'F',
-      'I',
-      'L',
-      'O',
-      'R',
-      'U',
-      'X',
-      'Z',
-    };
+    const completeLevelsLetters = {'C', 'F', 'I', 'L', 'O', 'R', 'U', 'X', 'Z'};
 
     if (completeLevelsLetters.contains(currentLetter)) {
-      final completedLevel =
-      ForestProgressService.levelNumberForLetter(currentLetter);
+      final completedLevel = ForestProgressService.levelNumberForLetter(
+        currentLetter,
+      );
 
       if (completedLevel != null) {
         ForestProgressService.instance.markLevelComplete(completedLevel);
@@ -286,63 +332,68 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
           closeButtonColor: ForestColorTheme.seagreen,
           onNext: () {
             Navigator.pop(context);
-            if (currentLetter == 'C'){
+            if (currentLetter == 'C') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const WoodpeckerLetterListenGame(level: 2),
+                  builder: (context) =>
+                      const WoodpeckerLetterListenGame(level: 2),
                 ),
               );
-            } else if (currentLetter == 'F'){
+            } else if (currentLetter == 'F') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const AcornBasketGame(level: 4),
                 ),
               );
-            } else if (currentLetter == 'I'){
+            } else if (currentLetter == 'I') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ButterflyFlowerGardenGame(level: 6),
+                  builder: (context) =>
+                      const ButterflyFlowerGardenGame(level: 6),
                 ),
               );
-            } else if (currentLetter == 'L'){
+            } else if (currentLetter == 'L') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ButterflyLetterMatchGame(level: 8),
+                  builder: (context) =>
+                      const ButterflyLetterMatchGame(level: 8),
                 ),
               );
-            } else if (currentLetter == 'O'){
+            } else if (currentLetter == 'O') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const MushroomHideAndSeekGame(level: 10),
+                  builder: (context) =>
+                      const MushroomHideAndSeekGame(level: 10),
                 ),
               );
-            } else if (currentLetter == 'R'){
+            } else if (currentLetter == 'R') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const BerryBushHarvestGame(level: 12),
                 ),
               );
-            } else if (currentLetter == 'U'){
+            } else if (currentLetter == 'U') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const FollowThePawPrintsGame(level: 14),
                 ),
               );
-            } else if (currentLetter == 'X'){
+            } else if (currentLetter == 'X') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const FallenStickLetterBuilderGame(level: 16),
+                  builder: (context) =>
+                      const FallenStickLetterBuilderGame(level: 16),
                 ),
               );
-            } else if (currentLetter == 'Z'){
+            } else if (currentLetter == 'Z') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -375,7 +426,8 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   @override
   void dispose() {
-    _wiggleCtrl.dispose();      // ADD
+    disposeAiCamera();
+    _wiggleCtrl.dispose(); // ADD
     _promptPlayer.dispose();
     _player.dispose();
     OrientationService.setLandscape();
@@ -405,9 +457,10 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
               top: 25,
               right: 20,
               child: ForestLevelBadge(
-                level: ForestProgressService.levelNumberForLetter(
-                  widget.letter.toUpperCase(),
-                ) ??
+                level:
+                    ForestProgressService.levelNumberForLetter(
+                      widget.letter.toUpperCase(),
+                    ) ??
                     1,
               ),
             ),
@@ -459,10 +512,8 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
       onTap: () => _onVaseTapped(index),
       child: AnimatedBuilder(
         animation: _wiggle,
-        builder: (_, child) => Transform.rotate(
-          angle: shaking ? _wiggle.value : 0,
-          child: child,
-        ),
+        builder: (_, child) =>
+            Transform.rotate(angle: shaking ? _wiggle.value : 0, child: child),
         child: SizedBox(
           width: 120,
           height: 140,
@@ -521,9 +572,16 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4DEB3),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: ForestColorTheme.darkseagreen, width: 4),
+                      border: Border.all(
+                        color: ForestColorTheme.darkseagreen,
+                        width: 4,
+                      ),
                     ),
-                    child: const Icon(Icons.science_outlined, size: 40, color: Color(0xFF3C5729)),
+                    child: const Icon(
+                      Icons.science_outlined,
+                      size: 40,
+                      color: Color(0xFF3C5729),
+                    ),
                   ),
                 ),
               ),

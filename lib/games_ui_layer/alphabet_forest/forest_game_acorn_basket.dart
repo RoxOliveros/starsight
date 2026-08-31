@@ -13,6 +13,11 @@ import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
 
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 class AcornBasketGame extends StatefulWidget {
   final int level;
 
@@ -43,16 +48,20 @@ class _FallingLane {
 }
 
 class _AcornBasketGameState extends State<AcornBasketGame>
-    with TickerProviderStateMixin, GameLoadingMixin, ForestAudioMixin, TofiReactionMixin {
-
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin,
+        ForestAudioMixin,
+        TofiReactionMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => _player;
 
   final AudioPlayer _player = AudioPlayer();
 
-  static const List<String> _letterPool = [
-    'D', 'E', 'F', 'd', 'e', 'f'
-  ];
+  final GameTapTracker _tapTracker = GameTapTracker();
+
+  static const List<String> _letterPool = ['D', 'E', 'F', 'd', 'e', 'f'];
 
   static const List<double> _laneXFractions = [0.12, 0.38, 0.64, 0.88];
 
@@ -85,6 +94,9 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     OrientationService.setLandscape();
     super.initState();
 
+    startAiCamera(); // <-- Start the camera
+    _tapTracker.startSession(); // <-- Start the timer
+
     _basketPulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
@@ -103,11 +115,11 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     _lanes = _laneXFractions
         .map(
           (x) => _FallingLane(
-        letter: 'A',
-        xFraction: x,
-        controller: AnimationController(vsync: this),
-      ),
-    )
+            letter: 'A',
+            xFraction: x,
+            controller: AnimationController(vsync: this),
+          ),
+        )
         .toList();
 
     for (final lane in _lanes) {
@@ -130,9 +142,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
 
-    await playVoice(
-      'assets/audio/alphabet_forest/acorn_intro.wav',
-    );
+    await playVoice('assets/audio/alphabet_forest/acorn_intro.wav');
 
     if (!mounted) return;
 
@@ -145,9 +155,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
     if (!mounted) return;
 
-    await playVoice(
-      'assets/audio/alphabet_forest/acorn_instruction.wav',
-    );
+    await playVoice('assets/audio/alphabet_forest/acorn_instruction.wav');
 
     if (!mounted) return;
 
@@ -209,6 +217,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _basketPulseController.dispose();
     _wrongShakeController.dispose();
     for (final lane in _lanes) {
@@ -235,6 +244,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   }
 
   void _handleCorrect(_FallingLane lane) {
+    _tapTracker.recordCorrectTap();
     showTofiReaction(TofiState.correct);
 
     _basketPulseController.forward(from: 0);
@@ -256,7 +266,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
           if (!mounted) return;
 
-          _showGoodJob();
+          _saveDataAndShowGoodJob();
         });
       } else {
         Future.delayed(const Duration(milliseconds: 700), () async {
@@ -280,6 +290,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   }
 
   void _handleWrong(_FallingLane lane) {
+    _tapTracker.recordMistake();
     showTofiReaction(TofiState.wrong);
 
     setState(() {
@@ -302,40 +313,72 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     });
   }
 
+  Future<void> _saveDataAndShowGoodJob() async {
+    // 1. Stop the camera and get the emotions
+    List<String> finalEmotions = stopAiCamera();
+
+    // 2. Save raw data silently
+    try {
+      String parentUid = FirebaseAuth.instance.currentUser!.uid;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(parentUid)
+          .collection('category_progress')
+          .doc('alphabet_forest')
+          .collection('games_played')
+          .doc('forest_acorn_basket') // The unique ID for this game
+          .set({
+            'activityName': "Acorn Basket",
+            'emotions': finalEmotions,
+            'totalTaps': _tapTracker.totalTaps,
+            'mistakes': _tapTracker.mistakeCount,
+            'timePlayedSeconds': _tapTracker.formattedDuration,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      debugPrint("Database Error saving Acorn metrics: $e");
+    }
+
+    // 3. Now show the normal win dialog
+    _showGoodJob();
+  }
+
   void _showGoodJob() {
     showDialog(
       context: context,
       useSafeArea: false,
       barrierColor: Colors.transparent,
       barrierDismissible: false,
-      builder: (_) =>
-          Material(
-            type: MaterialType.transparency,
-            child: GoodJobOverlay(
-              characterImage: 'assets/images/characters/dog.png',
-              closeButtonColor: ForestColorTheme.seagreen,
-              onNext: () {
-                Navigator.of(context).pop(); // close the dialog
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => AlphabetIntroScreen(letter: 'G'),
-                  ),
-                );
-              },
-              onRestart: () {
-                Navigator.of(context).pop(); // close the dialog
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => AcornBasketGame(level: widget.level),
-                  ),
-                );
-              },
-              onBack: () {
-                Navigator.of(context).pop(); // close the dialog
-                Navigator.of(context).pop(); // pop AcornBasket → back to level screen
-              },
-            ),
-          ),
+      builder: (_) => Material(
+        type: MaterialType.transparency,
+        child: GoodJobOverlay(
+          characterImage: 'assets/images/characters/dog.png',
+          closeButtonColor: ForestColorTheme.seagreen,
+          onNext: () {
+            Navigator.of(context).pop(); // close the dialog
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => AlphabetIntroScreen(letter: 'G'),
+              ),
+            );
+          },
+          onRestart: () {
+            Navigator.of(context).pop(); // close the dialog
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => AcornBasketGame(level: widget.level),
+              ),
+            );
+          },
+          onBack: () {
+            Navigator.of(context).pop(); // close the dialog
+            Navigator.of(
+              context,
+            ).pop(); // pop AcornBasket → back to level screen
+          },
+        ),
+      ),
     );
   }
 
@@ -346,10 +389,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
         loadingScreen: LoadingScreen.alphabetForest(),
         gameBuilder: () => Stack(
           children: [
-            if (_introPlaying)
-              _buildIntroLayer()
-            else
-              _buildGameContent(),
+            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
           ],
         ),
       ),
@@ -368,11 +408,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
           ),
         ),
 
-        const Positioned(
-          top: 25,
-          left: 20,
-          child: ForestBackButton(),
-        ),
+        const Positioned(top: 25, left: 20, child: ForestBackButton()),
 
         Positioned(
           top: 25,
@@ -389,10 +425,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
                 builder: (_, child) => Transform.translate(
                   offset: Offset(
                     0,
-                    Tween<double>(
-                      begin: -6,
-                      end: 6,
-                    ).evaluate(
+                    Tween<double>(begin: -6, end: 6).evaluate(
                       CurvedAnimation(
                         parent: _tofiFloatCtrl,
                         curve: Curves.easeInOut,
@@ -500,11 +533,9 @@ class _AcornBasketGameState extends State<AcornBasketGame>
                     builder: (context, child) {
                       final t = lane.controller.value;
 
-                      final top =
-                          (-acornSize) + (zoneH + acornSize * 2) * t;
+                      final top = (-acornSize) + (zoneH + acornSize * 2) * t;
 
-                      final left =
-                          zoneW * lane.xFraction - acornSize / 2;
+                      final left = zoneW * lane.xFraction - acornSize / 2;
 
                       // Gentle left-right sway
                       final sway = sin(t * pi * 2 + i) * 12;
@@ -515,10 +546,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
                       return Positioned(
                         top: top,
                         left: left + sway,
-                        child: Transform.rotate(
-                          angle: rotation,
-                          child: child!,
-                        ),
+                        child: Transform.rotate(angle: rotation, child: child!),
                       );
                     },
                     child: _FallingAcorn(
@@ -664,7 +692,6 @@ class _BasketTarget extends StatelessWidget {
       onWillAccept: (_) => true,
       onAccept: onAccept,
       builder: (context, candidateData, rejectedData) {
-
         return AnimatedBuilder(
           animation: Listenable.merge([pulseController, shakeController]),
           builder: (context, child) {
@@ -696,11 +723,11 @@ class _BasketTarget extends StatelessWidget {
 
                 ...List.generate(basketAcorns.length, (i) {
                   const positions = [
-                    Offset(20, 20),   // left
-                    Offset(60, 16),   // center
-                    Offset(100, 28),  // right
-                    Offset(30, 72),   // bottom-left
-                    Offset(83, 85),   // bottom-right
+                    Offset(20, 20), // left
+                    Offset(60, 16), // center
+                    Offset(100, 28), // right
+                    Offset(30, 72), // bottom-left
+                    Offset(83, 85), // bottom-right
                   ];
 
                   final p = positions[i];
@@ -713,9 +740,7 @@ class _BasketTarget extends StatelessWidget {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          Image.asset(
-                            'assets/images/objects/forest/acorn.png',
-                          ),
+                          Image.asset('assets/images/objects/forest/acorn.png'),
 
                           Positioned(
                             top: 28,
@@ -727,10 +752,7 @@ class _BasketTarget extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                                 shadows: [
-                                  Shadow(
-                                    color: Colors.black54,
-                                    blurRadius: 3,
-                                  ),
+                                  Shadow(color: Colors.black54, blurRadius: 3),
                                 ],
                               ),
                             ),

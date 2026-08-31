@@ -13,6 +13,11 @@ import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
 
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 class WoodpeckerLetterListenGame extends StatefulWidget {
   final int level;
 
@@ -24,12 +29,18 @@ class WoodpeckerLetterListenGame extends StatefulWidget {
 }
 
 class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
-    with TickerProviderStateMixin, GameLoadingMixin, ForestAudioMixin, TofiReactionMixin {
-
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin,
+        ForestAudioMixin,
+        TofiReactionMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => _player;
 
   final AudioPlayer _player = AudioPlayer();
+
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   static const List<String> _letters = ['A', 'B', 'C'];
 
@@ -58,6 +69,9 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
   void initState() {
     OrientationService.setLandscape();
     super.initState();
+
+    startAiCamera(); // <-- Start the camera
+    _tapTracker.startSession();
 
     _hopController = AnimationController(
       vsync: this,
@@ -92,9 +106,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
 
-    await playVoice(
-      'assets/audio/alphabet_forest/woodpecker_intro.wav',
-    );
+    await playVoice('assets/audio/alphabet_forest/woodpecker_intro.wav');
 
     if (!mounted) return;
 
@@ -107,9 +119,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
 
     if (!mounted) return;
 
-    await playVoice(
-      'assets/audio/alphabet_forest/woodpecker_instruction.wav',
-    );
+    await playVoice('assets/audio/alphabet_forest/woodpecker_instruction.wav');
 
     if (!mounted) return;
 
@@ -130,6 +140,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _hopController.dispose();
     _peckController.dispose();
     _player.dispose();
@@ -146,8 +157,10 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
     _peckController.forward(from: 0);
 
     if (letter == _targetLetter) {
+      _tapTracker.recordCorrectTap();
       _handleCorrect();
     } else {
+      _tapTracker.recordMistake();
       _handleWrong();
     }
   }
@@ -170,15 +183,13 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
         if (!mounted) return;
 
         // Play the victory voice
-        await playVoice(
-          'assets/audio/alphabet_forest/woodpecker_win.wav',
-        );
+        await playVoice('assets/audio/alphabet_forest/woodpecker_win.wav');
 
         if (!mounted) return;
 
-        _showGoodJob();
+        _saveDataAndShowGoodJob();
       });
-    }else {
+    } else {
       Future.delayed(const Duration(milliseconds: 700), () async {
         if (!mounted) return;
 
@@ -199,41 +210,72 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
     showTofiReaction(TofiState.wrong);
   }
 
+  Future<void> _saveDataAndShowGoodJob() async {
+    // 1. Stop the camera and get the emotions
+    List<String> finalEmotions = stopAiCamera();
+
+    // 2. Save raw data silently
+    try {
+      String parentUid = FirebaseAuth.instance.currentUser!.uid;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(parentUid)
+          .collection('category_progress')
+          .doc('alphabet_forest')
+          .collection('games_played')
+          .doc('forest_woodpecker') // The unique ID for this game
+          .set({
+            'activityName': "Woodpecker Letter Listen",
+            'emotions': finalEmotions,
+            'totalTaps': _tapTracker.totalTaps,
+            'mistakes': _tapTracker.mistakeCount,
+            'timePlayedSeconds': _tapTracker.formattedDuration,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      debugPrint("Database Error saving Woodpecker metrics: $e");
+    }
+
+    // 3. Now show the normal win dialog
+    _showGoodJob();
+  }
+
   void _showGoodJob() {
     showDialog(
       context: context,
       useSafeArea: false,
       barrierColor: Colors.transparent,
       barrierDismissible: false,
-      builder: (_) =>
-          Material(
-            type: MaterialType.transparency,
-            child: GoodJobOverlay(
-              characterImage: 'assets/images/characters/dog.png',
-              closeButtonColor: ForestColorTheme.seagreen,
-              onNext: () {
-                Navigator.of(context).pop(); // close the dialog
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => AlphabetIntroScreen(letter: 'D'),
-                  ),
-                );
-              },
-              onRestart: () {
-                Navigator.of(context).pop(); // close the dialog
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        WoodpeckerLetterListenGame(level: widget.level),
-                  ),
-                );
-              },
-              onBack: () {
-                Navigator.of(context).pop(); // close the dialog
-                Navigator.of(context).pop(); // pop Woodpecker → back to level screen
-              },
-            ),
-          ),
+      builder: (_) => Material(
+        type: MaterialType.transparency,
+        child: GoodJobOverlay(
+          characterImage: 'assets/images/characters/dog.png',
+          closeButtonColor: ForestColorTheme.seagreen,
+          onNext: () {
+            Navigator.of(context).pop(); // close the dialog
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => AlphabetIntroScreen(letter: 'D'),
+              ),
+            );
+          },
+          onRestart: () {
+            Navigator.of(context).pop(); // close the dialog
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => WoodpeckerLetterListenGame(level: widget.level),
+              ),
+            );
+          },
+          onBack: () {
+            Navigator.of(context).pop(); // close the dialog
+            Navigator.of(
+              context,
+            ).pop(); // pop Woodpecker → back to level screen
+          },
+        ),
+      ),
     );
   }
 
@@ -244,13 +286,9 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
         loadingScreen: LoadingScreen.alphabetForest(),
         gameBuilder: () => Stack(
           children: [
-            if (_introPlaying)
-              _buildIntroLayer()
-            else
-              _buildGameContent(),
+            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
 
-            if (!_introPlaying)
-              buildTofi(context),
+            if (!_introPlaying) buildTofi(context),
           ],
         ),
       ),
@@ -269,11 +307,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
           ),
         ),
 
-        const Positioned(
-          top: 25,
-          left: 20,
-          child: ForestBackButton(),
-        ),
+        const Positioned(top: 25, left: 20, child: ForestBackButton()),
 
         Positioned(
           top: 25,
@@ -290,10 +324,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
                 builder: (_, child) => Transform.translate(
                   offset: Offset(
                     0,
-                    Tween<double>(
-                      begin: -6,
-                      end: 6,
-                    ).evaluate(
+                    Tween<double>(begin: -6, end: 6).evaluate(
                       CurvedAnimation(
                         parent: _tofiFloatCtrl,
                         curve: Curves.easeInOut,
@@ -405,7 +436,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
                             final topMax = trunkHeight - 130;
                             final top =
                                 topMin +
-                                    (topMax - topMin) * _currentHeightFraction;
+                                (topMax - topMin) * _currentHeightFraction;
 
                             return Positioned(
                               top: top,
@@ -434,25 +465,23 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
                               _LetterRung(
                                 letter: _shuffledLetters[0],
                                 isActiveTap:
-                                _activeTapLetter == _shuffledLetters[0],
+                                    _activeTapLetter == _shuffledLetters[0],
                                 isWrongBounce:
-                                _lastTapWasWrong &&
+                                    _lastTapWasWrong &&
                                     _activeTapLetter == _shuffledLetters[0],
                                 peckController: _peckController,
-                                onTap: () =>
-                                    _onRungTapped(_shuffledLetters[0]),
+                                onTap: () => _onRungTapped(_shuffledLetters[0]),
                               ),
                               const SizedBox(width: 30),
                               _LetterRung(
                                 letter: _shuffledLetters[1],
                                 isActiveTap:
-                                _activeTapLetter == _shuffledLetters[1],
+                                    _activeTapLetter == _shuffledLetters[1],
                                 isWrongBounce:
-                                _lastTapWasWrong &&
+                                    _lastTapWasWrong &&
                                     _activeTapLetter == _shuffledLetters[1],
                                 peckController: _peckController,
-                                onTap: () =>
-                                    _onRungTapped(_shuffledLetters[1]),
+                                onTap: () => _onRungTapped(_shuffledLetters[1]),
                               ),
                             ],
                           ),
@@ -460,9 +489,9 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
                           _LetterRung(
                             letter: _shuffledLetters[2],
                             isActiveTap:
-                            _activeTapLetter == _shuffledLetters[2],
+                                _activeTapLetter == _shuffledLetters[2],
                             isWrongBounce:
-                            _lastTapWasWrong &&
+                                _lastTapWasWrong &&
                                 _activeTapLetter == _shuffledLetters[2],
                             peckController: _peckController,
                             onTap: () => _onRungTapped(_shuffledLetters[2]),
@@ -481,7 +510,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
     );
   }
 
-    Widget _buildRoundIndicator() {
+  Widget _buildRoundIndicator() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(_totalRounds, (i) {

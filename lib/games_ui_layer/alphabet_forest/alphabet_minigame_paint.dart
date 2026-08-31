@@ -21,6 +21,10 @@ import 'forest_game_mushroom_hidenseek.dart';
 import 'forest_game_paw_print.dart';
 import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PaintPoint {
   final Offset position;
@@ -44,13 +48,13 @@ class AlphabetPaintScreen extends StatefulWidget {
 }
 
 class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
-    with TickerProviderStateMixin, TofiReactionMixin {
-
+    with TickerProviderStateMixin, TofiReactionMixin, AiCameraMixin {
   final AudioPlayer _player = AudioPlayer();
 
   @override
   AudioPlayer get tofiPlayer => _player;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
   // --- Paint State ---
   final List<PaintPoint> _paintPoints = [];
   Color _selectedColor = const Color(0xFFE74C3C); // default red
@@ -87,6 +91,9 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
     super.initState();
     OrientationService.setLandscape();
 
+    startAiCamera();
+    _tapTracker.startSession();
+
     _celebCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -95,6 +102,7 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _celebCtrl.dispose();
     OrientationService.setLandscape();
     super.dispose();
@@ -133,16 +141,47 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
 
     if (coverage >= 0.50 && !_celebrationShown) {
       _celebrationShown = true;
-      Future.delayed(
-        const Duration(milliseconds: 400),
-            () async {
-          await showTofiReaction(TofiState.correct);
-          if (mounted) {
-            _showCelebrationDialog();
-          }
-        },
-      );
+      Future.delayed(const Duration(milliseconds: 400), () async {
+        await showTofiReaction(TofiState.correct);
+        if (mounted) {
+          _saveDataAndShowCelebration();
+        }
+      });
     }
+  }
+
+  Future<void> _saveDataAndShowCelebration() async {
+    // 1. Stop the camera and get the emotions
+    List<String> finalEmotions = stopAiCamera();
+
+    // 2. Save raw data silently
+    try {
+      String parentUid = FirebaseAuth.instance.currentUser!.uid;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(parentUid)
+          .collection('category_progress')
+          .doc('alphabet_forest')
+          .collection('games_played')
+          .doc(
+            'letter_paint_${widget.letter.toLowerCase()}',
+          ) // e.g., 'letter_paint_a'
+          .set({
+            'activityName': "Alphabet Paint (${widget.letter.toUpperCase()})",
+            'emotions': finalEmotions,
+            'totalTaps':
+                _paintPoints.length, // Uses paint points to show engagement
+            'mistakes': 0, // No mistakes in open-ended painting
+            'timePlayedSeconds': _tapTracker.formattedDuration,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      debugPrint("Database Error saving Paint metrics: $e");
+    }
+
+    // 3. Now show the normal win dialog
+    _showCelebrationDialog();
   }
 
   void _showCelebrationDialog() {
@@ -150,47 +189,45 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
     final String currentLetter = widget.letter.toUpperCase();
 
     const skipGoodJobLetters = {
-      'A', 'B',
-      'D', 'E',
-      'G', 'H',
-      'J', 'K',
-      'M', 'N',
-      'P', 'Q',
-      'S', 'T',
-      'V', 'W',
-      'Y', 'Z',
+      'A',
+      'B',
+      'D',
+      'E',
+      'G',
+      'H',
+      'J',
+      'K',
+      'M',
+      'N',
+      'P',
+      'Q',
+      'S',
+      'T',
+      'V',
+      'W',
+      'Y',
+      'Z',
     };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
-      String nextLetter =
-      String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
+      String nextLetter = String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              AlphabetIntroScreen(letter: nextLetter),
+          builder: (context) => AlphabetIntroScreen(letter: nextLetter),
         ),
       );
       return;
     }
 
     // mark level complete for some letters
-    const completeLevelsLetters = {
-      'C',
-      'F',
-      'I',
-      'L',
-      'O',
-      'R',
-      'U',
-      'X',
-      'Z',
-    };
+    const completeLevelsLetters = {'C', 'F', 'I', 'L', 'O', 'R', 'U', 'X', 'Z'};
 
     if (completeLevelsLetters.contains(currentLetter)) {
-      final completedLevel =
-      ForestProgressService.levelNumberForLetter(currentLetter);
+      final completedLevel = ForestProgressService.levelNumberForLetter(
+        currentLetter,
+      );
 
       if (completedLevel != null) {
         ForestProgressService.instance.markLevelComplete(completedLevel);
@@ -210,63 +247,68 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
           onNext: () {
             Navigator.pop(context);
 
-            if (currentLetter == 'C'){
+            if (currentLetter == 'C') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const WoodpeckerLetterListenGame(level: 2),
+                  builder: (context) =>
+                      const WoodpeckerLetterListenGame(level: 2),
                 ),
               );
-            } else if (currentLetter == 'F'){
+            } else if (currentLetter == 'F') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const AcornBasketGame(level: 4),
                 ),
               );
-            } else if (currentLetter == 'I'){
+            } else if (currentLetter == 'I') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ButterflyFlowerGardenGame(level: 6),
+                  builder: (context) =>
+                      const ButterflyFlowerGardenGame(level: 6),
                 ),
               );
-            } else if (currentLetter == 'L'){
+            } else if (currentLetter == 'L') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ButterflyLetterMatchGame(level: 8),
+                  builder: (context) =>
+                      const ButterflyLetterMatchGame(level: 8),
                 ),
               );
-            } else if (currentLetter == 'O'){
+            } else if (currentLetter == 'O') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const MushroomHideAndSeekGame(level: 10),
+                  builder: (context) =>
+                      const MushroomHideAndSeekGame(level: 10),
                 ),
               );
-            } else if (currentLetter == 'R'){
+            } else if (currentLetter == 'R') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const BerryBushHarvestGame(level: 12),
                 ),
               );
-            } else if (currentLetter == 'U'){
+            } else if (currentLetter == 'U') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const FollowThePawPrintsGame(level: 14),
                 ),
               );
-            } else if (currentLetter == 'X'){
+            } else if (currentLetter == 'X') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const FallenStickLetterBuilderGame(level: 16),
+                  builder: (context) =>
+                      const FallenStickLetterBuilderGame(level: 16),
                 ),
               );
-            } else if (currentLetter == 'Z'){
+            } else if (currentLetter == 'Z') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -280,16 +322,13 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (_) =>
-                        AlphabetIntroScreen(letter: nextLetter),
+                    builder: (_) => AlphabetIntroScreen(letter: nextLetter),
                   ),
                 );
               } else {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const ForestLevelScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
                 );
               }
             }
@@ -305,9 +344,7 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
             Navigator.pop(context);
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (_) => const ForestLevelScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
             );
           },
         ),
@@ -343,7 +380,9 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
         _paintPoints.add(
           PaintPoint(
             position: Offset(local.dx + jitterX, local.dy + jitterY),
-            color: _selectedColor.withValues(alpha: 0.18 + rng.nextDouble() * 0.15),
+            color: _selectedColor.withValues(
+              alpha: 0.18 + rng.nextDouble() * 0.15,
+            ),
             radius: sizeJitter,
           ),
         );
@@ -371,7 +410,9 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
               top: 25,
               left: 0,
               right: 0,
-              child: Center(child: ForestInstructionBanner(text: 'Paint the letter!')),
+              child: Center(
+                child: ForestInstructionBanner(text: 'Paint the letter!'),
+              ),
             ),
 
             // Level Badge
@@ -379,9 +420,10 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
               top: 25,
               right: 20,
               child: ForestLevelBadge(
-                level: ForestProgressService.levelNumberForLetter(
-                  widget.letter.toUpperCase(),
-                ) ??
+                level:
+                    ForestProgressService.levelNumberForLetter(
+                      widget.letter.toUpperCase(),
+                    ) ??
                     1,
               ),
             ),
@@ -479,14 +521,20 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                           ),
 
                           const SizedBox(width: 12),
-                          const VerticalDivider(color: Colors.white54, thickness: 1, width: 20),
+                          const VerticalDivider(
+                            color: Colors.white54,
+                            thickness: 1,
+                            width: 20,
+                          ),
                           const SizedBox(width: 8),
 
                           // Color swatches — all palette colors, scrolls if needed
                           ..._palette.map((color) {
                             final bool isSelected = _selectedColor == color;
                             return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
                               child: GestureDetector(
                                 onTap: () =>
                                     setState(() => _selectedColor = color),
@@ -505,12 +553,14 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                                     ),
                                     boxShadow: isSelected
                                         ? [
-                                      BoxShadow(
-                                        color: color.withValues(alpha: 0.6),
-                                        blurRadius: 8,
-                                        spreadRadius: 2,
-                                      ),
-                                    ]
+                                            BoxShadow(
+                                              color: color.withValues(
+                                                alpha: 0.6,
+                                              ),
+                                              blurRadius: 8,
+                                              spreadRadius: 2,
+                                            ),
+                                          ]
                                         : [],
                                   ),
                                 ),
@@ -519,7 +569,11 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                           }),
 
                           const SizedBox(width: 12),
-                          const VerticalDivider(color: Colors.white54, thickness: 1, width: 20),
+                          const VerticalDivider(
+                            color: Colors.white54,
+                            thickness: 1,
+                            width: 20,
+                          ),
                           const SizedBox(width: 8),
 
                           // Clear button

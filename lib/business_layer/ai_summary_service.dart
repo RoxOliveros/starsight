@@ -1,61 +1,54 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'game_prompts.dart';
 
 class AiSummaryService {
   static final String apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
 
   static Future<String> generateParentSummary({
+    required String gameId,
     required String childName,
-    required String activityName,
     required List<String> emotionsList,
     required String timePlayed,
+    required int totalTaps,
     required int mistakesMade,
   }) async {
+    final config = GamePrompts.getConfig(gameId);
+
     if (emotionsList.isEmpty) {
-      return "We didn't catch $childName's expressions this time, but they completed the activity!";
+      return "We didn't catch $childName's expressions this time, but they completed ${config.activityName} nicely!";
     }
 
-    final model = GenerativeModel(
-      model: 'gemini-3.1-flash-lite',
-      apiKey: apiKey,
-    );
+    final model = GenerativeModel(model: 'gemini-3.7-flash', apiKey: apiKey);
 
-    String systemPrompt =
+    final String systemPrompt =
         """
-You are an encouraging and professional child development assistant for an app called IntelliPlay.
-Your goal is to write a short, friendly report for a parent about their child's gameplay.
+You are an encouraging and professional early childhood educator writing an observation note for parents on an app called StarSight.
 
-DATA:
-Child's Name: $childName
-Activity: $activityName
-Emotions Detected: ${emotionsList.join(", ")}
-Time Played: $timePlayed
-Mistakes Made: $mistakesMade
+SESSION DATA:
+- Child's Name: $childName
+- Activity: ${config.activityName}
+- Specific Skill Focus: ${config.skillFocus}
+- Emotions Detected: ${emotionsList.join(", ")}
+- Time Played: $timePlayed
+- Total Interactions / Taps: $totalTaps
+- Learning Attempts / Mistakes: $mistakesMade
 
-1. First, provide exactly 4 bullet points. 
-   - Emotion: (The dominant emotion from the list. If the list mostly contains "Calibrating", output "Did not have enough time to calibrate")
-   - Focus: (High, Moderate, or if the list is mostly "Calibrating", output "Did not have enough time to calibrate")
-   - Time: $timePlayed
-   - Performance: (Do not say the exact number of mistakes. If 0 mistakes, say "Completed the activity smoothly!". If 1-3 mistakes, say "Made a few learning attempts but figured it out nicely". If more than 3, say "Showed great persistence through the tricky parts".)
-
-2. Skip a line.
-3. Write a warm, 2-to-3 sentence paragraph summarizing their session. Frame the emotions and mistakes positively, emphasizing resilience, focus, and learning. Use the child's actual name. Keep the language simple, warm, and easy to read—do not use complicated academic jargon. Do not use bolding or asterisks in your response.
-
-Format exactly like this example:
-• Emotion: Frustrated
-• Focus: High
-• Time: 1m 45s
-• Performance: Made a few learning attempts but figured it out nicely
-
-$childName showed remarkable focus and determination while playing $activityName, staying engaged with the activity for the entire duration. While they encountered a few moments of frustration as they worked through the challenges, their persistence in staying on task is a wonderful sign of their developing resilience. We are so proud of how they stayed focused on their goal and kept working toward the finish line!
+REQUIREMENTS:
+1. Write a single, warm, descriptive paragraph (3 to 4 sentences).
+2. Use the child's actual name ($childName).
+3. Frame emotions and mistakes positively, emphasizing curiosity, focus, and resilience.
+4. ${config.educatorGuidance}
+5. Keep language simple, encouraging, and natural for parents. Do NOT use bullet points, asterisks, or bold text.
 """;
+
     try {
       final content = [Content.text(systemPrompt)];
       final response = await model.generateContent(content);
-      return response.text?.trim() ?? "Summary generation failed.";
+      return response.text?.trim() ??
+          "Great job completing ${config.activityName}!";
     } catch (e) {
-      print("Gemini Error: $e");
-      return "Great job completing the activity!";
+      return "Great job completing ${config.activityName}!";
     }
   }
 }

@@ -23,6 +23,11 @@ import 'forest_game_paw_print.dart';
 import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
 
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 class AlphabetPopScreen extends StatefulWidget {
   final String letter;
 
@@ -33,13 +38,14 @@ class AlphabetPopScreen extends StatefulWidget {
 }
 
 class _AlphabetPopScreenState extends State<AlphabetPopScreen>
-  with TofiReactionMixin {
-
+    with TofiReactionMixin, AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => _audioPlayer;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final Random _random = Random();
+
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   late Timer _gameTimer;
   final List<BouncingBall> _activeBalls = [];
@@ -48,16 +54,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   final int _winCondition = 3;
   final List<Map<String, double>> _wrongEffects = [];
 
-  final List<double> _lanes = [
-    0.22,
-    0.32,
-    0.42,
-    0.52,
-    0.62,
-    0.72,
-    0.82,
-    0.92,
-  ];
+  final List<double> _lanes = [0.22, 0.32, 0.42, 0.52, 0.62, 0.72, 0.82, 0.92];
 
   late List<double> _availableLanes;
 
@@ -65,6 +62,10 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    startAiCamera();
+    _tapTracker.startSession();
+
     _generateBalls();
     _startGameLoop();
   }
@@ -155,6 +156,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     if (ball.isPopped) return;
 
     if (ball.letter == widget.letter.toUpperCase()) {
+      _tapTracker.recordCorrectTap();
       // --- CORRECT MATCH ---
       String audioFile =
           'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav';
@@ -173,12 +175,13 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
             _activeBalls.removeWhere((item) => item.id == ball.id);
             if (_correctCount >= _winCondition) {
               _gameTimer.cancel();
-              _showApplause();
+              _saveDataAndShowApplause();
             }
           });
         }
       });
     } else {
+      _tapTracker.recordMistake();
       showTofiReaction(TofiState.wrong);
 
       // --- WRONG MATCH ---
@@ -201,51 +204,82 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     }
   }
 
+  Future<void> _saveDataAndShowApplause() async {
+    // 1. Stop the camera and get the emotions
+    List<String> finalEmotions = stopAiCamera();
+
+    // 2. Save raw data silently
+    try {
+      String parentUid = FirebaseAuth.instance.currentUser!.uid;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(parentUid)
+          .collection('category_progress')
+          .doc('alphabet_forest')
+          .collection('games_played')
+          .doc(
+            'letter_pop_${widget.letter.toLowerCase()}',
+          ) // e.g., 'letter_pop_a'
+          .set({
+            'activityName': "Alphabet Pop (${widget.letter.toUpperCase()})",
+            'emotions': finalEmotions,
+            'totalTaps': _tapTracker.totalTaps,
+            'mistakes': _tapTracker.mistakeCount,
+            'timePlayedSeconds': _tapTracker.formattedDuration,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      debugPrint("Database Error saving Pop metrics: $e");
+    }
+
+    // 3. Now show the normal win dialog
+    _showApplause();
+  }
+
   void _showApplause() {
     final String currentLetter = widget.letter.toUpperCase();
 
     const skipGoodJobLetters = {
-      'A', 'B',
-      'D', 'E',
-      'G', 'H',
-      'J', 'K',
-      'M', 'N',
-      'P', 'Q',
-      'S', 'T',
-      'V', 'W',
-      'Y', 'Z',
+      'A',
+      'B',
+      'D',
+      'E',
+      'G',
+      'H',
+      'J',
+      'K',
+      'M',
+      'N',
+      'P',
+      'Q',
+      'S',
+      'T',
+      'V',
+      'W',
+      'Y',
+      'Z',
     };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
-      String nextLetter =
-      String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
+      String nextLetter = String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              AlphabetIntroScreen(letter: nextLetter),
+          builder: (context) => AlphabetIntroScreen(letter: nextLetter),
         ),
       );
       return;
     }
 
     // mark level complete for some letters
-    const completeLevelsLetters = {
-      'C',
-      'F',
-      'I',
-      'L',
-      'O',
-      'R',
-      'U',
-      'X',
-      'Z',
-    };
+    const completeLevelsLetters = {'C', 'F', 'I', 'L', 'O', 'R', 'U', 'X', 'Z'};
 
     if (completeLevelsLetters.contains(currentLetter)) {
-      final completedLevel =
-      ForestProgressService.levelNumberForLetter(currentLetter);
+      final completedLevel = ForestProgressService.levelNumberForLetter(
+        currentLetter,
+      );
 
       if (completedLevel != null) {
         ForestProgressService.instance.markLevelComplete(completedLevel);
@@ -266,63 +300,68 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
           onNext: () {
             Navigator.pop(context);
 
-            if (currentLetter == 'C'){
+            if (currentLetter == 'C') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const WoodpeckerLetterListenGame(level: 2),
+                  builder: (context) =>
+                      const WoodpeckerLetterListenGame(level: 2),
                 ),
               );
-            } else if (currentLetter == 'F'){
+            } else if (currentLetter == 'F') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const AcornBasketGame(level: 4),
                 ),
               );
-            } else if (currentLetter == 'I'){
+            } else if (currentLetter == 'I') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ButterflyFlowerGardenGame(level: 6),
+                  builder: (context) =>
+                      const ButterflyFlowerGardenGame(level: 6),
                 ),
               );
-            } else if (currentLetter == 'L'){
+            } else if (currentLetter == 'L') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ButterflyLetterMatchGame(level: 8),
+                  builder: (context) =>
+                      const ButterflyLetterMatchGame(level: 8),
                 ),
               );
-            } else if (currentLetter == 'O'){
+            } else if (currentLetter == 'O') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const MushroomHideAndSeekGame(level: 10),
+                  builder: (context) =>
+                      const MushroomHideAndSeekGame(level: 10),
                 ),
               );
-            } else if (currentLetter == 'R'){
+            } else if (currentLetter == 'R') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const BerryBushHarvestGame(level: 12),
                 ),
               );
-            } else if (currentLetter == 'U'){
+            } else if (currentLetter == 'U') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const FollowThePawPrintsGame(level: 14),
                 ),
               );
-            } else if (currentLetter == 'X'){
+            } else if (currentLetter == 'X') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const FallenStickLetterBuilderGame(level: 16),
+                  builder: (context) =>
+                      const FallenStickLetterBuilderGame(level: 16),
                 ),
               );
-            } else if (currentLetter == 'Z'){
+            } else if (currentLetter == 'Z') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -376,6 +415,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _gameTimer.cancel();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
@@ -402,8 +442,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
               right: 0,
               child: Center(
                 child: ForestInstructionBanner(
-                  text:
-                      'Pop all the ${widget.letter.toUpperCase()} balls!',
+                  text: 'Pop all the ${widget.letter.toUpperCase()} balls!',
                 ),
               ),
             ),

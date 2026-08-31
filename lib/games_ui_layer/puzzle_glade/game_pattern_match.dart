@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/ai_summary_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/generating_summary_card.dart';
@@ -74,21 +75,30 @@ class PatternMatchScreen extends StatefulWidget {
 }
 
 class _PatternMatchScreenState extends State<PatternMatchScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, AiCameraMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        AiCameraMixin,
+        GameLoadingMixin {
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level2/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level2/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level2/instruction.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/level2/intro.wav';
+  static const String _audioWelcome =
+      'assets/audio/puzzle_glade/level2/welcome.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/level2/instruction.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level2/complete.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/level2/complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -104,10 +114,10 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   bool _showWinDialog = false;
 
   // ── AI TRACKERS  ────────────────────────────────────────────────────────────
-  DateTime? _gameStartTime;
-  int _mistakeCount = 0;
+
   bool _isGeneratingSummary = false;
   bool _hideLightingPrompt = false;
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -248,7 +258,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     if (mounted) {
       setState(() {
         _screenPhase = _ScreenPhase.game;
-        _gameStartTime = DateTime.now();
+        _tapTracker.startSession();
       });
     }
     await _playBgAudio(_audioInstructions);
@@ -278,11 +288,13 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
 
     final colorA = shuffled[0];
     final colorB = shuffled.firstWhere(
-          (c) => c != colorA && _colorDistance(c.color, colorA.color) > 120,
+      (c) => c != colorA && _colorDistance(c.color, colorA.color) > 120,
       orElse: () => shuffled[1],
     );
 
-    final templatesForRound = _round >= 4 ? _hardPatternTemplates : _patternTemplates;
+    final templatesForRound = _round >= 4
+        ? _hardPatternTemplates
+        : _patternTemplates;
     final template = templatesForRound[rng.nextInt(templatesForRound.length)];
     final pair = [colorA, colorB];
 
@@ -318,6 +330,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     if (_roundComplete || _wrongFlash || _rightFlash) return;
 
     if (tapped == _answerColor) {
+      _tapTracker.recordCorrectTap();
       setState(() {
         _rightFlash = true;
         _roundComplete = true;
@@ -340,13 +353,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
 
         // 1. Grab Emotions & Time
         List<String> finalEmotions = stopAiCamera();
-
-        final int playedSeconds = DateTime.now()
-            .difference(_gameStartTime ?? DateTime.now())
-            .inSeconds;
-        final int mins = playedSeconds ~/ 60;
-        final int secs = playedSeconds % 60;
-        final String timePlayed = "${mins}m ${secs}s";
 
         // 2. Get Child's Name
         String parentUid = FirebaseAuth.instance.currentUser!.uid;
@@ -372,13 +378,13 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         // 3. Ask Gemini for Summary
         debugPrint("Sending data to Gemini... Please wait.");
         String geminiSummary = await AiSummaryService.generateParentSummary(
+          gameId: 'puzzle_pattern_match', // <-- Use your registry ID
           childName: actualChildName,
-          activityName: "Star Pattern",
           emotionsList: finalEmotions,
-          timePlayed: timePlayed,
-          mistakesMade: _mistakeCount,
+          timePlayed: _tapTracker.formattedDuration, // <-- Use tracker
+          totalTaps: _tapTracker.totalTaps, // <-- Use tracker
+          mistakesMade: _tapTracker.mistakeCount, // <-- Use tracker
         );
-        debugPrint("GEMINI SAYS: $geminiSummary");
 
         // 4. Save to Firestore
         try {
@@ -387,8 +393,12 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
               .doc(parentUid)
               .collection('reports')
               .add({
-                'activityName': "Star Pattern",
+                'gameId': 'puzzle_pattern_match',
+                'activityName': "Star Pattern Match",
                 'summary': geminiSummary,
+                'totalTaps': _tapTracker.totalTaps, // <-- Save metrics
+                'mistakes': _tapTracker.mistakeCount, // <-- Save metrics
+                'timePlayed': _tapTracker.formattedDuration, // <-- Save metrics
                 'timestamp': FieldValue.serverTimestamp(),
               });
         } catch (e) {
@@ -416,9 +426,9 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         });
       }
     } else {
+      _tapTracker.recordMistake();
       setState(() {
         _wrongFlash = true;
-        _mistakeCount++;
       });
       unawaited(showRoxieReaction(RoxieState.wrong));
 
@@ -432,54 +442,52 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
-            Stack(
-              children: [
-          // Background
-          Positioned.fill(
-            child: Stack(
-              children: [
-                Image.asset(
-                  _bgImage,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-                Container(color: Colors.black.withValues(alpha: 0.15)),
-              ],
-            ),
-          ),
-                _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : FadeTransition(
-                    opacity: _gameFade,
-                    child: _buildGameLayer(),
-                  ),
-
-          if (_screenPhase == _ScreenPhase.game) buildRoxie(context),
-
-          // ---> CONDITIONAL LIGHTING PROMPT <---
-          if ((!isCameraInitialized || !isFaceDetected) && !_hideLightingPrompt)
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.puzzleGlade(),
+        gameBuilder: () => Stack(
+          children: [
+            // Background
             Positioned.fill(
-              child: LightingPromptCard(
-                onClose: () {
-                  setState(() {
-                    _hideLightingPrompt =
-                        true; // This forces it to stay hidden!
-                  });
-                },
+              child: Stack(
+                children: [
+                  Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                ],
               ),
             ),
+            _screenPhase == _ScreenPhase.intro
+                ? _buildIntroLayer()
+                : FadeTransition(opacity: _gameFade, child: _buildGameLayer()),
 
-          // ---> LOADING SUMMARY PROMPT <---
-          if (_isGeneratingSummary)
-            const Positioned.fill(child: GeneratingSummaryCard()),
+            if (_screenPhase == _ScreenPhase.game) buildRoxie(context),
 
-          if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-        ],
-      ),
+            // ---> CONDITIONAL LIGHTING PROMPT <---
+            if ((!isCameraInitialized || !isFaceDetected) &&
+                !_hideLightingPrompt)
+              Positioned.fill(
+                child: LightingPromptCard(
+                  onClose: () {
+                    setState(() {
+                      _hideLightingPrompt =
+                          true; // This forces it to stay hidden!
+                    });
+                  },
+                ),
+              ),
+
+            // ---> LOADING SUMMARY PROMPT <---
+            if (_isGeneratingSummary)
+              const Positioned.fill(child: GeneratingSummaryCard()),
+
+            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+          ],
         ),
+      ),
     );
   }
 
@@ -492,12 +500,18 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-          child:Stack(
+          child: Stack(
             alignment: Alignment.topCenter,
             children: [
               Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Pattern Match')),
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.center,
+                child: PuzzleGameHeader(title: 'Pattern Match'),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -612,9 +626,8 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
                           color: PuzzleColorTheme.vandecane,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                              alpha: 0.30,
-                            ),
+                            color: PuzzleColorTheme.darkdesaturatedblue
+                                .withValues(alpha: 0.30),
                             width: 2.5,
                           ),
                           boxShadow: [
@@ -656,12 +669,17 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-            child:
-            Stack(
+            child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: PuzzleBackButton(),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -726,7 +744,9 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
               '→',
               style: TextStyle(
                 fontSize: 28,
-                color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.5),
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                  alpha: 0.5,
+                ),
                 fontWeight: FontWeight.bold,
               ),
             ),

@@ -19,6 +19,10 @@ import 'forest_game_mushroom_hidenseek.dart';
 import 'forest_game_paw_print.dart';
 import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetHuntScreen extends StatefulWidget {
   final String letter;
@@ -30,7 +34,7 @@ class AlphabetHuntScreen extends StatefulWidget {
 }
 
 class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
-  with TofiReactionMixin {
+    with TofiReactionMixin, AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => _audioPlayer;
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -44,10 +48,16 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   // Lists to track the exact screen positions for our tap effects!
   final List<Map<String, double>> _wrongEffects = [];
   final List<Map<String, double>> _correctEffects = [];
+
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    startAiCamera();
+    _tapTracker.startSession();
 
     // 1. Figure out which 3-letter group we are hunting in
     _letterPool = _getPoolForLetter(widget.letter);
@@ -149,6 +159,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     Offset position = box.localToGlobal(Offset.zero);
 
     if (obj.letter == widget.letter.toUpperCase()) {
+      _tapTracker.recordCorrectTap();
       setState(() {
         _correctEffects.add({'x': position.dx, 'y': position.dy});
       });
@@ -165,7 +176,8 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
       });
 
       // 3. Play Sound & Remove Object
-      String audioFile = 'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav';
+      String audioFile =
+          'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav';
       await _audioPlayer.play(AssetSource(audioFile));
       await _audioPlayer.onPlayerComplete.first;
 
@@ -176,10 +188,11 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
         _activeObjects.removeWhere((item) => item.id == obj.id);
 
         if (_correctCount >= _winCondition) {
-          _showApplause();
+          _saveDataAndShowApplause();
         }
       });
     } else {
+      _tapTracker.recordMistake(); // <--- RECORD MISTAKE
       // --- WRONG MATCH ---
       // Show the Red X Effect
       showTofiReaction(TofiState.wrong);
@@ -201,51 +214,82 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     }
   }
 
+  Future<void> _saveDataAndShowApplause() async {
+    // 1. Stop the camera and get the emotions
+    List<String> finalEmotions = stopAiCamera();
+
+    // 2. Save raw data silently (No loading screen!)
+    try {
+      String parentUid = FirebaseAuth.instance.currentUser!.uid;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(parentUid)
+          .collection('category_progress')
+          .doc('alphabet_forest')
+          .collection('games_played')
+          .doc(
+            'letter_hunt_${widget.letter.toLowerCase()}',
+          ) // e.g., 'letter_hunt_a'
+          .set({
+            'activityName': "Alphabet Hunt (${widget.letter.toUpperCase()})",
+            'emotions': finalEmotions,
+            'totalTaps': _tapTracker.totalTaps,
+            'mistakes': _tapTracker.mistakeCount,
+            'timePlayedSeconds': _tapTracker.formattedDuration,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      debugPrint("Database Error saving Hunt metrics: \$e");
+    }
+
+    // 3. Now show the normal win dialog
+    _showApplause();
+  }
+
   void _showApplause() {
     final String currentLetter = widget.letter.toUpperCase();
 
     const skipGoodJobLetters = {
-      'A', 'B',
-      'D', 'E',
-      'G', 'H',
-      'J', 'K',
-      'M', 'N',
-      'P', 'Q',
-      'S', 'T',
-      'V', 'W',
-      'Y', 'Z',
+      'A',
+      'B',
+      'D',
+      'E',
+      'G',
+      'H',
+      'J',
+      'K',
+      'M',
+      'N',
+      'P',
+      'Q',
+      'S',
+      'T',
+      'V',
+      'W',
+      'Y',
+      'Z',
     };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
-      String nextLetter =
-      String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
+      String nextLetter = String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              AlphabetIntroScreen(letter: nextLetter),
+          builder: (context) => AlphabetIntroScreen(letter: nextLetter),
         ),
       );
       return;
     }
 
     // mark level complete for some letters
-    const completeLevelsLetters = {
-      'C',
-      'F',
-      'I',
-      'L',
-      'O',
-      'R',
-      'U',
-      'X',
-      'Z',
-    };
+    const completeLevelsLetters = {'C', 'F', 'I', 'L', 'O', 'R', 'U', 'X', 'Z'};
 
     if (completeLevelsLetters.contains(currentLetter)) {
-      final completedLevel =
-      ForestProgressService.levelNumberForLetter(currentLetter);
+      final completedLevel = ForestProgressService.levelNumberForLetter(
+        currentLetter,
+      );
 
       if (completedLevel != null) {
         ForestProgressService.instance.markLevelComplete(completedLevel);
@@ -268,63 +312,68 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
             String current = widget.letter.toUpperCase();
 
-            if (currentLetter == 'C'){
+            if (currentLetter == 'C') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const WoodpeckerLetterListenGame(level: 2),
+                  builder: (context) =>
+                      const WoodpeckerLetterListenGame(level: 2),
                 ),
               );
-            } else if (currentLetter == 'F'){
+            } else if (currentLetter == 'F') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const AcornBasketGame(level: 4),
                 ),
               );
-            } else if (currentLetter == 'I'){
+            } else if (currentLetter == 'I') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ButterflyFlowerGardenGame(level: 6),
+                  builder: (context) =>
+                      const ButterflyFlowerGardenGame(level: 6),
                 ),
               );
-            } else if (currentLetter == 'L'){
+            } else if (currentLetter == 'L') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ButterflyLetterMatchGame(level: 8),
+                  builder: (context) =>
+                      const ButterflyLetterMatchGame(level: 8),
                 ),
               );
-            } else if (currentLetter == 'O'){
+            } else if (currentLetter == 'O') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const MushroomHideAndSeekGame(level: 10),
+                  builder: (context) =>
+                      const MushroomHideAndSeekGame(level: 10),
                 ),
               );
-            } else if (currentLetter == 'R'){
+            } else if (currentLetter == 'R') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const BerryBushHarvestGame(level: 12),
                 ),
               );
-            } else if (currentLetter == 'U'){
+            } else if (currentLetter == 'U') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const FollowThePawPrintsGame(level: 14),
                 ),
               );
-            } else if (currentLetter == 'X'){
+            } else if (currentLetter == 'X') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const FallenStickLetterBuilderGame(level: 16),
+                  builder: (context) =>
+                      const FallenStickLetterBuilderGame(level: 16),
                 ),
               );
-            } else if (currentLetter == 'Z'){
+            } else if (currentLetter == 'Z') {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -376,6 +425,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     OrientationService.setLandscape();
     _audioPlayer.dispose();
     super.dispose();
@@ -389,131 +439,136 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     return Scaffold(
       body: ForestBackground(
         child: Stack(
-            children: [
-              buildTofi(context),
+          children: [
+            buildTofi(context),
 
-              // ── Back button ──
-              const Positioned(top: 25, left: 20, child: ForestBackButton()),
+            // ── Back button ──
+            const Positioned(top: 25, left: 20, child: ForestBackButton()),
 
-              // ── Title ──
-              Positioned(
-                top: 25,
-                left: 0,
-                right: 0,
-                child: Center(child: ForestInstructionBanner(text: 'Find all the letters: ${widget.letter.toUpperCase()}')),
-              ),
-
-              // Level Badge
-              Positioned(
-                top: 25,
-                right: 20,
-                child: ForestLevelBadge(
-                  level: ForestProgressService.levelNumberForLetter(
-                    widget.letter.toUpperCase(),
-                  ) ??
-                      1,
+            // ── Title ──
+            Positioned(
+              top: 25,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: ForestInstructionBanner(
+                  text: 'Find all the letters: ${widget.letter.toUpperCase()}',
                 ),
               ),
+            ),
 
-              Positioned(
-                top: 80,
-                bottom: 20,
-                left: 180,
-                right: 20,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    // Calculate item size to fit exactly 4 columns and 3 rows
-                    final double itemWidth =
-                        (constraints.maxWidth - (3 * 12)) / 4;
-                    final double itemHeight =
-                        (constraints.maxHeight - (2 * 12)) / 2;
-                    final double itemSize = itemWidth < itemHeight
-                        ? itemWidth
-                        : itemHeight;
-                    final double letterFontSize = itemSize * 0.45;
+            // Level Badge
+            Positioned(
+              top: 25,
+              right: 20,
+              child: ForestLevelBadge(
+                level:
+                    ForestProgressService.levelNumberForLetter(
+                      widget.letter.toUpperCase(),
+                    ) ??
+                    1,
+              ),
+            ),
 
-                    return GridView.count(
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 4,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: itemWidth / itemHeight,
-                      children: _activeObjects.map((obj) {
-                        final GlobalKey objKey = GlobalKey();
+            Positioned(
+              top: 80,
+              bottom: 20,
+              left: 180,
+              right: 20,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Calculate item size to fit exactly 4 columns and 3 rows
+                  final double itemWidth =
+                      (constraints.maxWidth - (3 * 12)) / 4;
+                  final double itemHeight =
+                      (constraints.maxHeight - (2 * 12)) / 2;
+                  final double itemSize = itemWidth < itemHeight
+                      ? itemWidth
+                      : itemHeight;
+                  final double letterFontSize = itemSize * 0.45;
 
-                        return GestureDetector(
-                          key: objKey,
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => _onObjectTap(obj, objKey),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Image.asset(obj.imagePath, fit: BoxFit.contain),
-                              Text(
-                                obj.letter,
-                                style: TextStyle(
-                                  fontFamily: ForestAppTextStyles.fredoka,
-                                  fontSize: letterFontSize,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  shadows: const [
-                                    Shadow(
-                                      blurRadius: 6,
-                                      color: Colors.black87,
-                                      offset: Offset(2, 2),
-                                    ),
-                                  ],
-                                ),
+                  return GridView.count(
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: itemWidth / itemHeight,
+                    children: _activeObjects.map((obj) {
+                      final GlobalKey objKey = GlobalKey();
+
+                      return GestureDetector(
+                        key: objKey,
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _onObjectTap(obj, objKey),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Image.asset(obj.imagePath, fit: BoxFit.contain),
+                            Text(
+                              obj.letter,
+                              style: TextStyle(
+                                fontFamily: ForestAppTextStyles.fredoka,
+                                fontSize: letterFontSize,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                shadows: const [
+                                  Shadow(
+                                    blurRadius: 6,
+                                    color: Colors.black87,
+                                    offset: Offset(2, 2),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
               ),
+            ),
 
-              ..._wrongEffects.map((effect) {
-                return Positioned(
-                  left: effect['x']! - 20,
-                  top: effect['y']! - 20,
-                  child: Icon(
-                    Icons.close_rounded,
-                    color: Colors.redAccent,
-                    size: objSize * 0.8,
-                    shadows: const [
-                      Shadow(
-                        color: Colors.white,
-                        blurRadius: 12,
-                        offset: Offset(0, 0),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-              ..._correctEffects.map((effect) {
-                return Positioned(
-                  left: effect['x']! - 20,
-                  top: effect['y']! - 20,
-                  child: Icon(
-                    Icons.check_rounded,
-                    color: Colors.greenAccent.shade700,
-                    size: objSize * 0.8,
-                    shadows: const [
-                      Shadow(
-                        color: Colors.white,
-                        blurRadius: 12,
-                        offset: Offset(0, 0),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
+            ..._wrongEffects.map((effect) {
+              return Positioned(
+                left: effect['x']! - 20,
+                top: effect['y']! - 20,
+                child: Icon(
+                  Icons.close_rounded,
+                  color: Colors.redAccent,
+                  size: objSize * 0.8,
+                  shadows: const [
+                    Shadow(
+                      color: Colors.white,
+                      blurRadius: 12,
+                      offset: Offset(0, 0),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            ..._correctEffects.map((effect) {
+              return Positioned(
+                left: effect['x']! - 20,
+                top: effect['y']! - 20,
+                child: Icon(
+                  Icons.check_rounded,
+                  color: Colors.greenAccent.shade700,
+                  size: objSize * 0.8,
+                  shadows: const [
+                    Shadow(
+                      color: Colors.white,
+                      blurRadius: 12,
+                      offset: Offset(0, 0),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
         ),
-      );
+      ),
+    );
   }
 }
 
