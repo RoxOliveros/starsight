@@ -73,7 +73,7 @@ class ParentPinValidationState extends State<ParentPinValidation> {
 
   @override
   void dispose() {
-    OrientationService.setLandscape();
+    //OrientationService.setLandscape();
     super.dispose();
   }
 

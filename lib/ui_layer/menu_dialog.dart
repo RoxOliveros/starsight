@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'app_dialog.dart';
 import 'avatar_picker_dialog.dart';
+import 'parents_area_screen.dart';
+import 'analysis_report_screen.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -150,32 +152,47 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                       ),
                     );
 
+                    // if (authenticated == true) {
+                    //   navigator.push(
+                    //     MaterialPageRoute(
+                    //       builder: (_) => const BehaviorReportsScreen(),
+                    //     ),
+                    //   );
+                    // }
                     if (authenticated == true) {
                       navigator.push(
                         MaterialPageRoute(
-                          builder: (_) => const BehaviorReportsScreen(),
+                          builder: (_) => const AnalysisReportsScreen(),
                         ),
                       );
                     }
                   },
                 ),
 
-                // const SizedBox(height: 14),
+                const SizedBox(height: 14),
 
-                // _ProfileOption(
-                //   icon: Icons.group,
-                //   label: "Parent's Area",
-                //   onTap: () {
-                //     Navigator.pop(context);
-                //
-                //     Navigator.push(
-                //       context,
-                //       MaterialPageRoute(
-                //         builder: (context) => const ParentPin(),
-                //       ),
-                //     );
-                //   },
-                // ),
+                _ProfileOption(
+                  icon: Icons.group,
+                  label: "Parent's Area",
+                  onTap: () async {
+                    final navigator = Navigator.of(context);
+                    navigator.pop(); // close the dialog first
+
+                    final bool? authenticated = await navigator.push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => const ParentPinValidation(),
+                      ),
+                    );
+
+                    if (authenticated == true) {
+                      navigator.push(
+                        MaterialPageRoute(
+                          builder: (_) => const ParentsAreaScreen(),
+                        ),
+                      );
+                    }
+                  },
+                ),
 
                 const SizedBox(height: 14),
 

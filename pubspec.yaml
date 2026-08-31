@@ -160,6 +160,7 @@ flutter:
     - assets/audio/lumi_town/level11/
     - assets/audio/lumi_town/level12/
     - assets/audio/lumi_town/level13/
+    - assets/animations/jar_star.webp
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

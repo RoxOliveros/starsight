@@ -26,10 +26,10 @@ class DatabaseService {
         .collection('children')
         .doc(childNickname)
         .set({
-          'nickname': childNickname,
-          'goals': childGoals,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+      'nickname': childNickname,
+      'goals': childGoals,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   // Check if an email is already registered
@@ -87,5 +87,73 @@ class DatabaseService {
       print("Error fetching PIN: $e");
     }
     return null;
+  }
+
+
+  // Future<List<Map<String, dynamic>>> getChildren() async {
+  //   try {
+  //     final User? currentUser = FirebaseAuth.instance.currentUser;
+  //     if (currentUser == null) return [];
+  //
+  //     final QuerySnapshot snapshot = await _db
+  //         .collection('users')
+  //         .doc(currentUser.uid)
+  //         .collection('children')
+  //         .get();
+  //
+  //     return snapshot.docs
+  //         .map((doc) =>
+  //     {
+  //       'id': doc.id, // this is the child's nickname (used as doc ID)
+  //       ...doc.data() as Map<String, dynamic>,
+  //     })
+  //         .toList();
+  //   } catch (e) {
+  //     print("Error fetching children: $e");
+  //     return [];
+  //   }
+  // }
+
+  Future<List<Map<String, dynamic>>> getChildren() async {
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return [];
+
+      final QuerySnapshot snapshot = await _db
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('children')
+          .get();
+
+      return snapshot.docs
+          .map((doc) =>
+      {
+        'id': doc.id, // this is the child's nickname (used as doc ID)
+        ...doc.data() as Map<String, dynamic>,
+      })
+          .toList();
+    } catch (e) {
+      print("Error fetching children: $e");
+      return [];
+    }
+  }
+
+  Future<void> updateChildAvatar({
+    required String childNickname,
+    required String avatarPath,
+  }) async {
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      await _db
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('children')
+          .doc(childNickname)
+          .update({'avatarPath': avatarPath});
+    } catch (e) {
+      print("Error updating child avatar: $e");
+    }
   }
 }
