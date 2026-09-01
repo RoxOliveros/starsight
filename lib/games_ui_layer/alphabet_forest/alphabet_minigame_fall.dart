@@ -3,6 +3,7 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/forest_game_woodpecker_letter_listen.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -41,6 +42,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   AudioPlayer get tofiPlayer => _player;
 
   final AudioPlayer _player = AudioPlayer();
+
   final GameTapTracker _tapTracker = GameTapTracker();
 
   late List<String> _targetLetters;
@@ -63,7 +65,13 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     startAiCamera();
     _tapTracker.startSession();
     _loadLevel();
-    _startGameLoops();
+    onFirstFaceDetected = () {
+      _startGameLoops();
+    };
+    if (isFaceDetected) {
+      onFirstFaceDetected?.call();
+      onFirstFaceDetected = null;
+    }
   }
 
   // --- FLEXIBLE TARGET LETTERS ---
@@ -403,8 +411,9 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                   builder: (context) => const YakZebraRaceGame(level: 18),
                 ),
               );
+            } else {
+              _goToNext();
             }
-            _goToNext();
           },
 
           onRestart: () {
@@ -445,110 +454,131 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     final String letterLabel = widget.letter.toUpperCase();
 
     return Scaffold(
-      body: ForestBackground(
-        child: Stack(
-          children: [
-            // ── Back button ──
-            const Positioned(top: 25, left: 20, child: ForestBackButton()),
+      body: Stack(
+        children: [
+          ForestBackground(
+            child: Stack(
+              children: [
+                // ── Back button ──
+                const Positioned(top: 25, left: 20, child: ForestBackButton()),
 
-            // ── Title ──
-            Positioned(
-              top: 25,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ForestInstructionBanner(
-                  text: 'Catch the letter $letterLabel!',
+                // ── Title ──
+                Positioned(
+                  top: 25,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: ForestInstructionBanner(
+                      text: 'Catch the letter $letterLabel!',
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            // Level Badge
-            Positioned(
-              top: 25,
-              right: 20,
-              child: ForestLevelBadge(
-                level:
-                    ForestProgressService.levelNumberForLetter(
-                      widget.letter.toUpperCase(),
-                    ) ??
-                    1,
-              ),
-            ),
+                // Level Badge
+                Positioned(
+                  top: 25,
+                  right: 20,
+                  child: ForestLevelBadge(
+                    level:
+                        ForestProgressService.levelNumberForLetter(
+                          widget.letter.toUpperCase(),
+                        ) ??
+                        1,
+                  ),
+                ),
 
-            buildTofi(context),
+                buildTofi(context),
 
-            LayoutBuilder(
-              builder: (context, constraints) {
-                double objSize = constraints.maxWidth * 0.12;
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    double objSize = constraints.maxWidth * 0.12;
 
-                return Stack(
-                  children: [
-                    ..._activeObjects.map((obj) {
-                      return Positioned(
-                        left: obj.xPos * (constraints.maxWidth - objSize),
-                        top: obj.yPos * constraints.maxHeight,
-                        child: GestureDetector(
-                          onTap: () => _onObjectTap(obj),
-                          child: SizedBox(
-                            width: objSize,
-                            height: objSize,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Image.asset(obj.imagePath, fit: BoxFit.contain),
-                                Text(
-                                  obj.letter,
-                                  style: TextStyle(
-                                    fontFamily: ForestAppTextStyles.fredoka,
-                                    fontSize: objSize * 0.5,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    shadows: const [
-                                      Shadow(
-                                        blurRadius: 6,
-                                        color: Colors.black87,
-                                        offset: Offset(2, 2),
+                    return Stack(
+                      children: [
+                        ..._activeObjects.map((obj) {
+                          return Positioned(
+                            left: obj.xPos * (constraints.maxWidth - objSize),
+                            top: obj.yPos * constraints.maxHeight,
+                            child: GestureDetector(
+                              onTap: () => _onObjectTap(obj),
+                              child: SizedBox(
+                                width: objSize,
+                                height: objSize,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Image.asset(
+                                      obj.imagePath,
+                                      fit: BoxFit.contain,
+                                    ),
+                                    Text(
+                                      obj.letter,
+                                      style: TextStyle(
+                                        fontFamily: ForestAppTextStyles.fredoka,
+                                        fontSize: objSize * 0.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                        shadows: const [
+                                          Shadow(
+                                            blurRadius: 6,
+                                            color: Colors.black87,
+                                            offset: Offset(2, 2),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    }),
-                    ..._wrongEffects.map((effect) {
-                      return Positioned(
-                        left: effect['x']! * (constraints.maxWidth - objSize),
-                        top: effect['y']! * constraints.maxHeight,
-                        child: SizedBox(
-                          width: objSize,
-                          height: objSize,
-                          child: Center(
-                            child: Icon(
-                              Icons.close_rounded,
-                              color: Colors.redAccent,
-                              size: objSize * 0.8,
-                              shadows: const [
-                                Shadow(
-                                  color: Colors.white,
-                                  blurRadius: 12,
-                                  offset: Offset(0, 0),
+                          );
+                        }),
+                        ..._wrongEffects.map((effect) {
+                          return Positioned(
+                            left:
+                                effect['x']! * (constraints.maxWidth - objSize),
+                            top: effect['y']! * constraints.maxHeight,
+                            child: SizedBox(
+                              width: objSize,
+                              height: objSize,
+                              child: Center(
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  color: Colors.redAccent,
+                                  size: objSize * 0.8,
+                                  shadows: const [
+                                    Shadow(
+                                      color: Colors.white,
+                                      blurRadius: 12,
+                                      offset: Offset(0, 0),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                );
+                          );
+                        }),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          // 2. The Lighting Prompt Card
+          if (!isFaceDetected)
+            LightingPromptCard(
+              onClose: () {
+                setState(() {
+                  isFaceDetected = true;
+                });
+                // Manually trigger the start if they tap X
+                onFirstFaceDetected?.call();
+                onFirstFaceDetected = null;
               },
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

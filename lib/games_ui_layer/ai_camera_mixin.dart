@@ -5,12 +5,14 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+bool globalFaceDetected = false;
+
 mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   CameraController? aiCameraController;
   Timer? _analysisTimer;
   bool isCameraInitialized = false;
-  bool isFaceDetected = false;
-
+  bool isFaceDetected = globalFaceDetected;
+  VoidCallback? onFirstFaceDetected;
   List<String> sessionEmotions = [];
 
   final String pythonServerUrl = 'http://13.68.159.132:8080/analyze';
@@ -66,17 +68,19 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
       if (response.statusCode == 200) {
         String responseBody = await response.stream.bytesToString();
         var jsonResponse = jsonDecode(responseBody);
-
         String detectedEmotion = jsonResponse['emotion'];
 
-        // ---> NEW FACE TRACKING LOGIC <---
         if (detectedEmotion == "NO FACE DETECTED") {
           if (isFaceDetected) {
-            setState(() => isFaceDetected = false); // Show the prompt
+            globalFaceDetected = false; // 3. UPDATE GLOBAL MEMORY
+            setState(() => isFaceDetected = false);
           }
         } else {
           if (!isFaceDetected) {
-            setState(() => isFaceDetected = true); // Hide the prompt
+            globalFaceDetected = true; // 3. UPDATE GLOBAL MEMORY
+            setState(() => isFaceDetected = true);
+            onFirstFaceDetected?.call();
+            onFirstFaceDetected = null;
           }
         }
 

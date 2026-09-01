@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../business_layer/forest_progress_service.dart';
@@ -135,8 +136,17 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
     _basketAcorns.clear();
 
-    finishLoading(_startIntroFlow);
+    finishLoading(() {
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    });
     _loadRound();
+
+    onFirstFaceDetected = () {
+      _startIntroFlow();
+    };
   }
 
   Future<void> _startIntroFlow() async {
@@ -390,6 +400,19 @@ class _AcornBasketGameState extends State<AcornBasketGame>
         gameBuilder: () => Stack(
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+
+            // ADD THIS: The conditionally rendered prompt card overlay
+            if (!isFaceDetected)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() {
+                    isFaceDetected = true;
+                  });
+                  // Manually trigger the start if they tap X
+                  onFirstFaceDetected?.call();
+                  onFirstFaceDetected = null;
+                },
+              ),
           ],
         ),
       ),

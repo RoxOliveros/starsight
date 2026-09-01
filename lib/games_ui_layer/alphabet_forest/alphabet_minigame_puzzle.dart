@@ -4,6 +4,7 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/forest_game_woodpecker_letter_listen.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
@@ -881,130 +882,147 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     final double pieceSize = boardSize / 2;
 
     return Scaffold(
-      body: ForestBackground(
-        child: Stack(
-          children: [
-            buildTofi(context),
-
-            // Back button
-            const Positioned(top: 25, left: 20, child: ForestBackButton()),
-
-            // Title
-            const Positioned(
-              top: 25,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ForestInstructionBanner(text: 'Complete the Picture!'),
-              ),
-            ),
-
-            // Level badge
-            Positioned(
-              top: 25,
-              right: 20,
-              child: ForestLevelBadge(
-                level:
-                    ForestProgressService.levelNumberForLetter(
-                      widget.letter.toUpperCase(),
-                    ) ??
-                    1,
-              ),
-            ),
-
-            Stack(
+      body: Stack(
+        children: [
+          // 1. Your original game UI
+          ForestBackground(
+            child: Stack(
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 70),
+                buildTofi(context),
+
+                // Back button
+                const Positioned(top: 25, left: 20, child: ForestBackButton()),
+
+                // Title
+                const Positioned(
+                  top: 25,
+                  left: 0,
+                  right: 0,
                   child: Center(
-                    child: SizedBox(
-                      width: boardSize,
-                      height: boardSize,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          border: Border.all(
-                            color: ForestColorTheme.lightgreen,
-                            width: 4,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          image: DecorationImage(
-                            image: AssetImage(_fullImagePath),
-                            fit: BoxFit.cover,
-                            opacity: 0.65,
+                    child: ForestInstructionBanner(
+                      text: 'Complete the Picture!',
+                    ),
+                  ),
+                ),
+
+                // Level badge
+                Positioned(
+                  top: 25,
+                  right: 20,
+                  child: ForestLevelBadge(
+                    level:
+                        ForestProgressService.levelNumberForLetter(
+                          widget.letter.toUpperCase(),
+                        ) ??
+                        1,
+                  ),
+                ),
+
+                Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 70),
+                      child: Center(
+                        child: SizedBox(
+                          width: boardSize,
+                          height: boardSize,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              border: Border.all(
+                                color: ForestColorTheme.lightgreen,
+                                width: 4,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              image: DecorationImage(
+                                image: AssetImage(_fullImagePath),
+                                fit: BoxFit.cover,
+                                opacity: 0.65,
+                              ),
+                            ),
+                            child: MediaQuery.removePadding(
+                              context: context,
+                              removeTop: true,
+                              removeBottom: true,
+                              child: GridView.builder(
+                                padding: EdgeInsets.zero,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: 4,
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                    ),
+                                itemBuilder: (context, index) {
+                                  return _buildTargetSlot(index, pieceSize);
+                                },
+                              ),
+                            ),
                           ),
                         ),
-                        child: MediaQuery.removePadding(
-                          context: context,
-                          removeTop: true,
-                          removeBottom: true,
+                      ),
+                    ),
+                    Positioned(
+                      right: 20,
+                      top: 80,
+                      bottom: 20,
+                      child: SizedBox(
+                        width: screenSize.width * 0.28,
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
                           child: GridView.builder(
-                            padding: EdgeInsets.zero,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: 4,
+                            shrinkWrap: true,
+                            itemCount: _availablePieces.length,
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                  childAspectRatio: 1,
                                 ),
                             itemBuilder: (context, index) {
-                              return _buildTargetSlot(index, pieceSize);
+                              final piece = _availablePieces[index];
+
+                              return Draggable<PuzzlePiece>(
+                                data: piece,
+                                feedback: _PuzzlePieceWidget(
+                                  imagePath: piece.imagePath,
+                                  size: pieceSize,
+                                  isDragging: true,
+                                ),
+                                childWhenDragging: Opacity(
+                                  opacity: 0.2,
+                                  child: _PuzzlePieceWidget(
+                                    imagePath: piece.imagePath,
+                                    size: pieceSize,
+                                  ),
+                                ),
+                                child: _PuzzlePieceWidget(
+                                  imagePath: piece.imagePath,
+                                  size: pieceSize,
+                                ),
+                              );
                             },
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                Positioned(
-                  right: 20,
-                  top: 80,
-                  bottom: 20,
-                  child: SizedBox(
-                    width: screenSize.width * 0.28,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: GridView.builder(
-                        physics: const NeverScrollableScrollPhysics(),
-                        shrinkWrap: true,
-                        itemCount: _availablePieces.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 1,
-                            ),
-                        itemBuilder: (context, index) {
-                          final piece = _availablePieces[index];
-
-                          return Draggable<PuzzlePiece>(
-                            data: piece,
-                            feedback: _PuzzlePieceWidget(
-                              imagePath: piece.imagePath,
-                              size: pieceSize,
-                              isDragging: true,
-                            ),
-                            childWhenDragging: Opacity(
-                              opacity: 0.2,
-                              child: _PuzzlePieceWidget(
-                                imagePath: piece.imagePath,
-                                size: pieceSize,
-                              ),
-                            ),
-                            child: _PuzzlePieceWidget(
-                              imagePath: piece.imagePath,
-                              size: pieceSize,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+
+          // 2. The Lighting Prompt Card Overlay
+          if (!isFaceDetected)
+            LightingPromptCard(
+              onClose: () {
+                setState(() {
+                  isFaceDetected = true;
+                });
+              },
+            ),
+        ],
       ),
     );
   }

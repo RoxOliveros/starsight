@@ -1,6 +1,7 @@
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_paint.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_pop.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -43,6 +44,8 @@ class AlphabetTraceScreen extends StatefulWidget {
 class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     with TofiReactionMixin, AiCameraMixin {
   final AudioPlayer _player = AudioPlayer();
+
+  // for tracking and analysis
   final GameTapTracker _tapTracker = GameTapTracker();
 
   @override
@@ -1090,90 +1093,103 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ForestBackground(
-        child: Stack(
-          children: [
-            Column(
+      body: Stack(
+        // <-- We wrap everything in this main Stack
+        children: [
+          // 1. Your original game UI
+          ForestBackground(
+            child: Stack(
               children: [
-                SizedBox(
-                  height: 80,
-                  child: Stack(
-                    children: [
-                      const Positioned(
-                        top: 25,
-                        left: 20,
-                        child: ForestBackButton(),
-                      ),
-
-                      Positioned(
-                        top: 25,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: ForestInstructionBanner(
-                            text:
-                                'Trace ${_levels[_currentLevelIndex].letterName}',
+                Column(
+                  children: [
+                    SizedBox(
+                      height: 80,
+                      child: Stack(
+                        children: [
+                          const Positioned(
+                            top: 25,
+                            left: 20,
+                            child: ForestBackButton(),
                           ),
-                        ),
-                      ),
-
-                      Positioned(
-                        top: 25,
-                        right: 20,
-                        child: ForestLevelBadge(
-                          level:
-                              ForestProgressService.levelNumberForLetter(
-                                widget.letter,
-                              ) ??
-                              1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                Expanded(
-                  child: Center(
-                    child: AspectRatio(
-                      aspectRatio: 1.0,
-                      child: Padding(
-                        padding: const EdgeInsets.all(18.0),
-                        child: Container(
-                          key: _canvasKey,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: ForestColorTheme.lightgreen,
-                              width: 4,
+                          Positioned(
+                            top: 25,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: ForestInstructionBanner(
+                                text:
+                                    'Trace ${_levels[_currentLevelIndex].letterName}',
+                              ),
                             ),
                           ),
-                          child: Stack(
-                            children: [
-                              GestureDetector(
-                                onPanUpdate: _onPanUpdate,
-                                child: CustomPaint(
-                                  painter: GuidedTracePainter(
-                                    denseStrokes: _denseStrokes,
-                                    currentStrokeIndex: _currentStrokeIndex,
-                                    currentPointIndex: _currentPointIndex,
-                                  ),
-                                  size: Size.infinite,
+                          Positioned(
+                            top: 25,
+                            right: 20,
+                            child: ForestLevelBadge(
+                              level:
+                                  ForestProgressService.levelNumberForLetter(
+                                    widget.letter,
+                                  ) ??
+                                  1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: AspectRatio(
+                          aspectRatio: 1.0,
+                          child: Padding(
+                            padding: const EdgeInsets.all(18.0),
+                            child: Container(
+                              key: _canvasKey,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: ForestColorTheme.lightgreen,
+                                  width: 4,
                                 ),
                               ),
-                            ],
+                              child: Stack(
+                                children: [
+                                  GestureDetector(
+                                    onPanUpdate: _onPanUpdate,
+                                    child: CustomPaint(
+                                      painter: GuidedTracePainter(
+                                        denseStrokes: _denseStrokes,
+                                        currentStrokeIndex: _currentStrokeIndex,
+                                        currentPointIndex: _currentPointIndex,
+                                      ),
+                                      size: Size.infinite,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 20),
+                  ],
                 ),
-                const SizedBox(height: 20),
+                buildTofi(context),
               ],
             ),
-            buildTofi(context),
-          ],
-        ),
+          ),
+
+          // 2. The Lighting Prompt Card (Valid here because it's inside the outer Stack's children list)
+          if (!isFaceDetected)
+            LightingPromptCard(
+              onClose: () {
+                setState(() {
+                  isFaceDetected = true;
+                });
+              },
+            ),
+        ],
       ),
     );
   }

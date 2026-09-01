@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/forest_game_woodpecker_letter_listen.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -55,6 +56,7 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
   AudioPlayer get tofiPlayer => _player;
 
   final GameTapTracker _tapTracker = GameTapTracker();
+
   // --- Paint State ---
   final List<PaintPoint> _paintPoints = [];
   Color _selectedColor = const Color(0xFFE74C3C); // default red
@@ -397,228 +399,245 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
     final Size screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
-      body: ForestBackground(
-        child: Stack(
-          children: [
-            buildTofi(context),
+      body: Stack(
+        children: [
+          ForestBackground(
+            child: Stack(
+              children: [
+                buildTofi(context),
 
-            // ── Back button ──
-            const Positioned(top: 25, left: 20, child: ForestBackButton()),
+                // ── Back button ──
+                const Positioned(top: 25, left: 20, child: ForestBackButton()),
 
-            // ── Title ──
-            Positioned(
-              top: 25,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ForestInstructionBanner(text: 'Paint the letter!'),
-              ),
-            ),
-
-            // Level Badge
-            Positioned(
-              top: 25,
-              right: 20,
-              child: ForestLevelBadge(
-                level:
-                    ForestProgressService.levelNumberForLetter(
-                      widget.letter.toUpperCase(),
-                    ) ??
-                    1,
-              ),
-            ),
-
-            // ── Main area: canvas + palette ──
-            Positioned(
-              top: screenSize.height * 0.22,
-              bottom: 12,
-              left: 200,
-              right: 12,
-              child: Column(
-                children: [
-                  // ── Paint Canvas ──
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return GestureDetector(
-                          onPanUpdate: (d) => _onPanUpdate(d, constraints),
-                          onPanStart: (d) {
-                            _onPanUpdate(
-                              DragUpdateDetails(
-                                globalPosition: d.globalPosition,
-                                delta: Offset.zero,
-                              ),
-                              constraints,
-                            );
-                          },
-                          child: Container(
-                            key: _canvasKey,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFDF6E3),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color: ForestColorTheme.darkseagreen,
-                                width: 4,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: CustomPaint(
-                                painter: _ProgressiveLetterPainter(
-                                  points: _paintPoints,
-                                  letter: widget.letter,
-                                ),
-                                child: const SizedBox.expand(),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                // ── Title ──
+                Positioned(
+                  top: 25,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: ForestInstructionBanner(text: 'Paint the letter!'),
                   ),
+                ),
 
-                  const SizedBox(height: 12),
+                // Level Badge
+                Positioned(
+                  top: 25,
+                  right: 20,
+                  child: ForestLevelBadge(
+                    level:
+                        ForestProgressService.levelNumberForLetter(
+                          widget.letter.toUpperCase(),
+                        ) ??
+                        1,
+                  ),
+                ),
 
-                  // ── Color Palette — horizontal, scrolls if it overflows ──
-                  SizedBox(
-                    height: screenSize.height * 0.14,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          const SizedBox(width: 8),
-
-                          // Brush size buttons
-                          _BrushSizeButton(
-                            size: 18,
-                            isSelected: _brushSize == 18,
-                            color: _selectedColor,
-                            onTap: () => setState(() => _brushSize = 18),
-                          ),
-                          const SizedBox(width: 4),
-                          _BrushSizeButton(
-                            size: 28,
-                            isSelected: _brushSize == 28,
-                            color: _selectedColor,
-                            onTap: () => setState(() => _brushSize = 28),
-                          ),
-                          const SizedBox(width: 4),
-                          _BrushSizeButton(
-                            size: 40,
-                            isSelected: _brushSize == 40,
-                            color: _selectedColor,
-                            onTap: () => setState(() => _brushSize = 40),
-                          ),
-
-                          const SizedBox(width: 12),
-                          const VerticalDivider(
-                            color: Colors.white54,
-                            thickness: 1,
-                            width: 20,
-                          ),
-                          const SizedBox(width: 8),
-
-                          // Color swatches — all palette colors, scrolls if needed
-                          ..._palette.map((color) {
-                            final bool isSelected = _selectedColor == color;
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                              ),
-                              child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _selectedColor = color),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 150),
-                                  width: isSelected ? 42 : 34,
-                                  height: isSelected ? 42 : 34,
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? Colors.white
-                                          : Colors.white54,
-                                      width: isSelected ? 3 : 1.5,
+                // ── Main area: canvas + palette ──
+                Positioned(
+                  top: screenSize.height * 0.22,
+                  bottom: 12,
+                  left: 200,
+                  right: 12,
+                  child: Column(
+                    children: [
+                      // ── Paint Canvas ──
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return GestureDetector(
+                              onPanUpdate: (d) => _onPanUpdate(d, constraints),
+                              onPanStart: (d) {
+                                _onPanUpdate(
+                                  DragUpdateDetails(
+                                    globalPosition: d.globalPosition,
+                                    delta: Offset.zero,
+                                  ),
+                                  constraints,
+                                );
+                              },
+                              child: Container(
+                                key: _canvasKey,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFDF6E3),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: ForestColorTheme.darkseagreen,
+                                    width: 4,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
                                     ),
-                                    boxShadow: isSelected
-                                        ? [
-                                            BoxShadow(
-                                              color: color.withValues(
-                                                alpha: 0.6,
-                                              ),
-                                              blurRadius: 8,
-                                              spreadRadius: 2,
-                                            ),
-                                          ]
-                                        : [],
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: CustomPaint(
+                                    painter: _ProgressiveLetterPainter(
+                                      points: _paintPoints,
+                                      letter: widget.letter,
+                                    ),
+                                    child: const SizedBox.expand(),
                                   ),
                                 ),
                               ),
                             );
-                          }),
-
-                          const SizedBox(width: 12),
-                          const VerticalDivider(
-                            color: Colors.white54,
-                            thickness: 1,
-                            width: 20,
-                          ),
-                          const SizedBox(width: 8),
-
-                          // Clear button
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _paintPoints.clear();
-                                _celebrationShown = false;
-                              });
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white24,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.white54,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Text(
-                                'Clear',
-                                style: TextStyle(
-                                  fontFamily: ForestAppTextStyles.fredoka,
-                                  fontSize: 13,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(width: 8),
-                        ],
+                          },
+                        ),
                       ),
-                    ),
+
+                      const SizedBox(height: 12),
+
+                      // ── Color Palette — horizontal, scrolls if it overflows ──
+                      SizedBox(
+                        height: screenSize.height * 0.14,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const SizedBox(width: 8),
+
+                              // Brush size buttons
+                              _BrushSizeButton(
+                                size: 18,
+                                isSelected: _brushSize == 18,
+                                color: _selectedColor,
+                                onTap: () => setState(() => _brushSize = 18),
+                              ),
+                              const SizedBox(width: 4),
+                              _BrushSizeButton(
+                                size: 28,
+                                isSelected: _brushSize == 28,
+                                color: _selectedColor,
+                                onTap: () => setState(() => _brushSize = 28),
+                              ),
+                              const SizedBox(width: 4),
+                              _BrushSizeButton(
+                                size: 40,
+                                isSelected: _brushSize == 40,
+                                color: _selectedColor,
+                                onTap: () => setState(() => _brushSize = 40),
+                              ),
+
+                              const SizedBox(width: 12),
+                              const VerticalDivider(
+                                color: Colors.white54,
+                                thickness: 1,
+                                width: 20,
+                              ),
+                              const SizedBox(width: 8),
+
+                              // Color swatches — all palette colors, scrolls if needed
+                              ..._palette.map((color) {
+                                final bool isSelected = _selectedColor == color;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  child: GestureDetector(
+                                    onTap: () =>
+                                        setState(() => _selectedColor = color),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 150,
+                                      ),
+                                      width: isSelected ? 42 : 34,
+                                      height: isSelected ? 42 : 34,
+                                      decoration: BoxDecoration(
+                                        color: color,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? Colors.white
+                                              : Colors.white54,
+                                          width: isSelected ? 3 : 1.5,
+                                        ),
+                                        boxShadow: isSelected
+                                            ? [
+                                                BoxShadow(
+                                                  color: color.withValues(
+                                                    alpha: 0.6,
+                                                  ),
+                                                  blurRadius: 8,
+                                                  spreadRadius: 2,
+                                                ),
+                                              ]
+                                            : [],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+
+                              const SizedBox(width: 12),
+                              const VerticalDivider(
+                                color: Colors.white54,
+                                thickness: 1,
+                                width: 20,
+                              ),
+                              const SizedBox(width: 8),
+
+                              // Clear button
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _paintPoints.clear();
+                                    _celebrationShown = false;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white24,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.white54,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Clear',
+                                    style: TextStyle(
+                                      fontFamily: ForestAppTextStyles.fredoka,
+                                      fontSize: 13,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(width: 8),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+
+          if (!isFaceDetected)
+            LightingPromptCard(
+              onClose: () {
+                setState(() {
+                  isFaceDetected = true;
+                });
+              },
+            ),
+        ],
       ),
     );
   }

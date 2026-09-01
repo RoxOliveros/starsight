@@ -22,7 +22,10 @@ class CategorySummaryService {
     }
 
     // 2. Build the Gemini Prompt
-    final model = GenerativeModel(model: 'gemini-3.7-flash', apiKey: apiKey);
+    final model = GenerativeModel(
+      model: 'gemini-3.5-flash-lite',
+      apiKey: apiKey,
+    );
 
     String prompt =
         '''
@@ -62,6 +65,7 @@ Do not include any generic greetings or sign-offs.
       // Combine the AI text with our dynamic disclaimer
       return aiGeneratedText + disclaimer;
     } catch (e) {
+      print("Gemini API Error: $e");
       // If the internet drops or the API fails, it still returns a safe fallback with the disclaimer
       return "Great job exploring $categoryName!$disclaimer";
     }

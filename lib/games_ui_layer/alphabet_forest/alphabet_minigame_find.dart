@@ -6,6 +6,7 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/forest_game_woodpecker_letter_listen.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
@@ -82,6 +83,14 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
       TweenSequenceItem(tween: Tween(begin: 0.12, end: 0.0), weight: 25),
     ]).animate(CurvedAnimation(parent: _wiggleCtrl, curve: Curves.easeInOut));
     _loadRound();
+
+    onFirstFaceDetected = () {
+      _playVaseSounds();
+    };
+    if (isFaceDetected) {
+      onFirstFaceDetected?.call();
+      onFirstFaceDetected = null;
+    }
   }
 
   void _loadRound() {
@@ -124,7 +133,11 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
       _choicesLocked = false;
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _playVaseSounds());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (isFaceDetected) {
+        _playVaseSounds();
+      }
+    });
   }
 
   Future<void> _playVaseSounds() async {
@@ -400,8 +413,9 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
                   builder: (context) => const YakZebraRaceGame(level: 18),
                 ),
               );
+            } else {
+              _goToNext();
             }
-            _goToNext();
           },
           onRestart: () {
             Navigator.pop(context);
@@ -437,68 +451,87 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ForestBackground(
-        child: Stack(
-          children: [
-            const Positioned(top: 25, left: 20, child: ForestBackButton()),
+      body: Stack(
+        // <-- Main Stack added here
+        children: [
+          // 1. Your original game UI
+          ForestBackground(
+            child: Stack(
+              children: [
+                const Positioned(top: 25, left: 20, child: ForestBackButton()),
 
-            Positioned(
-              top: 25,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ForestInstructionBanner(
-                  text: 'Where is the letter ${widget.letter}?',
+                Positioned(
+                  top: 25,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: ForestInstructionBanner(
+                      text: 'Where is the letter ${widget.letter}?',
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            Positioned(
-              top: 25,
-              right: 20,
-              child: ForestLevelBadge(
-                level:
-                    ForestProgressService.levelNumberForLetter(
-                      widget.letter.toUpperCase(),
-                    ) ??
-                    1,
-              ),
-            ),
-
-            buildTofi(context),
-
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 40),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(_vaseLetters.length, (i) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _buildVase(i),
-                    );
-                  }),
+                Positioned(
+                  top: 25,
+                  right: 20,
+                  child: ForestLevelBadge(
+                    level:
+                        ForestProgressService.levelNumberForLetter(
+                          widget.letter.toUpperCase(),
+                        ) ??
+                        1,
+                  ),
                 ),
-              ),
-            ),
 
-            // --- REPLAY SOUND BUTTON ---
-            Positioned(
-              bottom: 0,
-              right: 20,
-              child: GestureDetector(
-                onTap: _playVaseSounds,
-                child: Image.asset(
-                  'assets/images/icons/speaker.png', // <-- your speaker image
-                  width: 90,
-                  height: 90,
-                  fit: BoxFit.contain,
+                buildTofi(context),
+
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 40),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(_vaseLetters.length, (i) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildVase(i),
+                        );
+                      }),
+                    ),
+                  ),
                 ),
-              ),
+
+                // --- REPLAY SOUND BUTTON ---
+                Positioned(
+                  bottom: 0,
+                  right: 20,
+                  child: GestureDetector(
+                    onTap: _playVaseSounds,
+                    child: Image.asset(
+                      'assets/images/icons/speaker.png',
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+
+          // 2. The Lighting Prompt Card Overlay
+          if (!isFaceDetected)
+            LightingPromptCard(
+              onClose: () {
+                setState(() {
+                  isFaceDetected = true;
+                });
+                // Manually trigger the start if they tap X
+                onFirstFaceDetected?.call();
+                onFirstFaceDetected = null;
+              },
+            ),
+        ],
       ),
     );
   }

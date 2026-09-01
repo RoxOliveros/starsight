@@ -4,6 +4,7 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/forest_game_woodpecker_letter_listen.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
@@ -437,136 +438,153 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     final double objSize = (screenSize.height * 0.22).clamp(80.0, 150.0);
 
     return Scaffold(
-      body: ForestBackground(
-        child: Stack(
-          children: [
-            buildTofi(context),
+      body: Stack(
+        // <-- Main Stack added here
+        children: [
+          // 1. Your original game UI
+          ForestBackground(
+            child: Stack(
+              children: [
+                buildTofi(context),
 
-            // ── Back button ──
-            const Positioned(top: 25, left: 20, child: ForestBackButton()),
+                // ── Back button ──
+                const Positioned(top: 25, left: 20, child: ForestBackButton()),
 
-            // ── Title ──
-            Positioned(
-              top: 25,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ForestInstructionBanner(
-                  text: 'Find all the letters: ${widget.letter.toUpperCase()}',
+                // ── Title ──
+                Positioned(
+                  top: 25,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: ForestInstructionBanner(
+                      text:
+                          'Find all the letters: ${widget.letter.toUpperCase()}',
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            // Level Badge
-            Positioned(
-              top: 25,
-              right: 20,
-              child: ForestLevelBadge(
-                level:
-                    ForestProgressService.levelNumberForLetter(
-                      widget.letter.toUpperCase(),
-                    ) ??
-                    1,
-              ),
-            ),
+                // Level Badge
+                Positioned(
+                  top: 25,
+                  right: 20,
+                  child: ForestLevelBadge(
+                    level:
+                        ForestProgressService.levelNumberForLetter(
+                          widget.letter.toUpperCase(),
+                        ) ??
+                        1,
+                  ),
+                ),
 
-            Positioned(
-              top: 80,
-              bottom: 20,
-              left: 180,
-              right: 20,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Calculate item size to fit exactly 4 columns and 3 rows
-                  final double itemWidth =
-                      (constraints.maxWidth - (3 * 12)) / 4;
-                  final double itemHeight =
-                      (constraints.maxHeight - (2 * 12)) / 2;
-                  final double itemSize = itemWidth < itemHeight
-                      ? itemWidth
-                      : itemHeight;
-                  final double letterFontSize = itemSize * 0.45;
+                Positioned(
+                  top: 80,
+                  bottom: 20,
+                  left: 180,
+                  right: 20,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Calculate item size to fit exactly 4 columns and 3 rows
+                      final double itemWidth =
+                          (constraints.maxWidth - (3 * 12)) / 4;
+                      final double itemHeight =
+                          (constraints.maxHeight - (2 * 12)) / 2;
+                      final double itemSize = itemWidth < itemHeight
+                          ? itemWidth
+                          : itemHeight;
+                      final double letterFontSize = itemSize * 0.45;
 
-                  return GridView.count(
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 4,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: itemWidth / itemHeight,
-                    children: _activeObjects.map((obj) {
-                      final GlobalKey objKey = GlobalKey();
+                      return GridView.count(
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 4,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: itemWidth / itemHeight,
+                        children: _activeObjects.map((obj) {
+                          final GlobalKey objKey = GlobalKey();
 
-                      return GestureDetector(
-                        key: objKey,
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _onObjectTap(obj, objKey),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Image.asset(obj.imagePath, fit: BoxFit.contain),
-                            Text(
-                              obj.letter,
-                              style: TextStyle(
-                                fontFamily: ForestAppTextStyles.fredoka,
-                                fontSize: letterFontSize,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                shadows: const [
-                                  Shadow(
-                                    blurRadius: 6,
-                                    color: Colors.black87,
-                                    offset: Offset(2, 2),
+                          return GestureDetector(
+                            key: objKey,
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _onObjectTap(obj, objKey),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Image.asset(obj.imagePath, fit: BoxFit.contain),
+                                Text(
+                                  obj.letter,
+                                  style: TextStyle(
+                                    fontFamily: ForestAppTextStyles.fredoka,
+                                    fontSize: letterFontSize,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    shadows: const [
+                                      Shadow(
+                                        blurRadius: 6,
+                                        color: Colors.black87,
+                                        offset: Offset(2, 2),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          );
+                        }).toList(),
                       );
-                    }).toList(),
-                  );
-                },
-              ),
-            ),
+                    },
+                  ),
+                ),
 
-            ..._wrongEffects.map((effect) {
-              return Positioned(
-                left: effect['x']! - 20,
-                top: effect['y']! - 20,
-                child: Icon(
-                  Icons.close_rounded,
-                  color: Colors.redAccent,
-                  size: objSize * 0.8,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.white,
-                      blurRadius: 12,
-                      offset: Offset(0, 0),
+                ..._wrongEffects.map((effect) {
+                  return Positioned(
+                    left: effect['x']! - 20,
+                    top: effect['y']! - 20,
+                    child: Icon(
+                      Icons.close_rounded,
+                      color: Colors.redAccent,
+                      size: objSize * 0.8,
+                      shadows: const [
+                        Shadow(
+                          color: Colors.white,
+                          blurRadius: 12,
+                          offset: Offset(0, 0),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              );
-            }),
-            ..._correctEffects.map((effect) {
-              return Positioned(
-                left: effect['x']! - 20,
-                top: effect['y']! - 20,
-                child: Icon(
-                  Icons.check_rounded,
-                  color: Colors.greenAccent.shade700,
-                  size: objSize * 0.8,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.white,
-                      blurRadius: 12,
-                      offset: Offset(0, 0),
+                  );
+                }),
+                ..._correctEffects.map((effect) {
+                  return Positioned(
+                    left: effect['x']! - 20,
+                    top: effect['y']! - 20,
+                    child: Icon(
+                      Icons.check_rounded,
+                      color: Colors.greenAccent.shade700,
+                      size: objSize * 0.8,
+                      shadows: const [
+                        Shadow(
+                          color: Colors.white,
+                          blurRadius: 12,
+                          offset: Offset(0, 0),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        ),
+                  );
+                }),
+              ],
+            ),
+          ),
+
+          // 2. The Lighting Prompt Card Overlay
+          if (!isFaceDetected)
+            LightingPromptCard(
+              onClose: () {
+                setState(() {
+                  isFaceDetected = true;
+                });
+              },
+            ),
+        ],
       ),
     );
   }
