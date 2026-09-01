@@ -12,7 +12,6 @@
   import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
   import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
   import '../goodjob_prompt.dart';
-import 'game_which_comes_first.dart';
 
   // ── Screen phases ──────────────────────────────────────────────────────────
   enum _ScreenPhase { intro, game }
@@ -793,12 +792,12 @@ import 'game_which_comes_first.dart';
         characterImage: _characterImage,
         closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
         onNext: () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => WhichComesFirstScreen(level: widget.level + 1),
-            ),
-          );
+          // Navigator.pushReplacement( TODO: @Tin add nav
+          //   context,
+          //   MaterialPageRoute(
+          //     builder: (context) => (level: widget.level + 1),
+          //   ),
+          // );
         },
         onRestart: () {
           Navigator.pushReplacement(

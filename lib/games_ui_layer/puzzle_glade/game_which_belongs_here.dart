@@ -49,11 +49,6 @@ const List<_WhichBelongsQuestion> _kRound1Pool = [
     choices: ['toothbrush', 'ball', 'pan'],
   ),
   _WhichBelongsQuestion(
-    scene: 'bg_lumi_park',
-    correctObject: 'ball',
-    choices: ['ball', 'toothbrush', 'plate'],
-  ),
-  _WhichBelongsQuestion(
     scene: 'bg_lumi_classroom',
     correctObject: 'pen',
     choices: ['pen', 'soap', 'plate'],
@@ -63,14 +58,9 @@ const List<_WhichBelongsQuestion> _kRound1Pool = [
 // Round 2 — another familiar place, still obvious.
 const List<_WhichBelongsQuestion> _kRound2Pool = [
   _WhichBelongsQuestion(
-    scene: 'bg_game_kitchen',
-    correctObject: 'frying_pan',
+    scene: 'bg_kitchen',
+    correctObject: 'pan',
     choices: ['pan', 'pillow', 'toothbrush'],
-  ),
-  _WhichBelongsQuestion(
-    scene: 'bg_beach_sunny',
-    correctObject: 'beach_ball',
-    choices: ['beach_ball', 'pen', 'plate'],
   ),
   _WhichBelongsQuestion(
     scene: 'bg_game_forest_garden',
@@ -87,21 +77,21 @@ const List<_WhichBelongsQuestion> _kRound3Pool = [
     choices: ['pillow', 'plate', 'school_bag'],
   ),
   _WhichBelongsQuestion(
-    scene: 'bg_dining_room',
-    correctObject: 'plate',
-    choices: ['plate', 'pillow', 'notebook'],
+    scene: 'bg_lumi_park',
+    correctObject: 'ball',
+    choices: ['ball', 'toothbrush', 'plate'],
   ),
   _WhichBelongsQuestion(
-    scene: 'bg_bedroom_closet',
-    correctObject: 'shirt',
-    choices: ['shirt', 'towel', 'blanket'],
+    scene: 'bg_beach_sunny',
+    correctObject: 'beach_ball',
+    choices: ['beach_ball', 'pen', 'plate'],
   ),
 ];
 
 // Round 4 — visually similar-shaped distractors, but one clear correct answer.
 const List<_WhichBelongsQuestion> _kRound4Pool = [
   _WhichBelongsQuestion(
-    scene: 'bg_game_kitchen',
+    scene: 'bg_kitchen',
     correctObject: 'pot',
     choices: ['pot', 'bucket', 'watering_can'],
   ),
@@ -132,7 +122,7 @@ const List<_WhichBelongsQuestion> _kRound5Pool = [
   _WhichBelongsQuestion(
     scene: 'bg_living_room',
     correctObject: 'sofa',
-    choices: ['sofa', 'bedroom_lamp', 'bucket'],
+    choices: ['sofa', 'room_lamp', 'bucket'],
   ),
 ];
 
@@ -169,8 +159,15 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
   static const String _sceneAssetPath = 'assets/images/backgrounds';
 
   static const String _audioIntro = 'assets/audio/puzzle_glade/which_belongs_here_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/which_belongs_here_instruction.wav';
   static const String _audioComplete = 'assets/audio/puzzle_glade/which_belongs_here_complete.wav';
+  static const String _audioBathroom = 'assets/audio/puzzle_glade/which_belongs_here_bathroom.wav';
+  static const String _audioBeach = 'assets/audio/puzzle_glade/which_belongs_here_beach.wav';
+  static const String _audioClassroom = 'assets/audio/puzzle_glade/which_belongs_here_classroom.wav';
+  static const String _audioGarden = 'assets/audio/puzzle_glade/which_belongs_here_garden.wav';
+  static const String _audioKitchen = 'assets/audio/puzzle_glade/which_belongs_here_kitchen.wav';
+  static const String _audioLivingRoom = 'assets/audio/puzzle_glade/which_belongs_here_living_room.wav';
+  static const String _audioPark = 'assets/audio/puzzle_glade/which_belongs_here_park.wav';
+  static const String _audioBedroom = 'assets/audio/puzzle_glade/which_belongs_here_bedroom.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -184,7 +181,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
 
   int? _selectedIndex;
   int? _wrongIndex;
-  bool _buttonsDisabled = false;
+  bool _buttonsDisabled = true;
   bool _roundComplete = false;
   bool _showWinDialog = false;
 
@@ -299,8 +296,6 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
       CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.easeOut),
     );
 
-    // Drives a staggered entrance for the 3 choice cards via per-index
-    // Interval windows (see _choiceEntranceFor).
     _choicesEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 650),
@@ -356,11 +351,15 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
 
     if (!mounted) return;
 
-    setState(() => _screenPhase = _ScreenPhase.game);
+    setState(() {
+      _screenPhase = _ScreenPhase.game;
+    });
 
-    await _playBgAudio(_audioInstructions);
+    await Future.delayed(const Duration(milliseconds: 350));
 
     if (!mounted) return;
+
+    await _playCurrentSceneAudio();
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -376,6 +375,70 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
       debugPrint('Audio error ($asset): $e');
     } finally {
       await sub?.cancel();
+    }
+  }
+
+  String? _getAudioForScene(String scene) {
+    switch (scene) {
+      case 'bg_lumi_bathroom':
+        return _audioBathroom;
+
+      case 'bg_lumi_park':
+        return _audioPark;
+
+      case 'bg_lumi_classroom':
+        return _audioClassroom;
+
+      case 'bg_kitchen':
+        return _audioKitchen;
+
+      case 'bg_beach_sunny':
+        return _audioBeach;
+
+      case 'bg_game_forest_garden':
+        return _audioGarden;
+
+      case 'bg_lumi_bed':
+        return _audioBedroom;
+
+      case 'bg_living_room':
+        return _audioLivingRoom;
+
+      default:
+        debugPrint('No question audio configured for scene: $scene');
+        return null;
+    }
+  }
+
+  Future<void> _playCurrentSceneAudio() async {
+    if (!mounted) return;
+
+    final audio = _getAudioForScene(_question.scene);
+
+    if (audio == null) {
+      if (mounted) {
+        setState(() {
+          _buttonsDisabled = false;
+        });
+      }
+      return;
+    }
+
+    // Prevent answering before the question narration finishes.
+    if (mounted) {
+      setState(() {
+        _buttonsDisabled = true;
+      });
+    }
+
+    await _playBgAudio(audio);
+
+    if (!mounted) return;
+
+    if (!_roundComplete) {
+      setState(() {
+        _buttonsDisabled = false;
+      });
     }
   }
 
@@ -462,8 +525,15 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
 
         setState(() {
           _round++;
-          _startRound();
         });
+
+        _startRound();
+
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        if (!mounted) return;
+
+        await _playCurrentSceneAudio();
       }
     } else {
       setState(() {
@@ -592,7 +662,6 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
   }
 
   Widget _buildIntroPreview() {
-    // A single obvious example (bathroom → toothbrush) to set expectations.
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
