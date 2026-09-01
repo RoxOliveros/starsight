@@ -18,6 +18,7 @@ import '../../games_ui_layer/puzzle_glade/game_shadow_match.dart';
 import '../../games_ui_layer/puzzle_glade/game_puzzle_object.dart';
 import '../../games_ui_layer/puzzle_glade/game_basket_sort.dart';
 import '../../games_ui_layer/puzzle_glade/game_size_sort.dart';
+import '../../games_ui_layer/puzzle_glade/game_what_goes_together_screen.dart';
 import '../../games_ui_layer/puzzle_glade/game_whats_missing.dart';
 import '../../games_ui_layer/puzzle_glade/game_which_belongs_here.dart';
 import '../loading_screen.dart';
@@ -334,7 +335,7 @@ class _LevelTile extends StatelessWidget {
       case 15:
         return const RotateTheShapeScreen(level: 15);
       case 16:
-        // return const (level: 16); TODO: @Tin add game
+        return const WhatGoesTogetherScreen(level: 16);
       case 17:
         return const OddOneOutScreen(level: 17);
       case 18:
