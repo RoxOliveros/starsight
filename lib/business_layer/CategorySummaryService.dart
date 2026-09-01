@@ -14,50 +14,55 @@ class CategorySummaryService {
     required List<String> aggregatedEmotions,
     required int totalMistakes,
   }) async {
-    // 1. Check completion status for Roxanne's disclaimer
-    bool isCompleted = completedGameIds.length >= totalCategoryGames;
-    String disclaimer = isCompleted
-        ? ""
-        : "\n\n*Note: This analysis may change as the child has not yet completed all levels in this category.*";
-
-    // 2. Gather the criteria for the games they ACTUALLY played
+    // 1. Gather the criteria for the games they ACTUALLY played
     List<String> testedCriteria = [];
     for (String gameId in completedGameIds) {
       final config = GamePrompts.getConfig(gameId);
       testedCriteria.add("- ${config.activityName}: ${config.skillFocus}");
     }
 
-    // 3. Build the Gemini Prompt
+    // 2. Build the Gemini Prompt
     final model = GenerativeModel(model: 'gemini-3.7-flash', apiKey: apiKey);
 
-    final String systemPrompt =
-        """
-You are a professional early childhood educator writing a category-level observation report for an app called StarSight.
+    String prompt =
+        '''
+You are an expert early childhood educator writing a progress report for a parent regarding their child, $childName. 
+The child is currently playing the "$categoryName" category.
 
-DATA:
-- Child's Name: $childName
-- Category: $categoryName
-- Games Played & Criteria Tested:
-${testedCriteria.join("\n")}
-- Overall Emotions Detected: ${aggregatedEmotions.join(", ")}
-- Total Learning Attempts/Mistakes: $totalMistakes
+Here is the raw data from their recent session:
+- Games Completed: ${completedGameIds.length} out of $totalCategoryGames
+- Activities Played: ${completedGameIds.join(', ')}
+- Predominant Facial Emotions Detected: ${aggregatedEmotions.join(', ')}
+- Total Mistakes Made: $totalMistakes
 
-REQUIREMENTS:
-1. Write a comprehensive, descriptive paragraph (4-6 sentences) summarizing their performance across these specific criteria.
-2. Adopt a clinical but encouraging educator tone. 
-EXAMPLE TONE: "$childName demonstrated sustained attention while completing the activity and remained engaged with the task for most of the observation period. Occasional distractions were observed, but the child was able to return to the activity without assistance."
-3. Frame mistakes positively as "learning attempts" or "problem-solving moments."
-4. Do NOT use bullet points, bolding, or complicated jargon.
-""";
+Based strictly on this data, write a short, 3-section report formatted exactly like this:
 
+**1. Current Engagement:** (Write 2 sentences analyzing their emotions and time spent based on the data provided. Do not assume they finished the category if the completed games are low.)
+**2. Performance & Accuracy:** (Write 2 sentences analyzing their mistake count across the specific activities played.)
+**3. Educator's Recommendation:** (Provide 1 specific, actionable tip for the parent based on this session's data.)
+
+Do not include any generic greetings or sign-offs. 
+''';
+
+    // 3. Prepare the disclaimer in advance so the whole method can use it
+    String disclaimer = "";
+    if (completedGameIds.length < totalCategoryGames) {
+      disclaimer =
+          "\n\n*Please note: This analysis is based on partial progress and will evolve as $childName completes the rest of the $categoryName.*";
+    }
+
+    // 4. Call Gemini and append the disclaimer
     try {
-      final content = [Content.text(systemPrompt)];
+      final content = [Content.text(prompt)];
       final response = await model.generateContent(content);
 
-      String finalReport =
-          (response.text?.trim() ?? "Summary failed.") + disclaimer;
-      return finalReport;
+      String aiGeneratedText =
+          response.text?.trim() ?? "Not enough data to generate a report.";
+
+      // Combine the AI text with our dynamic disclaimer
+      return aiGeneratedText + disclaimer;
     } catch (e) {
+      // If the internet drops or the API fails, it still returns a safe fallback with the disclaimer
       return "Great job exploring $categoryName!$disclaimer";
     }
   }

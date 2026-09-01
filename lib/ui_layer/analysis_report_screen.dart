@@ -1,3 +1,4 @@
+import 'package:StarSight/ui_layer/category_report_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
@@ -5,6 +6,7 @@ import 'parents_area_screen.dart';
 import 'avatar_picker_dialog.dart'; // for kDefaultAvatarPath, AvatarStorage
 import '../business_layer/orientation_service.dart';
 import '../business_layer/database_service.dart';
+import 'category_report_screen.dart' hide ColorTheme, AppTextStyles;
 
 /// The four constructs every subject is analyzed on.
 enum LearningConstruct { engagement, attention, focus, learning }
@@ -262,10 +264,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
           children: [
             _buildHeader(context),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: _load,
-                child: _buildBody(),
-              ),
+              child: RefreshIndicator(onRefresh: _load, child: _buildBody()),
             ),
           ],
         ),
@@ -321,7 +320,9 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
           _buildStatsRow(),
           const SizedBox(height: 45), // Increased spacing
           _buildReadyBanner(),
-          const SizedBox(height: 35), // Increased spacing before navigation list
+          const SizedBox(
+            height: 35,
+          ), // Increased spacing before navigation list
           _buildSubjectButtons(context),
         ],
       ),
@@ -335,7 +336,9 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   Widget _buildProfileHeader() {
     final name = _resolvedChild?.name ?? widget.child?.name ?? 'Demo Child';
     final avatarPath =
-        _resolvedChild?.avatarPath ?? widget.child?.avatarPath ?? kDefaultAvatarPath;
+        _resolvedChild?.avatarPath ??
+        widget.child?.avatarPath ??
+        kDefaultAvatarPath;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -389,8 +392,11 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.cake_rounded,
-                            size: 14, color: ColorTheme.brown),
+                        const Icon(
+                          Icons.cake_rounded,
+                          size: 14,
+                          color: ColorTheme.brown,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           _formatAge(widget.age),
@@ -480,8 +486,11 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.favorite_rounded,
-                      color: ColorTheme.orange, size: 20),
+                  const Icon(
+                    Icons.favorite_rounded,
+                    color: ColorTheme.orange,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
@@ -496,8 +505,11 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
                   ),
                   GestureDetector(
                     onTap: () => Navigator.pop(dialogContext),
-                    child: const Icon(Icons.close_rounded,
-                        color: ColorTheme.mutedGrey, size: 20),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: ColorTheme.mutedGrey,
+                      size: 20,
+                    ),
                   ),
                 ],
               ),
@@ -569,7 +581,12 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         color = palette[pairIndex % palette.length];
         letterIndex++;
       }
-      spans.add(TextSpan(text: char, style: TextStyle(color: color)));
+      spans.add(
+        TextSpan(
+          text: char,
+          style: TextStyle(color: color),
+        ),
+      );
     }
     return RichText(
       textAlign: TextAlign.center,
@@ -588,8 +605,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   // ── Stats row: games played (teal) + most played subject (orange) ────
 
   Widget _buildStatsRow() {
-    final totalGames =
-    _subjects.fold<int>(0, (sum, s) => sum + s.sessionsPlayed);
+    final totalGames = _subjects.fold<int>(
+      0,
+      (sum, s) => sum + s.sessionsPlayed,
+    );
 
     SubjectAnalysis? topSubject;
     for (final s in _subjects) {
@@ -614,7 +633,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
               valueFontSize: 40,
               infoTitle: 'Games Completed',
               infoMessage:
-              'This counts every game session your child has finished '
+                  'This counts every game session your child has finished '
                   'across all subjects.',
             ),
           ),
@@ -627,7 +646,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
               valueFontSize: 18,
               infoTitle: 'Most Played Subject',
               infoMessage:
-              'This shows whichever subject your child has completed the '
+                  'This shows whichever subject your child has completed the '
                   'most game sessions in so far.',
             ),
           ),
@@ -752,7 +771,6 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     );
   }
 
-
   Widget _buildSubjectButtons(BuildContext context) {
     const colorThemes = [
       {
@@ -784,7 +802,20 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
         return GestureDetector(
           onTap: () {
-            // TODO: Add screen navigation target here
+            // ROUTE TO THE NEW REPORT SCREEN
+            String childName =
+                _resolvedChild?.name ?? widget.child?.name ?? 'your child';
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CategoryReportScreen(
+                  categoryId: subject.id,
+                  categoryName: subject.name,
+                  childName: childName,
+                ),
+              ),
+            );
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -804,11 +835,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
                     errorBuilder: (context, error, stack) => Image.asset(
                       subject.characterAsset,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Icon(
-                        subject.icon,
-                        size: 32,
-                        color: theme['text'],
-                      ),
+                      errorBuilder: (_, __, ___) =>
+                          Icon(subject.icon, size: 32, color: theme['text']),
                     ),
                   ),
                 ),
@@ -887,50 +915,49 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
     final subjectsSpec = [
       (
-      'alphabet_forest',
-      'Alphabet Forest',
-      Icons.abc_rounded,
-      ColorTheme.orange,
-      'assets/images/avatars/avatar_dog.png',
-      'Letters, sound, alphabet',
+        'alphabet_forest',
+        'Alphabet Forest',
+        Icons.abc_rounded,
+        ColorTheme.orange,
+        'assets/images/avatars/avatar_dog.png',
+        'Letters, sound, alphabet',
       ),
       (
-      'lumitown',
-      'Lumitown',
-      Icons.science_rounded,
-      ColorTheme.titleSky,
-      'assets/images/avatars/avatar_owl.png',
-      'Curious questions and cause-and-effect!',
+        'lumitown',
+        'Lumitown',
+        Icons.science_rounded,
+        ColorTheme.titleSky,
+        'assets/images/avatars/avatar_owl.png',
+        'Curious questions and cause-and-effect!',
       ),
       (
-      'arctic_numberland',
-      'Arctic Numberland',
-      Icons.pin_rounded,
-      ColorTheme.deepNavyBlue,
-      'assets/images/avatars/avatar_penguin.png',
-      'Counting, matching, and number play!',
+        'arctic_numberland',
+        'Arctic Numberland',
+        Icons.pin_rounded,
+        ColorTheme.deepNavyBlue,
+        'assets/images/avatars/avatar_penguin.png',
+        'Counting, matching, and number play!',
       ),
       (
-      'discovery_lagoon',
-      'Discovery Lagoon',
-      Icons.favorite_rounded,
-      ColorTheme.titleGold,
-      'assets/images/avatars/avatar_cat.png',
-      'Kindness, sharing, and good choices!',
+        'discovery_lagoon',
+        'Discovery Lagoon',
+        Icons.favorite_rounded,
+        ColorTheme.titleGold,
+        'assets/images/avatars/avatar_cat.png',
+        'Kindness, sharing, and good choices!',
       ),
       (
-      'puzzle_glade',
-      'Puzzle Glade',
-      Icons.extension_rounded,
-      ColorTheme.teal,
-      'assets/images/avatars/avatar_bunny.png',
-      'Shapes, patterns, and problem-solving!',
+        'puzzle_glade',
+        'Puzzle Glade',
+        Icons.extension_rounded,
+        ColorTheme.teal,
+        'assets/images/avatars/avatar_bunny.png',
+        'Shapes, patterns, and problem-solving!',
       ),
     ];
 
     return List.generate(subjectsSpec.length, (s) {
-      final (id, name, icon, color, characterAsset, tagline) =
-      subjectsSpec[s];
+      final (id, name, icon, color, characterAsset, tagline) = subjectsSpec[s];
       final insights = LearningConstruct.values.asMap().entries.map((entry) {
         final i = entry.key + s * 4;
         final construct = entry.value;
@@ -958,10 +985,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   }
 
   String _mockDescription(
-      String subject,
-      LearningConstruct construct,
-      InsightBand band,
-      ) {
+    String subject,
+    LearningConstruct construct,
+    InsightBand band,
+  ) {
     switch (construct) {
       case LearningConstruct.engagement:
         switch (band) {
@@ -1016,11 +1043,8 @@ class _StarDecor extends StatelessWidget {
       'assets/images/night_star.png',
       width: size,
       height: size,
-      errorBuilder: (context, error, stack) => Icon(
-        Icons.star_rounded,
-        size: size,
-        color: ColorTheme.titleGold,
-      ),
+      errorBuilder: (context, error, stack) =>
+          Icon(Icons.star_rounded, size: size, color: ColorTheme.titleGold),
     );
   }
 }
