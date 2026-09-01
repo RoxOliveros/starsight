@@ -2,6 +2,7 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/puzzle_progress_service.dart';
+import '../../games_ui_layer/puzzle_glade/game_connect_the_dots_screen.dart';
 import '../../games_ui_layer/puzzle_glade/game_copy_pattern.dart';
 import '../../games_ui_layer/puzzle_glade/game_find_the_pair_screen.dart';
 import '../../games_ui_layer/puzzle_glade/game_hidden_object.dart';
@@ -319,32 +320,31 @@ class _LevelTile extends StatelessWidget {
       case 7:
         return const WhatsMissingScreen(level: 7);
       case 8:
-        return const CopyPatternScreen(level: 8);
+        return const ConnectTheDotsScreen(level: 8);
       case 9:
-        return const SpotDifferenceScreen(level: 9);
+        return const CopyPatternScreen(level: 9);
       case 10:
-        return const PatternMatchScreen(level: 10);
+        return const SpotDifferenceScreen(level: 10);
       case 11:
-        return const MemoryMatchScreen(level: 11);
+        return const PatternMatchScreen(level: 11);
       case 12:
-        return const ShapeFitScreen(level: 12);
+        return const MemoryMatchScreen(level: 12);
       case 13:
-        return const MazePathScreen(level: 13);
+        return const ShapeFitScreen(level: 13);
       case 14:
-        return const HiddenObjectScreen(level: 14);
+        return const MazePathScreen(level: 14);
       case 15:
-        return const RotateTheShapeScreen(level: 15);
+        return const HiddenObjectScreen(level: 15);
       case 16:
-        return const WhatGoesTogetherScreen(level: 16);
+        return const RotateTheShapeScreen(level: 16);
       case 17:
-        return const OddOneOutScreen(level: 17);
+        return const WhatGoesTogetherScreen(level: 17);
       case 18:
-          return const SameOrDifferentScreen(level: 18);
+        return const OddOneOutScreen(level: 18);
       case 19:
-        return const WhichBelongsHereScreen(level: 19);
-
-      // TODO: @Tin add ending game for puzzle
+        return const SameOrDifferentScreen(level: 19);
       case 20:
+        return const WhichBelongsHereScreen(level: 20);
       default:
         return null;
     }

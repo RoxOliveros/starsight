@@ -11,7 +11,7 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
-import 'game_copy_pattern.dart';
+import 'game_connect_the_dots_screen.dart';
 
 // ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
@@ -894,7 +894,7 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => CopyPatternScreen(level: widget.level + 1),
+            builder: (context) => ConnectTheDotsScreen(level: widget.level + 1),
           ),
         );
       },
