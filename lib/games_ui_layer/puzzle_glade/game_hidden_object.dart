@@ -523,7 +523,6 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
             alignment: Alignment.topCenter,
             children: [
               Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Hidden Object')),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),
@@ -755,7 +754,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
               fit: StackFit.expand,
               children: [
                 ..._sceneObjects.map((obj) => _buildSceneObject(obj, scale)),
-                ..._grassTufts.map((tuft) => _buildGrassTuft(tuft, scale)), // ← new, drawn on top
+                ..._grassTufts.map((tuft) => _buildGrassTuft(tuft, scale)),
               ],
             ),
           ),

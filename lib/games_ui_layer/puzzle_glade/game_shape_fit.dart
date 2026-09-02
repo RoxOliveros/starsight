@@ -397,7 +397,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
             alignment: Alignment.topCenter,
             children: [
               Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Shape Fit')),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),

@@ -519,7 +519,6 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
             alignment: Alignment.topCenter,
             children: [
               Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Same or Different?')),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),

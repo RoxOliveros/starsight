@@ -28,43 +28,6 @@ class PuzzleLevelBadge extends StatelessWidget {
   }
 }
 
-class PuzzleGameHeader extends StatelessWidget {
-  final String title;
-
-  const PuzzleGameHeader({
-    super.key,
-    required this.title,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-      decoration: BoxDecoration(
-        color: PuzzleColorTheme.lightgrayishyellow,
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: PuzzleColorTheme.sunnyhue, width: 5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontFamily: PuzzleAppTextStyles.fredoka,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: PuzzleColorTheme.sunnyhue,
-        ),
-      ),
-    );
-  }
-}
-
 class PuzzleProgressDots extends StatelessWidget {
   final int currentRound;
   final int totalRounds;

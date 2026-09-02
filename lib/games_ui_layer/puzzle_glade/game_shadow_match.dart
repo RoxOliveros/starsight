@@ -378,7 +378,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
             alignment: Alignment.topCenter,
             children: [
               Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Shadow Match')),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),

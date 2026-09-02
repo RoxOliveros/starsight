@@ -86,19 +86,14 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/level2/intro.wav';
-  static const String _audioWelcome =
-      'assets/audio/puzzle_glade/level2/welcome.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/level2/instruction.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/pattern_match_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/pattern_match_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/pattern_match_complete.wav';
+
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/level2/complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -250,8 +245,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     await _playBgAudio(_audioIntro);
 
     _speechBubbleCtrl.forward(from: 0);
-    await _playBgAudio(_audioWelcome);
-    await Future.delayed(const Duration(milliseconds: 400));
 
     _gameEnterCtrl.forward();
     _buildRound();
@@ -504,10 +497,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
             alignment: Alignment.topCenter,
             children: [
               Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-              Align(
-                alignment: Alignment.center,
-                child: PuzzleGameHeader(title: 'Pattern Match'),
-              ),
               Align(
                 alignment: Alignment.centerRight,
                 child: PuzzleLevelBadge(level: widget.level),

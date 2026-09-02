@@ -500,7 +500,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
             alignment: Alignment.topCenter,
             children: [
               Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-              Align(alignment: Alignment.center, child: PuzzleGameHeader(title: 'Basket Sort')),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),

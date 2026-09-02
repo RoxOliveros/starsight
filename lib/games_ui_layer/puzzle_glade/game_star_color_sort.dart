@@ -46,25 +46,17 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   AudioPlayer get roxiePlayer => _player;
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/level1/intro.wav';
-  static const String _audioWelcome =
-      'assets/audio/puzzle_glade/level1/welcome.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/level1/instruction.wav';
-  static const String _audioCorrect =
-      'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/star_sort_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/star_sort_instruction.wav';
+  static const String _audioGameComplete = 'assets/audio/puzzle_glade/star_sort_complete.wav';
 
+  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
+
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
-
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
   static const String _jarImage = 'assets/images/objects/puzzle/jar_bnw.png';
-
-  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioGameComplete =
-      'assets/audio/puzzle_glade/level1/complete.wav';
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -236,8 +228,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
     _setIntroPhase(_IntroPhase.playingWelcome);
     _speechBubbleCtrl.forward(from: 0);
-    await _playAudio(_audioWelcome);
-    if (!mounted) return;
 
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
@@ -540,10 +530,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
             alignment: Alignment.topCenter,
             children: [
               Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
-              Align(
-                alignment: Alignment.center,
-                child: PuzzleGameHeader(title: 'Star Color Sort'),
-              ),
               Align(
                 alignment: Alignment.centerRight,
                 child: PuzzleLevelBadge(level: widget.level),
