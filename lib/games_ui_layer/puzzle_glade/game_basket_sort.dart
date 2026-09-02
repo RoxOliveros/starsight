@@ -57,10 +57,9 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level6/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level6/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level6/instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level6/complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/basket_sort_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/basket_sort_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/basket_sort_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -271,8 +270,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     _roxieSlideCtrl.forward();
 
     await _playAudio(_audioIntro);
-    await _playAudio(_audioWelcome);
-    await Future.delayed(const Duration(milliseconds: 400));
 
     _gameEnterCtrl.forward();
     _startRound();

@@ -57,12 +57,9 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level4/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level4/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level4/shadow_match_instruction.wav';
-  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level4/complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/shadow_match_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/shadow_match_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/shadow_match_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -217,8 +214,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     await _playBgAudio(_audioIntro);
 
     _speechBubbleCtrl.forward(from: 0);
-    await _playBgAudio(_audioWelcome);
-    await Future.delayed(const Duration(milliseconds: 400));
 
     _gameEnterCtrl.forward();
     _startRound();
@@ -234,7 +229,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
         if (!completer.isCompleted) completer.complete();
       });
       await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 12));
+      await completer.future.timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
     } finally {
@@ -278,7 +273,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
       });
       _bounceCtrl.forward(from: 0);
       _revealCtrl.forward(from: 0);
-      _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
       unawaited(showRoxieReaction(RoxieState.correct));
 
       await Future.delayed(const Duration(milliseconds: 1200));
@@ -308,7 +302,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
         });
       }
     } else {
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
       unawaited(showRoxieReaction(RoxieState.wrong));
       setState(() {
         _tappedIndex = index;

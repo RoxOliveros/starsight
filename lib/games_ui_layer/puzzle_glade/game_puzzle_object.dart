@@ -62,10 +62,9 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level5/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level5/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level5/instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level5/complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/puzzle_object_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/puzzle_object_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/puzzle_object_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -232,8 +231,6 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
-    await _playBgAudio(_audioWelcome);
-    if (!mounted) return;
 
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
@@ -252,7 +249,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
         if (!completer.isCompleted) completer.complete();
       });
       await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 12));
+      await completer.future.timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
     } finally {

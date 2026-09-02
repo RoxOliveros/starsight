@@ -75,12 +75,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level3/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level3/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level3/instruction.wav';
-  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
-  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level3/complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/memory_match_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/memory_match_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/memory_match_complete.wav';
 
   // ── Phase state ────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -218,8 +215,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
 
     _setIntroPhase(_IntroPhase.playingWelcome);
     _speechBubbleCtrl.forward(from: 0);
-    await _playAudio(_audioWelcome);
-    await Future.delayed(const Duration(milliseconds: 400));
 
     _setIntroPhase(_IntroPhase.done);
     _gameEnterCtrl.forward();
@@ -239,7 +234,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
 
       await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
 
-      await completer.future.timeout(const Duration(seconds: 12));
+      await completer.future.timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
     } finally {
@@ -321,7 +316,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     final cardB = _cards[idxB];
 
     if (cardA.pairId == cardB.pairId) {
-      _sfxPlayer.play(AssetSource(_audioCorrect.replaceFirst('assets/', '')));
       unawaited(showRoxieReaction(RoxieState.correct));
       await Future.delayed(const Duration(milliseconds: 500));
       setState(() {
@@ -333,7 +327,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
       });
 
       if (_matchesFound == _pairsForRound(_round)) {
-        _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
         await Future.delayed(const Duration(milliseconds: 300));
         setState(() => _roundComplete = true);
         _celebCtrl.forward();
