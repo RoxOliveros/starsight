@@ -61,12 +61,9 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level16/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level16/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level16/instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level16/complete.wav';
-  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/copy_the_pattern_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/copy_the_pattern_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/copy_the_pattern_complete.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   _ScreenPhase _phase = _ScreenPhase.intro;
@@ -226,9 +223,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     await _playAudio(_audioIntro);
     if (!mounted) return;
 
-    await _playAudio(_audioWelcome);
-    if (!mounted) return;
-
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     _gameEnterCtrl.forward();
@@ -330,8 +324,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     final emptyIndex = _answerSlots.indexWhere((s) => s == null);
     if (emptyIndex == -1) return;
 
-    _sfxPlayer.play(AssetSource(_audioBubblePop.replaceFirst('assets/', '')));
-
     setState(() {
       _answerSlots[emptyIndex] = object;
     });
@@ -348,8 +340,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     if (_phase != _ScreenPhase.recall) return;
     if (_answerSlots[index] == null) return;
 
-    // Remove item from slot (put back)
-    _sfxPlayer.play(AssetSource(_audioBubblePop.replaceFirst('assets/', '')));
     setState(() => _answerSlots[index] = null);
   }
 
@@ -368,7 +358,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
         _phase = _ScreenPhase.result;
       });
       _correctPulseCtrl.repeat(reverse: true);
-      _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
 
       showRoxieReaction(RoxieState.correct);
 

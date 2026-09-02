@@ -81,10 +81,9 @@ class _SizeSortScreenState extends State<SizeSortScreen>
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level7/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level7/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level7/instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level7/complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/size_sort_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/size_sort_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/size_sort_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -238,8 +237,6 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     _roxieSlideCtrl.forward();
 
     await _playAudio(_audioIntro);
-    if (!mounted) return; 
-    await _playAudio(_audioWelcome);
     if (!mounted) return; 
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return; 

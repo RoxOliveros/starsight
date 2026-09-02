@@ -77,22 +77,12 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/level17/intro.wav';
-  static const String _audioWelcome =
-      'assets/audio/puzzle_glade/level17/welcome.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/level17/instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/level17/complete.wav';
-
-  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioBubblePop =
-      'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/spot_the_difference_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/spot_the_difference_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/spot_the_difference_complete.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   _ScreenPhase _phase = _ScreenPhase.intro;
@@ -217,8 +207,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     await Future.delayed(const Duration(milliseconds: 300));
     _roxieSlideCtrl.forward();
     await _playAudio(_audioIntro);
-    await _playAudio(_audioWelcome);
-    await Future.delayed(const Duration(milliseconds: 400));
     _gameEnterCtrl.forward();
     await Future.delayed(const Duration(milliseconds: 650));
     if (!mounted) return;
@@ -291,9 +279,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     final isCorrect = cellIndex == _currentRound.diffIndex;
 
     if (isCorrect) {
-      // Play success sound
-      _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
-
       showRoxieReaction(RoxieState.correct);
 
       setState(() => _highlightedCorrectIndex = cellIndex);
@@ -329,9 +314,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
         _roundEnterCtrl.forward(from: 0);
       }
     } else {
-      // Wrong tap — shake that specific cell
-      _sfxPlayer.play(AssetSource(_audioBubblePop.replaceFirst('assets/', '')));
-
       showRoxieReaction(RoxieState.wrong);
 
       // shakeIndex: panel 0 → indices 0–3, panel 1 → indices 4–7

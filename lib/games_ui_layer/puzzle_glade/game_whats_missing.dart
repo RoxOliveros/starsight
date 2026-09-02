@@ -61,10 +61,9 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/level8/intro.wav';
-  static const String _audioWelcome = 'assets/audio/puzzle_glade/level8/welcome.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/level8/instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/level8/complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/whats_missing_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/whats_missing_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/whats_missing_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -243,9 +242,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     _roxieSlideCtrl.forward();
 
     await _playAudio(_audioIntro);
-    if (!mounted) return;
-
-    await _playAudio(_audioWelcome);
     if (!mounted) return;
 
     await Future.delayed(const Duration(milliseconds: 400));
