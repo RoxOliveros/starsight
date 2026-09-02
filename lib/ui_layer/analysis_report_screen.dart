@@ -1,4 +1,3 @@
-import 'package:StarSight/ui_layer/category_report_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
@@ -6,7 +5,7 @@ import 'parents_area_screen.dart';
 import 'avatar_picker_dialog.dart'; // for kDefaultAvatarPath, AvatarStorage
 import '../business_layer/orientation_service.dart';
 import '../business_layer/database_service.dart';
-import 'category_report_screen.dart' hide ColorTheme, AppTextStyles;
+import 'subject_analysis_screen.dart';
 
 /// The four constructs every subject is analyzed on.
 enum LearningConstruct { engagement, attention, focus, learning }
@@ -264,7 +263,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
           children: [
             _buildHeader(context),
             Expanded(
-              child: RefreshIndicator(onRefresh: _load, child: _buildBody()),
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: _buildBody(),
+              ),
             ),
           ],
         ),
@@ -309,20 +311,18 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 36),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(child: _buildRainbowTitle('ANALYSIS & REPORT')),
-          const SizedBox(height: 32), // Increased spacing
+          Center(child: _buildRainbowTitle('STARSIGHT')),
+          const SizedBox(height: 20), // Increased spacing
           _buildProfileHeader(),
           const SizedBox(height: 20), // Increased spacing
           _buildStatsRow(),
           const SizedBox(height: 45), // Increased spacing
           _buildReadyBanner(),
-          const SizedBox(
-            height: 35,
-          ), // Increased spacing before navigation list
+          const SizedBox(height: 35), // Increased spacing before navigation list
           _buildSubjectButtons(context),
         ],
       ),
@@ -336,9 +336,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   Widget _buildProfileHeader() {
     final name = _resolvedChild?.name ?? widget.child?.name ?? 'Demo Child';
     final avatarPath =
-        _resolvedChild?.avatarPath ??
-        widget.child?.avatarPath ??
-        kDefaultAvatarPath;
+        _resolvedChild?.avatarPath ?? widget.child?.avatarPath ?? kDefaultAvatarPath;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -392,11 +390,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(
-                          Icons.cake_rounded,
-                          size: 14,
-                          color: ColorTheme.brown,
-                        ),
+                        const Icon(Icons.cake_rounded,
+                            size: 14, color: ColorTheme.brown),
                         const SizedBox(width: 4),
                         Text(
                           _formatAge(widget.age),
@@ -486,11 +481,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(
-                    Icons.favorite_rounded,
-                    color: ColorTheme.orange,
-                    size: 20,
-                  ),
+                  const Icon(Icons.favorite_rounded,
+                      color: ColorTheme.orange, size: 20),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
@@ -505,11 +497,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
                   ),
                   GestureDetector(
                     onTap: () => Navigator.pop(dialogContext),
-                    child: const Icon(
-                      Icons.close_rounded,
-                      color: ColorTheme.mutedGrey,
-                      size: 20,
-                    ),
+                    child: const Icon(Icons.close_rounded,
+                        color: ColorTheme.mutedGrey, size: 20),
                   ),
                 ],
               ),
@@ -581,19 +570,14 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         color = palette[pairIndex % palette.length];
         letterIndex++;
       }
-      spans.add(
-        TextSpan(
-          text: char,
-          style: TextStyle(color: color),
-        ),
-      );
+      spans.add(TextSpan(text: char, style: TextStyle(color: color)));
     }
     return RichText(
       textAlign: TextAlign.center,
       text: TextSpan(
         style: const TextStyle(
           fontFamily: AppTextStyles.fredoka,
-          fontSize: 24,
+          fontSize: 28,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.5,
         ),
@@ -605,10 +589,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   // ── Stats row: games played (teal) + most played subject (orange) ────
 
   Widget _buildStatsRow() {
-    final totalGames = _subjects.fold<int>(
-      0,
-      (sum, s) => sum + s.sessionsPlayed,
-    );
+    final totalGames =
+    _subjects.fold<int>(0, (sum, s) => sum + s.sessionsPlayed);
 
     SubjectAnalysis? topSubject;
     for (final s in _subjects) {
@@ -633,7 +615,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
               valueFontSize: 40,
               infoTitle: 'Games Completed',
               infoMessage:
-                  'This counts every game session your child has finished '
+              'This counts every game session your child has finished '
                   'across all subjects.',
             ),
           ),
@@ -646,7 +628,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
               valueFontSize: 18,
               infoTitle: 'Most Played Subject',
               infoMessage:
-                  'This shows whichever subject your child has completed the '
+              'This shows whichever subject your child has completed the '
                   'most game sessions in so far.',
             ),
           ),
@@ -771,23 +753,12 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     );
   }
 
+
   Widget _buildSubjectButtons(BuildContext context) {
-    const colorThemes = [
-      {
-        'bg': Color(0x80FACC58), // Gold/Yellow at 50% opacity
-        'text': Color(0xFFC46A00), // Rich amber brown for high contrast
-        'sub': Color(0xFF6F6764), // Required tagline color
-      },
-      {
-        'bg': Color(0x806FD3E3), // Sky Teal at 50% opacity
-        'text': Color(0xFF1E6F7D), // Deep teal for crisp contrast
-        'sub': Color(0xFF6F6764), // Required tagline color
-      },
-      {
-        'bg': Color(0x80EC8A20), // Warm Orange at 50% opacity
-        'text': Color(0xFFB84D00), // Deep terracotta/burnt orange
-        'sub': Color(0xFF6F6764), // Required tagline color
-      },
+    const rowColors = [
+      Color(0xFFFCEFD1), // soft gold
+      Color(0xFFD9F1F5), // soft teal
+      Color(0xFFFBE1CB), // soft orange
     ];
 
     return ListView.separated(
@@ -797,73 +768,66 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 20),
       itemBuilder: (context, index) {
         final subject = _subjects[index];
-        final theme = colorThemes[index % colorThemes.length];
+        final bg = rowColors[index % rowColors.length];
         final lottieAsset = _getSubjectLottieAsset(subject.id);
 
         return GestureDetector(
           onTap: () {
-            // ROUTE TO THE NEW REPORT SCREEN
-            String childName =
-                _resolvedChild?.name ?? widget.child?.name ?? 'your child';
-
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => CategoryReportScreen(
-                  categoryId: subject.id,
-                  categoryName: subject.name,
-                  childName: childName,
-                ),
+                builder: (_) => SubjectAnalysisScreen(subject: subject),
               ),
             );
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: theme['bg'],
-              borderRadius: BorderRadius.circular(18),
+              color: bg,
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                SizedBox(
-                  width: 62,
-                  height: 62,
+                Container(
+                  width: 52,
+                  height: 52,
                   child: Lottie.asset(
                     lottieAsset,
                     fit: BoxFit.contain,
-                    errorBuilder: (context, error, stack) => Image.asset(
-                      subject.characterAsset,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          Icon(subject.icon, size: 32, color: theme['text']),
+                    errorBuilder: (context, error, stack) => Icon(
+                      subject.icon,
+                      size: 26,
+                      color: subject.color,
                     ),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        subject.name.toUpperCase(),
-                        style: TextStyle(
+                        subject.name,
+                        softWrap: true,
+                        style: const TextStyle(
                           fontFamily: AppTextStyles.fredoka,
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: theme['text'],
-                          letterSpacing: 0.3,
+                          color: ColorTheme.deepNavyBlue,
                         ),
                       ),
                       if (subject.tagline.isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
                           subject.tagline,
-                          style: TextStyle(
+                          softWrap: true,
+                          style: const TextStyle(
                             fontFamily: 'Nunito',
                             fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: theme['sub'],
+                            fontWeight: FontWeight.w600,
+                            color: ColorTheme.brown,
                           ),
                         ),
                       ],
@@ -871,11 +835,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Smaller, thinner arrow using Icon for precision
                 Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 16,
-                  color: theme['text'],
+                  Icons.chevron_right_rounded,
+                  size: 22,
+                  color: ColorTheme.brown.withValues(alpha: 0.6),
                 ),
               ],
             ),
@@ -884,6 +847,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       },
     );
   }
+
 
   String _getSubjectLottieAsset(String id) {
     switch (id) {
@@ -915,49 +879,50 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
     final subjectsSpec = [
       (
-        'alphabet_forest',
-        'Alphabet Forest',
-        Icons.abc_rounded,
-        ColorTheme.orange,
-        'assets/images/avatars/avatar_dog.png',
-        'Letters, sound, alphabet',
+      'alphabet_forest',
+      'Alphabet Forest',
+      Icons.abc_rounded,
+      ColorTheme.orange,
+      'assets/images/avatars/avatar_dog.png',
+      'Letters, sound, alphabet',
       ),
       (
-        'lumitown',
-        'Lumitown',
-        Icons.science_rounded,
-        ColorTheme.titleSky,
-        'assets/images/avatars/avatar_owl.png',
-        'Curious questions and cause-and-effect!',
+      'lumitown',
+      'Lumitown',
+      Icons.science_rounded,
+      ColorTheme.titleSky,
+      'assets/images/avatars/avatar_owl.png',
+      'Curious questions and cause-and-effect!',
       ),
       (
-        'arctic_numberland',
-        'Arctic Numberland',
-        Icons.pin_rounded,
-        ColorTheme.deepNavyBlue,
-        'assets/images/avatars/avatar_penguin.png',
-        'Counting, matching, and number play!',
+      'arctic_numberland',
+      'Arctic Numberland',
+      Icons.pin_rounded,
+      ColorTheme.deepNavyBlue,
+      'assets/images/avatars/avatar_penguin.png',
+      'Counting, matching, and number play!',
       ),
       (
-        'discovery_lagoon',
-        'Discovery Lagoon',
-        Icons.favorite_rounded,
-        ColorTheme.titleGold,
-        'assets/images/avatars/avatar_cat.png',
-        'Kindness, sharing, and good choices!',
+      'discovery_lagoon',
+      'Discovery Lagoon',
+      Icons.favorite_rounded,
+      ColorTheme.titleGold,
+      'assets/images/avatars/avatar_cat.png',
+      'Kindness, sharing, and good choices!',
       ),
       (
-        'puzzle_glade',
-        'Puzzle Glade',
-        Icons.extension_rounded,
-        ColorTheme.teal,
-        'assets/images/avatars/avatar_bunny.png',
-        'Shapes, patterns, and problem-solving!',
+      'puzzle_glade',
+      'Puzzle Glade',
+      Icons.extension_rounded,
+      ColorTheme.teal,
+      'assets/images/avatars/avatar_bunny.png',
+      'Shapes, patterns, and problem-solving!',
       ),
     ];
 
     return List.generate(subjectsSpec.length, (s) {
-      final (id, name, icon, color, characterAsset, tagline) = subjectsSpec[s];
+      final (id, name, icon, color, characterAsset, tagline) =
+      subjectsSpec[s];
       final insights = LearningConstruct.values.asMap().entries.map((entry) {
         final i = entry.key + s * 4;
         final construct = entry.value;
@@ -985,10 +950,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   }
 
   String _mockDescription(
-    String subject,
-    LearningConstruct construct,
-    InsightBand band,
-  ) {
+      String subject,
+      LearningConstruct construct,
+      InsightBand band,
+      ) {
     switch (construct) {
       case LearningConstruct.engagement:
         switch (band) {
@@ -1043,8 +1008,11 @@ class _StarDecor extends StatelessWidget {
       'assets/images/night_star.png',
       width: size,
       height: size,
-      errorBuilder: (context, error, stack) =>
-          Icon(Icons.star_rounded, size: size, color: ColorTheme.titleGold),
+      errorBuilder: (context, error, stack) => Icon(
+        Icons.star_rounded,
+        size: size,
+        color: ColorTheme.titleGold,
+      ),
     );
   }
 }
