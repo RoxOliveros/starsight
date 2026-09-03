@@ -38,14 +38,17 @@ class ForestDatabaseService {
           .collection('cycles')
           .doc('cycle_$currentCycle');
 
-      // 2. Check for duplicates (Did they restart?)
-      final gameDoc = await currentCycleRef
+      // 2. SMARTER DUPLICATE CHECK
+      final gamesSnapshot = await currentCycleRef
           .collection('games_played')
-          .doc(gameId)
           .get();
+      int totalGamesInCycle = gamesSnapshot.docs.length;
+      bool gameAlreadyPlayed = gamesSnapshot.docs.any(
+        (doc) => doc.id == gameId,
+      );
 
-      if (gameDoc.exists) {
-        // Duplicate found! Increment cycle to start a fresh report.
+      // Only start a new cycle IF the forest is 100% complete (24 games) AND they replay a game
+      if (totalGamesInCycle >= 5 && gameAlreadyPlayed) {
         currentCycle++;
         await trackerRef.set({
           'currentCycle': currentCycle,
