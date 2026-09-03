@@ -1,4 +1,4 @@
-import 'package:StarSight/games_ui_layer/lumi_town/dr.woo_reaction.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_8.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

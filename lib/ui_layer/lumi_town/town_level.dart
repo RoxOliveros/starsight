@@ -16,6 +16,7 @@ import '../../games_ui_layer/lumi_town/1/wakeup1.dart';
 import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl3/clean_bedroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl4_cooking/game_screen.dart';
+import '../../games_ui_layer/lumi_town/stoplight_game_screen.dart';
 import '../loading_screen.dart';
 import 'lumi_buttons.dart';
 import 'lumi_theme.dart';
@@ -130,7 +131,12 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: List.generate(4, (i) {
-                                final level = _page * 8 + i + 1; // CHANGED
+                                final level = _page * 8 + i + 1;
+
+                                if (level > 20) {
+                                  return SizedBox(width: tileSize, height: tileSize);
+                                }
+
                                 return level <= _unlockedLevel
                                     ? _LevelTile(level: level, size: tileSize)
                                     : _LockedTile(size: tileSize);
@@ -140,7 +146,12 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: List.generate(4, (i) {
-                                final level = _page * 8 + i + 5; // CHANGED
+                                final level = _page * 8 + i + 5;
+
+                                if (level > 20) {
+                                  return SizedBox(width: tileSize, height: tileSize);
+                                }
+
                                 return level <= _unlockedLevel
                                     ? _LevelTile(level: level, size: tileSize)
                                     : _LockedTile(size: tileSize);
@@ -237,13 +248,12 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
-                            if (_page < 1)
-                              setState(
-                                () => _page++,
-                              ); // 1 = max page index (9 levels / 8 per page)
+                            if (_page < 2) {
+                              setState(() => _page++);
+                            }
                           },
                           child: Opacity(
-                            opacity: _page < 1 ? 1.0 : 0.3,
+                            opacity: _page < 2 ? 1.0 : 0.3,
                             child: Image.asset(
                               'assets/images/arrows/bttn_lumi_arrow_right.png',
                               width: 70,
@@ -257,17 +267,6 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
               },
             ),
           ),
-
-          // Positioned(
-          //   bottom: 15,
-          //   right: 15,
-          //   child: Lottie.asset(
-          //     'assets/animations/movie_clapperboard.json',
-          //     width: 60,
-          //     height: 60,
-          //     errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-          //   ),
-          // ),
           if (_isLoadingProgress)
             Positioned.fill(
               child: Container(
@@ -317,6 +316,8 @@ class _LevelTile extends StatelessWidget {
         return AppreciationGame();
       case 13:
         return FamilyTreeGame();
+      case 14:
+        return StoplightGameScreen(level: 14);
       default:
         return null;
     }
@@ -324,7 +325,7 @@ class _LevelTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (level > 9) return SizedBox(width: size, height: size);
+    if (level > 20) return SizedBox(width: size, height: size);
     return GestureDetector(
       onTap: () {
         final screen = _screenForLevel();
