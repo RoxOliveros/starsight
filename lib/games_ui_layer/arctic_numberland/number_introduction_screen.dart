@@ -21,14 +21,14 @@ import 'number_tracing_widget.dart';
 
 /// The shape every number mini-game widget builder must match.
 typedef NumberMiniGameBuilder =
-Widget Function({
-required int number,
-required String numberWord,
-required NumberObjectSet objects,
-required AudioPlayer player,
-required VoidCallback onComplete,
-required int level,
-});
+    Widget Function({
+      required int number,
+      required String numberWord,
+      required NumberObjectSet objects,
+      required AudioPlayer player,
+      required VoidCallback onComplete,
+      required int level,
+    });
 
 /// Cycles through mini-games in shuffled order, no repeats until the set
 /// is exhausted — same trick AlphabetTraceScreen uses with _miniGameQueue.
@@ -51,41 +51,59 @@ class _MiniGameRotator {
 }
 
 final List<NumberMiniGameBuilder> kNumberMiniGames = [
-      ({required number, required numberWord, required objects, required player, required onComplete, required level}) =>
-      TapObjectMiniGame(
-          instructionText: objects.instructionText,
-          instructionAudio: objects.instructionAudio,
-          targetCountAudio: objects.targetCountAudio,    // NEW
-          targetObjectAudio: objects.targetObjectAudio,
-          correctObjectAsset: objects.correctObjectAsset,
-          correctObjectEmoji: objects.correctObjectEmojis,
-          decoyObjectAssets: objects.decoyObjectAssets,
-          decoyObjectEmojis: objects.decoyObjectEmoji,
-          targetCount: objects.targetCount,
-          decoyCount: objects.decoyCount,
-          player: player,
-          onComplete: onComplete,
-          level: level
-      ),
+  ({
+    required number,
+    required numberWord,
+    required objects,
+    required player,
+    required onComplete,
+    required level,
+  }) => TapObjectMiniGame(
+    instructionText: objects.instructionText,
+    instructionAudio: objects.instructionAudio,
+    targetCountAudio: objects.targetCountAudio, // NEW
+    targetObjectAudio: objects.targetObjectAudio,
+    correctObjectAsset: objects.correctObjectAsset,
+    correctObjectEmoji: objects.correctObjectEmojis,
+    decoyObjectAssets: objects.decoyObjectAssets,
+    decoyObjectEmojis: objects.decoyObjectEmoji,
+    targetCount: objects.targetCount,
+    decoyCount: objects.decoyCount,
+    player: player,
+    onComplete: onComplete,
+    level: level,
+  ),
 
-      ({required number, required numberWord, required objects, required player, required onComplete, required level}) =>
-      PenguinSnowflakesMiniGame(
-          number: number,
-          player: player,
-          onComplete: onComplete,
-          instructionAudio: objects.instructionAudio,
-          level: level
-      ),
+  ({
+    required number,
+    required numberWord,
+    required objects,
+    required player,
+    required onComplete,
+    required level,
+  }) => PenguinSnowflakesMiniGame(
+    number: number,
+    player: player,
+    onComplete: onComplete,
+    instructionAudio: objects.instructionAudio,
+    level: level,
+  ),
 
-      ({required number, required numberWord, required objects, required player, required onComplete, required level}) =>
-      IceNumberPathGame(
-        minNumber: 1,
-        maxNumber: number,
-        player: player,
-        onComplete: onComplete,
-        instructionAudio: objects.instructionAudio,
-        level: level,
-      ),
+  ({
+    required number,
+    required numberWord,
+    required objects,
+    required player,
+    required onComplete,
+    required level,
+  }) => IceNumberPathGame(
+    minNumber: 1,
+    maxNumber: number,
+    player: player,
+    onComplete: onComplete,
+    instructionAudio: objects.instructionAudio,
+    level: level,
+  ),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -110,20 +128,68 @@ class ArcticObjectAsset {
 }
 
 const Map<String, ArcticObjectAsset> kArcticObjectPool = {
-  'igloo': ArcticObjectAsset(id: 'igloo', singularLabel: 'Igloo', pluralLabel: 'Igloos', emoji: '🏠'),
-  'candy_cane': ArcticObjectAsset(id: 'candy_cane', singularLabel: 'Candy Cane', pluralLabel: 'Candy Canes', emoji: '🍬'),
-  'snowglobe': ArcticObjectAsset(id: 'snowglobe', singularLabel: 'Snow Globe', pluralLabel: 'Snow Globes', emoji: '🔮'),
-  'ice_1': ArcticObjectAsset(id: 'ice', singularLabel: 'Ice', pluralLabel: 'Ice', emoji: '🧊'),
-  'icecream': ArcticObjectAsset(id: 'icecream', singularLabel: 'Ice Cream', pluralLabel: 'Ice Creams', emoji: '🍦'),
-  'sled': ArcticObjectAsset(id: 'sled', singularLabel: 'Sled', pluralLabel: 'Sleds', emoji: '🛷'),
-  'snowball': ArcticObjectAsset(id: 'snowball', singularLabel: 'Snowball', pluralLabel: 'Snowballs', emoji: '⚪️'),
-  'snowflake': ArcticObjectAsset(id: 'snowflake', singularLabel: 'Snowflake', pluralLabel: 'Snowflakes', emoji: '❄️'),
-  'snowman': ArcticObjectAsset(id: 'snowman', singularLabel: 'Snowman', pluralLabel: 'Snowmen', emoji: '⛄'),
+  'igloo': ArcticObjectAsset(
+    id: 'igloo',
+    singularLabel: 'Igloo',
+    pluralLabel: 'Igloos',
+    emoji: '🏠',
+  ),
+  'candy_cane': ArcticObjectAsset(
+    id: 'candy_cane',
+    singularLabel: 'Candy Cane',
+    pluralLabel: 'Candy Canes',
+    emoji: '🍬',
+  ),
+  'snowglobe': ArcticObjectAsset(
+    id: 'snowglobe',
+    singularLabel: 'Snow Globe',
+    pluralLabel: 'Snow Globes',
+    emoji: '🔮',
+  ),
+  'ice_1': ArcticObjectAsset(
+    id: 'ice',
+    singularLabel: 'Ice',
+    pluralLabel: 'Ice',
+    emoji: '🧊',
+  ),
+  'icecream': ArcticObjectAsset(
+    id: 'icecream',
+    singularLabel: 'Ice Cream',
+    pluralLabel: 'Ice Creams',
+    emoji: '🍦',
+  ),
+  'sled': ArcticObjectAsset(
+    id: 'sled',
+    singularLabel: 'Sled',
+    pluralLabel: 'Sleds',
+    emoji: '🛷',
+  ),
+  'snowball': ArcticObjectAsset(
+    id: 'snowball',
+    singularLabel: 'Snowball',
+    pluralLabel: 'Snowballs',
+    emoji: '⚪️',
+  ),
+  'snowflake': ArcticObjectAsset(
+    id: 'snowflake',
+    singularLabel: 'Snowflake',
+    pluralLabel: 'Snowflakes',
+    emoji: '❄️',
+  ),
+  'snowman': ArcticObjectAsset(
+    id: 'snowman',
+    singularLabel: 'Snowman',
+    pluralLabel: 'Snowmen',
+    emoji: '⛄',
+  ),
 };
 
 ArcticObjectAsset _obj(String id) {
   final a = kArcticObjectPool[id];
-  assert(a != null, 'No ArcticObjectAsset registered for id "$id" — add it to kArcticObjectPool');
+  assert(
+    a != null,
+    'No ArcticObjectAsset registered for id "$id" — add it to kArcticObjectPool',
+  );
   return a!;
 }
 
@@ -172,7 +238,8 @@ NumberLevelConfig _buildConfig({
     numberWord: numberWord,
     levelId: levelId,
     introAudio: introAudioOverride ?? _audioPath('${wordKey}_intro'),
-    numberRevealAudio: numberRevealAudioOverride ?? _audioPath('${wordKey}_know'),
+    numberRevealAudio:
+        numberRevealAudioOverride ?? _audioPath('${wordKey}_know'),
     writeAudio: writeAudioOverride ?? _audioPath('${wordKey}_write'),
     correctTapAudio: correctTapAudioOverride ?? _audioPath('$number'),
     objects: objects,
@@ -188,8 +255,8 @@ class NumberObjectSet {
   final int decoyCount;
   final String instructionText;
   final String instructionAudio;
-  final String targetCountAudio;   // NEW
-  final String targetObjectAudio;  // NEW
+  final String targetCountAudio; // NEW
+  final String targetObjectAudio; // NEW
 
   const NumberObjectSet({
     required this.correctObjectAsset,
@@ -200,8 +267,8 @@ class NumberObjectSet {
     this.decoyCount = 0,
     required this.instructionText,
     this.instructionAudio = '',
-    this.targetCountAudio = '',    // NEW
-    this.targetObjectAudio = '',   // NEW
+    this.targetCountAudio = '', // NEW
+    this.targetObjectAudio = '', // NEW
   });
 }
 
@@ -223,9 +290,10 @@ NumberObjectSet _buildObjects({
 
   return NumberObjectSet(
     instructionText: instructionTextOverride ?? 'Tap $numberWord $label!',
-    instructionAudio: instructionAudioOverride ??
+    instructionAudio:
+        instructionAudioOverride ??
         _audioPath('${wordKey}_click_$correctObjectId'),
-    targetCountAudio: _audioPath('$targetCount'),        // NEW
+    targetCountAudio: _audioPath('$targetCount'), // NEW
     targetObjectAudio: _audioPath(correctObjectId),
     correctObjectAsset: correct.assetPath,
     correctObjectEmojis: correct.emoji,
@@ -235,7 +303,6 @@ NumberObjectSet _buildObjects({
     decoyCount: decoyCount ?? targetCount,
   );
 }
-
 
 final Map<int, NumberLevelConfig> kNumberLevels = {
   0: _buildConfig(
@@ -393,7 +460,12 @@ class NumberIntroductionScreen extends StatefulWidget {
   final Widget? nextScreen;
   final int level;
 
-  const NumberIntroductionScreen({super.key, required this.configs, required this.level, this.nextScreen});
+  const NumberIntroductionScreen({
+    super.key,
+    required this.configs,
+    required this.level,
+    this.nextScreen,
+  });
 
   factory NumberIntroductionScreen.forNumber(int number, {required int level}) {
     final config = kNumberLevels[number];
@@ -401,13 +473,21 @@ class NumberIntroductionScreen extends StatefulWidget {
     return NumberIntroductionScreen(configs: [config!], level: level);
   }
 
-  factory NumberIntroductionScreen.forSequence(List<int> numbers, {required int level, Widget? nextScreen}) {
+  factory NumberIntroductionScreen.forSequence(
+    List<int> numbers, {
+    required int level,
+    Widget? nextScreen,
+  }) {
     final configs = numbers.map((n) {
       final c = kNumberLevels[n];
       assert(c != null, 'No NumberLevelConfig registered for $n');
       return c!;
     }).toList();
-    return NumberIntroductionScreen(configs: configs, nextScreen: nextScreen, level: level);
+    return NumberIntroductionScreen(
+      configs: configs,
+      nextScreen: nextScreen,
+      level: level,
+    );
   }
 
   @override
@@ -478,8 +558,8 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
     );
     _domaSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-      CurvedAnimation(parent: _domaSlideCtrl, curve: Curves.elasticOut),
-    );
+          CurvedAnimation(parent: _domaSlideCtrl, curve: Curves.elasticOut),
+        );
     _domaFade = CurvedAnimation(
       parent: _domaSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -654,8 +734,14 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                 child: Stack(
                   alignment: Alignment.topCenter,
                   children: [
-                    Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
-                    Align(alignment: Alignment.centerRight, child: ArcticLevelBadge(level: widget.level)),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: ArcticBackButton(),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ArcticLevelBadge(level: widget.level),
+                    ),
                     Center(child: _buildInstructionBanner()),
                   ],
                 ),
@@ -674,9 +760,9 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
     return Scaffold(
       body: _shouldShowLoading
           ? buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => content,
-      )
+              loadingScreen: LoadingScreen.arctic(),
+              gameBuilder: () => content,
+            )
           : content,
     );
   }
@@ -713,7 +799,13 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
           fontSize: 20,
           fontWeight: FontWeight.bold,
           color: Colors.white,
-          shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
+          shadows: const [
+            Shadow(
+              color: Color(0x55003366),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
       ),
     );
@@ -799,23 +891,23 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
         final cardSize = (h * 0.5).clamp(100.0, 160.0);
         final revealed =
             _introPhase != _IntroPhase.domaEntering &&
-                _introPhase != _IntroPhase.playingIntro;
+            _introPhase != _IntroPhase.playingIntro;
 
         return Align(
           alignment: Alignment.center,
           child: revealed
               ? AnimatedBuilder(
-            animation: _numberDanceCtrl,
-            builder: (_, child) => Transform.rotate(
-              angle: _numberDance.value,
-              child: ScaleTransition(scale: _numberPop, child: child),
-            ),
-            child: _NumberCard(
-              number: _config.number,
-              word: _config.numberWord,
-              size: cardSize,
-            ),
-          )
+                  animation: _numberDanceCtrl,
+                  builder: (_, child) => Transform.rotate(
+                    angle: _numberDance.value,
+                    child: ScaleTransition(scale: _numberPop, child: child),
+                  ),
+                  child: _NumberCard(
+                    number: _config.number,
+                    word: _config.numberWord,
+                    size: cardSize,
+                  ),
+                )
               : const SizedBox.shrink(),
         );
       },
@@ -840,7 +932,8 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                     if (_config.objects != null) {
                       setState(() {
                         _miniGamePhase = _MiniGamePhase.tapping;
-                        _miniGameIndex = _miniGameRotator.next(); // ← pick once here
+                        _miniGameIndex = _miniGameRotator
+                            .next(); // ← pick once here
                       });
                     } else {
                       _completeLevel();
