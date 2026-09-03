@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
@@ -217,27 +218,16 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
     // 2. Save raw data silently
     try {
-      String parentUid = FirebaseAuth.instance.currentUser!.uid;
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(parentUid)
-          .collection('category_progress')
-          .doc('alphabet_forest')
-          .collection('games_played')
-          .doc(
-            'letter_pop_${widget.letter.toLowerCase()}',
-          ) // e.g., 'letter_pop_a'
-          .set({
-            'activityName': "Alphabet Pop (${widget.letter.toUpperCase()})",
-            'emotions': finalEmotions,
-            'totalTaps': _tapTracker.totalTaps,
-            'mistakes': _tapTracker.mistakeCount,
-            'timePlayedSeconds': _tapTracker.formattedDuration,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
+      await ForestDatabaseService.saveGameData(
+        gameId: 'letter_fall_${widget.letter.toLowerCase()}',
+        activityName: "Alphabet Fall (${widget.letter.toUpperCase()})",
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
     } catch (e) {
-      debugPrint("Database Error saving Pop metrics: $e");
+      debugPrint("Error saving metrics: $e");
     }
 
     // 3. Now show the normal win dialog

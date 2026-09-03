@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
@@ -221,27 +222,16 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
     // 2. Save raw data silently (No loading screen!)
     try {
-      String parentUid = FirebaseAuth.instance.currentUser!.uid;
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(parentUid)
-          .collection('category_progress')
-          .doc('alphabet_forest')
-          .collection('games_played')
-          .doc(
-            'letter_hunt_${widget.letter.toLowerCase()}',
-          ) // e.g., 'letter_hunt_a'
-          .set({
-            'activityName': "Alphabet Hunt (${widget.letter.toUpperCase()})",
-            'emotions': finalEmotions,
-            'totalTaps': _tapTracker.totalTaps,
-            'mistakes': _tapTracker.mistakeCount,
-            'timePlayedSeconds': _tapTracker.formattedDuration,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
+      await ForestDatabaseService.saveGameData(
+        gameId: 'letter_fall_${widget.letter.toLowerCase()}',
+        activityName: "Alphabet Fall (${widget.letter.toUpperCase()})",
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
     } catch (e) {
-      debugPrint("Database Error saving Hunt metrics: \$e");
+      debugPrint("Error saving metrics: $e");
     }
 
     // 3. Now show the normal win dialog

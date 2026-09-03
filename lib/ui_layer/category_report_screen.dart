@@ -3,12 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/CategorySummaryService.dart';
-import '../ui_layer/analysis_report_screen.dart'; // For ColorTheme and AppTextStyles
-import 'parents_area_screen.dart';
+import 'Parents_Area_Screen.dart';
 
 class CategoryReportScreen extends StatefulWidget {
-  final String categoryId; // e.g., 'alphabet_forest'
-  final String categoryName; // e.g., 'Alphabet Forest'
+  final String categoryId;
+  final String categoryName;
   final String childName;
 
   const CategoryReportScreen({
@@ -24,8 +23,9 @@ class CategoryReportScreen extends StatefulWidget {
 
 class _CategoryReportScreenState extends State<CategoryReportScreen> {
   bool _isLoading = true;
-  String _reportText = "";
+  Map<String, dynamic>? _reportData; // CHANGED: Now expects our JSON Map!
   String? _error;
+  int _currentCycle = 1;
 
   @override
   void initState() {
@@ -37,12 +37,22 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     try {
       String uid = FirebaseAuth.instance.currentUser!.uid;
 
-      // 1. Fetch raw game data from Firestore
-      var snapshot = await FirebaseFirestore.instance
+      // 1. Find the current active cycle
+      final trackerRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .collection('category_progress')
-          .doc(widget.categoryId)
+          .doc(widget.categoryId);
+
+      final trackerDoc = await trackerRef.get();
+      if (trackerDoc.exists && trackerDoc.data()!.containsKey('currentCycle')) {
+        _currentCycle = trackerDoc.data()!['currentCycle'];
+      }
+
+      // 2. Query the NEW cycle path!
+      var snapshot = await trackerRef
+          .collection('cycles')
+          .doc('cycle_$_currentCycle')
           .collection('games_played')
           .get();
 
@@ -50,13 +60,13 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         if (!mounted) return;
         setState(() {
           _isLoading = false;
-          _reportText =
+          _error =
               "No games played in ${widget.categoryName} yet! Let's explore some activities.";
         });
         return;
       }
 
-      // 2. Aggregate the data
+      // 3. Aggregate data from this specific cycle
       List<String> playedGameIds = [];
       List<String> allEmotions = [];
       int totalMistakes = 0;
@@ -64,27 +74,26 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       for (var doc in snapshot.docs) {
         playedGameIds.add(doc.id);
         totalMistakes += (doc.data()['mistakes'] as num?)?.toInt() ?? 0;
-
         var emotions = List<String>.from(doc.data()['emotions'] ?? []);
         allEmotions.addAll(emotions);
       }
 
-      // 3. Define total games for completion check (Alphabet Forest = 24)
       int totalCategoryGames = widget.categoryId == 'alphabet_forest' ? 24 : 10;
 
-      // 4. Call Gemini to generate the report
-      String summary = await CategorySummaryService.generateCategoryReport(
-        categoryName: widget.categoryName,
-        childName: widget.childName,
-        completedGameIds: playedGameIds,
-        totalCategoryGames: totalCategoryGames,
-        aggregatedEmotions: allEmotions,
-        totalMistakes: totalMistakes,
-      );
+      // 4. Call Gemini and receive the Map
+      Map<String, dynamic> summaryMap =
+          await CategorySummaryService.generateCategoryReport(
+            categoryName: widget.categoryName,
+            childName: widget.childName,
+            completedGameIds: playedGameIds,
+            totalCategoryGames: totalCategoryGames,
+            aggregatedEmotions: allEmotions,
+            totalMistakes: totalMistakes,
+          );
 
       if (!mounted) return;
       setState(() {
-        _reportText = summary;
+        _reportData = summaryMap;
         _isLoading = false;
       });
     } catch (e) {
@@ -94,6 +103,209 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  // --- MODAL POPUP (Matches Leader's Design) ---
+  void _showInsightModal(
+    String title,
+    Map<String, dynamic> insightData,
+    Color color,
+    IconData icon,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: ColorTheme.cream,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                backgroundColor: color.withOpacity(0.2),
+                radius: 30,
+                child: Icon(icon, color: color, size: 36),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "$title Analysis",
+                style: TextStyle(
+                  fontFamily: AppTextStyles.fredoka,
+                  fontSize: 22,
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.star, color: color, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Band: ${insightData['band']}",
+                    style: TextStyle(
+                      fontFamily: 'Nunito',
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                insightData['description'] ?? '',
+                style: const TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 15,
+                  color: ColorTheme.brown,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "WHAT YOU CAN TRY",
+                  style: TextStyle(
+                    fontFamily: AppTextStyles.fredoka,
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...(insightData['tips'] as List).map(
+                (tip) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6.0, right: 8.0),
+                        child: CircleAvatar(radius: 4, backgroundColor: color),
+                      ),
+                      Expanded(
+                        child: Text(
+                          tip.toString(),
+                          style: const TextStyle(
+                            fontFamily: 'Nunito',
+                            fontSize: 14,
+                            color: ColorTheme.brown,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    "GOT IT!",
+                    style: TextStyle(
+                      fontFamily: AppTextStyles.fredoka,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- CONSTRUCT CARD (Matches Leader's Design) ---
+  Widget _buildConstructCard(
+    String title,
+    Map<String, dynamic> insightData,
+    Color color,
+    IconData icon,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.5), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(width: 10),
+              Text(
+                title.toUpperCase(),
+                style: TextStyle(
+                  fontFamily: AppTextStyles.fredoka,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 24, thickness: 1, color: ColorTheme.cream),
+          Text(
+            insightData['description'] ?? '',
+            style: const TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 15,
+              color: ColorTheme.brown,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: GestureDetector(
+              onTap: () => _showInsightModal(title, insightData, color, icon),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  "LEARN MORE >",
+                  style: TextStyle(
+                    fontFamily: AppTextStyles.fredoka,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -110,113 +322,143 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          "${widget.categoryName} Report",
-          style: const TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            color: ColorTheme.deepNavyBlue,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        centerTitle: true,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: _buildBody(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBody() {
-    if (_isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 120,
-              child: Lottie.asset('assets/animations/movie_clapperboard.json'),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              "Analyzing gameplay...",
-              style: TextStyle(
-                fontFamily: AppTextStyles.fredoka,
-                fontSize: 18,
-                color: ColorTheme.brown,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Text(
-          _error!,
-          style: const TextStyle(
-            fontFamily: AppTextStyles.fredoka,
-            color: Colors.red,
-            fontSize: 16,
-          ),
-        ),
-      );
-    }
-
-    return SingleChildScrollView(
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: ColorTheme.teal, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.psychology_alt_rounded,
-                  color: ColorTheme.orange,
-                  size: 28,
+        child: _isLoading
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 120,
+                      child: Lottie.asset(
+                        'assets/animations/movie_clapperboard.json',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      "Analyzing gameplay...",
+                      style: TextStyle(
+                        fontFamily: AppTextStyles.fredoka,
+                        fontSize: 18,
+                        color: ColorTheme.brown,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  "Educator's Observation",
+              )
+            : _error != null
+            ? Center(
+                child: Text(
+                  _error!,
                   style: const TextStyle(
                     fontFamily: AppTextStyles.fredoka,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: ColorTheme.deepNavyBlue,
+                    color: Colors.red,
+                    fontSize: 16,
                   ),
                 ),
-              ],
-            ),
-            const Divider(height: 32, thickness: 1.5, color: ColorTheme.cream),
-            Text(
-              _reportText,
-              style: const TextStyle(
-                fontFamily: 'Nunito',
-                fontSize: 16,
-                height: 1.6,
-                fontWeight: FontWeight.w600,
-                color: ColorTheme.brown,
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Text(
+                        widget.categoryName.toUpperCase(),
+                        style: const TextStyle(
+                          fontFamily: AppTextStyles.fredoka,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: ColorTheme.deepNavyBlue,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        "Cycle $_currentCycle Report",
+                        style: const TextStyle(
+                          fontFamily: 'Nunito',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: ColorTheme.brown,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // OVERALL ANALYSIS
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: ColorTheme.titleGold,
+                          width: 2,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.auto_awesome,
+                                color: ColorTheme.titleGold,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                "OVERALL ANALYSIS",
+                                style: TextStyle(
+                                  fontFamily: AppTextStyles.fredoka,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: ColorTheme.titleGold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _reportData!['overallAnalysis'] ?? '',
+                            style: const TextStyle(
+                              fontFamily: 'Nunito',
+                              fontSize: 15,
+                              color: ColorTheme.brown,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // DYNAMIC CARDS
+                    if (_reportData!.containsKey('engagement'))
+                      _buildConstructCard(
+                        "Engagement",
+                        _reportData!['engagement'],
+                        ColorTheme.teal,
+                        Icons.emoji_emotions_rounded,
+                      ),
+                    if (_reportData!.containsKey('attention'))
+                      _buildConstructCard(
+                        "Attention",
+                        _reportData!['attention'],
+                        ColorTheme.orange,
+                        Icons.visibility_rounded,
+                      ),
+                    if (_reportData!.containsKey('focus'))
+                      _buildConstructCard(
+                        "Focus",
+                        _reportData!['focus'],
+                        ColorTheme.titleSky,
+                        Icons.center_focus_strong_rounded,
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
