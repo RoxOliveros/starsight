@@ -7,6 +7,7 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
 // 1. Define a class to hold specific size and position for each character
@@ -584,7 +585,8 @@ class _PickupGameState extends State<PickupGame> {
             Positioned.fill(
               child: GoodJobOverlay(
                 characterImage: 'assets/images/characters/kiki_smiling.png',
-                closeButtonColor: const Color(0xFF266589),
+                closeButtonColor: LagoonColorTheme.wasteland,
+                characterSizeFactor: 0.9,
                 onNext: () async {
                   // 1. Mark the current level as complete (Change the number for each game)
                   await LagoonProgressService.instance.markLevelComplete(15);

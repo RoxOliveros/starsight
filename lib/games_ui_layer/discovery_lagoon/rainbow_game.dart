@@ -357,6 +357,7 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
                 GoodJobOverlay(
                   characterImage: 'assets/images/characters/kiki_tryagain.png',
                   closeButtonColor: LagoonColorTheme.wasteland,
+                  characterSizeFactor: 0.9,
                   onNext: () async {
                     // Mark Level 1 as complete to unlock Level 2
                     await LagoonProgressService.instance.markLevelComplete(1);

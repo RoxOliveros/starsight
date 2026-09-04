@@ -7,7 +7,6 @@ import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'audio_helper.dart';
-import 'bodyparts_drag.dart';
 import 'food_coloring.dart';
 import 'intro_phase.dart';
 
@@ -103,7 +102,7 @@ class _TreePartsAssemblyScreenState extends State<TreePartsAssemblyScreen>
       barrierDismissible: false,
       builder: (context) => GoodJobOverlay(
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-        closeButtonColor: LagoonTheme.wasteland,
+        closeButtonColor: LagoonColorTheme.wasteland,
         onNext: () {
           Navigator.pop(context);
           Navigator.pushReplacement(

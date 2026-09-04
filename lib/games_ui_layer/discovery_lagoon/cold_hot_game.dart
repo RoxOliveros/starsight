@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
 // Represents an item to be sorted
@@ -329,7 +330,8 @@ class _ColdHotGameState extends State<ColdHotGame>
           if (_isGameWon)
             GoodJobOverlay(
               characterImage: 'assets/images/characters/kiki_smiling.png',
-              closeButtonColor: Colors.orange,
+              closeButtonColor: LagoonColorTheme.wasteland,
+              characterSizeFactor: 0.9,
               onNext: () async {
                 // Mark Level 18 as complete to unlock Level 19
                 await LagoonProgressService.instance.markLevelComplete(18);

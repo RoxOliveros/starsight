@@ -7,7 +7,7 @@
   import '../../business_layer/town_progress_service.dart';
   import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
-  import '../discovery_lagoon/catching_game.dart';
+import '../goodjob_prompt.dart';
 
   // ============================================================================
   // ASSET PATHS — replace if your exact filenames/folders differ

@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_background.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'audio_helper.dart';
-import 'bodyparts_drag.dart';
 import 'intro_phase.dart';
 import 'lagoon_game_ui.dart';
 
@@ -114,7 +114,8 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
       barrierDismissible: false,
       builder: (context) => GoodJobOverlay(
         characterImage: 'assets/images/characters/kiki_smiling.png',
-        closeButtonColor: LagoonTheme.wasteland,
+        closeButtonColor: LagoonColorTheme.wasteland,
+        characterSizeFactor: 0.9,
         onNext: () {
           Navigator.pop(context);
           Navigator.pushReplacement(

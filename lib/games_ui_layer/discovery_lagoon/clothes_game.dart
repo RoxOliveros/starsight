@@ -6,6 +6,7 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
 class ClothesGame extends StatefulWidget {
@@ -370,9 +371,9 @@ class _ClothesGameState extends State<ClothesGame> {
           // Good Job overlay — shown once winter (the last weather) is done
           if (showGoodJobOverlay)
             GoodJobOverlay(
-              // TODO: swap in the real asset path for the cat from your image.
               characterImage: 'assets/images/characters/kiki_smiling.png',
-              closeButtonColor: const Color(0xFF3B82F6),
+              closeButtonColor: LagoonColorTheme.wasteland,
+              characterSizeFactor: 0.9,
               onNext: () async {
                 // 1. Mark the current level as complete (Change the number for each game)
                 await LagoonProgressService.instance.markLevelComplete(9);

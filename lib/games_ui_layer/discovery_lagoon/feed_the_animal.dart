@@ -9,6 +9,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
 /// Defines a single round in the Feed the Animal game.
@@ -542,7 +543,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
             Positioned.fill(
               child: GoodJobOverlay(
                 characterImage: 'assets/images/characters/kiki_smiling.png',
-                closeButtonColor: const Color(0xFF266589),
+                closeButtonColor: LagoonColorTheme.wasteland,
+                characterSizeFactor: 0.9,
                 onNext: () async {
                   // 1. Mark the current level as complete (Change the number for each game)
                   await LagoonProgressService.instance.markLevelComplete(6);

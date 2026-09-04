@@ -1,15 +1,13 @@
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/listening_game.dart';
-import 'package:StarSight/games_ui_layer/goodjob_prompt.dart'
-    hide GoodJobOverlay;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import 'lagoon_game_ui.dart'; // Make sure this path matches your project structure
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
+import '../goodjob_prompt.dart';
+import 'lagoon_game_ui.dart';
 
 class PerfumeGame extends StatefulWidget {
   final int level;
@@ -23,21 +21,17 @@ class PerfumeGame extends StatefulWidget {
 class _PerfumeGameState extends State<PerfumeGame> {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // ── Game Progression State
-  // Stages 1-4: Ingredients | Stage 5: Drag to Bowl | Stage 6: Mix | Stage 7: Perfume | Stage 8: Body Part
   int _currentStage = 1;
   bool _showOptions = false;
   bool _canTap = false;
   bool _isKikiSmiling = false;
   bool _actionTaken = false;
 
-  // ── Items collected on the table
   bool _hasFlower = false;
   bool _hasStrawberry = false;
   bool _hasLemon = false;
   bool _hasHoney = false;
 
-  // ── Mixing sequence state
   bool _canDragIngredients = false;
   bool _flowerInBowl = false;
   bool _strawberryInBowl = false;
@@ -49,8 +43,10 @@ class _PerfumeGameState extends State<PerfumeGame> {
   bool _showPerfume = false;
   bool _showKikiCheering = false;
 
-  // ── Good Job Overlay state
   bool _showGoodJob = false;
+
+  // NEW: guards against acting on a disposed player / stream
+  bool _disposed = false;
 
   bool get _allIngredientsInBowl =>
       _flowerInBowl && _strawberryInBowl && _lemonInBowl && _honeyInBowl;
@@ -59,8 +55,17 @@ class _PerfumeGameState extends State<PerfumeGame> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-
     _startAudioSequence();
+  }
+
+  /// NEW: waits for the current sound to finish without throwing
+  /// "Bad state: No element" if the player is disposed mid-wait.
+  Future<void> _waitForAudioComplete() async {
+    try {
+      await _audioPlayer.onPlayerComplete.first;
+    } catch (_) {
+      // Stream closed (player disposed) before it ever completed — ignore.
+    }
   }
 
   Future<void> _startAudioSequence() async {
@@ -68,8 +73,8 @@ class _PerfumeGameState extends State<PerfumeGame> {
       AssetSource('audio/discovery_lagoon/perfume_intro.wav'),
     );
 
-    _audioPlayer.onPlayerComplete.first.then((_) async {
-      if (!mounted) return;
+    _waitForAudioComplete().then((_) async {
+      if (!mounted || _disposed) return;
 
       setState(() {
         _showOptions = true;
@@ -80,17 +85,17 @@ class _PerfumeGameState extends State<PerfumeGame> {
         AssetSource('audio/discovery_lagoon/perfume_tutorial.wav'),
       );
 
-      _audioPlayer.onPlayerComplete.first.then((_) {
-        if (mounted) {
-          setState(() {
-            _canTap = true;
-          });
-        }
+      _waitForAudioComplete().then((_) {
+        if (!mounted || _disposed) return;
+        setState(() {
+          _canTap = true;
+        });
       });
     });
   }
 
   Future<void> _playKikiAudio(String assetPath) async {
+    if (_disposed) return;
     await _audioPlayer.stop();
     await _audioPlayer.play(AssetSource(assetPath));
   }
@@ -104,30 +109,38 @@ class _PerfumeGameState extends State<PerfumeGame> {
       _isKikiSmiling = true;
       _canTap = false;
 
-      if (_currentStage == 1)
+      if (_currentStage == 1) {
         _hasFlower = true;
-      else if (_currentStage == 2)
+      } else if (_currentStage == 2) {
         _hasStrawberry = true;
-      else if (_currentStage == 3)
+      } else if (_currentStage == 3) {
         _hasLemon = true;
-      else if (_currentStage == 4)
+      } else if (_currentStage == 4) {
         _hasHoney = true;
+      }
     });
 
     await _playKikiAudio('audio/sound_effects/shine.wav');
-    await _audioPlayer.onPlayerComplete.first;
+    await _waitForAudioComplete();
+    if (_disposed) return;
 
     await _playKikiAudio('audio/discovery_lagoon/perfume_rc.wav');
-    await _audioPlayer.onPlayerComplete.first;
+    await _waitForAudioComplete();
+    if (_disposed) return;
 
-    if (_currentStage == 1 && mounted)
+    if (_currentStage == 1 && mounted) {
       _transitionToStage2();
-    else if (_currentStage == 2 && mounted)
-      _transitionToStage3();
-    else if (_currentStage == 3 && mounted)
-      _transitionToStage4();
-    else if (_currentStage == 4 && mounted)
+    } else if (_currentStage == 2 && mounted) {
+      _transitionToStage3
+        (
+      );
+    } else if (_currentStage == 3 && mounted) {
+      _transitionToStage4
+        (
+      );
+    } else if (_currentStage == 4 && mounted) {
       _transitionToStage5();
+    }
   }
 
   void _transitionToStage2() {
@@ -169,7 +182,8 @@ class _PerfumeGameState extends State<PerfumeGame> {
     });
 
     await _playKikiAudio('audio/discovery_lagoon/perfume_complete_recipe.wav');
-    await _audioPlayer.onPlayerComplete.first;
+    await _waitForAudioComplete();
+    if (_disposed) return;
 
     if (mounted) {
       setState(() {
@@ -210,15 +224,15 @@ class _PerfumeGameState extends State<PerfumeGame> {
     });
 
     await Future.delayed(const Duration(milliseconds: 1500));
-    if (!mounted) return;
+    if (!mounted || _disposed) return;
 
     setState(() {
       _showMixStar = true;
     });
 
     await _playKikiAudio('audio/sound_effects/shine.wav');
-    await _audioPlayer.onPlayerComplete.first;
-    if (!mounted) return;
+    await _waitForAudioComplete();
+    if (!mounted || _disposed) return;
 
     setState(() {
       _currentStage = 7;
@@ -230,31 +244,32 @@ class _PerfumeGameState extends State<PerfumeGame> {
     });
 
     await _playKikiAudio('audio/discovery_lagoon/perfume_completed.wav');
-    await _audioPlayer.onPlayerComplete.first;
+    await _waitForAudioComplete();
+    if (_disposed) return;
 
     if (mounted) {
       _transitionToStage8();
     }
   }
 
-  /// Sets up Stage 8 (Eye, Mouth, Nose) after perfume is completed
   Future<void> _transitionToStage8() async {
     setState(() {
       _currentStage = 8;
-      _showPerfume = false; // Clear the table
-      _showKikiCheering = false; // Return to normal resting sprite
+      _showPerfume = false;
+      _showKikiCheering = false;
       _isKikiSmiling = false;
       _actionTaken = false;
       _showOptions = true;
-      _canTap = false; // Lock taps while audio plays
+      _canTap = false;
     });
 
     await _playKikiAudio('audio/discovery_lagoon/perfume_whatpart.wav');
-    await _audioPlayer.onPlayerComplete.first;
+    await _waitForAudioComplete();
+    if (_disposed) return;
 
     if (mounted) {
       setState(() {
-        _canTap = true; // Unlock for the user
+        _canTap = true;
       });
     }
   }
@@ -265,15 +280,17 @@ class _PerfumeGameState extends State<PerfumeGame> {
     setState(() {
       _actionTaken = true;
       _canTap = false;
-      _showOptions = false; // Hide the body part cards
-      _showKikiCheering = true; // Kiki cheers again!
+      _showOptions = false;
+      _showKikiCheering = true;
     });
 
     await _playKikiAudio('audio/sound_effects/shine.wav');
-    await _audioPlayer.onPlayerComplete.first;
+    await _waitForAudioComplete();
+    if (_disposed) return;
 
     await _playKikiAudio('audio/discovery_lagoon/perfume_ending.wav');
-    await _audioPlayer.onPlayerComplete.first;
+    await _waitForAudioComplete();
+    if (_disposed) return;
 
     if (mounted) {
       setState(() {
@@ -291,8 +308,8 @@ class _PerfumeGameState extends State<PerfumeGame> {
 
     await _playKikiAudio('audio/discovery_lagoon/kiki_tryagain.wav');
 
-    _audioPlayer.onPlayerComplete.first.then((_) {
-      if (mounted && !_actionTaken) {
+    _waitForAudioComplete().then((_) {
+      if (mounted && !_disposed && !_actionTaken) {
         setState(() {
           _canTap = true;
         });
@@ -302,6 +319,7 @@ class _PerfumeGameState extends State<PerfumeGame> {
 
   @override
   void dispose() {
+    _disposed = true;
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -839,7 +857,8 @@ class _PerfumeGameState extends State<PerfumeGame> {
           if (_showGoodJob)
             GoodJobOverlay(
               characterImage: 'assets/images/characters/kiki_tryagain.png',
-              closeButtonColor: const Color(0xFF266589),
+              closeButtonColor: LagoonColorTheme.wasteland,
+              characterSizeFactor: 0.9,
               onNext: () async {
                 // Mark Level 2 as complete to unlock Level 3
                 await LagoonProgressService.instance.markLevelComplete(2);

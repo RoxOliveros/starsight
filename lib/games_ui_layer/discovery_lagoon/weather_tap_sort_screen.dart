@@ -248,7 +248,8 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
       barrierColor: Colors.black54,
       builder: (_) => GoodJobOverlay(
         characterImage: 'assets/images/characters/kiki_smiling.png',
-        closeButtonColor: LagoonColorTheme.darkbrown,
+        closeButtonColor: LagoonColorTheme.wasteland,
+        characterSizeFactor: 0.9,
         onNext: () async {
           // 1. Mark the current level as complete (Change the number for each game)
           await LagoonProgressService.instance.markLevelComplete(19);

@@ -6,6 +6,7 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
 // ==========================================
@@ -297,7 +298,6 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
     OrientationService.setLandscape();
     _playEndingSequence();
 
-    // Listen for the audio to finish playing, then show the GoodJobOverlay
     _audioPlayer.onPlayerComplete.listen((event) {
       if (mounted) {
         setState(() {
@@ -389,7 +389,8 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
                 Positioned.fill(
                   child: GoodJobOverlay(
                     characterImage: 'assets/images/characters/kiki_smiling.png',
-                    closeButtonColor: Colors.deepOrange,
+                    closeButtonColor: LagoonColorTheme.wasteland,
+                    characterSizeFactor: 0.9,
                     onNext: () async {
                       // 1. Mark the current level as complete (Change the number for each game)
                       await LagoonProgressService.instance.markLevelComplete(7);

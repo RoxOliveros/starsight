@@ -4,7 +4,8 @@
   import 'package:flutter/material.dart';
   import 'package:audioplayers/audioplayers.dart'; // Standard Flutter audio package
   import 'package:StarSight/business_layer/orientation_service.dart';
-  import '../goodjob_prompt.dart';
+  import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
+import '../goodjob_prompt.dart';
   import 'lagoon_game_ui.dart';
 
   class   SeedGame extends StatefulWidget {
@@ -242,7 +243,8 @@
             if (showGoodJob)
               GoodJobOverlay(
                 characterImage: 'assets/images/characters/kiki_the_cat.png',
-                closeButtonColor: const Color(0xFFF44336), // A gentle red/orange
+                closeButtonColor: LagoonColorTheme.wasteland,
+                characterSizeFactor: 0.9,
                 onNext: () async {
                   // 1. Mark the current level as complete (Change the number for each game)
                   await LagoonProgressService.instance.markLevelComplete(11);

@@ -5,6 +5,7 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
 
@@ -191,7 +192,7 @@ class _HabitantGameState extends State<HabitantGame> {
           // --- THE INTRO OVERLAY ---
           if (_showIntro)
             Container(
-              color: Colors.black.withOpacity(0.8),
+              color: Colors.black.withValues(alpha: 0.8),
               child: Center(
                 child: Transform.translate(
                   offset: Offset(
@@ -219,9 +220,9 @@ class _HabitantGameState extends State<HabitantGame> {
           // --- THE GOOD JOB OVERLAY ---
           if (_isGameWon)
             GoodJobOverlay(
-              // Using Kiki for the congratulations screen, but you can change this!
               characterImage: 'assets/images/characters/kiki_smiling.png',
-              closeButtonColor: Colors.orange,
+              closeButtonColor: LagoonColorTheme.wasteland,
+              characterSizeFactor: 0.9,
               onNext: () async {
                 // 1. Mark the current level as complete (Change the number for each game)
                 await LagoonProgressService.instance.markLevelComplete(10);

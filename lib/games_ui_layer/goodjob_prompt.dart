@@ -7,6 +7,7 @@ class GoodJobOverlay extends StatefulWidget {
   final VoidCallback onNext;
   final VoidCallback onRestart;
   final VoidCallback onBack;
+  final double characterSizeFactor;
 
   const GoodJobOverlay({
     super.key,
@@ -15,6 +16,7 @@ class GoodJobOverlay extends StatefulWidget {
     required this.onNext,
     required this.onRestart,
     required this.onBack,
+    this.characterSizeFactor = 1.0,
   });
 
   @override
@@ -120,8 +122,7 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
         final double bannerTop =
         (screenHeight * 0.06).clamp(24.0, 70.0);
 
-        final double characterHeight =
-        (350 * scale);
+        final double characterHeight = (350 * scale) * widget.characterSizeFactor;
         final double characterTop =
         (screenHeight * 0.17).clamp(90.0, 190.0);
 

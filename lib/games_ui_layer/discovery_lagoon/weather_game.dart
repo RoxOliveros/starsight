@@ -7,6 +7,7 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/clothes_game.dart';
 
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart'; // Make sure this path is correct for ClothesGame!
 
 enum KikiState { normal, correct, wrong }
@@ -85,8 +86,9 @@ class _WeatherGameState extends State<WeatherGame> {
 
   Future<void> handleAnswer(String selectedWeather) async {
     // Prevent multiple clicks while Kiki is reacting, game is over, OR intro is playing
-    if (_kikiState != KikiState.normal || _isGameComplete || _isPromptPlaying)
+    if (_kikiState != KikiState.normal || _isGameComplete || _isPromptPlaying) {
       return;
+    }
 
     String currentTarget = levelSequence[currentLevelIndex]['target']!;
 
@@ -134,7 +136,6 @@ class _WeatherGameState extends State<WeatherGame> {
       case KikiState.wrong:
         return 'assets/images/characters/kiki_smiling.png';
       case KikiState.normal:
-      default:
         return 'assets/images/characters/kiki_the_cat.png';
     }
   }
@@ -220,7 +221,8 @@ class _WeatherGameState extends State<WeatherGame> {
             Positioned.fill(
               child: GoodJobOverlay(
                 characterImage: 'assets/images/characters/kiki_smiling.png',
-                closeButtonColor: const Color(0xFF2C4463),
+                closeButtonColor: LagoonColorTheme.wasteland,
+                characterSizeFactor: 0.9,
                 onNext: () async {
                   // Mark Level 8 as complete and unlock Level 9
                   await LagoonProgressService.instance.markLevelComplete(8);

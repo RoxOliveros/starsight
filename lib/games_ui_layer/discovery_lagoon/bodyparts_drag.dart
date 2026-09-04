@@ -7,26 +7,8 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_background.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 
-// --- DISCOVERY LAGOON THEME ---
-abstract class LagoonTheme {
-  static const Color wasteland = Color(0xFF5F5630);
-  static const Color pastelorange = Color(0xFFFBEACA);
-  static const Color gunmetalgreen = Color(0xFF6B6A41);
-  static const Color ferngreen = Color(0xFF82AD61);
-  static const Color peach = Color(0xFFFBEBC6);
-  static const Color darkbrown = Color(0xFF4E360D);
-  static const Color sagegreen = Color(0xFF98BC62);
-
-  static const List<Color> canvaColors = [
-    Color(0xFF6FD3E3),
-    Color(0xFFEC8A20),
-    Color(0xFFFBD354),
-  ];
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
+import '../../UI_Layer/app_dialog.dart';
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 
 // --- DATA MODEL FOR BODY PARTS ---
 class BodyPart {
@@ -178,7 +160,7 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
   }
 
   Color _getLetterColor(int index) {
-    return LagoonTheme.canvaColors[index % LagoonTheme.canvaColors.length];
+    return LagoonColorTheme.canvaColors[index % LagoonColorTheme.canvaColors.length];
   }
 
   // --- 3. THE GOOD JOB OVERLAY ---
@@ -191,7 +173,7 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
       barrierDismissible: false,
       builder: (context) => GoodJobOverlay(
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-        closeButtonColor: LagoonTheme.wasteland,
+        closeButtonColor: LagoonColorTheme.wasteland,
         onNext: () {
           Navigator.pop(context); // Close the overlay
           _goToNextLevel();
@@ -277,7 +259,7 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                           color: Colors.white,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: LagoonTheme.gunmetalgreen,
+                            color: LagoonColorTheme.gunmetalgreen,
                             width: 6,
                           ),
                           boxShadow: [
@@ -341,12 +323,12 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
                                 decoration: BoxDecoration(
                                   color: isHovering
                                       ? Colors.white.withValues(alpha: 0.5)
-                                      : LagoonTheme.pastelorange,
+                                      : LagoonColorTheme.pastelorange,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: _filledTargets[targetIndex]
                                         ? letterColor
-                                        : LagoonTheme.darkbrown.withValues(
+                                        : LagoonColorTheme.darkbrown.withValues(
                                             alpha: 0.2,
                                           ),
                                     width: 4,
