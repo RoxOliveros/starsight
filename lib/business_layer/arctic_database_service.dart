@@ -45,7 +45,7 @@ class ArcticDatabaseService {
       );
 
       // Threshold is set to 5 for the capstone tracking scope!
-      if (totalGamesInCycle >= 3 && gameAlreadyPlayed) {
+      if (totalGamesInCycle >= 10 && gameAlreadyPlayed) {
         currentCycle++;
         await trackerRef.set({
           'currentCycle': currentCycle,

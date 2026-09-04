@@ -13,10 +13,16 @@ import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'game_building_igloo.dart';
 
+// --- ADDED IMPORTS FOR AI & TRACKING ---
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 class Number1to5CountingTreesScreen extends StatefulWidget {
   final int level;
 
-  const Number1to5CountingTreesScreen({super.key,required this.level});
+  const Number1to5CountingTreesScreen({super.key, required this.level});
 
   @override
   State<Number1to5CountingTreesScreen> createState() =>
@@ -25,18 +31,33 @@ class Number1to5CountingTreesScreen extends StatefulWidget {
 
 class _Number1to5CountingTreesScreenState
     extends State<Number1to5CountingTreesScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin<Number1to5CountingTreesScreen> {
+  // <-- ADDED MIXIN
   @override
   AudioPlayer get domaPlayer => _player;
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _treeAsset = 'assets/images/objects/arctic/snowy_tree.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _treeAsset =
+      'assets/images/objects/arctic/snowy_tree.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level18/intro.wav';
-  static const String _audioQuestion = 'assets/audio/arctic_numberland/level18/how_many.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level18/intro.wav';
+  static const String _audioQuestion =
+      'assets/audio/arctic_numberland/level18/how_many.wav';
+
+  // ── Tracking Variables ─────────────────────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
@@ -85,7 +106,32 @@ class _Number1to5CountingTreesScreenState
     _roundPool = [1, 2, 3, 4, 5]..shuffle();
 
     _initAnimations();
-    finishLoading(_startIntroFlow);
+
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    _minLoadTimer = Timer(minLoadTime, () {
+      if (mounted) setState(() => _loadingScreenElapsed = true);
+    });
+
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
   }
 
   void _initAnimations() {
@@ -238,6 +284,8 @@ class _Number1to5CountingTreesScreenState
     final isCorrect = _choices[index] == _treeCount;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
+
       _correctPulseCtrl.forward(from: 0);
       await _playAudio('assets/audio/arctic_numberland/$_treeCount.wav');
       showDomaReaction(DomaState.correct);
@@ -246,6 +294,19 @@ class _Number1to5CountingTreesScreenState
       if (!mounted) return;
 
       if (_currentRound + 1 >= _totalRounds) {
+        // --- ADDED AI STOP & DATABASE SAVE ---
+        List<String> finalEmotions = stopAiCamera();
+
+        try {
+          await ArcticDatabaseService.saveGameData(
+            gameId: 'arctic_numberland_${widget.level}',
+            mistakes: _tapTracker.mistakeCount,
+            emotions: finalEmotions,
+          );
+        } catch (e) {
+          debugPrint("Database Error saving Arctic metrics: $e");
+        }
+
         await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
@@ -253,6 +314,8 @@ class _Number1to5CountingTreesScreenState
         _setupRound();
       }
     } else {
+      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
+
       await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
 
@@ -304,6 +367,8 @@ class _Number1to5CountingTreesScreenState
 
   @override
   void dispose() {
+    disposeAiCamera(); // <-- ADDED
+    _minLoadTimer?.cancel();
     _player.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -318,23 +383,66 @@ class _Number1to5CountingTreesScreenState
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.arctic(),
-          gameBuilder: () => Stack(
-            children: [
-          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
 
-          Padding(
-            padding: const EdgeInsets.only(top: 5),
-            child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-          ),
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
-          if (!_introPlaying) buildDoma(context),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
-      ),
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final gameContent = Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
         ),
+
+        if (!_introPlaying) buildDoma(context),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
+            children: [
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : gameContent;
+
+    final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+        ? gateLightingCard()
+        : LoadingScreen.arctic();
+
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => gateNeedsLightingPrompt
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: gameContent),
+                    Positioned.fill(child: gateLightingCard()),
+                  ],
+                )
+              : contentWithOverlay,
+        ),
+      ),
     );
   }
 
@@ -343,7 +451,11 @@ class _Number1to5CountingTreesScreenState
     return Stack(
       children: [
         Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Positioned.fill(
           top: 48,
           child: Row(
@@ -377,7 +489,7 @@ class _Number1to5CountingTreesScreenState
                               _numberDance.value * ((i % 2 == 0) ? 1 : -1);
                           final treeH =
                               MediaQuery.of(context).size.height * 0.12 +
-                                  (i * 6.0);
+                              (i * 6.0);
                           return Transform.rotate(
                             angle: angle,
                             child: Padding(
@@ -442,7 +554,7 @@ class _Number1to5CountingTreesScreenState
 
         return Column(
           children: [
-            // ── HEADER ──────────────────────────────
+            // ── HEADER ─────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
               child: Stack(
@@ -526,9 +638,11 @@ class _Number1to5CountingTreesScreenState
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
                 shadows: const [
-                  Shadow(color: Color(0x55003366),
-                      blurRadius: 6,
-                      offset: Offset(0, 2))
+                  Shadow(
+                    color: Color(0x55003366),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
                 ],
               ),
             ),
@@ -561,7 +675,9 @@ class _Number1to5CountingTreesScreenState
                 child: GestureDetector(
                   onTap: () => _onTreeTap(i),
                   child: SizedBox(
-                    height: treeH + 24, // reserve space for badge so layout never shifts
+                    height:
+                        treeH +
+                        24, // reserve space for badge so layout never shifts
                     child: Stack(
                       alignment: Alignment.topCenter,
                       children: [
@@ -576,7 +692,9 @@ class _Number1to5CountingTreesScreenState
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.yellowAccent.withValues(alpha: 0.6),
+                                    color: Colors.yellowAccent.withValues(
+                                      alpha: 0.6,
+                                    ),
                                     blurRadius: 18,
                                     spreadRadius: 4,
                                   ),
@@ -589,17 +707,49 @@ class _Number1to5CountingTreesScreenState
                         ColorFiltered(
                           colorFilter: isTapped
                               ? const ColorFilter.matrix([
-                            0.6, 0, 0, 0, 80,
-                            0, 0.9, 0, 0, 80,
-                            0, 0, 0.4, 0, 0,
-                            0, 0, 0, 1, 0,
-                          ])
+                                  0.6,
+                                  0,
+                                  0,
+                                  0,
+                                  80,
+                                  0,
+                                  0.9,
+                                  0,
+                                  0,
+                                  80,
+                                  0,
+                                  0,
+                                  0.4,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  1,
+                                  0,
+                                ])
                               : const ColorFilter.matrix([
-                            1, 0, 0, 0, 0,
-                            0, 1, 0, 0, 0,
-                            0, 0, 1, 0, 0,
-                            0, 0, 0, 1, 0,
-                          ]),
+                                  1,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  1,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  1,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  0,
+                                  1,
+                                  0,
+                                ]),
                           child: Image.asset(
                             _treeAsset,
                             height: treeH,
@@ -753,7 +903,10 @@ class _Number1to5CountingTreesScreenState
         );
       },
       onRestart: () {
-        Navigator.pop(context, Number1to5CountingTreesScreen(level: widget.level));
+        Navigator.pop(
+          context,
+          Number1to5CountingTreesScreen(level: widget.level),
+        );
       },
       onBack: () {
         Navigator.pop(context);

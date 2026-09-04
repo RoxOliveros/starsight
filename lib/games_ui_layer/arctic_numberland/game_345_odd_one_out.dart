@@ -13,10 +13,16 @@ import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'game_number_sequence.dart';
 
+// --- ADDED IMPORTS FOR AI & TRACKING ---
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 class Number345OddOneOutScreen extends StatefulWidget {
   final int level;
 
-  const Number345OddOneOutScreen({super.key,required this.level});
+  const Number345OddOneOutScreen({super.key, required this.level});
 
   @override
   State<Number345OddOneOutScreen> createState() =>
@@ -24,7 +30,12 @@ class Number345OddOneOutScreen extends StatefulWidget {
 }
 
 class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin<Number345OddOneOutScreen> {
+  // <-- ADDED MIXIN
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -33,9 +44,11 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   static const List<int> _numbers = [3, 4, 5];
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level16/intro.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level16/intro.wav';
 
   static const Map<int, String> _numberAudio = {
     3: 'assets/audio/arctic_numberland/level16/odd_three.wav',
@@ -48,6 +61,12 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
     4: 'FOUR',
     5: 'FIVE',
   };
+
+  // ── Tracking Variables ─────────────────────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
 
   // ── Objects pool ───────────────────────────────────────────────────────────
   static const List<String> _objectAssets = [
@@ -106,7 +125,32 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    finishLoading(_startIntroFlow);
+
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    _minLoadTimer = Timer(minLoadTime, () {
+      if (mounted) setState(() => _loadingScreenElapsed = true);
+    });
+
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
   }
 
   void _initAnimations() {
@@ -214,6 +258,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
     final isOdd = cardIndex == _oddCardIndex;
 
     if (isOdd) {
+      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
       // ── Correct: found the odd one out ──
       setState(() {
         _correctTappedIndex = cardIndex;
@@ -226,6 +271,19 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       if (!mounted) return;
 
       if (_currentRound + 1 >= _totalRounds) {
+        // --- ADDED AI STOP & DATABASE SAVE ---
+        List<String> finalEmotions = stopAiCamera();
+
+        try {
+          await ArcticDatabaseService.saveGameData(
+            gameId: 'arctic_numberland_${widget.level}',
+            mistakes: _tapTracker.mistakeCount,
+            emotions: finalEmotions,
+          );
+        } catch (e) {
+          debugPrint("Database Error saving Arctic metrics: $e");
+        }
+
         await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
@@ -233,6 +291,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         _setupRound();
       }
     } else {
+      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
       // ── Wrong: tapped a matching card ──
       setState(() => _wrongTappedIndex = cardIndex);
       _wrongCtrlList[cardIndex].forward(from: 0);
@@ -260,6 +319,8 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
 
   @override
   void dispose() {
+    disposeAiCamera(); // <-- ADDED
+    _minLoadTimer?.cancel();
     _player.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -275,20 +336,63 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.arctic(),
-          gameBuilder: () => Stack(
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
+
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final gameContent = Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+
+        _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+
+        if (!_introPlaying) buildDoma(context),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
             children: [
-          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : gameContent;
 
-          _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+    final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+        ? gateLightingCard()
+        : LoadingScreen.arctic();
 
-          if (!_introPlaying) buildDoma(context),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
-      ),
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => gateNeedsLightingPrompt
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: gameContent),
+                    Positioned.fill(child: gateLightingCard()),
+                  ],
+                )
+              : contentWithOverlay,
         ),
+      ),
     );
   }
 
@@ -298,19 +402,20 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       builder: (context, constraints) {
         final h = constraints.maxHeight;
 
-        return
-          Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: Stack(
-                children: [
-                  Positioned(top: 25, left: 20, child: ArcticBackButton()),
-                  Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
-                  Center(
-                      child: _buildDoma(h)
-                  ),
-                ],
-              )
-          );
+        return Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: Stack(
+            children: [
+              Positioned(top: 25, left: 20, child: ArcticBackButton()),
+              Positioned(
+                top: 25,
+                right: 20,
+                child: ArcticLevelBadge(level: widget.level),
+              ),
+              Center(child: _buildDoma(h)),
+            ],
+          ),
+        );
       },
     );
   }
@@ -390,7 +495,13 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
+                  shadows: const [
+                    Shadow(
+                      color: Color(0x55003366),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 10),
@@ -426,10 +537,12 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
-          children: List.generate(4, (i) => _buildCard(i, cardW, cardH))
-              .expand((card) => [card, const SizedBox(width: 10)])
-              .toList()
-            ..removeLast()
+        children:
+            List.generate(
+                4,
+                (i) => _buildCard(i, cardW, cardH),
+              ).expand((card) => [card, const SizedBox(width: 10)]).toList()
+              ..removeLast(),
       ),
     );
   }

@@ -13,6 +13,12 @@ import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'game_345_odd_one_out.dart';
 
+// --- ADDED IMPORTS FOR AI & TRACKING ---
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 enum _ScreenPhase { intro, miniGame }
 
 class Number345CountingObjectsScreen extends StatefulWidget {
@@ -25,8 +31,14 @@ class Number345CountingObjectsScreen extends StatefulWidget {
       _Number345CountingObjectsScreenState();
 }
 
-class _Number345CountingObjectsScreenState extends State<Number345CountingObjectsScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
+class _Number345CountingObjectsScreenState
+    extends State<Number345CountingObjectsScreen>
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin<Number345CountingObjectsScreen> {
+  // <-- ADDED MIXIN
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -35,11 +47,19 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
   static const List<int> _numbers = [3, 4, 5];
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level14/intro.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level14/intro.wav';
 
-  // ── Objects pool (all arctic_numberland assets) ──────────────────────────────────────
+  // ── Tracking Variables ─────────────────────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
+
+  // ── Objects pool (all arctic_numberland assets) ─────────────────────────────
   static const List<Map<String, String>> _objects = [
     {
       'name': 'Candy Cane',
@@ -109,7 +129,32 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
     OrientationService.setLandscape();
     _initAnimations();
     _generateRound();
-    finishLoading(_startIntroFlow);
+
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    _minLoadTimer = Timer(minLoadTime, () {
+      if (mounted) setState(() => _loadingScreenElapsed = true);
+    });
+
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
   }
 
   void _initAnimations() {
@@ -206,6 +251,8 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
     final isCorrect = _choices[index] == _correctCount;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
+
       _correctPulseCtrl.forward(from: 0);
       await _playAudio('assets/audio/arctic_numberland/$_correctCount.wav');
       showDomaReaction(DomaState.correct);
@@ -214,6 +261,19 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
       if (!mounted) return;
 
       if (_round >= _totalRounds) {
+        // --- ADDED AI STOP & DATABASE SAVE ---
+        List<String> finalEmotions = stopAiCamera();
+
+        try {
+          await ArcticDatabaseService.saveGameData(
+            gameId: 'arctic_numberland_${widget.level}',
+            mistakes: _tapTracker.mistakeCount,
+            emotions: finalEmotions,
+          );
+        } catch (e) {
+          debugPrint("Database Error saving Arctic metrics: $e");
+        }
+
         await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
@@ -224,6 +284,8 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
         _animateRoundIn();
       }
     } else {
+      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
+
       await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
 
@@ -251,6 +313,8 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
 
   @override
   void dispose() {
+    disposeAiCamera(); // <-- ADDED
+    _minLoadTimer?.cancel();
     _player.dispose();
     _numberDanceCtrl.dispose();
     _domaFloatCtrl.dispose();
@@ -279,83 +343,130 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.arctic(),
-          gameBuilder: () => Stack(
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
+
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final gameContent = Stack(
+      children: [
+        // Background
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+
+        if (_screenPhase == _ScreenPhase.intro)
+          _buildIntroLayer()
+        else
+          _buildGameContent(),
+
+        if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
             children: [
-          // Background
-          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : gameContent;
 
-          if (_screenPhase == _ScreenPhase.intro)
-            _buildIntroLayer()
-          else
-            _buildGameContent(),
+    final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+        ? gateLightingCard()
+        : LoadingScreen.arctic();
 
-          if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
-      ),
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => gateNeedsLightingPrompt
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: gameContent),
+                    Positioned.fill(child: gateLightingCard()),
+                  ],
+                )
+              : contentWithOverlay,
         ),
+      ),
     );
   }
 
   // ── Intro ──────────────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     return Padding(
-        padding: const EdgeInsets.only(top: 5),
-        child: Stack(
-          children: [
-            Positioned(top: 25, left: 20, child: ArcticBackButton()),
-            Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
-            Positioned.fill(
-              top: 40,
-              child: Row(
-                children: [
-                  // Doma
-                  Expanded(
-                    child: Center(
-                      child: Image.asset(
-                        _characterImage,
-                        height: MediaQuery.of(context).size.height * 0.65,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            const Text('🐧', style: TextStyle(fontSize: 60)),
-                      ),
+      padding: const EdgeInsets.only(top: 5),
+      child: Stack(
+        children: [
+          Positioned(top: 25, left: 20, child: ArcticBackButton()),
+          Positioned(
+            top: 25,
+            right: 20,
+            child: ArcticLevelBadge(level: widget.level),
+          ),
+          Positioned.fill(
+            top: 40,
+            child: Row(
+              children: [
+                // Doma
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      _characterImage,
+                      height: MediaQuery.of(context).size.height * 0.65,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🐧', style: TextStyle(fontSize: 60)),
                     ),
                   ),
-                  // Dancing numbers 3, 4, 5
-                  Expanded(
-                    child: Center(
-                      child: AnimatedBuilder(
-                        animation: _numberDanceCtrl,
-                        builder: (_, __) {
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(3, (i) {
-                              final angle =
-                                  _numberDance.value * ((i % 2 == 0) ? 1 : -1);
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                child: Transform.rotate(
-                                  angle: angle,
-                                  child: _buildIntroNumberCard(i),
-                                ),
-                              );
-                            }),
-                          );
-                        },
-                      ),
+                ),
+                // Dancing numbers 3, 4, 5
+                Expanded(
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: _numberDanceCtrl,
+                      builder: (_, __) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(3, (i) {
+                            final angle =
+                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: Transform.rotate(
+                                angle: angle,
+                                child: _buildIntroNumberCard(i),
+                              ),
+                            );
+                          }),
+                        );
+                      },
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildIntroNumberCard(int i) {
@@ -417,10 +528,7 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(
-                  alignment: Alignment.centerLeft,
-                  child: ArcticBackButton()
-              ),
+              Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
               Align(
                 alignment: Alignment.centerRight,
                 child: ArcticLevelBadge(level: widget.level),
@@ -449,7 +557,13 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
-                    shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
+                    shadows: const [
+                      Shadow(
+                        color: Color(0x55003366),
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -549,7 +663,7 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
           crossAxisCount: 2,
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
-          childAspectRatio: 1.4, // ← changed from 1.3
+          childAspectRatio: 1.4,
         ),
         itemCount: _choices.length,
         itemBuilder: (context, index) {
@@ -642,7 +756,10 @@ class _Number345CountingObjectsScreenState extends State<Number345CountingObject
         );
       },
       onRestart: () {
-        Navigator.pop(context, Number345CountingObjectsScreen(level: widget.level));
+        Navigator.pop(
+          context,
+          Number345CountingObjectsScreen(level: widget.level),
+        );
       },
       onBack: () {
         Navigator.pop(context);

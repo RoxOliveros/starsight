@@ -196,15 +196,10 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         }
       }
 
-      // D. GENERATE NEW REPORT (Only happens if data changed or no cache exists)
-      // D. GENERATE NEW REPORT (Only happens if data changed or no cache exists)
-      int totalCategoryGames = 10;
-      if (widget.categoryId == 'alphabet_forest') {
-        totalCategoryGames = 5;
-      } else if (widget.categoryId == 'arctic_numberland') {
-        totalCategoryGames =
-            3; // <-- Temporarily set to 3 so it counts as "complete" for testing!
-      }
+      // Alphabet Forest requires 5, Arctic Numberland requires 10
+      int totalCategoryGames = (widget.categoryId == 'alphabet_forest')
+          ? 5
+          : 10;
 
       Map<String, dynamic> summaryMap =
           await CategorySummaryService.generateCategoryReport(

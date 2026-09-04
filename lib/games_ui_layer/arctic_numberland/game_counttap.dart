@@ -14,6 +14,12 @@ import 'goodjob_doma_prompt.dart';
 import 'game_345_counting.dart';
 import 'number_introduction_screen.dart';
 
+// --- ADDED IMPORTS FOR AI & TRACKING ---
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 enum _ScreenPhase { intro, miniGame }
 
 class Number012TapCountScreen extends StatefulWidget {
@@ -27,7 +33,12 @@ class Number012TapCountScreen extends StatefulWidget {
 }
 
 class _Number012TapCountScreenState extends State<Number012TapCountScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin<Number012TapCountScreen> {
+  // <-- ADDED MIXIN
   @override
   AudioPlayer get domaPlayer => _player;
   // ── Constants ──────────────────────────────────────────────────────────────
@@ -41,6 +52,12 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
+
+  // --- ADDED TRACKING VARIABLES ---
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
 
   static const _themes = [
     _RoundTheme(
@@ -114,7 +131,31 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       CurvedAnimation(parent: _numberDanceCtrl, curve: Curves.easeInOut),
     );
 
-    finishLoading(_startIntroFlow);
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    _minLoadTimer = Timer(minLoadTime, () {
+      if (mounted) setState(() => _loadingScreenElapsed = true);
+    });
+
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
 
     _numberBounce = AnimationController(
       vsync: this,
@@ -165,6 +206,8 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   @override
   void dispose() {
+    disposeAiCamera(); // <-- ADDED
+    _minLoadTimer?.cancel();
     _numberDanceCtrl.dispose();
     _player.dispose();
     OrientationService.setLandscape();
@@ -233,6 +276,8 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
     if (_selectedCount == _targetNumber) {
       // ✅ Correct
+      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT SUBMISSION
+
       await _playAudio('assets/audio/arctic_numberland/$_targetNumber.wav');
       showDomaReaction(DomaState.correct);
       _celebrationCtrl.forward(from: 0);
@@ -241,6 +286,19 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       await Future.delayed(const Duration(milliseconds: 1000));
 
       if (_round + 1 >= _totalRounds) {
+        // --- ADDED AI STOP & DATABASE SAVE ---
+        List<String> finalEmotions = stopAiCamera();
+
+        try {
+          await ArcticDatabaseService.saveGameData(
+            gameId: 'arctic_numberland_${widget.level}',
+            mistakes: _tapTracker.mistakeCount,
+            emotions: finalEmotions,
+          );
+        } catch (e) {
+          debugPrint("Database Error saving Arctic metrics: $e");
+        }
+
         await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
@@ -251,6 +309,8 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         });
       }
     } else {
+      // ❌ Mistake
+      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
 
       await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
@@ -267,113 +327,169 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: ArcticColorTheme.lightgrayishcyan,
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.arctic(),
-          gameBuilder: () => Stack(
-            children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/backgrounds/bg_game_arctic.png',
-              fit: BoxFit.cover,
-            ),
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
+
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final gameContent = Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/backgrounds/bg_game_arctic.png',
+            fit: BoxFit.cover,
           ),
-          if (_screenPhase == _ScreenPhase.intro)
-            _buildIntrolayer()
-          else
-            Padding(
-              padding: const EdgeInsets.only(top: 5, bottom: 5),
-                child: Column(
-                  children: [
-                    // ── Header ──────────────────────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-                      child: Stack(
-                        alignment: Alignment.topCenter,
-                        children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: ArcticBackButton(),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: ArcticLevelBadge(level: widget.level),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-                              borderRadius: BorderRadius.circular(32),
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              'Tap and count the number of object/s needed',
-                              style: TextStyle(
-                                fontFamily: ArcticAppTextStyles.fredoka,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
-                              ),
-                            ),
-                          ),
-                        ],
+        ),
+        if (_screenPhase == _ScreenPhase.intro)
+          _buildIntrolayer()
+        else
+          Padding(
+            padding: const EdgeInsets.only(top: 5, bottom: 5),
+            child: Column(
+              children: [
+                // ── Header ──────────────────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 25,
+                  ),
+                  child: Stack(
+                    alignment: Alignment.topCenter,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: ArcticBackButton(),
                       ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // ── Main game area ───────────────────────────────────────────────
-                    Expanded(
-                      child: FadeTransition(
-                        opacity: _enterAnim,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const Spacer(),
-                            // LEFT — Number card
-                            _buildNumberCard(),
-
-                            const SizedBox(width: 24),
-
-                            //Arrow
-                            const Icon(
-                              Icons.arrow_forward_rounded,
-                              color: ArcticColorTheme.slateblue,
-                              size: 28,
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ArcticLevelBadge(level: widget.level),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ArcticColorTheme.pictonblue.withValues(
+                            alpha: 0.92,
+                          ),
+                          borderRadius: BorderRadius.circular(32),
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: ArcticColorTheme.pictonblue.withValues(
+                                alpha: 0.4,
+                              ),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
                             ),
-
-                            const SizedBox(width: 12),
-
-                            _buildObjectArea(),
-
-                            const Spacer(),
                           ],
                         ),
+                        child: Text(
+                          'Tap and count the number of object/s needed',
+                          style: TextStyle(
+                            fontFamily: ArcticAppTextStyles.fredoka,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            shadows: const [
+                              Shadow(
+                                color: Color(0x55003366),
+                                blurRadius: 6,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-
-                    _buildProgressDots(),
-                    const SizedBox(height: 10),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-          if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
-      ),
+
+                const SizedBox(height: 8),
+
+                // ── Main game area ───────────────────────────────────────────────
+                Expanded(
+                  child: FadeTransition(
+                    opacity: _enterAnim,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Spacer(),
+                        // LEFT — Number card
+                        _buildNumberCard(),
+
+                        const SizedBox(width: 24),
+
+                        //Arrow
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: ArcticColorTheme.slateblue,
+                          size: 28,
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        _buildObjectArea(),
+
+                        const Spacer(),
+                      ],
+                    ),
+                  ),
+                ),
+
+                _buildProgressDots(),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
+            children: [
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : gameContent;
+
+    final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+        ? gateLightingCard()
+        : LoadingScreen.arctic();
+
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        backgroundColor: ArcticColorTheme.lightgrayishcyan,
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => gateNeedsLightingPrompt
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: gameContent),
+                    Positioned.fill(child: gateLightingCard()),
+                  ],
+                )
+              : contentWithOverlay,
         ),
+      ),
     );
   }
 
@@ -578,7 +694,9 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
             builder: (_) => NumberIntroductionScreen.forSequence(
               [3, 4, 5],
               level: 5,
-              nextScreen: Number345CountingObjectsScreen(level: widget.level + 1),
+              nextScreen: Number345CountingObjectsScreen(
+                level: widget.level + 1,
+              ),
             ),
           ),
         );
@@ -594,57 +712,61 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   Widget _buildIntrolayer() {
     return Padding(
-        padding: const EdgeInsets.only(top: 5),
-        child: Stack(
-          children: [
-            Positioned(top: 25, left: 20, child: ArcticBackButton()),
-            Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
-            Positioned.fill(
-              top: 50,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: Image.asset(
-                        'assets/images/characters/doma_the_penguin.png',
-                        height: MediaQuery.of(context).size.height * 0.65,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            const Text('🐧', style: TextStyle(fontSize: 60)),
-                      ),
+      padding: const EdgeInsets.only(top: 5),
+      child: Stack(
+        children: [
+          Positioned(top: 25, left: 20, child: ArcticBackButton()),
+          Positioned(
+            top: 25,
+            right: 20,
+            child: ArcticLevelBadge(level: widget.level),
+          ),
+          Positioned.fill(
+            top: 50,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: Image.asset(
+                      'assets/images/characters/doma_the_penguin.png',
+                      height: MediaQuery.of(context).size.height * 0.65,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🐧', style: TextStyle(fontSize: 60)),
                     ),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: AnimatedBuilder(
-                        animation: _numberDanceCtrl,
-                        builder: (_, __) {
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(3, (i) {
-                              final angle =
-                                  _numberDance.value * ((i % 2 == 0) ? 1 : -1);
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                child: Transform.rotate(
-                                  angle: angle,
-                                  child: _buildIntroNumberCard(i),
-                                ),
-                              );
-                            }),
-                          );
-                        },
-                      ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: _numberDanceCtrl,
+                      builder: (_, __) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(3, (i) {
+                            final angle =
+                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: Transform.rotate(
+                                angle: angle,
+                                child: _buildIntroNumberCard(i),
+                              ),
+                            );
+                          }),
+                        );
+                      },
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildIntroNumberCard(int number) {

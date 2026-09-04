@@ -112,6 +112,12 @@ class _Number012CountingObjectsScreenState
     startAiCamera();
     _tapTracker.startSession();
 
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
+
     // Let the loading screen play its full minimum duration before the
     // lighting card is allowed to take its place — never simultaneously.
     _minLoadTimer = Timer(minLoadTime, () {

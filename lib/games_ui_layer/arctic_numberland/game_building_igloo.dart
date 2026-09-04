@@ -13,10 +13,16 @@ import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'game_match_snowglobe.dart';
 
+// --- ADDED IMPORTS FOR AI & TRACKING ---
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 class Number1to5FillIglooScreen extends StatefulWidget {
   final int level;
 
-  const Number1to5FillIglooScreen({super.key,required this.level});
+  const Number1to5FillIglooScreen({super.key, required this.level});
 
   @override
   State<Number1to5FillIglooScreen> createState() =>
@@ -24,7 +30,12 @@ class Number1to5FillIglooScreen extends StatefulWidget {
 }
 
 class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin<Number1to5FillIglooScreen> {
+  // <-- ADDED MIXIN
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -32,11 +43,20 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
   static const int _totalRounds = 5;
   static const int _maxNumber = 5;
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
   static const String _iceAsset = 'assets/images/objects/arctic/ice_1.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level19/intro.wav';
-  static const String _audioBuild = 'assets/audio/arctic_numberland/level19/build.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level19/intro.wav';
+  static const String _audioBuild =
+      'assets/audio/arctic_numberland/level19/build.wav';
+
+  // ── Tracking Variables ─────────────────────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
@@ -106,7 +126,32 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
     OrientationService.setLandscape();
     _roundPool = List.generate(_maxNumber, (i) => i + 1)..shuffle();
     _initAnimations();
-    finishLoading(_startIntroFlow);
+
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    _minLoadTimer = Timer(minLoadTime, () {
+      if (mounted) setState(() => _loadingScreenElapsed = true);
+    });
+
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
   }
 
   void _initAnimations() {
@@ -207,7 +252,6 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
       _roundPool = List.generate(_maxNumber, (i) => i + 1)..shuffle();
     }
 
-
     _targetCount = _roundPool.removeLast();
 
     // Reset slots (always 5 visual slots, only _targetCount are "active")
@@ -275,6 +319,8 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
     if (hitSlot != null) {
       if (_roundAdvancing) return;
 
+      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
+
       final blockId = _draggingBlockIndex!;
       setState(() {
         _slotContents[hitSlot!] = blockId;
@@ -298,6 +344,19 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
         await Future.delayed(const Duration(milliseconds: 700));
         if (!mounted) return;
         if (_currentRound + 1 >= _totalRounds) {
+          // --- ADDED AI STOP & DATABASE SAVE ---
+          List<String> finalEmotions = stopAiCamera();
+
+          try {
+            await ArcticDatabaseService.saveGameData(
+              gameId: 'arctic_numberland_${widget.level}',
+              mistakes: _tapTracker.mistakeCount,
+              emotions: finalEmotions,
+            );
+          } catch (e) {
+            debugPrint("Database Error saving Arctic metrics: $e");
+          }
+
           await ArcticProgressService.instance.markLevelComplete(widget.level);
           setState(() => _showWinDialog = true);
         } else {
@@ -306,6 +365,8 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
         }
       }
     } else {
+      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
+
       // Return to pile
       setState(() {
         _draggingBlockIndex = null;
@@ -346,6 +407,8 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
 
   @override
   void dispose() {
+    disposeAiCamera(); // <-- ADDED
+    _minLoadTimer?.cancel();
     _player.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -364,19 +427,62 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.arctic(),
-          gameBuilder: () => Stack(
-            children: [
-          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
-          _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
 
-          if (!_introPlaying) buildDoma(context),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
-      ),
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final gameContent = Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+
+        if (!_introPlaying) buildDoma(context),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
+            children: [
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : gameContent;
+
+    final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+        ? gateLightingCard()
+        : LoadingScreen.arctic();
+
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => gateNeedsLightingPrompt
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: gameContent),
+                    Positioned.fill(child: gateLightingCard()),
+                  ],
+                )
+              : contentWithOverlay,
         ),
+      ),
     );
   }
 
@@ -385,7 +491,11 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
     return Stack(
       children: [
         Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Positioned.fill(
           top: 48,
           child: Row(
@@ -418,7 +528,7 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
                               _numberDance.value * ((i % 2 == 0) ? 1 : -1);
                           final blockH =
                               MediaQuery.of(context).size.height * 0.12 +
-                                  (i * 6.0);
+                              (i * 6.0);
                           return Transform.rotate(
                             angle: angle,
                             child: Padding(
@@ -487,7 +597,10 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
               children: [
                 // ── HEADER ──────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 25,
+                  ),
                   child: Stack(
                     alignment: Alignment.topCenter,
                     children: [
@@ -576,7 +689,13 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
-                shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
+                shadows: const [
+                  Shadow(
+                    color: Color(0x55003366),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
             ),
             // Show the target number prominently
@@ -862,7 +981,8 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => Number1to5MatchSnowglobesScreen(level: widget.level + 1),
+            builder: (_) =>
+                Number1to5MatchSnowglobesScreen(level: widget.level + 1),
           ),
         );
       },

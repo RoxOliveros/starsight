@@ -12,6 +12,12 @@ import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 
+// --- ADDED IMPORTS FOR AI & TRACKING ---
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 class Number012345SequenceScreen extends StatefulWidget {
   final int level;
 
@@ -23,7 +29,12 @@ class Number012345SequenceScreen extends StatefulWidget {
 }
 
 class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin<Number012345SequenceScreen> {
+  // <-- ADDED MIXIN
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -40,6 +51,12 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
   static const String _audioSlotCorrect =
       'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioWin = 'assets/audio/sound_effects/shine.wav';
+
+  // ── Tracking Variables ─────────────────────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
@@ -90,7 +107,32 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    finishLoading(_startIntroFlow);
+
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    _minLoadTimer = Timer(minLoadTime, () {
+      if (mounted) setState(() => _loadingScreenElapsed = true);
+    });
+
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
   }
 
   void _initAnimations() {
@@ -214,6 +256,8 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
 
     if (number == correctNumber) {
       // CORRECT
+      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
+
       setState(() {
         _slots[slotIndex] = number;
         _slotLocked[slotIndex] = true;
@@ -234,6 +278,19 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         if (!mounted) return;
 
         if (_currentRound + 1 >= _totalRounds) {
+          // --- ADDED AI STOP & DATABASE SAVE ---
+          List<String> finalEmotions = stopAiCamera();
+
+          try {
+            await ArcticDatabaseService.saveGameData(
+              gameId: 'arctic_numberland_${widget.level}',
+              mistakes: _tapTracker.mistakeCount,
+              emotions: finalEmotions,
+            );
+          } catch (e) {
+            debugPrint("Database Error saving Arctic metrics: $e");
+          }
+
           await ArcticProgressService.instance.markLevelComplete(widget.level);
           setState(() => _showWinDialog = true);
         } else {
@@ -243,6 +300,8 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
       }
     } else {
       // WRONG
+      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
+
       setState(() {
         _slots[slotIndex] = number;
         _slotWrong[slotIndex] = true;
@@ -287,6 +346,8 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
 
   @override
   void dispose() {
+    disposeAiCamera(); // <-- ADDED
+    _minLoadTimer?.cancel();
     _player.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -302,23 +363,66 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.arctic(),
-          gameBuilder: () => Stack(
-            children: [
-          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
 
-          Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-            ),
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
-          if (!_introPlaying) buildDoma(context),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
-      ),
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final gameContent = Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
         ),
+
+        if (!_introPlaying) buildDoma(context),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
+            children: [
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : gameContent;
+
+    final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+        ? gateLightingCard()
+        : LoadingScreen.arctic();
+
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => gateNeedsLightingPrompt
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: gameContent),
+                    Positioned.fill(child: gateLightingCard()),
+                  ],
+                )
+              : contentWithOverlay,
+        ),
+      ),
     );
   }
 
@@ -327,7 +431,11 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
     return Stack(
       children: [
         Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Positioned.fill(
           top: 48,
           child: Row(
@@ -503,7 +611,13 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
-                shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
+                shadows: const [
+                  Shadow(
+                    color: Color(0x55003366),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
             ),
           ],
@@ -743,7 +857,8 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => Number1to5CountingTreesScreen(level: widget.level + 1),
+            builder: (_) =>
+                Number1to5CountingTreesScreen(level: widget.level + 1),
           ),
         );
       },
