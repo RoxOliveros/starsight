@@ -6,10 +6,15 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:audioplayers/audioplayers.dart'; // Make sure this path matches your project structure
+import 'package:audioplayers/audioplayers.dart';
+
+import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import 'lagoon_game_ui.dart'; // Make sure this path matches your project structure
 
 class PerfumeGame extends StatefulWidget {
-  const PerfumeGame({super.key});
+  final int level;
+
+  const PerfumeGame({super.key, required this.level});
 
   @override
   State<PerfumeGame> createState() => _PerfumeGameState();
@@ -827,32 +832,8 @@ class _PerfumeGameState extends State<PerfumeGame> {
             ),
           ],
 
-          // ── 11. Close Button
-          Positioned(
-            top: sh * 0.05,
-            left: sw * 0.03,
-            child: GestureDetector(
-              onTap: _exitLevel,
-              child: Image.asset(
-                'assets/images/buttons/x_blue.png',
-                width: sw * 0.065,
-                fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => Container(
-                  width: sw * 0.065,
-                  height: sw * 0.065,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF266589),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: sw * 0.04,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
 
           // ── 12. Good Job Overlay
           if (_showGoodJob)
@@ -865,13 +846,13 @@ class _PerfumeGameState extends State<PerfumeGame> {
                 if (context.mounted) {
                   // Jump to Level 3 (Listening)
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const ListeningGame()),
+                    MaterialPageRoute(builder: (_) => ListeningGame(level: widget.level + 1)),
                   );
                 }
               },
               onRestart: () {
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const PerfumeGame()),
+                  MaterialPageRoute(builder: (_) => PerfumeGame(level: widget.level)),
                 );
               },
               onBack: () {

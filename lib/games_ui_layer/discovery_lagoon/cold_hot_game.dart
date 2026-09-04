@@ -7,6 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import 'lagoon_game_ui.dart';
+
 // Represents an item to be sorted
 class SortableItem {
   final String imagePath;
@@ -16,7 +19,9 @@ class SortableItem {
 }
 
 class ColdHotGame extends StatefulWidget {
-  const ColdHotGame({super.key});
+  final int level;
+
+  const ColdHotGame({super.key, required this.level});
 
   @override
   State<ColdHotGame> createState() => _ColdHotGameState();
@@ -219,21 +224,6 @@ class _ColdHotGameState extends State<ColdHotGame>
             fit: BoxFit.cover,
           ),
 
-          // B. BACK BUTTON (Top Left)
-          Positioned(
-            top: 20,
-            left: 20,
-            child: GestureDetector(
-              onTap: () => Navigator.of(context).pop(),
-              child: Image.asset(
-                'assets/images/buttons/x_yellow.png',
-                width: 64,
-                height: 64,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-
           // C. SORTED SOFT ITEMS LAYER (Displays correctly sorted items on the Left!)
           Positioned(
             left: sw * 0.03,
@@ -360,6 +350,10 @@ class _ColdHotGameState extends State<ColdHotGame>
               },
               onBack: () => Navigator.of(context).pop(),
             ),
+
+          // X Button and Level Badge
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
         ],
       ),
     );

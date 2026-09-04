@@ -29,6 +29,20 @@ class LagoonBackButton extends StatelessWidget {
   }
 }
 
+class LagoonXButton extends StatelessWidget {
+  final VoidCallback? onTap;
+
+  const LagoonXButton({super.key, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+        onTap: onTap ?? () => Navigator.pop(context),
+        child: Image.asset('assets/images/buttons/x_brown.png', width: 50)
+    );
+  }
+}
+
 class LagoonSkipButton extends StatelessWidget {
   final VoidCallback onTap;
 

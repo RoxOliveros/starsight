@@ -1,6 +1,5 @@
 import 'dart:math';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/living_nonliving_game.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/treeparts_assembly.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/lagoon_progress_service.dart';
@@ -9,6 +8,7 @@ import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'audio_helper.dart';
 import 'intro_phase.dart';
+import 'lagoon_game_ui.dart';
 
 class FallingIcon {
   final String id;
@@ -196,8 +196,9 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
   }
 
   void _tick() {
-    if (!mounted || _roundComplete || _screenPhase != LagoonScreenPhase.game)
+    if (!mounted || _roundComplete || _screenPhase != LagoonScreenPhase.game) {
       return;
+    }
     setState(() {
       for (final icon in _icons) {
         if (!icon.tapped) icon.y += icon.speed;
@@ -257,7 +258,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const LivingNonLivingGame(),
+                builder: (context) => LivingNonLivingGame(level: widget.level + 1),
               ),
             );
           }
@@ -352,12 +353,13 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
                   );
                 }),
 
-              // UI overlay
-              SafeArea(
-                child: _screenPhase == LagoonScreenPhase.intro
+               _screenPhase == LagoonScreenPhase.intro
                     ? _buildIntroContent()
                     : _buildGameContent(),
-              ),
+
+              // X Button and Level Badge
+              Positioned(top: 25, left: 25, child: const LagoonXButton()),
+              Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
             ],
           );
         },
@@ -368,7 +370,6 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
   Widget _buildIntroContent() {
     return Stack(
       children: [
-        const Positioned(top: 8, left: 12, child: LagoonBackButton()),
         Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
       ],
     );
@@ -384,10 +385,6 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: LagoonBackButton(),
-                ),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,

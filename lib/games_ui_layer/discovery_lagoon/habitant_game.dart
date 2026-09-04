@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 import '../goodjob_prompt.dart';
+import 'lagoon_game_ui.dart';
 
 class CharacterAdjustment {
   final double size;
@@ -20,7 +21,9 @@ class CharacterAdjustment {
 }
 
 class HabitantGame extends StatefulWidget {
-  const HabitantGame({Key? key}) : super(key: key);
+  final int level;
+
+  const HabitantGame({super.key, required this.level});
 
   @override
   State<HabitantGame> createState() => _HabitantGameState();
@@ -184,7 +187,6 @@ class _HabitantGameState extends State<HabitantGame> {
               ),
             ],
           ),
-          const Positioned(top: 25, left: 20, child: LagoonBackButton()),
 
           // --- THE INTRO OVERLAY ---
           if (_showIntro)
@@ -210,6 +212,10 @@ class _HabitantGameState extends State<HabitantGame> {
               ),
             ),
 
+          // X Button and Level Badge
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+
           // --- THE GOOD JOB OVERLAY ---
           if (_isGameWon)
             GoodJobOverlay(
@@ -224,7 +230,7 @@ class _HabitantGameState extends State<HabitantGame> {
                   // 2. Push directly to the next level's screen
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const SeedGame()),
+                    MaterialPageRoute(builder: (context) => SeedGame(level: widget.level)),
                   );
                 }
               },

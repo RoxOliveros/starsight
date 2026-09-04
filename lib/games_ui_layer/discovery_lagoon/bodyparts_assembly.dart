@@ -9,6 +9,7 @@ import '../goodjob_prompt.dart';
 import 'audio_helper.dart';
 import 'bodyparts_drag.dart';
 import 'intro_phase.dart';
+import 'lagoon_game_ui.dart';
 
 // --- GENERIC THEME ---
 abstract class ColorTheme {
@@ -118,7 +119,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
           Navigator.pop(context);
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => TreeGameScreen()),
+            MaterialPageRoute(builder: (context) => TreeGameScreen(level: widget.level + 1)),
           );
         },
         onRestart: () {
@@ -141,12 +142,10 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
     return Scaffold(
       backgroundColor: ColorTheme.background,
       body: LagoonBackground(
-        child: SafeArea(
-          child: _screenPhase == LagoonScreenPhase.intro
+        child: _screenPhase == LagoonScreenPhase.intro
               ? _buildIntroContent()
               : _buildGameContent(),
         ),
-      ),
     );
   }
 
@@ -156,7 +155,9 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   Widget _buildIntroContent() {
     return Stack(
       children: [
-        const Positioned(top: 8, left: 12, child: LagoonBackButton()),
+        // X Button and Level Badge
+        Positioned(top: 25, left: 25, child: const LagoonXButton()),
+        Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
         Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
       ],
     );

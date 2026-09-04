@@ -10,6 +10,7 @@ import '../goodjob_prompt.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'audio_helper.dart';
 import 'intro_phase.dart';
+import 'lagoon_game_ui.dart';
 
 /// A scene (image) the child must match to the correct [seasonId].
 class SeasonScene {
@@ -193,11 +194,9 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
               fit: BoxFit.cover,
             ),
           ),
-          SafeArea(
-            child: _screenPhase == LagoonScreenPhase.intro
+           _screenPhase == LagoonScreenPhase.intro
                 ? _buildIntroContent()
                 : _buildGameContent(),
-          ),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -207,7 +206,9 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
   Widget _buildIntroContent() {
     return Stack(
       children: [
-        const Positioned(top: 8, left: 12, child: LagoonBackButton()),
+        // X Button and Level Badge
+        Positioned(top: 25, left: 25, child: const LagoonXButton()),
+        Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
         Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
       ],
     );
@@ -434,7 +435,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
           // 2. Push directly to the next level's screen
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const PickupGame()),
+            MaterialPageRoute(builder: (context) => PickupGame(level: widget.level + 1)),
           );
         }
       },

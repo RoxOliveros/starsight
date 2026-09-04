@@ -5,12 +5,16 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/clothes_game.dart'; // Make sure this path is correct for ClothesGame!
+import 'package:StarSight/games_ui_layer/discovery_lagoon/clothes_game.dart';
+
+import 'lagoon_game_ui.dart'; // Make sure this path is correct for ClothesGame!
 
 enum KikiState { normal, correct, wrong }
 
 class WeatherGame extends StatefulWidget {
-  const WeatherGame({Key? key}) : super(key: key);
+  final int level;
+
+  const WeatherGame({super.key, required this.level});
 
   @override
   _WeatherGameState createState() => _WeatherGameState();
@@ -29,10 +33,7 @@ class _WeatherGameState extends State<WeatherGame> {
     {'bg': 'assets/images/backgrounds/bg_park_sunny.png', 'target': 'sunny'},
     {'bg': 'assets/images/backgrounds/bg_lake_rainy.png', 'target': 'rainy'},
     {'bg': 'assets/images/backgrounds/bg_beach_sunny.png', 'target': 'sunny'},
-    {
-      'bg': 'assets/images/backgrounds/bg_school_cloudy.png',
-      'target': 'cloudy',
-    },
+    {'bg': 'assets/images/backgrounds/bg_school_cloudy.png', 'target': 'cloudy',},
     {'bg': 'assets/images/backgrounds/bg_fields_windy.png', 'target': 'windy'},
     {'bg': 'assets/images/backgrounds/bg_town_rainy.png', 'target': 'rainy'},
   ];
@@ -166,8 +167,9 @@ class _WeatherGameState extends State<WeatherGame> {
             ),
           ),
 
-          // Universal Back Button
-          const Positioned(top: 25, left: 20, child: LagoonBackButton()),
+          // X Button and Level Badge
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
 
           // 2. Weather Selection Buttons
           Positioned(
@@ -227,7 +229,7 @@ class _WeatherGameState extends State<WeatherGame> {
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const ClothesGame(),
+                        builder: (context) => ClothesGame(level: widget.level + 1),
                       ),
                     );
                   }

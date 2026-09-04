@@ -6,8 +6,12 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import 'lagoon_game_ui.dart';
+
 class ClothesGame extends StatefulWidget {
-  const ClothesGame({Key? key}) : super(key: key);
+  final int level;
+
+  const ClothesGame({super.key, required this.level});
 
   @override
   _ClothesGameState createState() => _ClothesGameState();
@@ -212,7 +216,10 @@ class _ClothesGameState extends State<ClothesGame> {
                 fit: BoxFit.cover,
               ),
             ),
-            const Positioned(top: 25, left: 20, child: LagoonBackButton()),
+
+            // X Button and Level Badge
+            Positioned(top: 25, left: 25, child: const LagoonXButton()),
+            Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
 
             // Kiki the Cat (Left side)
             Positioned(
@@ -375,7 +382,7 @@ class _ClothesGameState extends State<ClothesGame> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const HabitantGame(),
+                      builder: (context) => HabitantGame(level: widget.level + 1),
                     ),
                   );
                 }

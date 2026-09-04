@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/animal_lifecycle_game.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_intro.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/catching_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/clothes_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/cold_hot_game.dart';
@@ -21,14 +20,8 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
-import '../../games_ui_layer/discovery_lagoon/animal_habitant_match.dart';
 import '../../games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
-import '../../games_ui_layer/discovery_lagoon/food_coloring.dart';
-import '../../games_ui_layer/discovery_lagoon/season_object_match_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
-import '../../games_ui_layer/discovery_lagoon/treeparts_assembly.dart';
-import '../../games_ui_layer/discovery_lagoon/weather_dress_up_screen.dart';
-import '../../games_ui_layer/discovery_lagoon/weather_clothes_match.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
 import '../loading_screen.dart';
@@ -137,7 +130,9 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                 final tileSize = (cardWidth / 4 - 24).clamp(48.0, 90.0);
 
                 Widget buildTile(int level) {
-                  if (level <= _unlockedLevel) {
+                  if (level > 20) {
+                    return SizedBox(width: tileSize, height: tileSize);
+                  } else if (level <= _unlockedLevel) {
                     return _LevelTile(level: level, size: tileSize);
                   } else {
                     return _LockedTile(size: tileSize);
@@ -166,80 +161,21 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            // --- PAGE 0: LEVELS 1-8 ---
-                            if (_currentPage == 0) ...[
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(1),
-                                  buildTile(2),
-                                  buildTile(3),
-                                  buildTile(4),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(5),
-                                  buildTile(6),
-                                  buildTile(7),
-                                  buildTile(8),
-                                ],
-                              ),
-                            ],
-
-                            // --- PAGE 1: LEVELS 9-16 ---
-                            if (_currentPage == 1) ...[
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(9),
-                                  buildTile(10),
-                                  buildTile(11),
-                                  buildTile(12),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(13),
-                                  buildTile(14),
-                                  buildTile(15),
-                                  buildTile(16),
-                                ],
-                              ),
-                            ],
-
-                            // --- PAGE 2: LEVELS 17-24 ---
-                            if (_currentPage == 2) ...[
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(17),
-                                  buildTile(18),
-                                  buildTile(19),
-                                  buildTile(20),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  buildTile(21),
-                                  buildTile(22),
-                                  buildTile(23),
-                                  buildTile(24),
-                                ],
-                              ),
-                            ],
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: List.generate(4, (i) {
+                                final level = _currentPage * 8 + i + 1;
+                                return buildTile(level);
+                              }),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: List.generate(4, (i) {
+                                final level = _currentPage * 8 + i + 5;
+                                return buildTile(level);
+                              }),
+                            ),
                           ],
                         ),
                       ),
@@ -381,33 +317,32 @@ class _LevelTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // --- THIS IS WHERE THE MAGIC HAPPENS ---
         switch (level) {
           case 1:
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const RainbowGameScreen(),
+                builder: (context) => const RainbowGameScreen(level: 1),
               ),
             );
             break;
           case 2:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const PerfumeGame()),
+              MaterialPageRoute(builder: (context) => const PerfumeGame(level: 2)),
             );
             break;
           case 3:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const ListeningGame()),
+              MaterialPageRoute(builder: (context) => const ListeningGame(level: 3)),
             );
             break;
           case 4:
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const CatchingGameScreen(),
+                builder: (context) => const CatchingGameScreen(level: 4),
               ),
             );
             break;
@@ -415,7 +350,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const SoftHardGameScreen(),
+                builder: (context) => const SoftHardGameScreen(level: 5),
               ),
             );
             break;
@@ -423,7 +358,7 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const FeedTheAnimalGame(),
+                builder: (context) => const FeedTheAnimalGame(level: 6),
               ),
             );
             break;
@@ -431,32 +366,32 @@ class _LevelTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const LunchboxGameIntro(),
+                builder: (context) => const LunchboxGameIntro(level: 7),
               ),
             );
             break;
           case 8:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const WeatherGame()),
+              MaterialPageRoute(builder: (context) => const WeatherGame(level: 8)),
             );
             break;
           case 9:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const ClothesGame()),
+              MaterialPageRoute(builder: (context) => const ClothesGame(level: 9)),
             );
             break;
           case 10:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const HabitantGame()),
+              MaterialPageRoute(builder: (context) => const HabitantGame(level: 10)),
             );
             break;
           case 11:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const SeedGame()),
+              MaterialPageRoute(builder: (context) => const SeedGame(level: 11)),
             );
             break;
           case 12:
@@ -470,7 +405,7 @@ class _LevelTile extends StatelessWidget {
           case 13:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => TreeGameScreen()),
+              MaterialPageRoute(builder: (context) => TreeGameScreen(level: 13)),
             );
             break;
           case 14:
@@ -484,7 +419,7 @@ class _LevelTile extends StatelessWidget {
           case 15:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => PickupGame()),
+              MaterialPageRoute(builder: (context) => PickupGame(level: 15)),
             );
             break;
           case 16:
@@ -498,13 +433,13 @@ class _LevelTile extends StatelessWidget {
           case 17:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => AnimalLifecycleGame()),
+              MaterialPageRoute(builder: (context) => AnimalLifecycleGame(level: 17)),
             );
             break;
           case 18:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => ColdHotGame()),
+              MaterialPageRoute(builder: (context) => ColdHotGame(level: 18)),
             );
             break;
           case 19:
@@ -518,18 +453,9 @@ class _LevelTile extends StatelessWidget {
           case 20:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => LivingNonLivingGame()),
+              MaterialPageRoute(builder: (context) => LivingNonLivingGame(level: 20)),
             );
             break;
-          /* case 21:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => FoodColoringScreen(level: 21),
-              ),
-            );
-            break;
-            */
         }
       },
       child: Stack(

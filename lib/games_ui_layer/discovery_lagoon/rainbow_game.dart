@@ -6,12 +6,14 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'kiki_reaction.dart';
+import 'lagoon_game_ui.dart';
 
 class RainbowGameScreen extends StatefulWidget {
-  const RainbowGameScreen({super.key});
+  final int level;
+
+  const RainbowGameScreen({super.key, required this.level});
 
   @override
   State<RainbowGameScreen> createState() => _RainbowGameScreenState();
@@ -337,13 +339,14 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
               // LAGOON THEME BUTTONS (TOP LEFT & RIGHT)
               // ==========================================
               // Back Button (Top Left)
-              Positioned(top: 16, left: 16, child: const LagoonBackButton()),
+              Positioned(top: 25, left: 25, child: const LagoonXButton()),
+              Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
 
               // Skip Button (Top Right) - Only shows during active levels!
               if (!_showGoodJob)
                 Positioned(
-                  top: 16,
-                  right: 16,
+                  bottom: 25,
+                  right: 25,
                   child: LagoonSkipButton(onTap: _onSkipTapped),
                 ),
 
@@ -360,7 +363,7 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
                     if (context.mounted) {
                       // Jump to Level 2 (Perfume)
                       Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const PerfumeGame()),
+                        MaterialPageRoute(builder: (_) => PerfumeGame(level: widget.level + 1)),
                       );
                     }
                   },

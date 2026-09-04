@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../goodjob_prompt.dart';
+import 'lagoon_game_ui.dart';
 
 class TreeGameScreen extends StatefulWidget {
-  const TreeGameScreen({super.key});
+  final int level;
+
+  const TreeGameScreen({super.key, required this.level});
 
   @override
   State<TreeGameScreen> createState() => _TreeGameScreenState();
@@ -155,8 +158,6 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
             // 1. The Tree (Either Building Phase or Completed)
             isCompleted ? _buildCompletedTree() : _buildGameArea(),
 
-            const Positioned(top: 25, left: 20, child: LagoonBackButton()),
-
             // 2. Kiki the Cat (Only shows when intro is NOT playing)
             if (!_showIntro)
               Align(
@@ -195,7 +196,6 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
                   });
                 },
                 onBack: () {
-                  // TODO: Pop screen or go home
                   Navigator.of(context).pop();
                 },
               ),
@@ -205,7 +205,7 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
               Container(
                 width: double.infinity,
                 height: double.infinity,
-                color: Colors.black.withOpacity(0.75), // Dark gray opacity
+                color: Colors.black.withValues(alpha: 0.75), // Dark gray opacity
                 child: Stack(
                   children: [
                     Positioned(
@@ -224,6 +224,10 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
                   ],
                 ),
               ),
+
+            // X Button and Level Badge
+            Positioned(top: 25, left: 25, child: const LagoonXButton()),
+            Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
           ],
         ),
       ),

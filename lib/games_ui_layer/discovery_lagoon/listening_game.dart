@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import 'lagoon_game_ui.dart';
+
 // 1. Added 'goodJob' phase for the final victory screen!
 enum GamePhase {
   intro,
@@ -18,7 +21,9 @@ enum GamePhase {
 }
 
 class ListeningGame extends StatefulWidget {
-  const ListeningGame({super.key});
+  final int level;
+
+  const ListeningGame({super.key, required this.level});
 
   @override
   State<ListeningGame> createState() => _ListeningGameState();
@@ -274,6 +279,10 @@ class _ListeningGameState extends State<ListeningGame> {
             fit: BoxFit.cover,
           ),
 
+          // X Button and Level Badge
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+
           // B. FOREGROUND CHARACTER LAYER (Standard Kiki during intro & completed)[cite: 7]
           if (_currentPhase == GamePhase.intro ||
               _currentPhase == GamePhase.completed)
@@ -367,7 +376,7 @@ class _ListeningGameState extends State<ListeningGame> {
                   // Jump to Level 4 (Catching)
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (_) => const CatchingGameScreen(),
+                      builder: (_) => CatchingGameScreen(level: widget.level + 1),
                     ),
                   );
                 }

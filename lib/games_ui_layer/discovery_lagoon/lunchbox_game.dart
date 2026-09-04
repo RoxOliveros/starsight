@@ -6,6 +6,8 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import 'lagoon_game_ui.dart';
+
 // ==========================================
 // DATA MODELS
 // ==========================================
@@ -23,7 +25,9 @@ class SauceStroke {
 // ==========================================
 
 class LunchboxGameIntro extends StatefulWidget {
-  const LunchboxGameIntro({Key? key}) : super(key: key);
+  final int level;
+
+  const LunchboxGameIntro({super.key, required this.level});
 
   @override
   State<LunchboxGameIntro> createState() => _LunchboxGameIntroState();
@@ -65,7 +69,7 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
     // Navigate to the main LunchboxGame screen
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const LunchboxGame()),
+      MaterialPageRoute(builder: (context) => LunchboxGame(level: widget.level)),
     );
   }
 
@@ -86,8 +90,6 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
                   fit: BoxFit.cover,
                 ),
               ),
-
-              const Positioned(top: 25, left: 20, child: LagoonBackButton()),
 
               // 2. Kiki (Left Side)
               Positioned(
@@ -110,6 +112,10 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
                   fit: BoxFit.contain,
                 ),
               ),
+
+              // X Button and Level Badge
+              Positioned(top: 25, left: 25, child: const LagoonXButton()),
+              Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
             ],
           );
         },
@@ -123,7 +129,9 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
 // ==========================================
 
 class LunchboxGameUnhealthyEnding extends StatefulWidget {
-  const LunchboxGameUnhealthyEnding({Key? key}) : super(key: key);
+  final int level;
+
+  const LunchboxGameUnhealthyEnding({super.key, required this.level});
 
   @override
   State<LunchboxGameUnhealthyEnding> createState() =>
@@ -169,7 +177,7 @@ class _LunchboxGameUnhealthyEndingState
     _audioPlayer.stop();
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const LunchboxGameIntro()),
+      MaterialPageRoute(builder: (context) => LunchboxGameIntro(level: widget.level)),
     );
   }
 
@@ -242,7 +250,7 @@ class _LunchboxGameUnhealthyEndingState
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
@@ -270,7 +278,9 @@ class _LunchboxGameUnhealthyEndingState
 // ==========================================
 
 class LunchboxGameHealthyEnding extends StatefulWidget {
-  const LunchboxGameHealthyEnding({Key? key}) : super(key: key);
+  final int level;
+
+  const LunchboxGameHealthyEnding({super.key, required this.level});
 
   @override
   State<LunchboxGameHealthyEnding> createState() =>
@@ -315,7 +325,7 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
     _audioPlayer.stop();
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const LunchboxGameIntro()),
+      MaterialPageRoute(builder: (context) =>  LunchboxGameIntro(level: widget.level)),
     );
   }
 
@@ -389,7 +399,7 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const WeatherGame(),
+                            builder: (context) => WeatherGame(level: widget.level + 1),
                           ),
                         );
                       }
@@ -413,7 +423,9 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
 // ==========================================
 
 class LunchboxGame extends StatefulWidget {
-  const LunchboxGame({Key? key}) : super(key: key);
+  final int level;
+
+  const LunchboxGame({super.key, required this.level});
 
   @override
   State<LunchboxGame> createState() => _LunchboxGameState();
@@ -479,14 +491,14 @@ class _LunchboxGameState extends State<LunchboxGame> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const LunchboxGameUnhealthyEnding(),
+          builder: (context) => LunchboxGameUnhealthyEnding(level: widget.level),
         ),
       );
     } else {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const LunchboxGameHealthyEnding(),
+          builder: (context) => LunchboxGameHealthyEnding(level: widget.level),
         ),
       );
     }
@@ -589,11 +601,11 @@ class _LunchboxGameState extends State<LunchboxGame> {
   // Helper method to render the dropped food with its correct rotation
   Widget _buildDroppedFood(String id, double size) {
     double finalSize = size;
-    if (id == 'cookie')
+    if (id == 'cookie') {
       finalSize = size * 0.8;
-    else if (id == 'lettuce' || id == 'broccoli' || id == 'chips')
+    } else if (id == 'lettuce' || id == 'broccoli' || id == 'chips') {
       finalSize = size * 0.75;
-
+    }
     if (id == 'broccoli') return _buildBroccoliGroup(finalSize);
 
     Widget img = Image.asset(
@@ -601,13 +613,14 @@ class _LunchboxGameState extends State<LunchboxGame> {
       width: finalSize,
       fit: BoxFit.contain,
     );
-    if (id == 'chips')
+    if (id == 'chips') {
       img = Transform.rotate(angle: -1.57, child: img);
-    else if (id == 'fries')
+    } else if (id == 'fries') {
       img = Transform.rotate(angle: -0.20, child: img);
-    else if (id == 'drumstick')
+    }
+    else if (id == 'drumstick') {
       img = Transform.rotate(angle: -0.3, child: img);
-
+    }
     return img;
   }
 
@@ -632,7 +645,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       blurRadius: 15,
                       spreadRadius: 5,
                     ),
@@ -671,7 +684,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       blurRadius: 15,
                       spreadRadius: 5,
                     ),
@@ -720,12 +733,13 @@ class _LunchboxGameState extends State<LunchboxGame> {
                         : null,
                     onPanUpdate: currentBatch == 4 && activeSauceId != null
                         ? (details) {
-                            if (currentStroke != null)
+                            if (currentStroke != null) {
                               setState(
                                 () => currentStroke!.points.add(
                                   details.localPosition,
                                 ),
                               );
+                            }
                           }
                         : null,
                     onPanEnd: currentBatch == 4 && activeSauceId != null
@@ -768,11 +782,12 @@ class _LunchboxGameState extends State<LunchboxGame> {
                                               : null,
                                         ),
                                     onAccept: (data) {
-                                      if (currentBatch == 1)
+                                      if (currentBatch == 1) {
                                         setState(() {
                                           leftCompartmentFoodId = data;
                                           currentBatch = 2;
                                         });
+                                      }
                                     },
                                   ),
                                 ),
@@ -808,11 +823,12 @@ class _LunchboxGameState extends State<LunchboxGame> {
                                               : null,
                                         ),
                                     onAccept: (data) {
-                                      if (currentBatch == 2)
+                                      if (currentBatch == 2) {
                                         setState(() {
                                           topRightCompartmentFoodId = data;
                                           currentBatch = 3;
                                         });
+                                      }
                                     },
                                   ),
                                 ),
@@ -849,11 +865,12 @@ class _LunchboxGameState extends State<LunchboxGame> {
                                               : null,
                                         ),
                                     onAccept: (data) {
-                                      if (currentBatch == 3)
+                                      if (currentBatch == 3) {
                                         setState(() {
                                           bottomRightCompartmentFoodId = data;
                                           currentBatch = 4;
                                         });
+                                      }
                                     },
                                   ),
                                 ),
@@ -1148,7 +1165,7 @@ class PlateWithFood extends StatelessWidget {
   final double tiltAngle;
 
   const PlateWithFood({
-    Key? key,
+    super.key,
     required this.foodAsset,
     required this.foodId,
     required this.size,
@@ -1156,7 +1173,7 @@ class PlateWithFood extends StatelessWidget {
     this.isVisible = true,
     this.isTilted = false,
     this.tiltAngle = 0.0,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1194,13 +1211,13 @@ class DraggableFood extends StatelessWidget {
   final double tiltAngle;
 
   const DraggableFood({
-    Key? key,
+    super.key,
     required this.foodAsset,
     required this.foodId,
     required this.size,
     this.isTilted = false,
     this.tiltAngle = -0.20,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1241,8 +1258,9 @@ class DraggableFood extends StatelessWidget {
         fit: BoxFit.contain,
       );
     }
-    if (isTilted)
+    if (isTilted) {
       foodImage = Transform.rotate(angle: tiltAngle, child: foodImage);
+    }
 
     return Draggable<String>(
       data: foodId,
@@ -1261,13 +1279,13 @@ class SauceBottleSelector extends StatelessWidget {
   final VoidCallback onTap;
 
   const SauceBottleSelector({
-    Key? key,
+    super.key,
     required this.sauceId,
     required this.assetPath,
     required this.size,
     required this.isActive,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1282,7 +1300,7 @@ class SauceBottleSelector extends StatelessWidget {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     blurRadius: 15,
                     spreadRadius: 2,
                   ),

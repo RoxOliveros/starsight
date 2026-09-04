@@ -11,6 +11,7 @@ import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'audio_helper.dart';
 import 'intro_phase.dart';
+import 'lagoon_game_ui.dart';
 
 class WeatherElement {
   final String id;
@@ -253,7 +254,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const AnimalLifecycleGame(),
+                builder: (context) => AnimalLifecycleGame(level: widget.level + 1),
               ),
             );
           }
@@ -314,11 +315,14 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
                     ),
                   ),
           ),
-          SafeArea(
-            child: _screenPhase == LagoonScreenPhase.intro
+           _screenPhase == LagoonScreenPhase.intro
                 ? _buildIntroContent()
                 : _buildGameContent(),
-          ),
+
+          // X Button and Level Badge
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+
         ],
       ),
     );
@@ -327,7 +331,6 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
   Widget _buildIntroContent() {
     return Stack(
       children: [
-        const Positioned(top: 8, left: 12, child: LagoonBackButton()),
         Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
       ],
     );
@@ -343,10 +346,6 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: LagoonBackButton(),
-                ),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import '../goodjob_prompt.dart';
+import 'lagoon_game_ui.dart';
 
 // --- Game Phase Enum ---
 enum GamePhase { intro1, playLiving, intro2, playNonLiving, finished }
@@ -53,7 +54,9 @@ class AssetConfig {
 }
 
 class LivingNonLivingGame extends StatefulWidget {
-  const LivingNonLivingGame({Key? key}) : super(key: key);
+  final int level;
+
+  const LivingNonLivingGame({super.key, required this.level});
 
   @override
   State<LivingNonLivingGame> createState() => _LivingNonLivingGameState();
@@ -396,7 +399,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
               ],
             ),
           ),
-          const Positioned(top: 25, left: 20, child: LagoonBackButton()),
+
           // 2. The Intro Overlay (Only visible during audio phases)
           if (isIntro)
             Positioned.fill(
@@ -404,14 +407,16 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
                 onTap: () {
                   _audioPlayer.stop();
                   setState(() {
-                    if (_phase == GamePhase.intro1)
+                    if (_phase == GamePhase.intro1) {
                       _phase = GamePhase.playLiving;
-                    if (_phase == GamePhase.intro2)
+                    }
+                    if (_phase == GamePhase.intro2) {
                       _phase = GamePhase.playNonLiving;
+                    }
                   });
                 },
                 child: Container(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withValues(alpha: 0.7),
                   child: Align(
                     alignment: Alignment.bottomCenter,
                     child: Transform.translate(
@@ -450,6 +455,10 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
                 },
               ),
             ),
+
+          // X Button and Level Badge
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
         ],
       ),
     );

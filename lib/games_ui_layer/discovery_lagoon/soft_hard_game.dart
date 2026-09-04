@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import 'lagoon_game_ui.dart';
+
 // Represents an item to be sorted
 class SortableItem {
   final String imagePath;
@@ -15,7 +18,9 @@ class SortableItem {
 }
 
 class SoftHardGameScreen extends StatefulWidget {
-  const SoftHardGameScreen({super.key});
+  final int level;
+
+  const SoftHardGameScreen({super.key, required this.level});
 
   @override
   State<SoftHardGameScreen> createState() => _SoftHardGameScreenState();
@@ -214,17 +219,9 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
             fit: BoxFit.cover,
           ),
 
-          // B. BACK BUTTON (Top Left)
-          Positioned(
-            top: 20,
-            left: 20,
-            child: _ImageButton(
-              imagePath: 'assets/images/buttons/x_yellow.png',
-              onTap: () => Navigator.of(context).pop(),
-              size: 64,
-              tooltip: 'Back',
-            ),
-          ),
+          // X Button and Level Badge
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
 
           // C. SORTED SOFT ITEMS LAYER (Displays correctly sorted items on the Left!)
           Positioned(
@@ -340,7 +337,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const FeedTheAnimalGame(),
+                      builder: (context) => FeedTheAnimalGame(level: widget.level + 1),
                     ),
                   );
                 }

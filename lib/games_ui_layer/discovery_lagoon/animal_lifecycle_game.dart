@@ -4,10 +4,13 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart'; // Standard Flutter audio package
 import 'package:StarSight/business_layer/orientation_service.dart';
-import '../goodjob_prompt.dart'; // Add your specific import path for the overlay here
+import '../goodjob_prompt.dart';
+import 'lagoon_game_ui.dart';
 
 class AnimalLifecycleGame extends StatefulWidget {
-  const AnimalLifecycleGame({Key? key}) : super(key: key);
+  final int level;
+
+  const AnimalLifecycleGame({super.key, required this.level});
 
   @override
   _AnimalLifecycleGameState createState() => _AnimalLifecycleGameState();
@@ -20,6 +23,7 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
   // Intro & End state
   bool showIntro = true;
   bool showGoodJob = false; // Added state for the final overlay
+  bool _disposed = false;
 
   // ==========================================
   // 🛠️ KIKI ADJUSTER
@@ -95,32 +99,36 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
   @override
   void initState() {
     super.initState();
-    // Load the first level's sequence on startup
     currentSequence = List.from(allInitialSequences[currentLevelIndex]);
     OrientationService.setLandscape();
-
-    // Start the intro sequence
     _playIntro();
   }
 
   void _playIntro() async {
-    // Play the requested intro audio
+    if (_disposed) return;
     await _audioPlayer.play(
       AssetSource('audio/discovery_lagoon/animal_lifecycle_game_intro.wav'),
     );
 
-    // Wait for the audio to finish completely, then update the UI
-    _audioPlayer.onPlayerComplete.first.then((_) {
-      if (mounted) {
-        setState(() {
-          showIntro = false;
-        });
-      }
+    _waitForAudioComplete().then((_) {
+      if (!mounted || _disposed) return;
+      setState(() {
+        showIntro = false;
+      });
     });
+  }
+
+  Future<void> _waitForAudioComplete() async {
+    try {
+      await _audioPlayer.onPlayerComplete.first;
+    } catch (_) {
+      // Stream closed (player disposed) before it ever completed — ignore.
+    }
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
@@ -193,7 +201,11 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
               fit: BoxFit.cover,
             ),
           ),
-          const Positioned(top: 25, left: 20, child: LagoonBackButton()),
+
+          // X Button and Level Badge
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+
           // Show Kiki during the intro, show the game board after
           if (showIntro)
             Center(
@@ -262,7 +274,7 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const ColdHotGame(),
+                      builder: (context) => ColdHotGame(level: widget.level + 1),
                     ),
                   );
                 }
