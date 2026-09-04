@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'arctic_game_ui.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart'; // <-- ADDED
 
 class IceNumberPathGame extends StatefulWidget {
   final int minNumber;
@@ -12,8 +13,8 @@ class IceNumberPathGame extends StatefulWidget {
   final AudioPlayer player;
   final VoidCallback onComplete;
   final int level;
-
   final String instructionAudio;
+  final GameTapTracker tapTracker; // <-- ADDED
 
   const IceNumberPathGame({
     super.key,
@@ -23,6 +24,7 @@ class IceNumberPathGame extends StatefulWidget {
     required this.onComplete,
     this.instructionAudio = '',
     required this.level,
+    required this.tapTracker, // <-- ADDED
   }) : assert(minNumber <= maxNumber);
 
   @override
@@ -31,7 +33,7 @@ class IceNumberPathGame extends StatefulWidget {
 
 class _IcePath {
   final int number;
-  final Offset pos; // fractional 0..1
+  final Offset pos;
   bool completed;
 
   _IcePath({required this.number, required this.pos, this.completed = false});
@@ -58,9 +60,12 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
 
   int get _target => _sequence[_currentIndex];
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_sea2.png';
-  static const String _icePathImage = 'assets/images/objects/arctic/ice_path.png';
-  static const String _penguinImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_arctic_sea2.png';
+  static const String _icePathImage =
+      'assets/images/objects/arctic/ice_path.png';
+  static const String _penguinImage =
+      'assets/images/characters/doma_the_penguin.png';
 
   @override
   void initState() {
@@ -75,14 +80,15 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _penguinCelebrateScale = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.25), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 1.25, end: 0.9), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.1), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 20),
-    ]).animate(
-      CurvedAnimation(parent: _penguinCelebrateCtrl, curve: Curves.easeOut),
-    );
+    _penguinCelebrateScale =
+        TweenSequence([
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.25), weight: 30),
+          TweenSequenceItem(tween: Tween(begin: 1.25, end: 0.9), weight: 30),
+          TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.1), weight: 20),
+          TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 20),
+        ]).animate(
+          CurvedAnimation(parent: _penguinCelebrateCtrl, curve: Curves.easeOut),
+        );
 
     _startRound();
     WidgetsBinding.instance.addPostFrameCallback((_) => _playInstruction());
@@ -134,8 +140,10 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
       final jitterX = (_random.nextDouble() - 0.5) * cellW * 0.4;
       final jitterY = (_random.nextDouble() - 0.5) * cellH * 0.4;
       final x = (cell.x * cellW + cellW / 2 + jitterX).clamp(0.06, 0.94);
-      final y = (topMargin + cell.y * cellH + cellH / 2 + jitterY)
-          .clamp(topMargin, topMargin + 0.54);
+      final y = (topMargin + cell.y * cellH + cellH / 2 + jitterY).clamp(
+        topMargin,
+        topMargin + 0.54,
+      );
       return _IcePath(number: shuffledNumbers[i], pos: Offset(x, y));
     });
   }
@@ -144,8 +152,10 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
     if (_roundWon || icePath.completed) return;
 
     if (icePath.number == _target) {
+      widget.tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
       await _handleCorrect(icePath);
     } else {
+      widget.tapTracker.recordMistake(); // <-- TRACK MISTAKE
       _handleWrong(icePath);
     }
   }
@@ -153,10 +163,10 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
   Future<void> _handleCorrect(_IcePath icePath) async {
     setState(() => icePath.completed = true);
 
-    _penguinMoveAnim = Tween<Offset>(
-      begin: _penguinPos,
-      end: icePath.pos,
-    ).animate(CurvedAnimation(parent: _penguinMoveCtrl, curve: Curves.easeInOut));
+    _penguinMoveAnim = Tween<Offset>(begin: _penguinPos, end: icePath.pos)
+        .animate(
+          CurvedAnimation(parent: _penguinMoveCtrl, curve: Curves.easeInOut),
+        );
     await _penguinMoveCtrl.forward(from: 0);
     setState(() => _penguinPos = icePath.pos);
 
@@ -167,8 +177,12 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
     }
 
     try {
-      await widget.player.play(AssetSource('audio/sound_effects/bubble_pop.wav'));
-      await widget.player.play(AssetSource('audio/arctic_numberland/${icePath.number}.wav'));
+      await widget.player.play(
+        AssetSource('audio/sound_effects/bubble_pop.wav'),
+      );
+      await widget.player.play(
+        AssetSource('audio/arctic_numberland/${icePath.number}.wav'),
+      );
       await widget.player.onPlayerComplete.first;
     } catch (_) {}
   }
@@ -210,41 +224,49 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final h = constraints.maxHeight;
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final h = constraints.maxHeight;
 
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
+          return Stack(
+            children: [
+              Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+
+              Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                child: Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: ArcticBackButton(),
+                    ),
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: ArcticLevelBadge(level: widget.level),
+                    ),
+                    Center(child: _buildBanner(h)),
+                  ],
+                ),
               ),
-            ),
 
-            Padding(
-              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-              child: Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  Align(alignment: Alignment.topLeft, child: ArcticBackButton()),
-                  Align(alignment: Alignment.topRight, child: ArcticLevelBadge(level: widget.level)),
-                  Center(child: _buildBanner(h)),
-                ],
+              ..._icePaths.map((f) => _buildIcePath(f, w, h)),
+
+              AnimatedBuilder(
+                animation: Listenable.merge([
+                  _penguinMoveCtrl,
+                  _penguinCelebrateCtrl,
+                ]),
+                builder: (_, __) => _buildPenguin(w, h),
               ),
-            ),
-
-            ..._icePaths.map((f) => _buildIcePath(f, w, h)),
-
-            AnimatedBuilder(
-              animation: Listenable.merge([_penguinMoveCtrl, _penguinCelebrateCtrl]),
-              builder: (_, __) => _buildPenguin(w, h),
-            ),
-          ],
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -274,7 +296,11 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
               fontWeight: FontWeight.bold,
               color: Colors.white,
               shadows: const [
-                Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2)),
+                Shadow(
+                  color: Color(0x55003366),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
               ],
             ),
           ),
@@ -347,10 +373,7 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
       top: top,
       child: GestureDetector(
         onTap: () => _handleTap(icePath),
-        child: Opacity(
-          opacity: icePath.completed ? 0.55 : 1.0,
-          child: content,
-        ),
+        child: Opacity(opacity: icePath.completed ? 0.55 : 1.0, child: content),
       ),
     );
   }
@@ -376,7 +399,8 @@ class _IceNumberPathGameState extends State<IceNumberPathGame>
           _penguinImage,
           height: size,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Text('🐧', style: TextStyle(fontSize: size * 0.6)),
+          errorBuilder: (_, __, ___) =>
+              Text('🐧', style: TextStyle(fontSize: size * 0.6)),
         ),
       ),
     );

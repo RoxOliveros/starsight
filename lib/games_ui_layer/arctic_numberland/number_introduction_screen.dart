@@ -15,6 +15,12 @@ import 'minigame_number_tap.dart';
 import 'minigame_snowflake.dart';
 import 'number_tracing_widget.dart';
 
+// --- ADDED IMPORTS FOR AI & TRACKING ---
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 // ═════════════════════════════════════════════════════════════════════════
 // CONFIG
 // ═════════════════════════════════════════════════════════════════════════
@@ -28,6 +34,8 @@ typedef NumberMiniGameBuilder =
       required AudioPlayer player,
       required VoidCallback onComplete,
       required int level,
+      required GameTapTracker
+      tapTracker, // <-- ADDED: Passes tracker to minigames
     });
 
 /// Cycles through mini-games in shuffled order, no repeats until the set
@@ -58,10 +66,11 @@ final List<NumberMiniGameBuilder> kNumberMiniGames = [
     required player,
     required onComplete,
     required level,
+    required tapTracker,
   }) => TapObjectMiniGame(
     instructionText: objects.instructionText,
     instructionAudio: objects.instructionAudio,
-    targetCountAudio: objects.targetCountAudio, // NEW
+    targetCountAudio: objects.targetCountAudio,
     targetObjectAudio: objects.targetObjectAudio,
     correctObjectAsset: objects.correctObjectAsset,
     correctObjectEmoji: objects.correctObjectEmojis,
@@ -72,6 +81,7 @@ final List<NumberMiniGameBuilder> kNumberMiniGames = [
     player: player,
     onComplete: onComplete,
     level: level,
+    tapTracker: tapTracker, // <-- PASSED DOWN
   ),
 
   ({
@@ -81,12 +91,14 @@ final List<NumberMiniGameBuilder> kNumberMiniGames = [
     required player,
     required onComplete,
     required level,
+    required tapTracker,
   }) => PenguinSnowflakesMiniGame(
     number: number,
     player: player,
     onComplete: onComplete,
     instructionAudio: objects.instructionAudio,
     level: level,
+    tapTracker: tapTracker, // <-- PASSED DOWN
   ),
 
   ({
@@ -96,6 +108,7 @@ final List<NumberMiniGameBuilder> kNumberMiniGames = [
     required player,
     required onComplete,
     required level,
+    required tapTracker,
   }) => IceNumberPathGame(
     minNumber: 1,
     maxNumber: number,
@@ -103,6 +116,7 @@ final List<NumberMiniGameBuilder> kNumberMiniGames = [
     onComplete: onComplete,
     instructionAudio: objects.instructionAudio,
     level: level,
+    tapTracker: tapTracker, // <-- PASSED DOWN
   ),
 ];
 
@@ -201,7 +215,7 @@ class NumberLevelConfig {
   final String introAudio;
   final String numberRevealAudio;
   final String writeAudio;
-  final String correctTapAudio; // level-completion voice line, kept here
+  final String correctTapAudio;
 
   /// null = skip the mini-game entirely after tracing (e.g. zero).
   final NumberObjectSet? objects;
@@ -255,8 +269,8 @@ class NumberObjectSet {
   final int decoyCount;
   final String instructionText;
   final String instructionAudio;
-  final String targetCountAudio; // NEW
-  final String targetObjectAudio; // NEW
+  final String targetCountAudio;
+  final String targetObjectAudio;
 
   const NumberObjectSet({
     required this.correctObjectAsset,
@@ -267,8 +281,8 @@ class NumberObjectSet {
     this.decoyCount = 0,
     required this.instructionText,
     this.instructionAudio = '',
-    this.targetCountAudio = '', // NEW
-    this.targetObjectAudio = '', // NEW
+    this.targetCountAudio = '',
+    this.targetObjectAudio = '',
   });
 }
 
@@ -293,7 +307,7 @@ NumberObjectSet _buildObjects({
     instructionAudio:
         instructionAudioOverride ??
         _audioPath('${wordKey}_click_$correctObjectId'),
-    targetCountAudio: _audioPath('$targetCount'), // NEW
+    targetCountAudio: _audioPath('$targetCount'),
     targetObjectAudio: _audioPath(correctObjectId),
     correctObjectAsset: correct.assetPath,
     correctObjectEmojis: correct.emoji,
@@ -496,7 +510,11 @@ class NumberIntroductionScreen extends StatefulWidget {
 }
 
 class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
-    with TickerProviderStateMixin, GameLoadingMixin<NumberIntroductionScreen> {
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin<NumberIntroductionScreen>,
+        AiCameraMixin<NumberIntroductionScreen> {
+  // <-- ADDED MIXIN
   int _configIndex = 0;
   NumberLevelConfig get _config => widget.configs[_configIndex];
   bool get _isLastInSequence => _configIndex == widget.configs.length - 1;
@@ -510,6 +528,12 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
   _MiniGamePhase _miniGamePhase = _MiniGamePhase.tracing;
 
   final AudioPlayer _player = AudioPlayer();
+
+  // --- ADDED TRACKING VARIABLES ---
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
 
   // Rotates through kNumberMiniGames so consecutive numbers don't repeat
   // the same mini-game, same pattern as AlphabetTraceScreen's queue.
@@ -539,11 +563,48 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
+
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Let the loading screen play its full minimum duration before the
+    // lighting card is allowed to take its place — never simultaneously.
     if (_shouldShowLoading) {
-      finishLoading(_startIntroFlow);
-    } else {
-      _startIntroFlow();
+      _minLoadTimer = Timer(minLoadTime, () {
+        if (mounted) setState(() => _loadingScreenElapsed = true);
+      });
     }
+
+    // Setup logic to pause at Level 1 if no face is detected
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        if (_shouldShowLoading) {
+          finishLoading(_startIntroFlow);
+        } else {
+          _startIntroFlow();
+        }
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      if (_shouldShowLoading) {
+        finishLoading(_startIntroFlow);
+      } else {
+        _startIntroFlow();
+      }
+    }
+
+    // A dismissed lighting card should only stay dismissed until the face
+    // is actually lost again — not forever — so it can reappear later on
+    // this same screen if the kid moves out of frame mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
   }
 
   void _initAnimations() {
@@ -650,6 +711,19 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
     await Future.delayed(const Duration(milliseconds: 200));
 
     if (_isLastInSequence) {
+      // --- ADDED AI STOP & DATABASE SAVE ---
+      List<String> finalEmotions = stopAiCamera();
+
+      try {
+        await ArcticDatabaseService.saveGameData(
+          gameId: 'arctic_numberland_${widget.level}',
+          mistakes: _tapTracker.mistakeCount,
+          emotions: finalEmotions,
+        );
+      } catch (e) {
+        debugPrint("Database Error saving Arctic metrics: $e");
+      }
+
       await ArcticProgressService.instance.markLevelComplete(_config.levelId);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -700,6 +774,8 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
 
   @override
   void dispose() {
+    disposeAiCamera(); // <-- ADDED
+    _minLoadTimer?.cancel();
     _player.dispose();
     for (final c in [
       _domaFloatCtrl,
@@ -757,13 +833,72 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       ],
     );
 
+    // Level 1's blocking gate: shown as soon as we know no face is
+    // confirmed yet, even before the camera's first real reading — this is
+    // the "at the beginning" check. Dismissing it manually is an escape
+    // hatch (in case detection is flaky) so a kid never gets stuck.
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
+
+    // Every level, reactively: only fires off a *confirmed* camera result
+    // (hasCapturedFirstFrame), never off the initial unknown state — so it
+    // never flashes just because a new level screen mounted. Resets its
+    // own dismissal once the face is regained, so it can reappear later on
+    // this same screen if the face is lost again mid-play.
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
+            children: [
+              Positioned.fill(child: content),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : content;
+
+    if (_shouldShowLoading) {
+      // Sequential, never simultaneous: the real loading screen plays for
+      // its full minimum duration first. Only once that's elapsed do we
+      // swap it for the lighting card (if a face still hasn't been found)
+      // — the card takes the loading screen's place rather than sitting
+      // on top of it. gameBuilder (the actual intro) still only renders
+      // once finishLoading has run, i.e. once a face is confirmed.
+      final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+          ? gateLightingCard()
+          : LoadingScreen.arctic();
+
+      return Scaffold(
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => contentWithOverlay,
+        ),
+      );
+    }
+
+    // No loading screen for this number: show the level-1 gate immediately
+    // as an overlay if it's still pending; otherwise fall through to the
+    // level-agnostic reactive overlay.
     return Scaffold(
-      body: _shouldShowLoading
-          ? buildWithLoading(
-              loadingScreen: LoadingScreen.arctic(),
-              gameBuilder: () => content,
+      body: gateNeedsLightingPrompt
+          ? Stack(
+              children: [
+                Positioned.fill(child: content),
+                Positioned.fill(child: gateLightingCard()),
+              ],
             )
-          : content,
+          : contentWithOverlay,
     );
   }
 
@@ -932,14 +1067,14 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                     if (_config.objects != null) {
                       setState(() {
                         _miniGamePhase = _MiniGamePhase.tapping;
-                        _miniGameIndex = _miniGameRotator
-                            .next(); // ← pick once here
+                        _miniGameIndex = _miniGameRotator.next();
                       });
                     } else {
                       _completeLevel();
                     }
                   },
                   level: widget.level,
+                  tapTracker: _tapTracker, // <-- ADDED TRACKER
                 )
               else ...[
                 Positioned(
@@ -958,6 +1093,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                   player: _player,
                   onComplete: _completeLevel,
                   level: widget.level,
+                  tapTracker: _tapTracker, // <-- ADDED TRACKER
                 ),
               ],
             ],
