@@ -12,6 +12,12 @@ import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'game_12_counting.dart';
 
+// --- ADDED IMPORTS FOR AI & TRACKING ---
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 enum _ScreenPhase { intro, miniGame }
 
 class Number012RecognitionScreen extends StatefulWidget {
@@ -25,7 +31,12 @@ class Number012RecognitionScreen extends StatefulWidget {
 }
 
 class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
-    with TickerProviderStateMixin, GameLoadingMixin, DomaReactionMixin {
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin,
+        DomaReactionMixin,
+        AiCameraMixin<Number012RecognitionScreen> {
+  // <-- ADDED MIXIN
 
   @override
   AudioPlayer get domaPlayer => _player;
@@ -42,6 +53,10 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
 
+  // --- ADDED TRACKING VARIABLES ---
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+
   @override
   void initState() {
     super.initState();
@@ -56,13 +71,29 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
       CurvedAnimation(parent: _numberDanceCtrl, curve: Curves.easeInOut),
     );
 
-    finishLoading(_startIntroFlow);
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Pause for face detection ONLY if this happens to be used as level 1
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
 
     _generateRound();
   }
 
   @override
   void dispose() {
+    disposeAiCamera(); // <-- ADDED
     _numberDanceCtrl.dispose();
     _player.dispose();
     OrientationService.setLandscape();
@@ -80,11 +111,26 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
     if (_tappedIndex != null) return;
 
     if (_choices[index] == _correctNumber) {
+      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
+
       setState(() => _tappedIndex = index);
       await _playAudio('assets/audio/arctic_numberland/$_correctNumber.wav');
       showDomaReaction(DomaState.correct);
       await Future.delayed(const Duration(milliseconds: 900));
       if (_round >= _totalRounds) {
+        // --- ADDED AI STOP & DATABASE SAVE ---
+        List<String> finalEmotions = stopAiCamera();
+
+        try {
+          await ArcticDatabaseService.saveGameData(
+            gameId: 'arctic_numberland_${widget.level}',
+            mistakes: _tapTracker.mistakeCount,
+            emotions: finalEmotions,
+          );
+        } catch (e) {
+          debugPrint("Database Error saving Arctic metrics: $e");
+        }
+
         await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
@@ -94,6 +140,8 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
         });
       }
     } else {
+      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
+
       setState(() => _tappedIndex = index);
       await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
@@ -138,198 +186,223 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                'assets/images/backgrounds/bg_game_arctic.png',
-                fit: BoxFit.cover,
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/backgrounds/bg_game_arctic.png',
+                  fit: BoxFit.cover,
+                ),
               ),
-            ),
-            if (_screenPhase == _ScreenPhase.intro)
-              _buildIntroLayer()
-            else
-              Column(
-                children: [
-                  // --- HEADER ---
-                  Padding(
-                    padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-                    child: Stack(
-                      alignment: Alignment.topCenter,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: ArcticBackButton(),
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: ArcticLevelBadge(level: widget.level),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 8,),
-                          decoration: BoxDecoration(
-                            color: ArcticColorTheme.pictonblue.withValues(
-                                alpha: 0.92),
-                            borderRadius: BorderRadius.circular(32),
-                            border: Border.all(color: Colors.white, width: 3),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ArcticColorTheme.pictonblue.withValues(
-                                    alpha: 0.4),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+              if (_screenPhase == _ScreenPhase.intro)
+                _buildIntroLayer()
+              else
+                Column(
+                  children: [
+                    // --- HEADER ---
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 20,
+                        right: 20,
+                        top: 25,
+                      ),
+                      child: Stack(
+                        alignment: Alignment.topCenter,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: ArcticBackButton(),
                           ),
-                          child: Text(
-                            'Tap the number you see!',
-                            style: TextStyle(
-                              fontFamily: ArcticAppTextStyles.fredoka,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black54,
-                                  blurRadius: 8,
-                                  offset: Offset(0, 2),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: ArcticLevelBadge(level: widget.level),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: ArcticColorTheme.pictonblue.withValues(
+                                alpha: 0.92,
+                              ),
+                              borderRadius: BorderRadius.circular(32),
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: ArcticColorTheme.pictonblue.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // --- MAIN CONTENT ---
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // BIG NUMBER CARD
-                        Container(
-                          width: 180,
-                          height: 180,
-                          decoration: BoxDecoration(
-                            color: ArcticColorTheme.cotton,
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: ArcticColorTheme.pictonblue,
-                              width: 4,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ArcticColorTheme.pictonblue
-                                    .withValues(alpha: 0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
+                            child: Text(
+                              'Tap the number you see!',
+                              style: TextStyle(
+                                fontFamily: ArcticAppTextStyles.fredoka,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black54,
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Image.asset(
-                              'assets/fonts/game_numbers/$_correctNumber.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
-                                  Center(
-                                    child: Text(
-                                      '$_correctNumber',
-                                      style: const TextStyle(
-                                        fontFamily: ArcticAppTextStyles.fredoka,
-                                        fontSize: 100,
-                                        fontWeight: FontWeight.bold,
-                                        color: ArcticColorTheme.cadetblue,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
                             ),
                           ),
-                        ),
+                        ],
+                      ),
+                    ),
 
-                        // CHOICES GRID
-                        SizedBox(
-                          width: 280,
-                          child: GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 14,
-                              mainAxisSpacing: 14,
-                              childAspectRatio: 1.3,
+                    // --- MAIN CONTENT ---
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // BIG NUMBER CARD
+                          Container(
+                            width: 180,
+                            height: 180,
+                            decoration: BoxDecoration(
+                              color: ArcticColorTheme.cotton,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: ArcticColorTheme.pictonblue,
+                                width: 4,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: ArcticColorTheme.pictonblue.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            itemCount: _choices.length,
-                            itemBuilder: (context, index) {
-                              return GestureDetector(
-                                onTap: () => _onChoiceTap(index),
-                                child: AnimatedContainer(
-                                  duration: const Duration(
-                                    milliseconds: 300,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _choiceColor(index),
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
-                                      color: _choiceBorderColor(index),
-                                      width: 3,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Image.asset(
+                                'assets/fonts/game_numbers/$_correctNumber.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Text(
+                                    '$_correctNumber',
+                                    style: const TextStyle(
+                                      fontFamily: ArcticAppTextStyles.fredoka,
+                                      fontSize: 100,
+                                      fontWeight: FontWeight.bold,
+                                      color: ArcticColorTheme.cadetblue,
                                     ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: _choiceColor(
-                                          index,
-                                        ).withValues(alpha: 0.35),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(10),
-                                    child: Image.asset(
-                                      'assets/fonts/game_numbers/${_choices[index]}.png',
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) =>
-                                          Center(
-                                            child: Text(
-                                              '${_choices[index]}',
-                                              style: const TextStyle(
-                                                fontFamily:
-                                                ArcticAppTextStyles.fredoka,
-                                                fontSize: 40,
-                                                fontWeight: FontWeight.bold,
-                                                color: ArcticColorTheme.cotton,
-                                              ),
-                                            ),
-                                          ),
-                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+
+                          // CHOICES GRID
+                          SizedBox(
+                            width: 280,
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    crossAxisSpacing: 14,
+                                    mainAxisSpacing: 14,
+                                    childAspectRatio: 1.3,
+                                  ),
+                              itemCount: _choices.length,
+                              itemBuilder: (context, index) {
+                                return GestureDetector(
+                                  onTap: () => _onChoiceTap(index),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    decoration: BoxDecoration(
+                                      color: _choiceColor(index),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: _choiceBorderColor(index),
+                                        width: 3,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: _choiceColor(
+                                            index,
+                                          ).withValues(alpha: 0.35),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Image.asset(
+                                        'assets/fonts/game_numbers/${_choices[index]}.png',
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) => Center(
+                                          child: Text(
+                                            '${_choices[index]}',
+                                            style: const TextStyle(
+                                              fontFamily:
+                                                  ArcticAppTextStyles.fredoka,
+                                              fontSize: 40,
+                                              fontWeight: FontWeight.bold,
+                                              color: ArcticColorTheme.cotton,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+
+                    _buildProgressDots(),
+
+                    const SizedBox(height: 15),
+                  ],
+                ),
+
+              if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
+              if (_showWinDialog)
+                Positioned.fill(child: _buildGoodJobOverlay()),
+
+              // --- ADDED LIGHTING PROMPT CARD ---
+              if (widget.level == 1 && !isFaceDetected && !_hideLightingCard)
+                Positioned.fill(
+                  child: LightingPromptCard(
+                    onClose: () {
+                      setState(() {
+                        isFaceDetected = true;
+                        _hideLightingCard = true;
+                      });
+                      onFirstFaceDetected?.call();
+                      onFirstFaceDetected = null;
+                    },
                   ),
-
-                  _buildProgressDots(),
-
-                  const SizedBox(height: 15),
-                ],
-              ),
-
-            if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -367,9 +440,8 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => Number012CountingObjectsScreen(
-              level: widget.level + 1,
-            ),
+            builder: (_) =>
+                Number012CountingObjectsScreen(level: widget.level + 1),
           ),
         );
       },
@@ -388,7 +460,11 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
       child: Stack(
         children: [
           Positioned(top: 25, left: 20, child: ArcticBackButton()),
-          Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 20,
+            child: ArcticLevelBadge(level: widget.level),
+          ),
           Positioned.fill(
             top: 50,
             child: Row(
@@ -398,13 +474,10 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                   child: Center(
                     child: Image.asset(
                       'assets/images/characters/doma_the_penguin.png',
-                      height: MediaQuery
-                          .of(context)
-                          .size
-                          .height * 0.65,
+                      height: MediaQuery.of(context).size.height * 0.65,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>
-                      const Text('🐧', style: TextStyle(fontSize: 60)),
+                          const Text('🐧', style: TextStyle(fontSize: 60)),
                     ),
                   ),
                 ),

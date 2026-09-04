@@ -5,16 +5,15 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'arctic_game_ui.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart'; // <-- ADDED
 
 class PenguinSnowflakesMiniGame extends StatefulWidget {
   final int number;
   final AudioPlayer player;
   final VoidCallback onComplete;
   final int level;
-
-  /// Optional custom voice line for this round (e.g. "Give me 3 snowflakes!").
-  /// Falls back to on-screen text only if empty.
   final String instructionAudio;
+  final GameTapTracker tapTracker; // <-- ADDED
 
   const PenguinSnowflakesMiniGame({
     super.key,
@@ -22,7 +21,8 @@ class PenguinSnowflakesMiniGame extends StatefulWidget {
     required this.player,
     required this.onComplete,
     this.instructionAudio = '',
-    required this.level
+    required this.level,
+    required this.tapTracker, // <-- ADDED
   });
 
   @override
@@ -46,7 +46,6 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   late AnimationController _penguinCelebrateCtrl;
   late Animation<double> _penguinCelebrateScale;
 
-  // ── Difficulty scales gently with the target number (1–10) ────────────
   double get _fallSpeed =>
       (0.0016 + widget.number * 0.00016).clamp(0.0016, 0.0042);
 
@@ -66,14 +65,15 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _penguinCelebrateScale = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.25), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 1.25, end: 0.9), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.1), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 20),
-    ]).animate(
-      CurvedAnimation(parent: _penguinCelebrateCtrl, curve: Curves.easeOut),
-    );
+    _penguinCelebrateScale =
+        TweenSequence([
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.25), weight: 30),
+          TweenSequenceItem(tween: Tween(begin: 1.25, end: 0.9), weight: 30),
+          TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.1), weight: 20),
+          TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 20),
+        ]).animate(
+          CurvedAnimation(parent: _penguinCelebrateCtrl, curve: Curves.easeOut),
+        );
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _playInstruction());
     _startGameLoops();
@@ -100,13 +100,12 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   void _startGameLoops() {
     _spawnTimer = Timer.periodic(
       Duration(milliseconds: _spawnIntervalMs),
-          (_) => _spawnFlake(),
+      (_) => _spawnFlake(),
     );
     _gameTimer = Timer.periodic(
       const Duration(milliseconds: 16),
-          (_) => _updateFlakePositions(),
+      (_) => _updateFlakePositions(),
     );
-    // Seed a couple right away so the child isn't staring at an empty sky.
     _spawnFlake();
   }
 
@@ -143,6 +142,8 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   Future<void> _handleDelivery(int id) async {
     if (_roundWon) return;
 
+    widget.tapTracker.recordCorrectTap(); // <-- TRACK CORRECT DELIVERY
+
     if (!mounted) return;
     setState(() {
       _flakes.removeWhere((f) => f.id == id);
@@ -150,8 +151,12 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
     });
 
     try {
-      await widget.player.play(AssetSource('audio/sound_effects/bubble_pop.wav'));
-      await widget.player.play(AssetSource('audio/arctic_numberland/$_delivered.wav'));
+      await widget.player.play(
+        AssetSource('audio/sound_effects/bubble_pop.wav'),
+      );
+      await widget.player.play(
+        AssetSource('audio/arctic_numberland/$_delivered.wav'),
+      );
       await widget.player.onPlayerComplete.first;
     } catch (_) {}
 
@@ -188,41 +193,48 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final h = constraints.maxHeight;
-        final flakeSize = (h * _flakeSizeFactor).clamp(48.0, 100.0);
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final h = constraints.maxHeight;
+          final flakeSize = (h * _flakeSizeFactor).clamp(48.0, 100.0);
 
-        return Stack(
-          children: [
-            // Sky background accents (keep light — real bg is behind this).
-
-            Padding(
-              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-              child: Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  Align(alignment: Alignment.topLeft, child: ArcticBackButton()),
-                  Align(alignment: Alignment.topRight, child: ArcticLevelBadge(level: widget.level)),
-                  Align(alignment: Alignment.topCenter, child: _buildBanner(h)),
-                ],
+          return Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                child: Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: ArcticBackButton(),
+                    ),
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: ArcticLevelBadge(level: widget.level),
+                    ),
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: _buildBanner(h),
+                    ),
+                  ],
+                ),
               ),
-            ),
-
-            // Falling snowflakes.
-            ..._flakes.map((f) => _buildDraggableFlake(f, w, h, flakeSize)),
-
-            // Penguin + basket drop target, bottom center.
-            Positioned(
-              bottom: h * 0.02,
-              left: 0,
-              right: 0,
-              child: Center(child: _buildPenguinTarget(h)),
-            ),
-          ],
-        );
-      },
+              ..._flakes.map((f) => _buildDraggableFlake(f, w, h, flakeSize)),
+              Positioned(
+                bottom: h * 0.02,
+                left: 0,
+                right: 0,
+                child: Center(child: _buildPenguinTarget(h)),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -252,7 +264,11 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
               fontWeight: FontWeight.bold,
               color: Colors.white,
               shadows: const [
-                Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2)),
+                Shadow(
+                  color: Color(0x55003366),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
               ],
             ),
           ),
@@ -261,7 +277,12 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
     );
   }
 
-  Widget _buildDraggableFlake(_FallingSnowflake f, double w, double h, double size) {
+  Widget _buildDraggableFlake(
+    _FallingSnowflake f,
+    double w,
+    double h,
+    double size,
+  ) {
     final left = (f.x * w - size / 2).clamp(0.0, w - size);
     final top = (f.y * h - size / 2).clamp(-size, h - size);
 
@@ -272,7 +293,8 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
         width: size,
         height: size,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => Text('❄️', style: TextStyle(fontSize: size * 0.8)),
+        errorBuilder: (_, __, ___) =>
+            Text('❄️', style: TextStyle(fontSize: size * 0.8)),
       ),
     );
 

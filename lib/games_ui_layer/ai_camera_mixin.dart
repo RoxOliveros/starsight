@@ -5,19 +5,37 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-bool globalFaceDetected = false;
-
 mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   CameraController? aiCameraController;
   Timer? _analysisTimer;
   bool isCameraInitialized = false;
-  bool isFaceDetected = globalFaceDetected;
+  bool isFaceDetected = false;
+
+  /// True once we've gotten at least one real reading back from the AI
+  /// server this screen. Lets consumers tell "camera hasn't reported yet"
+  /// apart from "camera reported no face" — the first is silence, the
+  /// second is a real signal worth showing something for.
+  bool hasCapturedFirstFrame = false;
+
+  /// Fires once, the first time a face is ever detected on this screen.
   VoidCallback? onFirstFaceDetected;
+
+  /// Fires on every confirmed detection result (including the first),
+  /// with the current value. Unlike [onFirstFaceDetected], this keeps
+  /// firing for the life of the screen — use it to react to a face being
+  /// lost or regained mid-session, not just the first time.
+  ValueChanged<bool>? onFaceDetectionChanged;
+
   List<String> sessionEmotions = [];
 
   final String pythonServerUrl = 'http://13.68.159.132:8080/analyze';
 
   Future<void> startAiCamera() async {
+    // Reset per-screen: a face detected on a previous screen (or an
+    // earlier hot reload) must not carry over and silently suppress
+    // this screen's own lighting/face check.
+    isFaceDetected = false;
+    hasCapturedFirstFrame = false;
     try {
       final cameras = await availableCameras();
       final frontCamera = cameras.firstWhere(
@@ -69,19 +87,23 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         String responseBody = await response.stream.bytesToString();
         var jsonResponse = jsonDecode(responseBody);
         String detectedEmotion = jsonResponse['emotion'];
+        final faceNowDetected = detectedEmotion != "NO FACE DETECTED";
+        final isFirstReading = !hasCapturedFirstFrame;
+        final changed = faceNowDetected != isFaceDetected;
 
-        if (detectedEmotion == "NO FACE DETECTED") {
-          if (isFaceDetected) {
-            globalFaceDetected = false; // 3. UPDATE GLOBAL MEMORY
-            setState(() => isFaceDetected = false);
-          }
-        } else {
-          if (!isFaceDetected) {
-            globalFaceDetected = true; // 3. UPDATE GLOBAL MEMORY
-            setState(() => isFaceDetected = true);
-            onFirstFaceDetected?.call();
-            onFirstFaceDetected = null;
-          }
+        if (mounted && (isFirstReading || changed)) {
+          setState(() {
+            hasCapturedFirstFrame = true;
+            isFaceDetected = faceNowDetected;
+          });
+        }
+
+        if (faceNowDetected && (isFirstReading || changed)) {
+          onFirstFaceDetected?.call();
+          onFirstFaceDetected = null;
+        }
+        if (isFirstReading || changed) {
+          onFaceDetectionChanged?.call(faceNowDetected);
         }
 
         sessionEmotions.add(detectedEmotion);

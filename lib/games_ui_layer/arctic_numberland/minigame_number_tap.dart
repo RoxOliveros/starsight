@@ -5,6 +5,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'arctic_game_ui.dart';
 import 'dart:async';
+import 'package:StarSight/business_layer/game_tap_tracker.dart'; // <-- ADDED
 
 class TapObjectMiniGame extends StatefulWidget {
   final String instructionText;
@@ -20,12 +21,13 @@ class TapObjectMiniGame extends StatefulWidget {
   final AudioPlayer player;
   final VoidCallback onComplete;
   final int level;
+  final GameTapTracker tapTracker; // <-- ADDED
 
   const TapObjectMiniGame({
     super.key,
     required this.instructionText,
     required this.instructionAudio,
-    this.targetCountAudio = '',    // NEW
+    this.targetCountAudio = '',
     this.targetObjectAudio = '',
     required this.correctObjectAsset,
     this.correctObjectEmoji = '⭐',
@@ -36,6 +38,7 @@ class TapObjectMiniGame extends StatefulWidget {
     required this.player,
     required this.onComplete,
     required this.level,
+    required this.tapTracker, // <-- ADDED
   });
 
   @override
@@ -55,7 +58,7 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
   List<Offset> _generateSlotGrid(int count) {
     final cols = sqrt(count).ceil().clamp(1, count);
     final rows = (count / cols).ceil();
-    final cellW = 0.60 / cols;   // objects live in right ~60% of width now
+    final cellW = 0.60 / cols;
     final cellH = 0.62 / rows;
     final positions = <Offset>[];
     for (int r = 0; r < rows; r++) {
@@ -63,10 +66,12 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
         if (positions.length >= count) break;
         final jitterX = (_random.nextDouble() - 0.5) * cellW * 0.3;
         final jitterY = (_random.nextDouble() - 0.5) * cellH * 0.3;
-        positions.add(Offset(
-          (0.38 + c * cellW + cellW / 2 + jitterX).clamp(0.35, 0.98),
-          (0.28 + r * cellH + cellH / 2 + jitterY).clamp(0.28, 0.90),
-        ));
+        positions.add(
+          Offset(
+            (0.38 + c * cellW + cellW / 2 + jitterX).clamp(0.35, 0.98),
+            (0.28 + r * cellH + cellH / 2 + jitterY).clamp(0.28, 0.90),
+          ),
+        );
       }
     }
     return positions;
@@ -90,11 +95,17 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
     await widget.player.stop();
     try {
       if (widget.targetCountAudio.isNotEmpty) {
-        await _playAndWait(widget.player, widget.targetCountAudio.replaceFirst('assets/', ''));
+        await _playAndWait(
+          widget.player,
+          widget.targetCountAudio.replaceFirst('assets/', ''),
+        );
       }
       if (!mounted) return;
       if (widget.targetObjectAudio.isNotEmpty) {
-        await _playAndWait(widget.player, widget.targetObjectAudio.replaceFirst('assets/', ''));
+        await _playAndWait(
+          widget.player,
+          widget.targetObjectAudio.replaceFirst('assets/', ''),
+        );
       }
     } catch (_) {}
   }
@@ -105,17 +116,19 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
     final slots = <_ObjectSlot>[];
     for (int i = 0; i < total; i++) {
       final isTarget = i < widget.targetCount.clamp(0, total);
-      slots.add(_ObjectSlot(
-        id: i,
-        pos: positions[i],
-        isTarget: isTarget,
-        asset: isTarget
-            ? widget.correctObjectAsset
-            : widget.decoyObjectAssets[i % widget.decoyObjectAssets.length],
-        emoji: isTarget
-            ? widget.correctObjectEmoji
-            : widget.decoyObjectEmojis[i % widget.decoyObjectEmojis.length],
-      ));
+      slots.add(
+        _ObjectSlot(
+          id: i,
+          pos: positions[i],
+          isTarget: isTarget,
+          asset: isTarget
+              ? widget.correctObjectAsset
+              : widget.decoyObjectAssets[i % widget.decoyObjectAssets.length],
+          emoji: isTarget
+              ? widget.correctObjectEmoji
+              : widget.decoyObjectEmojis[i % widget.decoyObjectEmojis.length],
+        ),
+      );
     }
     _objectSlots = slots;
   }
@@ -138,6 +151,7 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
     if (slot.tapped || _roundWon) return;
 
     if (slot.isTarget) {
+      widget.tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
       setState(() {
         slot.tapped = true;
         _tappedTargets++;
@@ -148,20 +162,26 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
         try {
           await _playAndWait(_sfxPlayer, 'audio/sound_effects/bubble_pop.wav');
           if (!mounted) return;
-          await _playAndWait(_sfxPlayer, 'audio/arctic_numberland/$_tappedTargets.wav');
+          await _playAndWait(
+            _sfxPlayer,
+            'audio/arctic_numberland/$_tappedTargets.wav',
+          );
         } catch (_) {}
       } catch (_) {}
       if (!mounted) return;
       if (_tappedTargets >= widget.targetCount) {
         setState(() => _roundWon = true);
         try {
-          await widget.player.play(AssetSource('audio/arctic_numberland/mahusay.wav'));
+          await widget.player.play(
+            AssetSource('audio/arctic_numberland/mahusay.wav'),
+          );
           await widget.player.onPlayerComplete.first;
         } catch (_) {}
         await Future.delayed(const Duration(milliseconds: 400));
         if (mounted) widget.onComplete();
       }
     } else {
+      widget.tapTracker.recordMistake(); // <-- TRACK MISTAKE
       setState(() => _wrongSlotId = slot.id);
       await Future.delayed(const Duration(milliseconds: 900));
       if (mounted) setState(() => _wrongSlotId = null);
@@ -177,28 +197,45 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final h = constraints.maxHeight;
-        final objSize = (h * 0.38 / (sqrt(widget.targetCount + widget.decoyCount) * 0.6)).clamp(72.0, 160.0);
-        return Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-              child: Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  Align(alignment: Alignment.topLeft, child: ArcticBackButton()),
-                  Align(alignment: Alignment.topRight, child: ArcticLevelBadge(level: widget.level)),
-                  Align(alignment: Alignment.topCenter, child: _buildBanner(h)),
-                ],
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final h = constraints.maxHeight;
+          final objSize =
+              (h * 0.38 / (sqrt(widget.targetCount + widget.decoyCount) * 0.6))
+                  .clamp(72.0, 160.0);
+          return Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                child: Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: ArcticBackButton(),
+                    ),
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: ArcticLevelBadge(level: widget.level),
+                    ),
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: _buildBanner(h),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            ..._objectSlots.map((slot) => _buildObjectSlot(slot, w, h, objSize)),
-          ],
-        );
-      },
+              ..._objectSlots.map(
+                (slot) => _buildObjectSlot(slot, w, h, objSize),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -225,12 +262,24 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
           fontSize: 20,
           fontWeight: FontWeight.bold,
           color: Colors.white,
-          shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],        ),
+          shadows: const [
+            Shadow(
+              color: Color(0x55003366),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildObjectSlot(_ObjectSlot slot, double w, double h, double objSize) {
+  Widget _buildObjectSlot(
+    _ObjectSlot slot,
+    double w,
+    double h,
+    double objSize,
+  ) {
     final left = (slot.pos.dx * w - objSize / 2).clamp(w * 0.35, w - objSize);
     final top = (slot.pos.dy * h - objSize / 2).clamp(h * 0.28, h - objSize);
     final wrong = _wrongSlotId == slot.id;
@@ -246,7 +295,10 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
         child: AnimatedBuilder(
           animation: _objectWiggleCtrl,
           builder: (_, child) => Transform.translate(
-            offset: Offset(0, (_objectWiggleCtrl.value - 0.5) * (slot.isTarget ? 10 : -10)),
+            offset: Offset(
+              0,
+              (_objectWiggleCtrl.value - 0.5) * (slot.isTarget ? 10 : -10),
+            ),
             child: child,
           ),
           child: GestureDetector(
@@ -256,7 +308,9 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
               height: objSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: ArcticColorTheme.pictonblue.withValues(alpha: slot.isTarget ? 1.0 : 0.85),
+                color: ArcticColorTheme.pictonblue.withValues(
+                  alpha: slot.isTarget ? 1.0 : 0.85,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: ArcticColorTheme.pictonblue.withValues(alpha: 0.5),
@@ -274,7 +328,8 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
                 child: Image.asset(
                   slot.asset,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Text(slot.emoji, style: const TextStyle(fontSize: 40)),
+                  errorBuilder: (_, __, ___) =>
+                      Text(slot.emoji, style: const TextStyle(fontSize: 40)),
                 ),
               ),
             ),

@@ -197,7 +197,14 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       }
 
       // D. GENERATE NEW REPORT (Only happens if data changed or no cache exists)
-      int totalCategoryGames = widget.categoryId == 'alphabet_forest' ? 5 : 10;
+      // D. GENERATE NEW REPORT (Only happens if data changed or no cache exists)
+      int totalCategoryGames = 10;
+      if (widget.categoryId == 'alphabet_forest') {
+        totalCategoryGames = 5;
+      } else if (widget.categoryId == 'arctic_numberland') {
+        totalCategoryGames =
+            3; // <-- Temporarily set to 3 so it counts as "complete" for testing!
+      }
 
       Map<String, dynamic> summaryMap =
           await CategorySummaryService.generateCategoryReport(
@@ -668,7 +675,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                         )
                       else
                         Text(
-                          "Playthrough Cycle $_selectedCycle",
+                          "Playthrough  $_selectedCycle",
                           style: const TextStyle(
                             fontFamily: AppTextStyles.fredoka,
                             fontSize: 14,
