@@ -197,6 +197,9 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
            _screenPhase == LagoonScreenPhase.intro
                 ? _buildIntroContent()
                 : _buildGameContent(),
+          // X Button and Level Badge
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -206,9 +209,6 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
   Widget _buildIntroContent() {
     return Stack(
       children: [
-        // X Button and Level Badge
-        Positioned(top: 25, left: 25, child: const LagoonXButton()),
-        Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
         Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
       ],
     );
@@ -222,12 +222,13 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
       children: [
         Column(
           children: [
-            _buildHeader(),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
+                padding: EdgeInsets.only(
+                  top: 80,
+                  left: 50,
+                  right: 50,
+                  bottom: 8.0,
                 ),
                 child: Row(
                   children: [
@@ -273,7 +274,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white, width: 4),
+        border: Border.all(color: Colors.white, width: 0.1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.30),
@@ -375,23 +376,6 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     }
 
     return GestureDetector(onTap: () => _onChoiceTap(seasonId), child: button);
-  }
-
-  // ── Header ────────────────────────────────────────────────────────────────
-
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: SizedBox(
-        height: 50,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Align(alignment: Alignment.centerLeft, child: LagoonBackButton()),
-          ],
-        ),
-      ),
-    );
   }
 
   // ── Progress dots ─────────────────────────────────────────────────────────
