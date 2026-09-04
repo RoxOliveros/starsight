@@ -355,7 +355,7 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
               // ==========================================
               if (_showGoodJob)
                 GoodJobOverlay(
-                  characterImage: 'assets/images/characters/kiki_tryagain.png',
+                  characterImage: 'assets/images/characters/cat_holding_fishbone.png',
                   closeButtonColor: LagoonColorTheme.wasteland,
                   characterSizeFactor: 0.9,
                   onNext: () async {

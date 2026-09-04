@@ -242,7 +242,7 @@ import '../goodjob_prompt.dart';
             // ── Final Success Overlay ──
             if (showGoodJob)
               GoodJobOverlay(
-                characterImage: 'assets/images/characters/kiki_the_cat.png',
+                characterImage: 'assets/images/characters/cat_holding_fishbone.png',
                 closeButtonColor: LagoonColorTheme.wasteland,
                 characterSizeFactor: 0.9,
                 onNext: () async {

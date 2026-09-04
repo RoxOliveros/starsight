@@ -247,7 +247,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
       useSafeArea: false,
       barrierColor: Colors.black54,
       builder: (_) => GoodJobOverlay(
-        characterImage: 'assets/images/characters/kiki_smiling.png',
+        characterImage: 'assets/images/characters/cat_holding_fishbone.png',
         closeButtonColor: LagoonColorTheme.wasteland,
         characterSizeFactor: 0.9,
         onNext: () async {

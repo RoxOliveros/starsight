@@ -371,7 +371,7 @@ class _ClothesGameState extends State<ClothesGame> {
           // Good Job overlay — shown once winter (the last weather) is done
           if (showGoodJobOverlay)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/kiki_smiling.png',
+              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
               closeButtonColor: LagoonColorTheme.wasteland,
               characterSizeFactor: 0.9,
               onNext: () async {

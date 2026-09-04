@@ -369,7 +369,7 @@ class _ListeningGameState extends State<ListeningGame> {
           // F. GOOD JOB OVERLAY LAYER (Appears after winning!)
           if (_currentPhase == GamePhase.goodJob)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/kiki_tryagain.png',
+              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
               closeButtonColor: LagoonColorTheme.wasteland,
               characterSizeFactor: 0.9,
               onNext: () async {

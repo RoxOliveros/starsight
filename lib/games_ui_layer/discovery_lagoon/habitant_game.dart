@@ -220,7 +220,7 @@ class _HabitantGameState extends State<HabitantGame> {
           // --- THE GOOD JOB OVERLAY ---
           if (_isGameWon)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/kiki_smiling.png',
+              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
               closeButtonColor: LagoonColorTheme.wasteland,
               characterSizeFactor: 0.9,
               onNext: () async {

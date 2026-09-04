@@ -856,7 +856,7 @@ class _PerfumeGameState extends State<PerfumeGame> {
           // ── 12. Good Job Overlay
           if (_showGoodJob)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/kiki_tryagain.png',
+              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
               closeButtonColor: LagoonColorTheme.wasteland,
               characterSizeFactor: 0.9,
               onNext: () async {

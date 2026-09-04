@@ -172,7 +172,7 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
             // 3. The Delayed "Good Job" Overlay
             if (_showOverlay)
               GoodJobOverlay(
-                characterImage: 'assets/images/characters/kiki_smiling.png',
+                characterImage: 'assets/images/characters/cat_holding_fishbone.png',
                 closeButtonColor: LagoonColorTheme.wasteland,
                 characterSizeFactor: 0.9,
                 onNext: () async {

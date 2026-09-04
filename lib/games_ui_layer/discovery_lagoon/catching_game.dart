@@ -67,14 +67,54 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   int _spawnTimer = 0;
 
   int _caughtCount = 0;
-  final int _targetToWin = 10;
+  int _wrongCatchCount = 0;
+  final int _targetToWin = 15;
 
   bool _canTapFavorite = false;
-
-  // NEW: guards every pending audio wait against a disposed player
   bool _disposed = false;
 
-  // ...(food asset lists unchanged)...
+  final String _catchMissedFoods = 'audio/discovery_lagoon/catching_missed_food.wav';
+
+  final List<String> _sweetFoodImages = [
+    'assets/images/objects/lagoon/cookie.png',
+    'assets/images/objects/lagoon/chocolate.png',
+    'assets/images/objects/lagoon/candy_colored.png',
+    'assets/images/objects/lagoon/strawberry.png',
+    'assets/images/objects/lagoon/banana_colored.png',
+  ];
+
+  // Asset paths for sour foods
+  final List<String> _sourFoodImages = [
+    'assets/images/objects/lagoon/orange.png',
+    'assets/images/objects/lagoon/lemon.png',
+    'assets/images/objects/lagoon/yogurt.png',
+    'assets/images/objects/lagoon/tamarid.png',
+    'assets/images/objects/lagoon/vinegar.png',
+  ];
+
+  // Asset paths for salty foods
+  final List<String> _saltyFoodImages = [
+    'assets/images/objects/lagoon/pizza_colored.png',
+    'assets/images/objects/lagoon/fries.png',
+    'assets/images/objects/lagoon/chips.png',
+    'assets/images/objects/lagoon/cheese.png',
+    'assets/images/objects/lagoon/bacon.png',
+  ];
+
+  // Asset paths for bitter foods
+  final List<String> _bitterFoodImages = [
+    'assets/images/objects/lagoon/coffee.png',
+    'assets/images/objects/lagoon/lettuce.png',
+    'assets/images/objects/lagoon/bittergourd.png',
+    'assets/images/objects/lagoon/broccoli.png',
+  ];
+
+  // Asset paths for wrong / non-food items
+  final List<String> _wrongFoodImages = [
+    'assets/images/objects/lagoon/onion.png',
+    'assets/images/objects/lagoon/perfume_fish.png',
+    'assets/images/objects/lagoon/socks.png',
+  ];
 
   @override
   void initState() {
@@ -109,23 +149,40 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
       _waitForAudioComplete().then((_) async {
         if (!mounted || _disposed) return;
-        setState(() {
-          _currentPhase = GamePhase.sweetPrompt;
-        });
-        await _audioPlayer.play(
-          AssetSource('audio/discovery_lagoon/catching_sweet.wav'),
-        );
-
-        _waitForAudioComplete().then((_) {
-          if (!mounted || _disposed) return;
-          setState(() {
-            _currentPhase = GamePhase.playing;
-          });
-          _gameLoopController.forward();
-        });
+        _startSweetRound();
       });
     } catch (e) {
       debugPrint("Error playing intro audio: $e");
+      if (mounted) {
+        setState(() => _currentPhase = GamePhase.playing);
+        _gameLoopController.forward();
+      }
+    }
+  }
+
+  Future<void> _startSweetRound() async {
+    setState(() {
+      _fallingItems.clear();
+      _caughtCount = 0;
+      _wrongCatchCount = 0;
+      _currentRound = TasteRound.sweet;
+      _currentPhase = GamePhase.sweetPrompt;
+    });
+
+    try {
+      await _audioPlayer.play(
+        AssetSource('audio/discovery_lagoon/catching_sweet.wav'),
+      );
+
+      _waitForAudioComplete().then((_) {
+        if (!mounted || _disposed) return;
+        setState(() {
+          _currentPhase = GamePhase.playing;
+        });
+        _gameLoopController.forward();
+      });
+    } catch (e) {
+      debugPrint("Error playing sweet audio: $e");
       if (mounted) {
         setState(() => _currentPhase = GamePhase.playing);
         _gameLoopController.forward();
@@ -137,6 +194,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     setState(() {
       _fallingItems.clear();
       _caughtCount = 0;
+      _wrongCatchCount = 0;
       _currentRound = TasteRound.sour;
       _currentPhase = GamePhase.sourPrompt;
     });
@@ -166,6 +224,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     setState(() {
       _fallingItems.clear();
       _caughtCount = 0;
+      _wrongCatchCount = 0;
       _currentRound = TasteRound.salty;
       _currentPhase = GamePhase.saltyPrompt;
     });
@@ -195,6 +254,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     setState(() {
       _fallingItems.clear();
       _caughtCount = 0;
+      _wrongCatchCount = 0;
       _currentRound = TasteRound.bitter;
       _currentPhase = GamePhase.bitterPrompt;
     });
@@ -217,6 +277,23 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
         setState(() => _currentPhase = GamePhase.playing);
         _gameLoopController.forward();
       }
+    }
+  }
+
+  Future<void> _repeatCurrentRound() async {
+    switch (_currentRound) {
+      case TasteRound.sweet:
+        await _startSweetRound();
+        break;
+      case TasteRound.sour:
+        await _startSourRound();
+        break;
+      case TasteRound.salty:
+        await _startSaltyRound();
+        break;
+      case TasteRound.bitter:
+        await _startBitterRound();
+        break;
     }
   }
 
@@ -300,11 +377,23 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
             if (caughtItem.isTarget) {
               _caughtCount++;
+            } else {
+              _wrongCatchCount++;
+            }
 
-              if (_caughtCount >= _targetToWin) {
-                _gameLoopController.stop();
+            final int totalCatches = _caughtCount + _wrongCatchCount;
+
+            if (totalCatches >= _targetToWin) {
+              _gameLoopController.stop();
+
+              if (_wrongCatchCount >= _caughtCount) {
+                _playSound(_catchMissedFoods);
+                _waitForAudioComplete().then((_) {
+                  if (!mounted || _disposed) return;
+                  _repeatCurrentRound();
+                });
+              } else {
                 _playSound('audio/sound_effects/shine.wav');
-
                 _waitForAudioComplete().then((_) {
                   if (!mounted || _disposed) return;
                   if (_currentRound == TasteRound.sweet) {
@@ -317,11 +406,13 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
                     _startFavoriteTastePhase();
                   }
                 });
-              } else {
-                _playSound('audio/sound_effects/shine.wav');
               }
             } else {
-              _playSound('audio/discovery_lagoon/kiki_tryagain.wav');
+              if (caughtItem.isTarget) {
+                _playSound('audio/sound_effects/shine.wav');
+              } else {
+                _playSound('audio/discovery_lagoon/kiki_tryagain.wav');
+              }
             }
             continue;
           }
@@ -335,7 +426,54 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   }
 
   void _spawnFood() {
-    // ...(unchanged)...
+    // 50% chance to spawn target food, 30% chance to spawn a distraction!
+    bool spawnTarget = _random.nextDouble() < 0.50;
+
+    String randomImage;
+    if (spawnTarget) {
+      if (_currentRound == TasteRound.sweet) {
+        randomImage =
+        _sweetFoodImages[_random.nextInt(_sweetFoodImages.length)];
+      } else if (_currentRound == TasteRound.sour) {
+        randomImage = _sourFoodImages[_random.nextInt(_sourFoodImages.length)];
+      } else if (_currentRound == TasteRound.salty) {
+        randomImage =
+        _saltyFoodImages[_random.nextInt(_saltyFoodImages.length)];
+      } else {
+        randomImage =
+        _bitterFoodImages[_random.nextInt(_bitterFoodImages.length)];
+      }
+    } else {
+      List<String> distractionPool = [..._wrongFoodImages];
+      if (_currentRound == TasteRound.sweet) {
+        distractionPool.addAll(_sourFoodImages);
+        distractionPool.addAll(_saltyFoodImages);
+        distractionPool.addAll(_bitterFoodImages);
+      } else if (_currentRound == TasteRound.sour) {
+        distractionPool.addAll(_sweetFoodImages);
+        distractionPool.addAll(_saltyFoodImages);
+        distractionPool.addAll(_bitterFoodImages);
+      } else if (_currentRound == TasteRound.salty) {
+        distractionPool.addAll(_sweetFoodImages);
+        distractionPool.addAll(_sourFoodImages);
+        distractionPool.addAll(_bitterFoodImages);
+      } else {
+        distractionPool.addAll(_sweetFoodImages);
+        distractionPool.addAll(_sourFoodImages);
+        distractionPool.addAll(_saltyFoodImages);
+      }
+      randomImage = distractionPool[_random.nextInt(distractionPool.length)];
+    }
+
+    _fallingItems.add(
+      FallingFood(
+        imagePath: randomImage,
+        x: 0.1 + (_random.nextDouble() * 0.8),
+        y: -0.15,
+        speed: 0.006 + (_random.nextDouble() * 0.005),
+        isTarget: spawnTarget,
+      ),
+    );
   }
 
   void _onPanUpdate(DragUpdateDetails details, double screenWidth) {
@@ -350,6 +488,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   void _restartGame() {
     setState(() {
       _caughtCount = 0;
+      _wrongCatchCount = 0;
       _fallingItems.clear();
       _currentRound = TasteRound.sweet;
       _currentPhase = GamePhase.intro;
@@ -359,7 +498,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
   @override
   void dispose() {
-    _disposed = true; // set FIRST so any in-flight .then() bails out
+    _disposed = true;
     _gameLoopController.dispose();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
@@ -562,7 +701,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
           }),
           if (_currentPhase == GamePhase.goodJob)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/kiki_tryagain.png',
+              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
               closeButtonColor: LagoonColorTheme.wasteland,
               characterSizeFactor: 0.9,
               onNext: () async {

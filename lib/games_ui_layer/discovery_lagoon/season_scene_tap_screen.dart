@@ -409,7 +409,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
   Widget _buildGoodJobOverlay() {
     LagoonProgressService.instance.markLevelComplete(widget.level);
     return GoodJobOverlay(
-      characterImage: 'assets/images/characters/kiki_smiling.png',
+      characterImage: 'assets/images/characters/cat_holding_fishbone.png',
       closeButtonColor: LagoonColorTheme.wasteland,
       characterSizeFactor: 0.9,
       onNext: () async {
