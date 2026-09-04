@@ -340,12 +340,7 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
             });
             LagoonAudio.instance.play(WeatherDressUpData.questionKey(_round.weather.id));
           },
-          onBack: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const LagoonLevelScreen()),
-                  (route) => route.isFirst,
-            );
-          },
+          onBack: () => Navigator.of(context).pop(),
         ),
       );
     });

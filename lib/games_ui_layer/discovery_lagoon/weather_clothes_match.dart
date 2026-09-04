@@ -497,12 +497,7 @@ class _WeatherClothesMatchScreenState extends State<WeatherClothesMatchScreen>
         );
       },
       onRestart: _restart,
-      onBack: () {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LagoonLevelScreen()),
-              (route) => route.isFirst,
-        );
-      },
+      onBack: () => Navigator.of(context).pop(),
     );
   }
 }

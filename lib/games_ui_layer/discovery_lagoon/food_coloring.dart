@@ -626,9 +626,7 @@ class _FoodColoringScreenState extends State<FoodColoringScreen>
         // );
       },
       onRestart: _resetGame,
-      onBack: () {
-        Navigator.of(context).pop();
-      },
+      onBack: () => Navigator.of(context).pop(),
     );
   }
 }

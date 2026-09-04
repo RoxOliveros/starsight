@@ -385,9 +385,7 @@ class _ListeningGameState extends State<ListeningGame> {
                 }
               },
               onRestart: _restartGame,
-              onBack: () {
-                Navigator.of(context).pop();
-              },
+              onBack: () => Navigator.of(context).pop(),
             ),
         ],
       ),

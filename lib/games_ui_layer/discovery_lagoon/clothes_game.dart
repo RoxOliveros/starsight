@@ -395,9 +395,7 @@ class _ClothesGameState extends State<ClothesGame> {
                   showGoodJobOverlay = false;
                 });
               },
-              onBack: () {
-                Navigator.of(context).pop();
-              },
+              onBack: () => Navigator.of(context).pop(),
             ),
         ],
       ),

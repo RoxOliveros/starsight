@@ -268,10 +268,7 @@ import '../goodjob_prompt.dart';
                     showGoodJob = false;
                   });
                 },
-                onBack: () {
-                  // Navigates out of the game screen
-                  Navigator.of(context).pop();
-                },
+                onBack: () => Navigator.of(context).pop(),
               ),
           ],
         ),

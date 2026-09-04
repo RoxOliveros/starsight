@@ -571,9 +571,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
                     if (mounted) setState(() => _readyForEntrance = true);
                   });
                 },
-                onBack: () {
-                  Navigator.of(context).maybePop();
-                },
+                onBack: () => Navigator.of(context).pop(),
               ),
             ),
         ],

@@ -247,10 +247,7 @@ class _HabitantGameState extends State<HabitantGame> {
                   };
                 });
               },
-              onBack: () {
-                // Pops the screen to go back to the previous menu
-                Navigator.of(context).pop();
-              },
+              onBack: () => Navigator.of(context).pop(),
             ),
         ],
       ),

@@ -451,10 +451,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
                     _startPhase1();
                   });
                 },
-                onBack: () {
-                  // Return to the menu
-                  Navigator.of(context).pop();
-                },
+                onBack: () => Navigator.of(context).pop(),
               ),
             ),
 

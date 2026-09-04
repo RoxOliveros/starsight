@@ -245,10 +245,7 @@ class _WeatherGameState extends State<WeatherGame> {
                     _playIntroPrompt(); // Re-play intro when restarting
                   });
                 },
-                onBack: () {
-                  // Defines behavior for the top-left Close button
-                  Navigator.of(context).pop();
-                },
+                onBack: () => Navigator.of(context).pop(),
               ),
             ),
         ],

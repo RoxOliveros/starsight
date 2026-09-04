@@ -610,9 +610,7 @@ class _PickupGameState extends State<PickupGame> {
                   });
                   _playIntroSequence();
                 },
-                onBack: () {
-                  Navigator.of(context).maybePop();
-                },
+                onBack: () => Navigator.of(context).pop(),
               ),
             ),
         ],

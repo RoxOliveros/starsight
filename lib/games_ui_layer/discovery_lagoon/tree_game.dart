@@ -197,9 +197,7 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
                     _showOverlay = false;
                   });
                 },
-                onBack: () {
-                  Navigator.of(context).pop();
-                },
+                onBack: () => Navigator.of(context).pop(),
               ),
 
             // 4. The Intro Overlay (Placed last so it renders on top of everything)

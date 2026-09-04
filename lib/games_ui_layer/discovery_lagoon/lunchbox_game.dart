@@ -406,9 +406,7 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
                       }
                     },
                     onRestart: _restartGame,
-                    onBack: () {
-                      Navigator.of(context).maybePop();
-                    },
+                    onBack: () => Navigator.of(context).pop(),
                   ),
                 ),
             ],

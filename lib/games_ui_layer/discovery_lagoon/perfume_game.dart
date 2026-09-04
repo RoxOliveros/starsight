@@ -324,12 +324,6 @@ class _PerfumeGameState extends State<PerfumeGame> {
     super.dispose();
   }
 
-  Future<void> _exitLevel() async {
-    OrientationService.setLandscape();
-    if (!mounted) return;
-    Navigator.of(context).maybePop();
-  }
-
   @override
   Widget build(BuildContext context) {
     final double sw = MediaQuery.of(context).size.width;
@@ -874,9 +868,7 @@ class _PerfumeGameState extends State<PerfumeGame> {
                   MaterialPageRoute(builder: (_) => PerfumeGame(level: widget.level)),
                 );
               },
-              onBack: () {
-                _exitLevel();
-              },
+              onBack: () => Navigator.of(context).pop(),
             ),
         ],
       ),

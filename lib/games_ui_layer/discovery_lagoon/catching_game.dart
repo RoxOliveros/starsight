@@ -716,9 +716,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
                 }
               },
               onRestart: _restartGame,
-              onBack: () {
-                Navigator.of(context).pop();
-              },
+              onBack: () => Navigator.of(context).pop(),
             ),
         ],
       ),
