@@ -61,13 +61,19 @@ class PickupGame extends StatefulWidget {
 
 class _PickupGameState extends State<PickupGame> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final math.Random _random = math.Random();
   int _currentLevelIndex = 0;
+
+  CharacterConfig? _shuffledTarget;
+  CharacterConfig? _shuffledWrong1;
+  CharacterConfig? _shuffledWrong2;
 
   bool _isIntro = true;
   bool _forceEntrancePositions = true;
   bool _isChildrenEntering = false;
   bool _isTargetMoving = false;
   bool _isWalkingAway = false;
+  bool _isGlowing = false;
   bool _showSuccessUI = false;
   bool _disposed = false;
 
@@ -281,7 +287,42 @@ class _PickupGameState extends State<PickupGame> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+    _shuffleCurrentLevelPositions();
     _playIntroSequence();
+  }
+
+  CharacterConfig _withPosition(CharacterConfig original, CharacterConfig positionSource) {
+    return CharacterConfig(
+      imagePath: original.imagePath,
+      leftOffset: positionSource.leftOffset,
+      entranceLeftOffset: positionSource.entranceLeftOffset,
+      bottomOffset: positionSource.bottomOffset,
+      startHeight: positionSource.startHeight,
+      endLeftOffset: original.endLeftOffset,
+      endBottomOffset: original.endBottomOffset,
+      endHeight: original.endHeight,
+    );
+  }
+
+  void _shuffleCurrentLevelPositions() {
+    final level = _levels[_currentLevelIndex];
+
+    final children = <CharacterConfig>[
+      level.targetChild,
+      if (level.wrongChild1 != null) level.wrongChild1!,
+      if (level.wrongChild2 != null) level.wrongChild2!,
+    ];
+
+    final positions = List<CharacterConfig>.from(children)..shuffle(_random);
+
+    _shuffledTarget = _withPosition(level.targetChild, positions[0]);
+    int i = 1;
+    _shuffledWrong1 = level.wrongChild1 != null
+        ? _withPosition(level.wrongChild1!, positions[i++])
+        : null;
+    _shuffledWrong2 = level.wrongChild2 != null
+        ? _withPosition(level.wrongChild2!, positions[i++])
+        : null;
   }
 
   // Orchestrates the kids sliding and bouncing into view
@@ -370,6 +411,11 @@ class _PickupGameState extends State<PickupGame> {
 
     setState(() {
       _isTargetMoving = true;
+      _isGlowing = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) setState(() => _isGlowing = false);
     });
 
     Future.delayed(const Duration(milliseconds: 1200), () {
@@ -389,6 +435,7 @@ class _PickupGameState extends State<PickupGame> {
 
         if (_currentLevelIndex < _levels.length - 1) {
           _currentLevelIndex++;
+          _shuffleCurrentLevelPositions();
           _triggerEntranceAnimation();
         } else {
           setState(() {
@@ -484,7 +531,21 @@ class _PickupGameState extends State<PickupGame> {
               _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
             }
           },
-          child: Image.asset(config.imagePath),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            decoration: BoxDecoration(
+              boxShadow: (isTarget && _isGlowing)
+                  ? [
+                BoxShadow(
+                  color: Colors.yellowAccent.withValues(alpha: 0.50),
+                  blurRadius: 100,
+                  spreadRadius: 5,
+                ),
+              ]
+                  : [],
+            ),
+            child: Image.asset(config.imagePath),
+          ),
         ),
       ),
     );
@@ -557,25 +618,25 @@ class _PickupGameState extends State<PickupGame> {
             ),
 
           // 4. Wrong Choice 1
-          if (!_isIntro && currentLevel.wrongChild1 != null)
+          if (!_isIntro && _shuffledWrong1 != null)
             _buildChildCharacter(
-              config: currentLevel.wrongChild1!,
+              config: _shuffledWrong1!,
               isTarget: false,
               screenSize: screenSize,
             ),
 
           // 5. Wrong Choice 2
-          if (!_isIntro && currentLevel.wrongChild2 != null)
+          if (!_isIntro && _shuffledWrong2 != null)
             _buildChildCharacter(
-              config: currentLevel.wrongChild2!,
+              config: _shuffledWrong2!,
               isTarget: false,
               screenSize: screenSize,
             ),
 
           // 6. Target Child
-          if (!_isIntro)
+          if (!_isIntro && _shuffledTarget != null)
             _buildChildCharacter(
-              config: currentLevel.targetChild,
+              config: _shuffledTarget!,
               isTarget: true,
               screenSize: screenSize,
             ),
@@ -606,8 +667,9 @@ class _PickupGameState extends State<PickupGame> {
                   setState(() {
                     _currentLevelIndex = 0;
                     _showSuccessUI = false;
-                    _isIntro = true; // Show intro again on restart
+                    _isIntro = true;
                   });
+                  _shuffleCurrentLevelPositions();
                   _playIntroSequence();
                 },
                 onBack: () => Navigator.of(context).pop(),

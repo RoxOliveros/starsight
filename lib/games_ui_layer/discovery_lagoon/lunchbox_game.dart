@@ -904,7 +904,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
                   ),
                 ),
                 Align(
-                  alignment: const Alignment(0.85, -0.65),
+                  alignment: const Alignment(0.85, -0.35),
                   child: PlateWithFood(
                     foodAsset: getFoodAsset('rice'),
                     foodId: 'rice',
@@ -913,7 +913,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
                   ),
                 ),
                 Align(
-                  alignment: const Alignment(0.8, 0.75),
+                  alignment: const Alignment(0.8, 0.85),
                   child: DraggableFood(
                     foodAsset: getFoodAsset('fries'),
                     foodId: 'fries',
@@ -951,7 +951,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
                       : SizedBox(width: plateSize * 0.85),
                 ),
                 Align(
-                  alignment: const Alignment(0.85, -0.65),
+                  alignment: const Alignment(0.85, -0.45),
                   child: PlateWithFood(
                     foodAsset: getFoodAsset('fish'),
                     foodId: 'fish',
@@ -961,7 +961,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
                   ),
                 ),
                 Align(
-                  alignment: const Alignment(0.85, 0.65),
+                  alignment: const Alignment(0.85, 0.85),
                   child: PlateWithFood(
                     foodAsset: getFoodAsset('cookie'),
                     foodId: 'cookie',
@@ -997,7 +997,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
                       : SizedBox(width: plateSize * 0.85),
                 ),
                 Align(
-                  alignment: const Alignment(0.85, -0.65),
+                  alignment: const Alignment(0.85, -0.45),
                   child: PlateWithFood(
                     foodAsset: getFoodAsset('broccoli'),
                     foodId: 'broccoli',
@@ -1007,7 +1007,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
                   ),
                 ),
                 Align(
-                  alignment: const Alignment(0.85, 0.65),
+                  alignment: const Alignment(0.85, 0.85),
                   child: PlateWithFood(
                     foodAsset: getFoodAsset('bacon'),
                     foodId: 'bacon',
@@ -1132,6 +1132,10 @@ class _LunchboxGameState extends State<LunchboxGame> {
                   plateSize * 1.2,
                 ),
               ],
+
+              // X Button and Level Badge
+              Positioned(top: 25, left: 25, child: const LagoonXButton()),
+              Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
             ],
           );
         },
