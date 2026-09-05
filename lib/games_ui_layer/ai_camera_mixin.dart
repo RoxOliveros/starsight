@@ -36,6 +36,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
     // this screen's own lighting/face check.
     isFaceDetected = false;
     hasCapturedFirstFrame = false;
+    sessionEmotions = [];
     try {
       final cameras = await availableCameras();
       final frontCamera = cameras.firstWhere(
@@ -53,6 +54,15 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         setState(() {
           isCameraInitialized = true;
         });
+
+        // frames start coming in
+        try {
+          await http.post(
+            Uri.parse('http://13.68.159.132:8080/reset_calibration'),
+          );
+        } catch (e) {
+          print("Failed to reset calibration: $e");
+        }
 
         // Start taking pictures every 3 seconds
         _analysisTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
@@ -117,10 +127,9 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   }
 
   List<String> stopAiCamera() {
-    _analysisTimer
-        ?.cancel(); // Stop taking pictures, but leave the camera on screen!
+    _analysisTimer?.cancel();
     print("GAME OVER! Final Emotions: $sessionEmotions");
-    return sessionEmotions;
+    return List<String>.from(sessionEmotions);
   }
 
   void disposeAiCamera() {

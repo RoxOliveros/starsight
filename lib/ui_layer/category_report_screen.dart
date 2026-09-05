@@ -164,18 +164,22 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         return;
       }
 
-      List<String> playedGameIds = [];
       List<String> allEmotions = [];
       int totalMistakes = 0;
+      Set<String> distinctGameIds = {};
 
       for (var doc in snapshot.docs) {
-        playedGameIds.add(doc.id);
+        // Fallback to doc.id covers pre-migration docs — see note below.
+        final gameId = doc.data()['gameId'] as String? ?? doc.id;
+        distinctGameIds.add(gameId);
+
         totalMistakes += (doc.data()['mistakes'] as num?)?.toInt() ?? 0;
         var emotions = List<String>.from(doc.data()['emotions'] ?? []);
         allEmotions.addAll(emotions);
       }
 
-      int currentGameCount = playedGameIds.length;
+      int totalAttempts = snapshot.docs.length;
+      List<String> playedGameIds = distinctGameIds.toList();
 
       // C. CACHE CHECK: Did we already generate a report for this exact number of games?
       if (cycleDoc.exists &&
@@ -183,7 +187,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         int cachedCount = cycleDoc.data()!['cachedReportCount'];
 
         // If the game count hasn't changed, just use the saved report!
-        if (cachedCount == currentGameCount &&
+        if (cachedCount == totalAttempts &&
             cycleDoc.data()!.containsKey('cachedReportData')) {
           if (!mounted) return;
           setState(() {
@@ -213,7 +217,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
 
       // E. SAVE TO CACHE: Save this new report so it stays consistent next time
       await cycleRef.set({
-        'cachedReportCount': currentGameCount,
+        'cachedReportCount': totalAttempts,
         'cachedReportData': summaryMap,
       }, SetOptions(merge: true));
 

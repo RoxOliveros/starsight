@@ -3,9 +3,16 @@ import 'package:flutter/material.dart';
 
 mixin GameLoadingMixin<T extends StatefulWidget> on State<T> {
   bool isGameLoading = true;
-  final DateTime _loadStart = DateTime.now();
+  DateTime _loadStart = DateTime.now();
 
   Duration get minLoadTime => const Duration(milliseconds: 1500);
+
+  void restartLoading() {
+    setState(() {
+      isGameLoading = true;
+      _loadStart = DateTime.now();
+    });
+  }
 
   Future<void> finishLoading(VoidCallback onDone) async {
     final elapsed = DateTime.now().difference(_loadStart);

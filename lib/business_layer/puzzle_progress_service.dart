@@ -44,12 +44,15 @@ class PuzzleProgressService {
     final nextLevel = (completedLevel + 1).clamp(1, totalLevels);
 
     try {
-      final current = await getUnlockedLevel();
-      final newUnlocked = nextLevel > current ? nextLevel : current;
-
-      await ref.set({'unlockedLevel': newUnlocked}, SetOptions(merge: true));
-
-      return newUnlocked;
+      return await FirebaseFirestore.instance.runTransaction<int>((txn) async {
+        final snapshot = await txn.get(ref);
+        final current =
+            (snapshot.data()?['unlockedLevel'] as int?) ??
+            _defaultUnlockedLevel;
+        final newUnlocked = nextLevel > current ? nextLevel : current;
+        txn.set(ref, {'unlockedLevel': newUnlocked}, SetOptions(merge: true));
+        return newUnlocked;
+      });
     } catch (e) {
       print('PuzzleProgressService: failed to save progress: $e');
       return _defaultUnlockedLevel;

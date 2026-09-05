@@ -96,6 +96,7 @@ class _GestureCameraViewState extends State<GestureCameraView> {
     if (result.confidence < widget.minConfidence) {
       _consecutiveCount = 0;
       _lastGesture = null;
+      _lastFiredGesture = null;
       return;
     }
 
