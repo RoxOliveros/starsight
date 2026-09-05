@@ -308,7 +308,6 @@ class _PickingTrashGameState extends State<PickingTrashGame> {
             Positioned.fill(
               child: GoodJobOverlay(
                 characterImage: 'assets/images/characters/dr.woo_the_owl.png',
-                closeButtonColor: Colors.blueAccent,
                 onNext: () async {
                   await TownProgressService.instance.markLevelComplete(10);
 

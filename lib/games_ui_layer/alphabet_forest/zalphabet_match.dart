@@ -191,7 +191,7 @@
 //         type: MaterialType.transparency,
 //         child: GoodJobOverlay(
 //           characterImage: 'assets/images/characters/dog.png',
-//           closeButtonColor: ForestColorTheme.seagreen,
+//           
 //
 //           onNext: () {
 //             Navigator.pop(context);

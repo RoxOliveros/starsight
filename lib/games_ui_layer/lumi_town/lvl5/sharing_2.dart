@@ -6,7 +6,6 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
 import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -865,7 +864,7 @@ class _Sharing2State extends State<Sharing2> {
                     GoodJobOverlay(
                       characterImage:
                           'assets/images/characters/dr.woo_smiling.png',
-                      closeButtonColor: const Color(0xFF266589),
+                      
                       onNext: () async {
                         await TownProgressService.instance.markLevelComplete(5);
                         Navigator.of(context).pushReplacement(

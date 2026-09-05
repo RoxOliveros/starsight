@@ -890,7 +890,7 @@ import 'game_connect_the_dots_screen.dart';
     Widget _buildWinOverlay() {
       return GoodJobOverlay(
         characterImage: _characterImage,
-        closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
+        
         onNext: () {
           Navigator.pop(context);
         },

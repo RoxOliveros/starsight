@@ -1,9 +1,10 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
+import '../UI_Layer/app_dialog.dart';
+
 class GoodJobOverlay extends StatefulWidget {
   final String characterImage;
-  final Color closeButtonColor;
   final VoidCallback onNext;
   final VoidCallback onRestart;
   final VoidCallback onBack;
@@ -12,7 +13,6 @@ class GoodJobOverlay extends StatefulWidget {
   const GoodJobOverlay({
     super.key,
     required this.characterImage,
-    required this.closeButtonColor,
     required this.onNext,
     required this.onRestart,
     required this.onBack,
@@ -133,11 +133,6 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
         final double bottomMargin =
         (screenHeight * 0.035).clamp(16.0, 44.0);
 
-        final double closeButtonSize =
-        (48 * scale).clamp(38.0, 58.0);
-        final double closeButtonInset =
-        (12 * scale).clamp(10.0, 22.0);
-
         return FadeTransition(
           opacity: _fadeAnim,
           child: Container(
@@ -207,12 +202,10 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
 
                 // ── X (Back) button — top left ────────────────────────
                 Positioned(
-                  top: closeButtonInset,
-                  left: closeButtonInset,
+                  top: 25,
+                  left: 25,
                   child: _CloseButton(
                     onTap: widget.onBack,
-                    color: widget.closeButtonColor,
-                    size: closeButtonSize,
                   ),
                 ),
               ],
@@ -255,13 +248,9 @@ class _ArcedGoodJobBanner extends StatelessWidget {
 
 class _CloseButton extends StatelessWidget {
   final VoidCallback onTap;
-  final Color color;
-  final double size;
 
   const _CloseButton({
     required this.onTap,
-    required this.color,
-    required this.size,
   });
 
   @override
@@ -269,24 +258,20 @@ class _CloseButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: size,
-        height: size,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: size * 0.06),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: size * 0.17,
-              offset: Offset(0, size * 0.06),
-            ),
-          ],
-        ),
-        child: Icon(
-          Icons.close_rounded,
           color: Colors.white,
-          size: size * 0.5,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: Color(0xFFfca157), width: 5),
+        ),
+        child: Text(
+          'Level Screen',
+          style: TextStyle(
+            fontFamily: AppTextStyles.fredoka,
+            fontSize: 18,
+            color: Color(0xFFfca157),
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );

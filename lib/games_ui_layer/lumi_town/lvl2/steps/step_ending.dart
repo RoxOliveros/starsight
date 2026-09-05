@@ -78,7 +78,6 @@ class _StepEndingScreenState extends State<StepEndingScreen> {
             GoodJobOverlay(
               // Mr. Woo the owl appears in the Good Job screen
               characterImage: 'assets/images/characters/dr.woo_the_owl.png',
-              closeButtonColor: const Color(0xFF4CAF50),
               onNext: _onNext,
               onRestart: _onRestart,
               onBack: _onBack,

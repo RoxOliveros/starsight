@@ -663,7 +663,7 @@
     Widget _buildWinOverlay() {
       return GoodJobOverlay(
         characterImage: _characterImage,
-        closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
+        
         onNext: () {
           Navigator.pushReplacement(
             context,

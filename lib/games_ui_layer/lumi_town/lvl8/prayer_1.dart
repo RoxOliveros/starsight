@@ -239,7 +239,7 @@ class _Prayer1State extends State<Prayer1> {
             GoodJobOverlay(
               characterImage: 'assets/images/characters/dr.woo_smiling.png',
               // TODO: replace with the actual theme color for this level
-              closeButtonColor: Colors.blue,
+              
 
               onNext: () async {
                 await TownProgressService.instance.markLevelComplete(8);

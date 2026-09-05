@@ -1209,7 +1209,6 @@ class _CookingGameScreenState extends State<CookingGameScreen>
         if (_state.dialogIndex >= 2)
           GoodJobOverlay(
             characterImage: 'assets/images/characters/dr.woo_the_owl.png',
-            closeButtonColor: const Color(0xFFFF9D3E),
             onNext: () async {
               // TODO: navigate to next level
               await TownProgressService.instance.markLevelComplete(4);

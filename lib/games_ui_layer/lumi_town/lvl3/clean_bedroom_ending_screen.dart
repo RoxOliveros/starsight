@@ -74,7 +74,6 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
             if (_showOverlay)
               GoodJobOverlay(
                 characterImage: 'assets/images/characters/dr.woo_the_owl.png',
-                closeButtonColor: LumiColorTheme.robroy,
                 onNext: _onNext,
                 onRestart: _onRestart,
                 onBack: _onBack,

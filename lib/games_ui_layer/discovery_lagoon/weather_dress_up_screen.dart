@@ -320,7 +320,7 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
         barrierColor: Colors.black54,
         builder: (_) => GoodJobOverlay(
           characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-          closeButtonColor: LagoonColorTheme.wasteland,
+          
           onNext: () {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(

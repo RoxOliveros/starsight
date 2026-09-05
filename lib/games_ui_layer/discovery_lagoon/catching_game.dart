@@ -702,7 +702,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
           if (_currentPhase == GamePhase.goodJob)
             GoodJobOverlay(
               characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-              closeButtonColor: LagoonColorTheme.wasteland,
+              
               characterSizeFactor: 0.9,
               onNext: () async {
                 await LagoonProgressService.instance.markLevelComplete(4);

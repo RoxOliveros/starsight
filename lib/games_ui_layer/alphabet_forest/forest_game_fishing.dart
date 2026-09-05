@@ -424,7 +424,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          closeButtonColor: ForestColorTheme.seagreen,
+          
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(

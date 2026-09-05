@@ -537,7 +537,7 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
             Positioned.fill(
               child: GoodJobOverlay(
                 characterImage: 'assets/images/characters/dr.woo_smiling.png',
-                closeButtonColor: Colors.blue,
+                
                 onNext: () async {
                   // Mark complete via progress service for Level 13
                   await TownProgressService.instance.markLevelComplete(13);

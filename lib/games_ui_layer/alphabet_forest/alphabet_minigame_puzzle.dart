@@ -20,7 +20,6 @@ import 'forest_game_mushroom_hidenseek.dart';
 import 'forest_game_paw_print.dart';
 import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
-
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -744,7 +743,6 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-          closeButtonColor: ForestColorTheme.mediumseagreen,
 
           //Wag po buburahin 1
           // 1. NEXT BUTTON: What happens when they click the right arrow?

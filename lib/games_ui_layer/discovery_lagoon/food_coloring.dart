@@ -619,7 +619,7 @@ class _FoodColoringScreenState extends State<FoodColoringScreen>
     LagoonProgressService.instance.markLevelComplete(widget.level);
     return GoodJobOverlay(
       characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-      closeButtonColor: LagoonColorTheme.wasteland,
+      
       onNext: () {
         // Navigator.of(context).pushReplacement(
         //   MaterialPageRoute(builder: (_) => const NextScreen(level: widget.level + 1)),

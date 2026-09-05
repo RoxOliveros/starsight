@@ -294,7 +294,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-          closeButtonColor: ForestColorTheme.seagreen,
+          
 
           onNext: () {
             Navigator.of(context).pop();

@@ -79,7 +79,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
           if (_showGoodJob)
             GoodJobOverlay(
               characterImage: 'assets/images/characters/dr.woo_the_owl.png',
-              closeButtonColor: const Color(0xFF5BAD72),
+              
               onNext: () async {
                 // Unlock level 2!
                 await TownProgressService.instance.markLevelComplete(1);

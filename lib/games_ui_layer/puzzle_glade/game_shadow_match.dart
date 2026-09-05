@@ -720,7 +720,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
+      
       onNext: () {
         Navigator.pushReplacement(
           context,

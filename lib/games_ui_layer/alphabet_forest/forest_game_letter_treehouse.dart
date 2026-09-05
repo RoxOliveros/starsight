@@ -411,7 +411,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          closeButtonColor: ForestColorTheme.seagreen,
+          
           onNext: () {
             Navigator.of(context).pop();
             // TODO: @Tin fix nav after ending game

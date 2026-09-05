@@ -364,7 +364,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-          closeButtonColor: ForestColorTheme.seagreen,
+          
           onNext: () {
             Navigator.of(context).pop(); // close the dialog
             Navigator.of(context).pushReplacement(

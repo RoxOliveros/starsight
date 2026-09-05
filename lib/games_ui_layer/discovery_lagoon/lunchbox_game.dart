@@ -389,7 +389,7 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
                 Positioned.fill(
                   child: GoodJobOverlay(
                     characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-                    closeButtonColor: LagoonColorTheme.wasteland,
+                    
                     characterSizeFactor: 0.9,
                     onNext: () async {
                       // 1. Mark the current level as complete (Change the number for each game)

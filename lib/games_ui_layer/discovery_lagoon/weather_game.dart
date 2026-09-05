@@ -221,7 +221,7 @@ class _WeatherGameState extends State<WeatherGame> {
             Positioned.fill(
               child: GoodJobOverlay(
                 characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-                closeButtonColor: LagoonColorTheme.wasteland,
+                
                 characterSizeFactor: 0.9,
                 onNext: () async {
                   // Mark Level 8 as complete and unlock Level 9

@@ -3,16 +3,11 @@ import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.da
 import 'package:StarSight/games_ui_layer/lumi_town/lvl8/prayer_1.dart';
 import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
-
-// TODO: Update these imports to match your project structure if needed
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-
 import '../../../business_layer/orientation_service.dart';
-// import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
 
 class RespectEnding extends StatefulWidget {
   const RespectEnding({super.key});
@@ -177,7 +172,7 @@ class _RespectEndingState extends State<RespectEnding> {
           if (_showGoodJobOverlay)
             GoodJobOverlay(
               characterImage: 'assets/images/characters/dr.woo_smiling.png',
-              closeButtonColor: const Color(0xFF266589),
+              
               onNext: () async {
                 await TownProgressService.instance.markLevelComplete(7);
                 Navigator.of(context).pushReplacement(

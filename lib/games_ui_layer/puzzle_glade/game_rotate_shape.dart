@@ -790,7 +790,7 @@ import 'game_what_goes_together_screen.dart';
     Widget _buildWinOverlay() {
       return GoodJobOverlay(
         characterImage: _characterImage,
-        closeButtonColor: PuzzleColorTheme.darkdesaturatedblue,
+        
         onNext: () {
           Navigator.pushReplacement(
             context,

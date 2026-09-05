@@ -330,7 +330,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
           if (_isGameWon)
             GoodJobOverlay(
               characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-              closeButtonColor: LagoonColorTheme.wasteland,
+              
               characterSizeFactor: 0.9,
               onNext: () async {
                 // Mark Level 5 as complete to unlock Level 6

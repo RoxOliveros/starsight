@@ -807,7 +807,7 @@ class _AppreciationGameState extends State<AppreciationGame>
             Positioned.fill(
               child: GoodJobOverlay(
                 characterImage: 'assets/images/characters/dr.woo_smiling.png',
-                closeButtonColor: Colors.blue,
+                
                 onNext: () async {
                   await TownProgressService.instance.markLevelComplete(12);
 

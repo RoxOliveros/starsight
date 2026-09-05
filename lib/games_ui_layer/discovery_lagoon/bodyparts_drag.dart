@@ -173,7 +173,7 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
       barrierDismissible: false,
       builder: (context) => GoodJobOverlay(
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-        closeButtonColor: LagoonColorTheme.wasteland,
+        
         onNext: () {
           Navigator.pop(context); // Close the overlay
           _goToNextLevel();

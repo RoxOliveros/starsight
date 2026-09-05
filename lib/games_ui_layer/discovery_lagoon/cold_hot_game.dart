@@ -330,7 +330,7 @@ class _ColdHotGameState extends State<ColdHotGame>
           if (_isGameWon)
             GoodJobOverlay(
               characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-              closeButtonColor: LagoonColorTheme.wasteland,
+              
               characterSizeFactor: 0.9,
               onNext: () async {
                 // Mark Level 18 as complete to unlock Level 19

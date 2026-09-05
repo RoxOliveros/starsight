@@ -261,7 +261,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-          closeButtonColor: ForestColorTheme.seagreen,
+          
           onNext: () {
             Navigator.of(context).pop(); // close the dialog
             Navigator.of(context).pushReplacement(

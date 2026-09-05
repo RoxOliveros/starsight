@@ -3,13 +3,9 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
 import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../../business_layer/orientation_service.dart';
 
-// Make sure to import your GoodJobOverlay file here
-// import 'goodjob_prompt.dart';
 
 class EmotionEndingScreen extends StatefulWidget {
   const EmotionEndingScreen({super.key});
@@ -173,7 +169,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                   child: GoodJobOverlay(
                     // Pass the tapped emotion image to the overlay character!
                     characterImage: _selectedStarPath!,
-                    closeButtonColor: Colors.orange,
                     onNext: () async {
                       await TownProgressService.instance.markLevelComplete(6);
                       Navigator.of(context).pushReplacement(

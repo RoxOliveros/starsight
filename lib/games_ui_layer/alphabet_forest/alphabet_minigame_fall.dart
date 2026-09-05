@@ -25,8 +25,6 @@ import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetFallScreen extends StatefulWidget {
   final String letter;
@@ -328,7 +326,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-          closeButtonColor: ForestColorTheme.seagreen,
+
 
           onNext: () {
             Navigator.pop(context); // Close the Good Job prompt

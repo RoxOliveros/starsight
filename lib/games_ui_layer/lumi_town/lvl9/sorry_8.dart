@@ -261,7 +261,7 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
               // Swap for whichever character should headline this level's
               // completion screen (Little Bear, Jack, or another asset)
               characterImage: 'assets/images/characters/dr.woo_smiling.png',
-              closeButtonColor: const Color(0xFF266589),
+              
               onNext: () async {
                 await TownProgressService.instance.markLevelComplete(9);
                 Navigator.of(context).pushReplacement(

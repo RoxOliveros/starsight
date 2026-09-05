@@ -102,7 +102,7 @@ class _TreePartsAssemblyScreenState extends State<TreePartsAssemblyScreen>
       barrierDismissible: false,
       builder: (context) => GoodJobOverlay(
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-        closeButtonColor: LagoonColorTheme.wasteland,
+        
         onNext: () {
           Navigator.pop(context);
           Navigator.pushReplacement(

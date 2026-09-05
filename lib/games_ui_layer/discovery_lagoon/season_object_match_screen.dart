@@ -500,7 +500,7 @@ class _SeasonObjectMatchScreenState extends State<SeasonObjectMatchScreen>
     LagoonProgressService.instance.markLevelComplete(widget.level);
     return GoodJobOverlay(
       characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-      closeButtonColor: LagoonColorTheme.wasteland,
+      
       onNext: () {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(

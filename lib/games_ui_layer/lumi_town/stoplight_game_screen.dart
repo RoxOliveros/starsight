@@ -502,7 +502,7 @@ import '../goodjob_prompt.dart';
               if (_gameComplete)
               GoodJobOverlay(
                 characterImage: 'assets/images/characters/dr.woo_the_owl.png',
-                closeButtonColor: const Color(0xFF5BAD72),
+                
                 onNext: () async {
 
                   await TownProgressService.instance.markLevelComplete(widget.level + 1);

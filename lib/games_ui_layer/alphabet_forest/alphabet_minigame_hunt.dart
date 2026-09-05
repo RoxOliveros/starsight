@@ -296,7 +296,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-          closeButtonColor: ForestColorTheme.seagreen,
+          
 
           onNext: () {
             Navigator.pop(context); // Close the prompt
