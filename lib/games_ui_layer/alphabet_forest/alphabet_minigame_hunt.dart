@@ -23,8 +23,6 @@ import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetHuntScreen extends StatefulWidget {
   final String letter;
@@ -438,20 +436,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                 buildTofi(context),
 
                 // ── Back button ──
-                const Positioned(top: 25, left: 20, child: ForestBackButton()),
-
-                // ── Title ──
-                Positioned(
-                  top: 25,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: ForestInstructionBanner(
-                      text:
-                          'Find all the letters: ${widget.letter.toUpperCase()}',
-                    ),
-                  ),
-                ),
+                const Positioned(top: 25, left: 25, child: ForestXButton()),
 
                 // Level Badge
                 Positioned(

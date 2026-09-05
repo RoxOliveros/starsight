@@ -9,7 +9,6 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import 'alphabet_game_ui.dart';
-import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
 import 'forest_game_letter_treehouse.dart';
 import 'tofi_reaction.dart';
@@ -406,7 +405,7 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
     return Stack(
       children: [
         Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
-        const Positioned(top: 25, left: 20, child: ForestBackButton()),
+        const Positioned(top: 25, left: 25, child: ForestXButton()),
         Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
         Center(
           child: AnimatedBuilder(
@@ -458,9 +457,8 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
           scale: _sceneEnter,
           child: Stack(
             children: [
-              const Positioned(top: 25, left: 20, child: ForestBackButton()),
+              const Positioned(top: 25, left: 25, child: ForestXButton()),
               Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-              _buildInstruction(),
 
               Padding(
                 padding: const EdgeInsets.only(top: 90),
@@ -491,26 +489,6 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
           ),
         );
       },
-    );
-  }
-
-  // ── INSTRUCTION ──────────────────────────────────────────────────────────
-  Widget _buildInstruction() {
-    return Positioned(
-      top: 25,
-      left: 0,
-      right: 0,
-      child: Center(
-        child: ScaleTransition(
-          scale: _instructionBounce,
-          child: GestureDetector(
-            onTap: () => playVoice(_audioInstruction),
-            child: const ForestInstructionBanner(
-              text: 'Put the missing letter on the train!',
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -558,18 +536,6 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
         width: size * 1.15,
         height: size,
         fit: BoxFit.contain,
-      ),
-    );
-  }
-
-  Widget _buildConnector() {
-    return Container(
-      width: 16,
-      height: 6,
-      margin: const EdgeInsets.symmetric(horizontal: 2),
-      decoration: BoxDecoration(
-        color: const Color(0xFF6B4226),
-        borderRadius: BorderRadius.circular(3),
       ),
     );
   }

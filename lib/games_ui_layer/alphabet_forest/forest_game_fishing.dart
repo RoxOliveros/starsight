@@ -609,7 +609,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     return Stack(
       children: [
         Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
-        const Positioned(top: 25, left: 20, child: ForestBackButton()),
+        const Positioned(top: 25, left: 25, child: ForestXButton()),
         Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
         Center(
           child: Row(
@@ -666,25 +666,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              const Positioned(top: 25, left: 20, child: ForestBackButton()),
+              const Positioned(top: 25, left: 25, child: ForestXButton()),
               Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-
-              Positioned(
-                top: 25,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: ScaleTransition(
-                    scale: _instructionBounce,
-                    child: GestureDetector(
-                      onTap: _announceInstruction,
-                      child: ForestInstructionBanner(
-                        text: 'Catch the letter $_targetLetter!',
-                      ),
-                    ),
-                  ),
-                ),
-              ),
 
               Padding(
                 padding: const EdgeInsets.only(top: 190),

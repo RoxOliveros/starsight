@@ -434,18 +434,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
               children: [
                 buildTofi(context),
 
-                Positioned(top: 25, left: 20, child: ForestBackButton()),
-
-                Positioned(
-                  top: 25,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: ForestInstructionBanner(
-                      text: 'Pop all the ${widget.letter.toUpperCase()} balls!',
-                    ),
-                  ),
-                ),
+                Positioned(top: 25, left: 25, child: ForestXButton()),
 
                 Positioned(
                   top: 25,

@@ -379,7 +379,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
             errorBuilder: (_, __, ___) => Container(color: ForestColorTheme.lightgrayishgreen),
           ),
         ),
-        const Positioned(top: 25, left: 20, child: ForestBackButton()),
+        const Positioned(top: 25, left: 25, child: ForestXButton()),
         Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
         Center(
           child: AnimatedBuilder(
@@ -436,23 +436,8 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
       scale: _sceneEnter,
       child: Stack(
         children: [
-          const Positioned(top: 25, left: 20, child: ForestBackButton()),
+          const Positioned(top: 25, left: 25, child: ForestXButton()),
           Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-
-          Positioned(
-            top: 25,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: ScaleTransition(
-                scale: _instructionBounce,
-                child: GestureDetector(
-                  onTap: () => playVoice(ForestAudioAssets.forLetter(_targetLetter)),
-                  child: ForestInstructionBanner(text: 'Find the letter $_targetLetter!'),
-                ),
-              ),
-            ),
-          ),
 
           Positioned(
             top: 90,

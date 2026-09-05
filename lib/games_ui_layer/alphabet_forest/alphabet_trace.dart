@@ -1108,19 +1108,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
                         children: [
                           const Positioned(
                             top: 25,
-                            left: 20,
-                            child: ForestBackButton(),
-                          ),
-                          Positioned(
-                            top: 25,
-                            left: 0,
-                            right: 0,
-                            child: Center(
-                              child: ForestInstructionBanner(
-                                text:
-                                    'Trace ${_levels[_currentLevelIndex].letterName}',
-                              ),
-                            ),
+                            left: 25,
+                            child: ForestXButton(),
                           ),
                           Positioned(
                             top: 25,

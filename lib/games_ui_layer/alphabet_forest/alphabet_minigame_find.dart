@@ -448,18 +448,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
           ForestBackground(
             child: Stack(
               children: [
-                const Positioned(top: 25, left: 20, child: ForestBackButton()),
-
-                Positioned(
-                  top: 25,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: ForestInstructionBanner(
-                      text: 'Where is the letter ${widget.letter}?',
-                    ),
-                  ),
-                ),
+                const Positioned(top: 25, left: 25, child: ForestXButton()),
 
                 Positioned(
                   top: 25,

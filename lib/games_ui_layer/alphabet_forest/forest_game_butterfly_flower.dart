@@ -374,8 +374,8 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
 
         const Positioned(
           top: 25,
-          left: 20,
-          child: ForestBackButton(),
+          left: 25,
+          child: ForestXButton(),
         ),
 
         Positioned(
@@ -456,32 +456,14 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
             children: [
               const Positioned(
                 top: 25,
-                left: 20,
-                child: ForestBackButton(),
+                left: 25,
+                child: ForestXButton(),
               ),
 
               Positioned(
                 top: 25,
                 right: 20,
                 child: ForestLevelBadge(level: widget.level),
-              ),
-
-              Positioned(
-                top: 25,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: ScaleTransition(
-                    scale: _instructionBounce,
-                    child: GestureDetector(
-                      onTap: () =>
-                          playVoice(ForestAudioAssets.forLetter(target)),
-                      child: ForestInstructionBanner(
-                        text: 'Find the letter $target flower!',
-                      ),
-                    ),
-                  ),
-                ),
               ),
 
               Padding(

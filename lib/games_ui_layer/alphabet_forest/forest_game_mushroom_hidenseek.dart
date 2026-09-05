@@ -431,7 +431,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
           child: Image.asset(_bgImage, fit: BoxFit.cover),
         ),
 
-        const Positioned(top: 25, left: 20, child: ForestBackButton()),
+        const Positioned(top: 25, left: 25, child: ForestXButton()),
         Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
 
         Center(
@@ -487,28 +487,8 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
           scale: _sceneEnter,
           child: Stack(
             children: [
-              const Positioned(top: 25, left: 20, child: ForestBackButton()),
+              const Positioned(top: 25, left: 25, child: ForestXButton()),
               Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-
-              Positioned(
-                top: 25,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: ScaleTransition(
-                    scale: _instructionBounce,
-                    child: GestureDetector(
-                      onTap: () async {
-                        await playVoice(_targetIsUpper ? _audioBig : _audioSmall);
-                        await playVoice(ForestAudioAssets.forLetter(_targetLetter.toUpperCase()));
-                      },
-                      child: ForestInstructionBanner(
-                        text: _instructionText,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
 
               Padding(
                 padding: const EdgeInsets.only(top: 90),

@@ -407,17 +407,7 @@ class _AlphabetPaintScreenState extends State<AlphabetPaintScreen>
                 buildTofi(context),
 
                 // ── Back button ──
-                const Positioned(top: 25, left: 20, child: ForestBackButton()),
-
-                // ── Title ──
-                Positioned(
-                  top: 25,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: ForestInstructionBanner(text: 'Paint the letter!'),
-                  ),
-                ),
+                const Positioned(top: 25, left: 25, child: ForestXButton()),
 
                 // Level Badge
                 Positioned(

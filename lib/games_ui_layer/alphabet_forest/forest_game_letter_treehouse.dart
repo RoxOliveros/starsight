@@ -490,7 +490,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     return Stack(
       children: [
         Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
-        const Positioned(top: 25, left: 20, child: ForestBackButton()),
+        const Positioned(top: 25, left: 25, child: ForestXButton()),
         Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
         Center(
           child: Row(
@@ -545,22 +545,8 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
           scale: _sceneEnter,
           child: Stack(
             children: [
-              const Positioned(top: 25, left: 20, child: ForestBackButton()),
+              const Positioned(top: 25, left: 25, child: ForestXButton()),
               Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-
-              Positioned(
-                top: 25,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: ScaleTransition(
-                    scale: _instructionBounce,
-                    child: ForestInstructionBanner(
-                      text: 'Put the letter $_targetLetter here!',
-                    ),
-                  ),
-                ),
-              ),
 
               Padding(
                 padding: const EdgeInsets.only(top: 95, bottom: 60),

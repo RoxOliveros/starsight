@@ -448,19 +448,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
             child: Stack(
               children: [
                 // ── Back button ──
-                const Positioned(top: 25, left: 20, child: ForestBackButton()),
-
-                // ── Title ──
-                Positioned(
-                  top: 25,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: ForestInstructionBanner(
-                      text: 'Catch the letter $letterLabel!',
-                    ),
-                  ),
-                ),
+                const Positioned(top: 25, left: 25, child: ForestXButton()),
 
                 // Level Badge
                 Positioned(

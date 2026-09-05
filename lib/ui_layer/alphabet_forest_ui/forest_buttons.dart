@@ -29,6 +29,20 @@ class ForestBackButton extends StatelessWidget {
   }
 }
 
+class ForestXButton extends StatelessWidget {
+  final VoidCallback? onTap;
+
+  const ForestXButton({super.key, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+        onTap: onTap ?? () => Navigator.pop(context),
+        child: Image.asset('assets/images/buttons/x_darkgreen.png', width: 50)
+    );
+  }
+}
+
 class ForestSkipButton extends StatelessWidget {
   final VoidCallback onTap;
 

@@ -208,7 +208,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       body: ForestBackground(
         child: Stack(
           children: [
-            const Positioned(top: 25, left: 20, child: ForestBackButton()),
+            const Positioned(top: 25, left: 25, child: ForestXButton()),
 
             Positioned(
               top: 25,
@@ -270,35 +270,14 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                       ),
                     );
                   },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: ForestColorTheme.seagreen,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          "Next!",
-                          style: TextStyle(
-                            fontFamily: ForestAppTextStyles.fredoka,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Icon(
-                          Icons.arrow_forward_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ],
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        'assets/images/buttons/next_button.png',
+                        width: 180,
+                      ),
+                    ],
                   ),
                 ),
               ),

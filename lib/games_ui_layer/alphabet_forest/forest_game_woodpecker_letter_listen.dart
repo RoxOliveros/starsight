@@ -330,7 +330,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
           ),
         ),
 
-        const Positioned(top: 25, left: 20, child: ForestBackButton()),
+        const Positioned(top: 25, left: 25, child: ForestXButton()),
 
         Positioned(
           top: 25,
@@ -390,18 +390,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
               ),
             ),
 
-            const Positioned(top: 25, left: 20, child: ForestBackButton()),
-
-            Positioned(
-              top: 25,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: ForestInstructionBanner(
-                  text: 'Tap the letter you hear!',
-                ),
-              ),
-            ),
+            const Positioned(top: 25, left: 25, child: ForestXButton()),
 
             Positioned(
               bottom: 15,

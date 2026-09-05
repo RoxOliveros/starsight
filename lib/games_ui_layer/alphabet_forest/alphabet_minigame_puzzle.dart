@@ -889,19 +889,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                 buildTofi(context),
 
                 // Back button
-                const Positioned(top: 25, left: 20, child: ForestBackButton()),
-
-                // Title
-                const Positioned(
-                  top: 25,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: ForestInstructionBanner(
-                      text: 'Complete the Picture!',
-                    ),
-                  ),
-                ),
+                const Positioned(top: 25, left: 25, child: ForestXButton()),
 
                 // Level badge
                 Positioned(
