@@ -7,7 +7,6 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
@@ -19,6 +18,8 @@ class AnimalLevel {
   final String animalHappyImagePath;
   final String correctFood;
   final List<FoodOption> tableFoods;
+  final String questionAudioPath;
+  final String correctAudioPath;
 
   AnimalLevel({
     required this.animalName,
@@ -26,6 +27,8 @@ class AnimalLevel {
     required this.animalHappyImagePath,
     required this.correctFood,
     required this.tableFoods,
+    required this.questionAudioPath,
+    required this.correctAudioPath,
   });
 }
 
@@ -47,15 +50,18 @@ class FeedTheAnimalGame extends StatefulWidget {
 
 class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _voicePlayer = AudioPlayer();
   StreamSubscription? _audioSub;
 
   int _currentLevelIndex = 0;
   bool _isHappy = false;
   bool _showSuccessUI = false;
   bool _readyForEntrance = false;
-
-  // Controls the intro screen visibility
   bool _showIntro = true;
+
+  static const String _audioIntro = 'audio/discovery_lagoon/feed_the_animal_game_intro.wav';
+  static const String _audioCorrect = 'audio/sound_effects/shine.wav';
+  static const String _audioWrong = 'audio/discovery_lagoon/kiki_tryagain.wav';
 
   // Define the sequence based on the new idea
   late final List<AnimalLevel> _levels = [
@@ -64,6 +70,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/characters/roxie_the_rabbit.png',
       animalHappyImagePath: 'assets/images/characters/roxie_try_again.png',
       correctFood: 'carrot2',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_bunny_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_bunny_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'fries',
@@ -84,6 +92,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/objects/lagoon/cow.png',
       animalHappyImagePath: 'assets/images/objects/lagoon/cow.png',
       correctFood: 'lettuce',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_cow_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_cow_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'lettuce',
@@ -104,6 +114,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/characters/doma_the_penguin.png',
       animalHappyImagePath: 'assets/images/characters/doma_smiling.png',
       correctFood: 'perfume_fish',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_penguin_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_penguin_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'perfume_fish',
@@ -124,6 +136,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/characters/tofi_the_dog.png',
       animalHappyImagePath: 'assets/images/characters/tofi_smiling.png',
       correctFood: 'meat',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_dog_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_dog_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'chocolate',
@@ -144,6 +158,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/characters/little_bear_uniform.png',
       animalHappyImagePath: 'assets/images/characters/little_bear_uniform.png',
       correctFood: 'honey',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_bear_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_bear_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'broccoli',
@@ -164,6 +180,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/objects/lagoon/chicken.png',
       animalHappyImagePath: 'assets/images/objects/lagoon/chicken.png',
       correctFood: 'worm',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_chicken_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_chicken_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'pizza',
@@ -192,6 +210,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
   void dispose() {
     _audioSub?.cancel();
     _audioPlayer.dispose();
+    _voicePlayer.dispose();
     super.dispose();
   }
 
@@ -202,7 +221,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
 
     // Play the intro audio
     await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/feed_the_animal_game_intro.wav'),
+      AssetSource(_audioIntro),
     );
 
     // Listen for the audio to finish, then transition to the game
@@ -217,8 +236,18 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
         Future.delayed(const Duration(milliseconds: 200), () {
           if (mounted) {
             setState(() => _readyForEntrance = true);
+            _playQuestionAudioForCurrentLevel();
           }
         });
+      }
+    });
+  }
+
+  void _playQuestionAudioForCurrentLevel() {
+    final currentLevel = _levels[_currentLevelIndex];
+    Future.delayed(const Duration(milliseconds: 1800), () {
+      if (mounted) {
+        _audioPlayer.play(AssetSource(currentLevel.questionAudioPath));
       }
     });
   }
@@ -231,13 +260,23 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
         _isHappy = true;
       });
 
-      _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+      _audioPlayer.play(AssetSource(_audioCorrect));
 
-      Future.delayed(const Duration(milliseconds: 1500), () {
+      Future.delayed(const Duration(milliseconds: 400), () async {
+        if (!mounted) return;
+
+        await _voicePlayer.play(AssetSource(currentLevel.correctAudioPath));
+
+        // Wait for the voice line to actually finish playing
+        try {
+          await _voicePlayer.onPlayerComplete.first;
+        } catch (_) {
+          // Player disposed mid-wait — ignore
+        }
+
         if (!mounted) return;
 
         if (_currentLevelIndex < _levels.length - 1) {
-          // Hide character, prepare next level, then trigger walk-in
           setState(() {
             _readyForEntrance = false;
             _currentLevelIndex++;
@@ -245,7 +284,10 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
           });
 
           Future.delayed(const Duration(milliseconds: 200), () {
-            if (mounted) setState(() => _readyForEntrance = true);
+            if (mounted) {
+              setState(() => _readyForEntrance = true);
+              _playQuestionAudioForCurrentLevel();
+            }
           });
         } else {
           setState(() {
@@ -256,7 +298,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       });
     } else {
       _audioPlayer.play(
-        AssetSource('audio/discovery_lagoon/kiki_tryagain.wav'),
+        AssetSource(_audioWrong),
       );
     }
   }
@@ -586,17 +628,16 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
 /// without needing plate/glass parameters.
 class _WalkingAnimalEntrance extends StatefulWidget {
   final Widget child;
-  final Duration walkDuration;
-  final Duration stepDuration;
   final double bounceHeightPx;
 
   const _WalkingAnimalEntrance({
     super.key,
     required this.child,
-    this.walkDuration = const Duration(milliseconds: 1800),
-    this.stepDuration = const Duration(milliseconds: 260),
     required this.bounceHeightPx,
   });
+
+  final Duration walkDuration = const Duration(milliseconds: 1800);
+  final Duration stepDuration = const Duration(milliseconds: 260);
 
   @override
   State<_WalkingAnimalEntrance> createState() => _WalkingAnimalEntranceState();
