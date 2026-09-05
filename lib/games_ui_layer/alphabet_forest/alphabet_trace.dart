@@ -1,4 +1,3 @@
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_paint.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_pop.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
@@ -1076,7 +1075,6 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     String letter = widget.letter.toUpperCase();
 
     final miniGames = [
-      AlphabetPaintScreen(letter: letter),
       AlphabetPopScreen(letter: letter),
       AlphabetPuzzleScreen(letter: letter),
       AlphabetHuntScreen(letter: letter),
@@ -1094,7 +1092,6 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
-        // <-- We wrap everything in this main Stack
         children: [
           // 1. Your original game UI
           ForestBackground(

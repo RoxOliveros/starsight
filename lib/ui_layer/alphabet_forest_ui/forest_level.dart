@@ -115,6 +115,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
             .toList(),
       ),
       const SizedBox(height: 16),
+      const SizedBox(height: 16),
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: levels

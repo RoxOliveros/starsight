@@ -312,6 +312,10 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       'U': 'umbrella',
       'V': 'vase',
       'W': 'window',
+      'X': 'xylophone',
+      'Y': 'yarn',
+      'Z': 'zebra',
+
     };
     final name = objectMap[letter.toUpperCase()] ?? letter.toLowerCase();
     return 'assets/images/objects/forest/$name.png';

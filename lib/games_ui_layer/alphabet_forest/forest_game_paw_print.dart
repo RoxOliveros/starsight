@@ -140,7 +140,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
       _buildSingleTrail(
         letter: 'U',
         centerX: 0.85,
-        count: 6,
+        count: 4,
         animalAsset: 'assets/images/objects/forest/unicorn.png',
       ),
     ];
