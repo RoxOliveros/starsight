@@ -879,20 +879,10 @@ class _LunchboxGameState extends State<LunchboxGame> {
                           // --- THE CANVAS OVERLAY FOR SAUCE ---
                           if (currentBatch == 4)
                             Positioned.fill(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: screenWidth * 0.015,
-                                  vertical: screenWidth * 0.02,
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(
-                                    screenWidth * 0.04,
-                                  ),
-                                  child: CustomPaint(
-                                    painter: FreehandSaucePainter(
-                                      strokes: sauceStrokes,
-                                    ),
-                                  ),
+                              child: ClipPath(
+                                clipper: _LunchboxCanvasClipper(),
+                                child: CustomPaint(
+                                  painter: FreehandSaucePainter(strokes: sauceStrokes),
                                 ),
                               ),
                             ),
@@ -1080,7 +1070,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
                       ),
                     ),
                     onPressed: () => setState(() => currentBatch = 5),
-                    child: const Text('Ready for Dessert!'),
+                    child: const Icon(Icons.check, size: 50),
                   ),
                 ),
               ],
@@ -1148,6 +1138,36 @@ class _LunchboxGameState extends State<LunchboxGame> {
       ),
     );
   }
+}
+
+class _LunchboxCanvasClipper extends CustomClipper<Path> {
+  final double left = 25;
+  final double top = 76;
+  final double right = 25;
+  final double bottom = 80;
+  final double cornerRadius = 47;
+
+  @override
+  Path getClip(Size size) {
+    return Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTRB(
+          left,
+          top,
+          size.width - right,
+          size.height - bottom,
+        ),
+        Radius.circular(cornerRadius),
+      ));
+  }
+
+  @override
+  bool shouldReclip(covariant _LunchboxCanvasClipper oldClipper) =>
+      oldClipper.left != left ||
+          oldClipper.top != top ||
+          oldClipper.right != right ||
+          oldClipper.bottom != bottom ||
+          oldClipper.cornerRadius != cornerRadius;
 }
 
 // ==========================================
