@@ -11,29 +11,20 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   bool isCameraInitialized = false;
   bool isFaceDetected = false;
 
-  /// True once we've gotten at least one real reading back from the AI
-  /// server this screen. Lets consumers tell "camera hasn't reported yet"
-  /// apart from "camera reported no face" — the first is silence, the
-  /// second is a real signal worth showing something for.
+  String sessionId = 'default';
+
   bool hasCapturedFirstFrame = false;
 
-  /// Fires once, the first time a face is ever detected on this screen.
   VoidCallback? onFirstFaceDetected;
 
-  /// Fires on every confirmed detection result (including the first),
-  /// with the current value. Unlike [onFirstFaceDetected], this keeps
-  /// firing for the life of the screen — use it to react to a face being
-  /// lost or regained mid-session, not just the first time.
   ValueChanged<bool>? onFaceDetectionChanged;
 
   List<String> sessionEmotions = [];
 
   final String pythonServerUrl = 'http://13.68.159.132:8080/analyze';
+  final String pythonResetUrl = 'http://13.68.159.132:8080/reset_calibration';
 
   Future<void> startAiCamera() async {
-    // Reset per-screen: a face detected on a previous screen (or an
-    // earlier hot reload) must not carry over and silently suppress
-    // this screen's own lighting/face check.
     isFaceDetected = false;
     hasCapturedFirstFrame = false;
     sessionEmotions = [];
@@ -55,15 +46,6 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           isCameraInitialized = true;
         });
 
-        // frames start coming in
-        try {
-          await http.post(
-            Uri.parse('http://13.68.159.132:8080/reset_calibration'),
-          );
-        } catch (e) {
-          print("Failed to reset calibration: $e");
-        }
-
         // Start taking pictures every 3 seconds
         _analysisTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
           _captureAndAnalyzeFrame();
@@ -71,6 +53,17 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
       }
     } catch (e) {
       print("Camera Error: $e");
+    }
+  }
+
+  Future<void> resetCalibrationForNewChild() async {
+    try {
+      await http.post(
+        Uri.parse(pythonResetUrl),
+        body: {'session_id': sessionId},
+      );
+    } catch (e) {
+      print("Failed to reset calibration: $e");
     }
   }
 
@@ -85,6 +78,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
       imageFile = File(rawImage.path);
 
       var request = http.MultipartRequest('POST', Uri.parse(pythonServerUrl));
+      request.fields['session_id'] = sessionId;
       request.files.add(
         await http.MultipartFile.fromPath('image', imageFile.path),
       );
@@ -116,7 +110,13 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           onFaceDetectionChanged?.call(faceNowDetected);
         }
 
-        sessionEmotions.add(detectedEmotion);
+        final isUsableReading =
+            detectedEmotion != "NO FACE DETECTED" &&
+            !detectedEmotion.startsWith("CALIBRATING");
+        if (isUsableReading) {
+          sessionEmotions.add(detectedEmotion);
+        }
+
         print("Live Emotion: $detectedEmotion");
       }
     } catch (e) {
@@ -127,7 +127,8 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   }
 
   List<String> stopAiCamera() {
-    _analysisTimer?.cancel();
+    _analysisTimer
+        ?.cancel(); // Stop taking pictures, but leave the camera on screen!
     print("GAME OVER! Final Emotions: $sessionEmotions");
     return List<String>.from(sessionEmotions);
   }
