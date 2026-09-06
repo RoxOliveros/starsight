@@ -6,7 +6,6 @@ import 'game_prompts.dart';
 class CategorySummaryService {
   static final String apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
 
-  // CHANGED: Now returns a Map (JSON) instead of a String!
   static Future<Map<String, dynamic>> generateCategoryReport({
     required String categoryName,
     required String childName,
@@ -38,23 +37,36 @@ Raw Session Data:
 - Facial Emotions Detected (evaluate all carefully, including neutral and negative): ${aggregatedEmotions.join(', ')}
 - Total Mistakes Made: $totalMistakes
 
+IMPORTANT — this report is written by students, not licensed professionals.
+It must stay strictly observational:
+- Do NOT give the parent any suggestions, recommendations, tips, or things
+  to try. Only describe what was observed and what that pattern generally
+  indicates.
+- Do NOT use "Confident" as a band — the only two allowed bands are
+  "Emerging" and "Developing". Even strong performance should be described
+  within "Developing", with the description explaining just how strong it
+  was — the certainty implied by "Confident" isn't something we can claim.
+- Each "description" should be 3-5 sentences, written in warm, plain
+  language a parent with no background in child development or psychology
+  could easily follow. Avoid clinical or academic terms. Be specific about
+  what was actually observed during play (not generic filler), and explain
+  in simple terms what that pattern generally means for a child this age
+  — without turning it into advice.
+
 Provide a JSON response strictly matching this structure:
 {
-  "overallAnalysis": "Write 2-3 sentences summarizing their overall performance and confidence.",
+  "overallAnalysis": "Write 3-4 sentences summarizing their overall performance and confidence, in plain language a parent can easily follow.",
   "engagement": {
-    "band": "Emerging" | "Developing" | "Confident",
-    "description": "1 sentence describing their engagement.",
-    "tips": ["Tip 1", "Tip 2", "Tip 3"]
+    "band": "Emerging" | "Developing",
+    "description": "3-5 sentences describing their engagement in detail — what was observed, and what it generally suggests."
   },
   "attention": {
-    "band": "Emerging" | "Developing" | "Confident",
-    "description": "1 sentence describing their attention/focus based on mistakes.",
-    "tips": ["Tip 1", "Tip 2", "Tip 3"]
+    "band": "Emerging" | "Developing",
+    "description": "3-5 sentences describing their attention/focus in detail, based on mistakes and consistency — what was observed, and what it generally suggests."
   },
   "focus": {
-    "band": "Emerging" | "Developing" | "Confident",
-    "description": "1 sentence describing their ability to stick with tasks.",
-    "tips": ["Tip 1", "Tip 2", "Tip 3"]
+    "band": "Emerging" | "Developing",
+    "description": "3-5 sentences describing their ability to stick with tasks in detail — what was observed, and what it generally suggests."
   }
 }
 ''';
@@ -79,23 +91,32 @@ Provide a JSON response strictly matching this structure:
       throw Exception("Null response from model");
     } catch (e) {
       print("Gemini API Error: $e");
-      // Safe fallback map if offline or error
+      // Safe fallback map if offline or error — kept in the same
+      // observational, no-advice, two-band style as the real prompt above.
       return {
-        "overallAnalysis": "Great job exploring $categoryName!$disclaimer",
+        "overallAnalysis":
+            "$childName explored $categoryName during this session, engaging with a mix of the activities available. "
+            "Their responses varied across the different games played, showing both moments of steady focus and moments "
+            "where attention shifted elsewhere.$disclaimer",
         "engagement": {
           "band": "Developing",
-          "description": "Showing great curiosity.",
-          "tips": ["Keep playing consistently!"],
+          "description":
+              "$childName showed curiosity while exploring the activities in $categoryName. "
+              "There were periods of active participation mixed with brief pauses. "
+              "This kind of variation is a normal part of how young children engage with new material.",
         },
         "attention": {
           "band": "Developing",
-          "description": "Learning new patterns.",
-          "tips": ["Take breaks if needed."],
+          "description":
+              "During this session, $childName's focus shifted between the tasks at different points. "
+              "Some activities held their attention more consistently than others. "
+              "This pattern is common while a child is still building familiarity with an activity.",
         },
         "focus": {
           "band": "Developing",
-          "description": "Working through challenges.",
-          "tips": ["Celebrate the small wins."],
+          "description":
+              "$childName worked through the activities at their own pace, with some tasks completed more smoothly than others. "
+              "This reflects a child who is still developing the ability to stay with a task from start to finish.",
         },
       };
     }

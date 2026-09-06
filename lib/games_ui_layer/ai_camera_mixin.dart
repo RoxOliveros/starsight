@@ -22,12 +22,17 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   VoidCallback? onCalibrationComplete;
   bool _hasFiredCalibrationComplete = false;
 
+  int calibrationProgress = 0;
+  int calibrationNeeded = 30;
+
   List<String> sessionEmotions = [];
 
   final String pythonServerUrl = 'http://13.68.159.132:8080/analyze';
   final String pythonResetUrl = 'http://13.68.159.132:8080/reset_calibration';
 
-  Future<void> startAiCamera() async {
+  Future<void> startAiCamera({
+    Duration captureInterval = const Duration(seconds: 3),
+  }) async {
     isFaceDetected = false;
     hasCapturedFirstFrame = false;
     sessionEmotions = [];
@@ -49,8 +54,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           isCameraInitialized = true;
         });
 
-        // Start taking pictures every 3 seconds
-        _analysisTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+        _analysisTimer = Timer.periodic(captureInterval, (timer) {
           _captureAndAnalyzeFrame();
         });
       }
@@ -105,6 +109,20 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           });
         }
 
+        if (jsonResponse['calibration_progress'] != null) {
+          final newProgress = jsonResponse['calibration_progress'] as int;
+          final newNeeded =
+              jsonResponse['calibration_needed'] as int? ?? calibrationNeeded;
+          if (mounted &&
+              (newProgress != calibrationProgress ||
+                  newNeeded != calibrationNeeded)) {
+            setState(() {
+              calibrationProgress = newProgress;
+              calibrationNeeded = newNeeded;
+            });
+          }
+        }
+
         if (faceNowDetected && (isFirstReading || changed)) {
           onFirstFaceDetected?.call();
           onFirstFaceDetected = null;
@@ -113,8 +131,6 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           onFaceDetectionChanged?.call(faceNowDetected);
         }
 
-        // Skip calibration/no-face readings — they're not real emotion
-        // data and shouldn't pollute the session log fed into reports.
         final isUsableReading =
             detectedEmotion != "NO FACE DETECTED" &&
             !detectedEmotion.startsWith("CALIBRATING");

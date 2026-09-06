@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
@@ -21,93 +22,192 @@ class _CalibrationScreenState extends State<CalibrationScreen>
     with AiCameraMixin {
   bool _hideLightingCard = false;
 
+  Timer? _elapsedTimer;
+  int _elapsedSeconds = 0;
+
   @override
   void initState() {
     super.initState();
     sessionId = widget.childSessionId;
     onCalibrationComplete = () {
-      // Brief pause so the "All set!" moment is actually visible before
-      // moving on — otherwise this can feel like it just skips a step.
-      Future.delayed(const Duration(milliseconds: 600), () {
+      Future.delayed(const Duration(milliseconds: 700), () {
         if (mounted) widget.onCalibrationDone();
       });
     };
-    startAiCamera();
+
+    // Tell the Python server to wipe the memory for this session
+    resetCalibrationForNewChild().then((_) {
+      if (mounted) {
+        startAiCamera(captureInterval: const Duration(milliseconds: 900));
+      }
+    });
+
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _elapsedSeconds++);
+    });
   }
 
   @override
   void dispose() {
+    _elapsedTimer?.cancel();
     disposeAiCamera();
     super.dispose();
   }
 
+  Widget _buildCameraPreviewSquare() {
+    final controller = aiCameraController!;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: SizedBox(
+        width: 100, // SHRUNK to fit landscape screens better
+        height: 100,
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: controller.value.previewSize?.height ?? 100,
+            height: controller.value.previewSize?.width ?? 100,
+            child: CameraPreview(controller),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCard({required Widget child}) {
+    final size = MediaQuery.of(context).size;
+    return Center(
+      child: Container(
+        width: size.width * 0.85,
+        constraints: BoxConstraints(
+          maxWidth: 380,
+          maxHeight: size.height * 0.95,
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAF7EB),
+          borderRadius: BorderRadius.circular(30.0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 20.0,
+            vertical: 16.0, // Reduced padding
+          ),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [child]),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Same rule as every game screen now uses: only treat this as a real
-    // "can't find your face" problem once we've actually gotten a reading
-    // back, not during the normal camera-startup wait.
     final needsLightingPrompt =
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
-    final isCalibrating = hasCapturedFirstFrame && isFaceDetected;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF7EB),
-      body: Stack(
+      backgroundColor: Colors.black.withValues(alpha: 0.6),
+      body: _buildBodyContent(needsLightingPrompt),
+    );
+  }
+
+  Widget _buildBodyContent(bool needsLightingPrompt) {
+    if (needsLightingPrompt) {
+      return LightingPromptCard(
+        onClose: () => setState(() => _hideLightingCard = true),
+      );
+    }
+
+    if (!hasCapturedFirstFrame) {
+      return _buildCard(
+        child: Column(
+          children: [
+            const SizedBox(
+              width: 70,
+              height: 70,
+              child: CircularProgressIndicator(
+                color: Color(0xFF5F7199),
+                strokeWidth: 5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Getting Ready...",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Fredoka',
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: Color(0xFF5F7199),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Just a moment while we turn on the camera!",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Fredoka',
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF5E463E),
+                height: 1.3,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return _buildCard(
+      child: Column(
         children: [
           if (isCameraInitialized && aiCameraController != null)
-            Positioned.fill(child: CameraPreview(aiCameraController!)),
-
-          // Waiting on the very first picture back — normal, brief, not
-          // a lighting problem, so this is a plain loading state.
-          if (!hasCapturedFirstFrame)
-            Container(
-              color: Colors.black.withValues(alpha: 0.45),
-              child: const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: Colors.white),
-                    SizedBox(height: 16),
-                    Text(
-                      "Getting the camera ready...",
-                      style: TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                  ],
-                ),
-              ),
+            _buildCameraPreviewSquare()
+          else
+            const SizedBox(
+              width: 100,
+              height: 100,
+              child: CircularProgressIndicator(color: Color(0xFF5F7199)),
             ),
-
-          // Genuine "we can't find your face" case — same card used on
-          // every game screen, so the visual language stays consistent.
-          if (needsLightingPrompt)
-            LightingPromptCard(
-              onClose: () => setState(() => _hideLightingCard = true),
+          const SizedBox(height: 12),
+          const Text(
+            "Say Hi to the Camera!",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Fredoka',
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              color: Color(0xFF5F7199),
             ),
-
-          // Face found, calibration actively running in the background.
-          if (isCalibrating)
-            Positioned(
-              bottom: 48,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 28,
-                    vertical: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    "Hi there! Just look at the screen for a moment...",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                ),
-              ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Just look at the screen for a moment while we get to know you!",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Fredoka',
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF5E463E),
+              height: 1.3,
             ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "⏱️ Calibrating: ${_elapsedSeconds}s",
+            style: const TextStyle(
+              fontFamily: 'Fredoka',
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF5F7199),
+            ),
+          ),
         ],
       ),
     );

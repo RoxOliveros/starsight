@@ -71,6 +71,25 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     return 'A fun learning area where children build new skills through interactive, age-appropriate activities.';
   }
 
+  /// Turns a raw cycle number into parent/teacher-friendly wording —
+  /// "1st Play", "2nd Play", "3rd Play", "4th Play"... instead of the
+  /// internal "Playthrough" / "Cycle" terminology.
+  String _playLabel(int n) {
+    if (n % 100 >= 11 && n % 100 <= 13) {
+      return '${n}th Play';
+    }
+    switch (n % 10) {
+      case 1:
+        return '${n}st Play';
+      case 2:
+        return '${n}nd Play';
+      case 3:
+        return '${n}rd Play';
+      default:
+        return '${n}th Play';
+    }
+  }
+
   String _formatDateTime(DateTime d) {
     const months = [
       'Jan',
@@ -335,129 +354,6 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     );
   }
 
-  // --- INSIGHT MODAL (Matches Leader's Design) ---
-  void _showInsightModal(
-    String title,
-    Map<String, dynamic> insightData,
-    Color color,
-    IconData icon,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: ColorTheme.cream,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircleAvatar(
-                backgroundColor: color.withOpacity(0.2),
-                radius: 30,
-                child: Icon(icon, color: color, size: 36),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "$title Analysis",
-                style: TextStyle(
-                  fontFamily: AppTextStyles.fredoka,
-                  fontSize: 22,
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(Icons.star, color: color, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    "Band: ${insightData['band']}",
-                    style: TextStyle(
-                      fontFamily: 'Nunito',
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                insightData['description'] ?? '',
-                style: const TextStyle(
-                  fontFamily: 'Nunito',
-                  fontSize: 15,
-                  color: ColorTheme.brown,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "WHAT YOU CAN TRY",
-                  style: TextStyle(
-                    fontFamily: AppTextStyles.fredoka,
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...(insightData['tips'] as List).map(
-                (tip) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6.0, right: 8.0),
-                        child: CircleAvatar(radius: 4, backgroundColor: color),
-                      ),
-                      Expanded(
-                        child: Text(
-                          tip.toString(),
-                          style: const TextStyle(
-                            fontFamily: 'Nunito',
-                            fontSize: 14,
-                            color: ColorTheme.brown,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: color,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    "GOT IT!",
-                    style: TextStyle(
-                      fontFamily: AppTextStyles.fredoka,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // --- CONSTRUCT CARD (Matches Leader's Design) ---
   Widget _buildConstructCard(
     String title,
@@ -499,38 +395,28 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
             ],
           ),
           const Divider(height: 24, thickness: 1, color: ColorTheme.cream),
+          Row(
+            children: [
+              Icon(Icons.star_rounded, color: color, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                insightData['band'] ?? '',
+                style: TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           Text(
             insightData['description'] ?? '',
             style: const TextStyle(
               fontFamily: 'Nunito',
               fontSize: 15,
               color: ColorTheme.brown,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () => _showInsightModal(title, insightData, color, icon),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  "LEARN MORE >",
-                  style: TextStyle(
-                    fontFamily: AppTextStyles.fredoka,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
             ),
           ),
         ],
@@ -659,7 +545,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                               items: _availableCycles.map((cycle) {
                                 return DropdownMenuItem<int>(
                                   value: cycle,
-                                  child: Text("Playthrough $cycle"),
+                                  child: Text(_playLabel(cycle)),
                                 );
                               }).toList(),
                               onChanged: (newValue) {
@@ -674,7 +560,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                         )
                       else
                         Text(
-                          "Playthrough  $_selectedCycle",
+                          _playLabel(_selectedCycle),
                           style: const TextStyle(
                             fontFamily: AppTextStyles.fredoka,
                             fontSize: 14,

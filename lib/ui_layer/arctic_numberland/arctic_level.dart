@@ -79,11 +79,14 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
       await Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => CalibrationScreen(
-            childSessionId: uid,
-            onCalibrationDone: () => Navigator.pop(context),
-          ),
+        // Use PageRouteBuilder with opaque: false to make it a transparent overlay!
+        PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              CalibrationScreen(
+                childSessionId: uid,
+                onCalibrationDone: () => Navigator.pop(context),
+              ),
         ),
       );
       if (!mounted) return;
