@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,10 @@ import 'arctic_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class _TagOption {
   final String id;
@@ -29,7 +34,7 @@ class _RoundSpec {
 class SnowglobeShakeGame extends StatefulWidget {
   final int level;
 
-  const SnowglobeShakeGame({super.key,required this.level});
+  const SnowglobeShakeGame({super.key, required this.level});
 
   @override
   State<SnowglobeShakeGame> createState() => _SnowglobeShakeGameState();
@@ -40,20 +45,25 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
         TickerProviderStateMixin,
         DomaReactionMixin<SnowglobeShakeGame>,
         GameLoadingMixin<SnowglobeShakeGame>,
-        ArcticAudioMixin<SnowglobeShakeGame> {
+        ArcticAudioMixin<SnowglobeShakeGame>,
+        AiCameraMixin<SnowglobeShakeGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _snowglobeEmptyAsset = 'assets/images/objects/arctic/empty_snowglobe.png';
-  static const String _snowballAsset = 'assets/images/objects/arctic/snowball.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _snowglobeEmptyAsset =
+      'assets/images/objects/arctic/empty_snowglobe.png';
+  static const String _snowballAsset =
+      'assets/images/objects/arctic/snowball.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/snowglobe_shake_intro.wav';
-  static const String _audioInstruction = '$_audioBase/snowglobe_shake_instuction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/snowglobe_shake_instuction.wav';
 
   static const List<Alignment> _ballPositions = [
     Alignment(-0.28, -0.55),
@@ -71,6 +81,12 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   static const double _shakeDistanceThreshold = 26.0;
   static const List<int> _tagOptionCounts = [2, 2, 2, 2, 2];
   static const int _totalRounds = 5;
+
+  // ── Tracking Variables ─────────────────────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
 
   // ── State ────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
@@ -100,17 +116,42 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     super.initState();
     _rounds = _buildRounds();
     _initAnimations();
-    finishLoading(_startIntroFlow);
+
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    _minLoadTimer = Timer(minLoadTime, () {
+      if (mounted) setState(() => _loadingScreenElapsed = true);
+    });
+
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
   }
 
   List<_RoundSpec> _buildRounds() {
     final rng = Random();
 
-    final targets = List.generate(10, (n) => n + 1)..shuffle(rng);   // ADD: pool of 1-10, shuffled
-    final chosenTargets = targets.take(_totalRounds).toList();       // ADD: pick 5 unique, no repeats
+    final targets = List.generate(10, (n) => n + 1)..shuffle(rng);
+    final chosenTargets = targets.take(_totalRounds).toList();
 
     return List.generate(_totalRounds, (i) {
-      final target = chosenTargets[i];                               // CHANGED from: i + 1
+      final target = chosenTargets[i];
       final count = _tagOptionCounts[i];
       final possible = List.generate(10, (n) => n + 1)..remove(target);
       possible.shuffle(rng);
@@ -118,7 +159,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
       final numbers = [target, ...distractors]..shuffle(rng);
       final shelves = List.generate(
         count,
-            (idx) => _TagOption(id: 'r$i-s$idx', number: numbers[idx]),
+        (idx) => _TagOption(id: 'r$i-s$idx', number: numbers[idx]),
       );
       return _RoundSpec(targetNumber: target, shelves: shelves);
     });
@@ -134,17 +175,22 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _wiggleCtrl = AnimationController(
       vsync: this,
@@ -221,6 +267,19 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     setState(() => _solvedRounds++);
 
     if (_currentRound + 1 >= _totalRounds) {
+      // --- AI STOP & DATABASE SAVE ---
+      List<String> finalEmotions = stopAiCamera();
+
+      try {
+        await ArcticDatabaseService.saveGameData(
+          gameId: 'arctic_numberland_${widget.level}',
+          mistakes: _tapTracker.mistakeCount,
+          emotions: finalEmotions,
+        );
+      } catch (e) {
+        debugPrint("Database Error saving Arctic metrics: $e");
+      }
+
       await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -243,6 +302,9 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   Future<void> _onCorrectTagDroppedOnGlobe(_TagOption tag) async {
     if (_resolving) return;
     _resolving = true;
+
+    _tapTracker.recordCorrectTap();
+
     HapticFeedback.mediumImpact();
     setState(() => _attachedTag = tag);
     await playSfx('$_audioBase/${_rounds[_currentRound].targetNumber}.wav');
@@ -254,6 +316,8 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
+    _minLoadTimer?.cancel();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -264,26 +328,70 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
 
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final gameContent = Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            _bgImage,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                Container(color: const Color(0xFFDCEFFA)),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+        ),
+
+        if (!_introPlaying) buildDoma(context),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
+            children: [
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : gameContent;
+
+    final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+        ? gateLightingCard()
+        : LoadingScreen.arctic();
+
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => gateNeedsLightingPrompt
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: gameContent),
+                    Positioned.fill(child: gateLightingCard()),
+                  ],
+                )
+              : contentWithOverlay,
         ),
       ),
     );
@@ -295,7 +403,11 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -308,7 +420,10 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
                     offset: Offset(
                       0,
                       Tween<double>(begin: -6, end: 6).evaluate(
-                        CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                        CurvedAnimation(
+                          parent: _domaFloatCtrl,
+                          curve: Curves.easeInOut,
+                        ),
                       ),
                     ),
                     child: child,
@@ -317,7 +432,8 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
                     _characterImage,
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                    errorBuilder: (_, __, ___) =>
+                        const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
               ),
@@ -327,7 +443,8 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
                   _snowglobeEmptyAsset,
                   height: screenH * 0.5,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text('🔮', style: TextStyle(fontSize: 90)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🔮', style: TextStyle(fontSize: 90)),
                 ),
               ),
             ],
@@ -350,11 +467,18 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                    padding: const EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: 25,
+                    ),
                     child: Stack(
                       alignment: Alignment.topCenter,
                       children: [
-                        Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ArcticBackButton(),
+                        ),
                         Align(
                           alignment: Alignment.centerRight,
                           child: ArcticLevelBadge(level: widget.level),
@@ -390,10 +514,12 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: round.shelves
-          .map((s) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: _buildTag(s, tagSize),
-      ))
+          .map(
+            (s) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: _buildTag(s, tagSize),
+            ),
+          )
           .toList(),
     );
   }
@@ -418,13 +544,22 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
             ],
           ),
           child: Text(
-            _globeFull ? 'Now put the matching tag!' : 'Shake the snowglobe to reveal!',
+            _globeFull
+                ? 'Now put the matching tag!'
+                : 'Shake the snowglobe to reveal!',
             style: TextStyle(
               fontFamily: ArcticAppTextStyles.fredoka,
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],            ),
+              shadows: const [
+                Shadow(
+                  color: Color(0x55003366),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -437,8 +572,11 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     return Center(
       child: AnimatedBuilder(
         animation: _wiggle,
-        builder: (_, child) => Transform.rotate(angle: _wiggle.value, child: child),
-        child: _globeFull ? _buildGlobeDropTarget(size) : _buildShakeableGlobe(size),
+        builder: (_, child) =>
+            Transform.rotate(angle: _wiggle.value, child: child),
+        child: _globeFull
+            ? _buildGlobeDropTarget(size)
+            : _buildShakeableGlobe(size),
       ),
     );
   }
@@ -454,8 +592,10 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   Widget _buildGlobeDropTarget(double size) {
     return DragTarget<_TagOption>(
       onWillAcceptWithDetails: (details) =>
-      !_resolving && details.data.number == _rounds[_currentRound].targetNumber,
-      onAcceptWithDetails: (details) => _onCorrectTagDroppedOnGlobe(details.data),
+          !_resolving &&
+          details.data.number == _rounds[_currentRound].targetNumber,
+      onAcceptWithDetails: (details) =>
+          _onCorrectTagDroppedOnGlobe(details.data),
       builder: (context, candidateData, rejectedData) {
         final hovering = candidateData.isNotEmpty;
         return AnimatedScale(
@@ -480,7 +620,8 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
             width: size,
             height: size,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Text('🔮', style: TextStyle(fontSize: size * 0.6)),
+            errorBuilder: (_, __, ___) =>
+                Text('🔮', style: TextStyle(fontSize: size * 0.6)),
           ),
           ...List.generate(_shakeCount, (i) {
             final pos = _ballPositions[i % _ballPositions.length];
@@ -491,7 +632,11 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
                 width: size * 0.15,
                 height: size * 0.15,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Icon(Icons.circle, size: size * 0.14, color: ArcticColorTheme.pictonblue),
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.circle,
+                  size: size * 0.14,
+                  color: ArcticColorTheme.pictonblue,
+                ),
               ),
             );
           }),
@@ -502,7 +647,8 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
                 tween: Tween(begin: 0.0, end: 1.0),
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.elasticOut,
-                builder: (_, value, child) => Transform.scale(scale: value, child: child),
+                builder: (_, value, child) =>
+                    Transform.scale(scale: value, child: child),
                 child: _tagVisual(_attachedTag!, size * 0.4),
               ),
             ),
@@ -521,6 +667,8 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
       childWhenDragging: Opacity(opacity: 0.3, child: _tagVisual(tag, size)),
       onDragStarted: () => HapticFeedback.selectionClick(),
       onDraggableCanceled: (_, __) async {
+        _tapTracker.recordMistake();
+
         HapticFeedback.heavyImpact();
         await playSfx('assets/audio/sound_effects/bubble_pop.wav');
         showDomaReaction(DomaState.wrong);
@@ -549,8 +697,8 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
               ),
             ),
           ),
-          Transform.translate(                      // ADD: wrap the Text in this
-            offset: Offset(0, size * 0.05),           // ADD: push down a bit — tweak the 0.1 factor to taste
+          Transform.translate(
+            offset: Offset(0, size * 0.05),
             child: Text(
               '${tag.number}',
               style: TextStyle(

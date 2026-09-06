@@ -13,6 +13,10 @@ import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'number_introduction_screen.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class Number1to5MatchSnowglobesScreen extends StatefulWidget {
   final int level;
@@ -26,7 +30,11 @@ class Number1to5MatchSnowglobesScreen extends StatefulWidget {
 
 class _Number1to5MatchSnowglobesScreenState
     extends State<Number1to5MatchSnowglobesScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin<Number1to5MatchSnowglobesScreen> {
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -35,8 +43,10 @@ class _Number1to5MatchSnowglobesScreenState
   static const int _globeCount = 3;
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _snowglobeAsset = 'assets/images/objects/arctic/empty_snowglobe.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _snowglobeAsset =
+      'assets/images/objects/arctic/empty_snowglobe.png';
 
   // Objects that can appear inside snowglobes
   static const List<String> _insideObjects = [
@@ -49,6 +59,12 @@ class _Number1to5MatchSnowglobesScreenState
 
   static const String _audioIntro =
       'assets/audio/arctic_numberland/level20/intro.wav';
+
+  // ── Tracking Variables ─────────────────────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
@@ -97,7 +113,32 @@ class _Number1to5MatchSnowglobesScreenState
     OrientationService.setLandscape();
     _roundPool = List.generate(5, (i) => i + 1)..shuffle();
     _initAnimations();
-    finishLoading(_startIntroFlow);
+
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    _minLoadTimer = Timer(minLoadTime, () {
+      if (mounted) setState(() => _loadingScreenElapsed = true);
+    });
+
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
   }
 
   void _initAnimations() {
@@ -226,6 +267,8 @@ class _Number1to5MatchSnowglobesScreenState
     final isCorrect = _globeCounts[index] == _targetNumber;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap();
+
       setState(() => _tappedIndex = index);
       _correctPulseCtrl.forward(from: 0);
       await _playAudio('assets/audio/arctic_numberland/$_targetNumber.wav');
@@ -235,6 +278,19 @@ class _Number1to5MatchSnowglobesScreenState
       if (!mounted) return;
 
       if (_currentRound + 1 >= _totalRounds) {
+        // --- AI STOP & DATABASE SAVE ---
+        List<String> finalEmotions = stopAiCamera();
+
+        try {
+          await ArcticDatabaseService.saveGameData(
+            gameId: 'arctic_numberland_${widget.level}',
+            mistakes: _tapTracker.mistakeCount,
+            emotions: finalEmotions,
+          );
+        } catch (e) {
+          debugPrint("Database Error saving Arctic metrics: $e");
+        }
+
         await ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
@@ -242,6 +298,8 @@ class _Number1to5MatchSnowglobesScreenState
         _setupRound();
       }
     } else {
+      _tapTracker.recordMistake();
+
       // Shake the wrong globe
       setState(() => _shakingIndex = index);
       await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
@@ -273,6 +331,8 @@ class _Number1to5MatchSnowglobesScreenState
 
   @override
   void dispose() {
+    disposeAiCamera();
+    _minLoadTimer?.cancel();
     _player.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -290,18 +350,61 @@ class _Number1to5MatchSnowglobesScreenState
   // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.arctic(),
-          gameBuilder: () => Stack(
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
+
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final gameContent = Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+        if (!_introPlaying) buildDoma(context),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
             children: [
-          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
-          _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-          if (!_introPlaying) buildDoma(context),
-          if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-        ],
-      ),
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : gameContent;
+
+    final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+        ? gateLightingCard()
+        : LoadingScreen.arctic();
+
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => gateNeedsLightingPrompt
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: gameContent),
+                    Positioned.fill(child: gateLightingCard()),
+                  ],
+                )
+              : contentWithOverlay,
         ),
+      ),
     );
   }
 
@@ -310,7 +413,11 @@ class _Number1to5MatchSnowglobesScreenState
     return Stack(
       children: [
         Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Positioned.fill(
           top: 48,
           child: Row(
@@ -343,7 +450,7 @@ class _Number1to5MatchSnowglobesScreenState
                               _numberDance.value * ((i % 2 == 0) ? 1 : -1);
                           final globeH =
                               MediaQuery.of(context).size.height * 0.15 +
-                                  (i * 3.0);
+                              (i * 3.0);
                           return Transform.rotate(
                             angle: angle,
                             child: Padding(
@@ -451,12 +558,11 @@ class _Number1to5MatchSnowglobesScreenState
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(
-                    width: MediaQuery.of(context).size.height * 0.40,
-                  ),
+                  SizedBox(width: MediaQuery.of(context).size.height * 0.40),
                   Expanded(
                     flex: 7,
-                    child: Row(                                // ADD — target panel + globes grouped together on the right
+                    child: Row(
+                      // ADD — target panel + globes grouped together on the right
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Expanded(flex: 1, child: _buildTargetPanel(h)),
@@ -507,7 +613,13 @@ class _Number1to5MatchSnowglobesScreenState
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
-                shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
+                shadows: const [
+                  Shadow(
+                    color: Color(0x55003366),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
             ),
           ],
@@ -602,10 +714,8 @@ class _Number1to5MatchSnowglobesScreenState
                   width: globeSize,
                   height: globeSize,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => SizedBox(
-                    width: globeSize,
-                    height: globeSize,
-                  ),
+                  errorBuilder: (_, __, ___) =>
+                      SizedBox(width: globeSize, height: globeSize),
                 ),
 
                 // Objects arranged inside the globe dome area
@@ -657,7 +767,7 @@ class _Number1to5MatchSnowglobesScreenState
         bottomCount = 2;
         break;
       default:
-      // 1, 2, 3 (and any other count) — single centered row
+        // 1, 2, 3 (and any other count) — single centered row
         return Wrap(
           alignment: WrapAlignment.center,
           runAlignment: WrapAlignment.center,
@@ -728,7 +838,10 @@ class _Number1to5MatchSnowglobesScreenState
         );
       },
       onRestart: () {
-        Navigator.pop(context, Number1to5MatchSnowglobesScreen(level: widget.level));
+        Navigator.pop(
+          context,
+          Number1to5MatchSnowglobesScreen(level: widget.level),
+        );
       },
       onBack: () {
         Navigator.pop(context);

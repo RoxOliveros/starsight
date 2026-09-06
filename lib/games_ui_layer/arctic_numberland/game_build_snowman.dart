@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,11 +15,15 @@ import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'number_introduction_screen.dart';
 import 'game_memory_match.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class BuildSnowmanGame extends StatefulWidget {
   final int level;
 
-  const BuildSnowmanGame({super.key,required this.level});
+  const BuildSnowmanGame({super.key, required this.level});
 
   @override
   State<BuildSnowmanGame> createState() => _BuildSnowmanGameState();
@@ -29,23 +34,34 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
         TickerProviderStateMixin,
         DomaReactionMixin<BuildSnowmanGame>,
         GameLoadingMixin<BuildSnowmanGame>,
-        ArcticAudioMixin<BuildSnowmanGame> {
+        ArcticAudioMixin<BuildSnowmanGame>,
+        AiCameraMixin<BuildSnowmanGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _snowballAsset = 'assets/images/objects/arctic/snowball_clean.png';
-  static const String _snowmanHatAsset = 'assets/images/objects/arctic/snowman_hat.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _snowballAsset =
+      'assets/images/objects/arctic/snowball_clean.png';
+  static const String _snowmanHatAsset =
+      'assets/images/objects/arctic/snowman_hat.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/build_snowman_intro.wav';
-  static const String _audioInstruction = '$_audioBase/build_snowman_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/build_snowman_instruction.wav';
   static const String _audioWin = '$_audioBase/build_snowman_win.wav';
 
   static const int _totalRounds = 5;
+
+  // ── Tracking Variables ─────────────────────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
 
   // ── State ────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
@@ -74,7 +90,32 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
     super.initState();
     _targets = _buildTargets();
     _initAnimations();
-    finishLoading(_startIntroFlow);
+
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    _minLoadTimer = Timer(minLoadTime, () {
+      if (mounted) setState(() => _loadingScreenElapsed = true);
+    });
+
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
   }
 
   List<int> _buildTargets() {
@@ -93,17 +134,22 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _popCtrl = AnimationController(
       vsync: this,
@@ -121,7 +167,10 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _complete = CurvedAnimation(parent: _completeCtrl, curve: Curves.elasticOut);
+    _complete = CurvedAnimation(
+      parent: _completeCtrl,
+      curve: Curves.elasticOut,
+    );
   }
 
   // ── Flow ─────────────────────────────────────────────────────────────────
@@ -147,6 +196,9 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
   // ── Snow pile interaction ───────────────────────────────────────────────
   Future<void> _onSnowballDropped() async {
     if (_roundResolving) return;
+
+    _tapTracker.recordCorrectTap();
+
     final target = _targets[_currentRound];
     final next = _stackCount + 1;
 
@@ -171,6 +223,20 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
 
     if (_currentRound + 1 >= _totalRounds) {
       await playVoice(_audioWin);
+
+      // --- AI STOP & DATABASE SAVE ---
+      List<String> finalEmotions = stopAiCamera();
+
+      try {
+        await ArcticDatabaseService.saveGameData(
+          gameId: 'arctic_numberland_${widget.level}',
+          mistakes: _tapTracker.mistakeCount,
+          emotions: finalEmotions,
+        );
+      } catch (e) {
+        debugPrint("Database Error saving Arctic metrics: $e");
+      }
+
       await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -191,6 +257,8 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
+    _minLoadTimer?.cancel();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -203,26 +271,70 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
 
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final gameContent = Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            _bgImage,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                Container(color: const Color(0xFFDCEFFA)),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+        ),
+
+        if (!_introPlaying) buildDoma(context),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
+            children: [
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : gameContent;
+
+    final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+        ? gateLightingCard()
+        : LoadingScreen.arctic();
+
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => gateNeedsLightingPrompt
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: gameContent),
+                    Positioned.fill(child: gateLightingCard()),
+                  ],
+                )
+              : contentWithOverlay,
         ),
       ),
     );
@@ -234,7 +346,11 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -243,23 +359,24 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                 flex: 4,
                 child: AnimatedBuilder(
                   animation: _domaFloatCtrl,
-                  builder: (_, child) =>
-                      Transform.translate(
-                        offset: Offset(
-                          0,
-                          Tween<double>(begin: -6, end: 6).evaluate(
-                            CurvedAnimation(parent: _domaFloatCtrl,
-                                curve: Curves.easeInOut),
-                          ),
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(
+                      0,
+                      Tween<double>(begin: -6, end: 6).evaluate(
+                        CurvedAnimation(
+                          parent: _domaFloatCtrl,
+                          curve: Curves.easeInOut,
                         ),
-                        child: child,
                       ),
+                    ),
+                    child: child,
+                  ),
                   child: Image.asset(
                     _characterImage,
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
-                    const Text('🐧', style: TextStyle(fontSize: 70)),
+                        const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
               ),
@@ -270,7 +387,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                   height: screenH * 0.5,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
-                  const Text('⛄', style: TextStyle(fontSize: 90)),
+                      const Text('⛄', style: TextStyle(fontSize: 90)),
                 ),
               ),
             ],
@@ -294,11 +411,18 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                    padding: const EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: 25,
+                    ),
                     child: Stack(
                       alignment: Alignment.topCenter,
                       children: [
-                        Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ArcticBackButton(),
+                        ),
                         Align(
                           alignment: Alignment.centerRight,
                           child: ArcticLevelBadge(level: widget.level),
@@ -315,11 +439,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                 ],
               ),
             ),
-            Positioned(
-              right: 70,
-              top: 100,
-              child: _buildTargetBadge(h * 0.22),
-            ),
+            Positioned(right: 70, top: 100, child: _buildTargetBadge(h * 0.22)),
             Positioned(
               right: 20,
               bottom: 16,
@@ -357,7 +477,14 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],            ),
+              shadows: const [
+                Shadow(
+                  color: Color(0x55003366),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -375,7 +502,8 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
         width: size,
         height: size,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => Icon(Icons.circle, size: size, color: Colors.white),
+        errorBuilder: (_, __, ___) =>
+            Icon(Icons.circle, size: size, color: Colors.white),
       ),
     );
 
@@ -385,10 +513,16 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       data: 1,
       feedback: Material(
         color: Colors.transparent,
-        child: Image.asset(_snowballAsset, width: size * 1.15, fit: BoxFit.contain),
+        child: Image.asset(
+          _snowballAsset,
+          width: size * 1.15,
+          fit: BoxFit.contain,
+        ),
       ),
       childWhenDragging: Opacity(opacity: 0.25, child: ball),
       onDragStarted: () => HapticFeedback.selectionClick(),
+      onDraggableCanceled: (_, __) =>
+          _tapTracker.recordMistake(), // <-- TRACK MISTAKE
       child: ball,
     );
   }
@@ -452,7 +586,8 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
     // Cumulative bottom offset per ball -- proportional to that ball's own
     // (already-shrunk) height, so the overlap stays consistent as balls
     // get smaller toward the top instead of using one fixed gap for all.
-    const overlapFraction = 0.45; // fraction of a ball's height it overlaps the one below
+    const overlapFraction =
+        0.45; // fraction of a ball's height it overlaps the one below
     final bottoms = <double>[];
     double cumulative = 0;
     for (int i = 0; i < _stackCount; i++) {
@@ -460,11 +595,13 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       cumulative += ballSize * scales[i] * overlapFraction;
     }
     final topHeight = _stackCount == 0 ? ballSize : ballSize * scales.last;
-    final stackHeight = cumulative + topHeight + ballSize * 0.9; // + room for hat
+    final stackHeight =
+        cumulative + topHeight + ballSize * 0.9; // + room for hat
 
     return Center(
       child: DragTarget<int>(
-        onWillAcceptWithDetails: (_) => !_roundResolving && _stackCount < target,
+        onWillAcceptWithDetails: (_) =>
+            !_roundResolving && _stackCount < target,
         onAcceptWithDetails: (_) => _onSnowballDropped(),
         builder: (context, candidateData, rejectedData) {
           final hovering = candidateData.isNotEmpty;
@@ -497,7 +634,10 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white.withValues(alpha: 0.25),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.85), width: 3),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            width: 3,
+                          ),
                         ),
                       ),
 
@@ -509,7 +649,9 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                         child: AnimatedBuilder(
                           animation: _popCtrl,
                           builder: (_, child) => Transform.scale(
-                            scale: isNewest ? (0.3 + 0.7 * _pop.value) * scale : scale,
+                            scale: isNewest
+                                ? (0.3 + 0.7 * _pop.value) * scale
+                                : scale,
                             child: child,
                           ),
                           child: Image.asset(
@@ -517,8 +659,11 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                             width: ballSize * scale,
                             height: ballSize * scale,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
-                                Icon(Icons.circle, size: ballSize * scale, color: Colors.white),
+                            errorBuilder: (_, __, ___) => Icon(
+                              Icons.circle,
+                              size: ballSize * scale,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       );
@@ -536,7 +681,10 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                           _snowmanHatAsset,
                           width: ballSize * 0.9,
                           fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Text('🎩', style: TextStyle(fontSize: ballSize * 0.6)),
+                          errorBuilder: (_, __, ___) => Text(
+                            '🎩',
+                            style: TextStyle(fontSize: ballSize * 0.6),
+                          ),
                         ),
                       ),
                     ),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/games_ui_layer/arctic_numberland/game_snowglobe_shake_count.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +14,10 @@ import 'arctic_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class IcebergTipGame extends StatefulWidget {
   final int level;
@@ -28,22 +33,33 @@ class _IcebergTipGameState extends State<IcebergTipGame>
         TickerProviderStateMixin,
         DomaReactionMixin<IcebergTipGame>,
         GameLoadingMixin<IcebergTipGame>,
-        ArcticAudioMixin<IcebergTipGame> {
+        ArcticAudioMixin<IcebergTipGame>,
+        AiCameraMixin<IcebergTipGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_sea.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _icebergAsset = 'assets/images/objects/arctic/iceberg.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_arctic_sea.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _icebergAsset =
+      'assets/images/objects/arctic/iceberg.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/iceberg_tip_intro.wav';
-  static const String _audioInstruction = '$_audioBase/iceberg_tip_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/iceberg_tip_instruction.wav';
   static const String _audioWin = '$_audioBase/iceberg_tip_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
   static const int _totalRounds = 5;
+
+  // ── Tracking Variables ─────────────────────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
 
   // ── State ────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
@@ -73,7 +89,32 @@ class _IcebergTipGameState extends State<IcebergTipGame>
     super.initState();
     _initAnimations();
     _setupRound(playInstruction: false);
-    finishLoading(_startIntroFlow);
+
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    _minLoadTimer = Timer(minLoadTime, () {
+      if (mounted) setState(() => _loadingScreenElapsed = true);
+    });
+
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
   }
 
   void _initAnimations() {
@@ -86,17 +127,22 @@ class _IcebergTipGameState extends State<IcebergTipGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
   }
 
   // ── Flow ─────────────────────────────────────────────────────────────────
@@ -153,6 +199,8 @@ class _IcebergTipGameState extends State<IcebergTipGame>
     final correctIndex = biggerIsA ? 0 : 1;
 
     if (index == correctIndex) {
+      _tapTracker.recordCorrectTap();
+
       HapticFeedback.mediumImpact();
       await playSfx('$_audioBase/${max(_numberA, _numberB)}.wav');
       showDomaReaction(DomaState.correct);
@@ -160,6 +208,8 @@ class _IcebergTipGameState extends State<IcebergTipGame>
       if (!mounted) return;
       await _onRoundComplete();
     } else {
+      _tapTracker.recordMistake();
+
       HapticFeedback.heavyImpact();
       await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
@@ -180,6 +230,20 @@ class _IcebergTipGameState extends State<IcebergTipGame>
 
     if (_currentRound + 1 >= _totalRounds) {
       await playVoice(_audioWin);
+
+      // --- AI STOP & DATABASE SAVE ---
+      List<String> finalEmotions = stopAiCamera();
+
+      try {
+        await ArcticDatabaseService.saveGameData(
+          gameId: 'arctic_numberland_${widget.level}',
+          mistakes: _tapTracker.mistakeCount,
+          emotions: finalEmotions,
+        );
+      } catch (e) {
+        debugPrint("Database Error saving Arctic metrics: $e");
+      }
+
       await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -191,6 +255,8 @@ class _IcebergTipGameState extends State<IcebergTipGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
+    _minLoadTimer?.cancel();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -200,25 +266,69 @@ class _IcebergTipGameState extends State<IcebergTipGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
+
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final gameContent = Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            _bgImage,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                Container(color: const Color(0xFFDCEFFA)),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+        ),
+        if (!_introPlaying) buildDoma(context),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
+            children: [
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : gameContent;
+
+    final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+        ? gateLightingCard()
+        : LoadingScreen.arctic();
+
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => gateNeedsLightingPrompt
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: gameContent),
+                    Positioned.fill(child: gateLightingCard()),
+                  ],
+                )
+              : contentWithOverlay,
         ),
       ),
     );
@@ -230,46 +340,54 @@ class _IcebergTipGameState extends State<IcebergTipGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: AnimatedBuilder(
-              animation: _domaFloatCtrl,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(
-                  0,
-                  Tween<double>(begin: -6, end: 6).evaluate(
-                    CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+            animation: _domaFloatCtrl,
+            builder: (_, child) => Transform.translate(
+              offset: Offset(
+                0,
+                Tween<double>(begin: -6, end: 6).evaluate(
+                  CurvedAnimation(
+                    parent: _domaFloatCtrl,
+                    curve: Curves.easeInOut,
                   ),
                 ),
-                child: child,
               ),
+              child: child,
+            ),
 
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Spacer(),
-                  Image.asset(
-                    _characterImage,
-                    height: screenH * 0.7,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-                  ),
-                  Spacer(),
-                  Image.asset(
-                    _icebergAsset,
-                    height: screenH * 0.7,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-                  ),
-                  Spacer(),
-                ],
-              )
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Spacer(),
+                Image.asset(
+                  _characterImage,
+                  height: screenH * 0.7,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐧', style: TextStyle(fontSize: 70)),
+                ),
+                Spacer(),
+                Image.asset(
+                  _icebergAsset,
+                  height: screenH * 0.7,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐧', style: TextStyle(fontSize: 70)),
+                ),
+                Spacer(),
+              ],
+            ),
           ),
-        )
+        ),
       ],
     );
   }
-
 
   // ── Main game layout ─────────────────────────────────────────────────────
   Widget _buildGameContent() {
@@ -285,7 +403,10 @@ class _IcebergTipGameState extends State<IcebergTipGame>
               child: Stack(
                 alignment: Alignment.topCenter,
                 children: [
-                  Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ArcticBackButton(),
+                  ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: ArcticLevelBadge(level: widget.level),
@@ -336,7 +457,13 @@ class _IcebergTipGameState extends State<IcebergTipGame>
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
+              shadows: const [
+                Shadow(
+                  color: Color(0x55003366),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
           ),
         ),
@@ -361,7 +488,12 @@ class _IcebergTipGameState extends State<IcebergTipGame>
     );
   }
 
-  Widget _buildIceberg(int index, int number, double width, double maxTotalHeight) {
+  Widget _buildIceberg(
+    int index,
+    int number,
+    double width,
+    double maxTotalHeight,
+  ) {
     final iceHeight = (number / 10.0) * maxTotalHeight;
     final aboveWater = iceHeight * 0.39;
 
@@ -377,7 +509,6 @@ class _IcebergTipGameState extends State<IcebergTipGame>
           alignment: Alignment.bottomCenter,
           clipBehavior: Clip.none,
           children: [
-
             // Iceberg image, progressively "cut open" from the tip downward
             // to reveal the submerged base — genuinely hidden, not just
             // tinted by a water overlay.
@@ -395,7 +526,9 @@ class _IcebergTipGameState extends State<IcebergTipGame>
                     clipBehavior: Clip.none,
                     children: [
                       ClipRect(
-                        clipper: _TopRevealClipper(visibleHeight: visibleHeight),
+                        clipper: _TopRevealClipper(
+                          visibleHeight: visibleHeight,
+                        ),
                         child: child,
                       ),
                       // Marks the current "cut" boundary while mid-reveal.
@@ -410,7 +543,9 @@ class _IcebergTipGameState extends State<IcebergTipGame>
                               color: Colors.white.withValues(alpha: 0.85),
                               boxShadow: [
                                 BoxShadow(
-                                  color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
+                                  color: ArcticColorTheme.pictonblue.withValues(
+                                    alpha: 0.4,
+                                  ),
                                   blurRadius: 4,
                                 ),
                               ],
@@ -426,7 +561,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
                   height: iceHeight,
                   fit: BoxFit.fill,
                   errorBuilder: (_, __, ___) =>
-                  const Text('🧊', style: TextStyle(fontSize: 60)),
+                      const Text('🧊', style: TextStyle(fontSize: 60)),
                 ),
               ),
             ),
@@ -435,7 +570,10 @@ class _IcebergTipGameState extends State<IcebergTipGame>
             Positioned(
               bottom: iceHeight - aboveWater * 0.01,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: tapped
                       ? ArcticColorTheme.pictonblue
@@ -538,6 +676,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
     );
   }
 }
+
 /// Clips the iceberg image from the top down to [visibleHeight], so the
 /// submerged portion is genuinely hidden (cut away) instead of tinted.
 class _TopRevealClipper extends CustomClipper<Rect> {
@@ -545,8 +684,10 @@ class _TopRevealClipper extends CustomClipper<Rect> {
   const _TopRevealClipper({required this.visibleHeight});
 
   @override
-  Rect getClip(Size size) => Rect.fromLTWH(0, 0, size.width, visibleHeight.clamp(0, size.height));
+  Rect getClip(Size size) =>
+      Rect.fromLTWH(0, 0, size.width, visibleHeight.clamp(0, size.height));
 
   @override
-  bool shouldReclip(covariant _TopRevealClipper oldClipper) => oldClipper.visibleHeight != visibleHeight;
+  bool shouldReclip(covariant _TopRevealClipper oldClipper) =>
+      oldClipper.visibleHeight != visibleHeight;
 }

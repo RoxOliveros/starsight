@@ -222,7 +222,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       // Alphabet Forest requires 5, Arctic Numberland requires 10
       int totalCategoryGames = (widget.categoryId == 'alphabet_forest')
           ? 5
-          : 10;
+          : 20;
 
       Map<String, dynamic> summaryMap =
           await CategorySummaryService.generateCategoryReport(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,10 @@ import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'game_iceberg_tip.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 enum _TileKind { numeral, quantity }
 
@@ -23,18 +28,18 @@ class _MemoryTile {
   bool revealed = false;
   bool matched = false;
 
-  _MemoryTile({
-    required this.id,
-    required this.pairValue,
-    required this.kind,
-  });
+  _MemoryTile({required this.id, required this.pairValue, required this.kind});
 }
 
 class NumberMemoryMatchGame extends StatefulWidget {
   final int level;
   final int pairCount;
 
-  const NumberMemoryMatchGame({super.key, this.pairCount = 5, required this.level});
+  const NumberMemoryMatchGame({
+    super.key,
+    this.pairCount = 5,
+    required this.level,
+  });
 
   @override
   State<NumberMemoryMatchGame> createState() => _NumberMemoryMatchGameState();
@@ -45,25 +50,36 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
         TickerProviderStateMixin,
         DomaReactionMixin<NumberMemoryMatchGame>,
         GameLoadingMixin<NumberMemoryMatchGame>,
-        ArcticAudioMixin<NumberMemoryMatchGame> {
+        ArcticAudioMixin<NumberMemoryMatchGame>,
+        AiCameraMixin<NumberMemoryMatchGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _quantityIconAsset = 'assets/images/objects/arctic/snowflake.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _quantityIconAsset =
+      'assets/images/objects/arctic/snowflake.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/number_memory_match_intro.wav';
-  static const String _audioInstruction = '$_audioBase/number_memory_match_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/number_memory_match_instruction.wav';
   static const String _audioWin = '$_audioBase/number_memory_match_win.wav';
+
+  // ── Tracking Variables ─────────────────────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _loadingScreenElapsed = false;
+  Timer? _minLoadTimer;
 
   // ── State ────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
   late List<_MemoryTile> _tiles;
   final List<int> _flipped = []; // ids currently face-up, awaiting resolution
-  final Set<int> _hiddenIds = {}; // matched tiles that have finished melting away
+  final Set<int> _hiddenIds =
+      {}; // matched tiles that have finished melting away
   bool _resolving = false;
   int _matchedPairs = 0;
   bool _showWinDialog = false;
@@ -82,19 +98,52 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
     super.initState();
     _tiles = _buildTiles();
     _initAnimations();
-    finishLoading(_startIntroFlow);
+
+    // --- START AI AND TRACKERS ---
+    startAiCamera();
+    _tapTracker.startSession();
+
+    _minLoadTimer = Timer(minLoadTime, () {
+      if (mounted) setState(() => _loadingScreenElapsed = true);
+    });
+
+    if (widget.level == 1) {
+      onFirstFaceDetected = () {
+        finishLoading(_startIntroFlow);
+      };
+      if (isFaceDetected) {
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      }
+    } else {
+      finishLoading(_startIntroFlow);
+    }
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
+    };
   }
 
   List<_MemoryTile> _buildTiles() {
     final tiles = <_MemoryTile>[];
     int nextId = 0;
 
-    final pool = List<int>.generate(10, (i) => i + 1)..shuffle(); // ADD — numbers 1-10, shuffled
-    final chosenValues = pool.take(_pairCount).toList();          // ADD — pick however many pairs you need
+    final pool = List<int>.generate(10, (i) => i + 1)
+      ..shuffle(); // ADD — numbers 1-10, shuffled
+    final chosenValues = pool
+        .take(_pairCount)
+        .toList(); // ADD — pick however many pairs you need
 
-    for (final v in chosenValues) {                               // CHANGED — loop over chosenValues instead of 1..pairCount
-      tiles.add(_MemoryTile(id: nextId++, pairValue: v, kind: _TileKind.numeral));
-      tiles.add(_MemoryTile(id: nextId++, pairValue: v, kind: _TileKind.quantity));
+    for (final v in chosenValues) {
+      // CHANGED — loop over chosenValues instead of 1..pairCount
+      tiles.add(
+        _MemoryTile(id: nextId++, pairValue: v, kind: _TileKind.numeral),
+      );
+      tiles.add(
+        _MemoryTile(id: nextId++, pairValue: v, kind: _TileKind.quantity),
+      );
     }
     tiles.shuffle(Random());
     return tiles;
@@ -111,17 +160,22 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
   }
 
   // ── Flow ─────────────────────────────────────────────────────────────────
@@ -138,7 +192,8 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
 
   // ── Tile interaction ─────────────────────────────────────────────────────
   Future<void> _onTileTapped(_MemoryTile tile) async {
-    if (_resolving || tile.matched || tile.revealed || _flipped.length >= 2) return;
+    if (_resolving || tile.matched || tile.revealed || _flipped.length >= 2)
+      return;
 
     HapticFeedback.selectionClick();
     setState(() {
@@ -155,8 +210,12 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
     if (!mounted) return;
 
     if (a.pairValue == b.pairValue) {
+      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
+
       HapticFeedback.mediumImpact();
-      await playSfx('$_audioBase/${a.pairValue}.wav'); // CHANGED — removed await, fire-and-forget
+      await playSfx(
+        '$_audioBase/${a.pairValue}.wav',
+      ); // CHANGED — removed await, fire-and-forget
       showDomaReaction(DomaState.correct);
       setState(() {
         a.matched = true;
@@ -167,6 +226,8 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
       if (!mounted) return;
       setState(() => _hiddenIds.addAll([a.id, b.id]));
     } else {
+      _tapTracker.recordMistake();
+
       HapticFeedback.heavyImpact();
       await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
@@ -191,6 +252,20 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
 
   Future<void> _onAllMatched() async {
     await playVoice(_audioWin);
+
+    // --- AI STOP & DATABASE SAVE ---
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving Arctic metrics: $e");
+    }
+
     await ArcticProgressService.instance.markLevelComplete(widget.level);
     if (!mounted) return;
     setState(() {
@@ -200,6 +275,8 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
+    _minLoadTimer?.cancel();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -209,25 +286,69 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
+
+    final reactiveNeedsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    Widget gateLightingCard() => LightingPromptCard(
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    );
+
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
+
+    final gameContent = Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            _bgImage,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                Container(color: const Color(0xFFDCEFFA)),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
+        ),
+        if (!_introPlaying) buildDoma(context),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+      ],
+    );
+
+    final contentWithOverlay = reactiveNeedsLightingPrompt
+        ? Stack(
+            children: [
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: reactiveLightingCard()),
+            ],
+          )
+        : gameContent;
+
+    final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
+        ? gateLightingCard()
+        : LoadingScreen.arctic();
+
+    return Listener(
+      // <-- ADDED LISTENER FOR GENERIC TAPS
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: loadingSlot,
+          gameBuilder: () => gateNeedsLightingPrompt
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: gameContent),
+                    Positioned.fill(child: gateLightingCard()),
+                  ],
+                )
+              : contentWithOverlay,
         ),
       ),
     );
@@ -239,7 +360,11 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -248,23 +373,24 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
                 flex: 5,
                 child: AnimatedBuilder(
                   animation: _domaFloatCtrl,
-                  builder: (_, child) =>
-                      Transform.translate(
-                        offset: Offset(
-                          0,
-                          Tween<double>(begin: -6, end: 6).evaluate(
-                            CurvedAnimation(
-                                parent: _domaFloatCtrl, curve: Curves.easeInOut),
-                          ),
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(
+                      0,
+                      Tween<double>(begin: -6, end: 6).evaluate(
+                        CurvedAnimation(
+                          parent: _domaFloatCtrl,
+                          curve: Curves.easeInOut,
                         ),
-                        child: child,
                       ),
+                    ),
+                    child: child,
+                  ),
                   child: Image.asset(
                     _characterImage,
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
-                    const Text('🐧', style: TextStyle(fontSize: 70)),
+                        const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
               ),
@@ -294,27 +420,37 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
         color: Colors.white.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isNumeral ? ArcticColorTheme.pictonblue : ArcticColorTheme.cadetblue,
+          color: isNumeral
+              ? ArcticColorTheme.pictonblue
+              : ArcticColorTheme.cadetblue,
           width: 3,
         ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 6, offset: const Offset(0, 3)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       alignment: Alignment.center,
       child: isNumeral
           ? Text(
-        '3',
-        style: TextStyle(
-          fontFamily: ArcticAppTextStyles.fredoka,
-          fontWeight: FontWeight.bold,
-          fontSize: size * 0.4,
-          color: ArcticColorTheme.slateblue,
-        ),
-      )
+              '3',
+              style: TextStyle(
+                fontFamily: ArcticAppTextStyles.fredoka,
+                fontWeight: FontWeight.bold,
+                fontSize: size * 0.4,
+                color: ArcticColorTheme.slateblue,
+              ),
+            )
           : LayoutBuilder(
-        builder: (context, constraints) => _quantityIcons(3, constraints.maxWidth, constraints.maxHeight),
-      ),
+              builder: (context, constraints) => _quantityIcons(
+                3,
+                constraints.maxWidth,
+                constraints.maxHeight,
+              ),
+            ),
     );
   }
 
@@ -333,7 +469,10 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
                 child: Stack(
                   alignment: Alignment.topCenter,
                   children: [
-                    Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: ArcticBackButton(),
+                    ),
                     Align(
                       alignment: Alignment.centerRight,
                       child: ArcticLevelBadge(level: widget.level),
@@ -380,7 +519,13 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
+              shadows: const [
+                Shadow(
+                  color: Color(0x55003366),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
           ),
         ),
@@ -409,9 +554,13 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
           }
         }
 
-        final tileSize = (bestTileSize * 0.9).clamp(30.0, 160.0); // CHANGED — this is now actually used
+        final tileSize = (bestTileSize * 0.9).clamp(
+          30.0,
+          160.0,
+        ); // CHANGED — this is now actually used
 
-        return Padding(                                            // CHANGED — replaces GridView.builder entirely
+        return Padding(
+          // CHANGED — replaces GridView.builder entirely
           padding: gridPadding,
           child: Center(
             child: Wrap(
@@ -419,11 +568,13 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
               runSpacing: spacing,
               alignment: WrapAlignment.center,
               children: _tiles
-                  .map((tile) => SizedBox(
-                width: tileSize,
-                height: tileSize,
-                child: _buildTileWidget(tile),
-              ))
+                  .map(
+                    (tile) => SizedBox(
+                      width: tileSize,
+                      height: tileSize,
+                      child: _buildTileWidget(tile),
+                    ),
+                  )
                   .toList(),
             ),
           ),
@@ -453,7 +604,11 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
       tween: Tween(begin: target, end: target),
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeInOut,
-      builder: (context, _, __) => _AnimatedFlip(target: target, front: _tileFront(tile), back: _tileBack()),
+      builder: (context, _, __) => _AnimatedFlip(
+        target: target,
+        front: _tileFront(tile),
+        back: _tileBack(),
+      ),
     );
   }
 
@@ -464,38 +619,47 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
         color: Colors.white.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isNumeral ? ArcticColorTheme.pictonblue : ArcticColorTheme.cadetblue,
+          color: isNumeral
+              ? ArcticColorTheme.pictonblue
+              : ArcticColorTheme.cadetblue,
           width: 3,
         ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 6, offset: const Offset(0, 3)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       alignment: Alignment.center,
       child: isNumeral
           ? Text(
-        '${tile.pairValue}',
-        style: TextStyle(
-          fontFamily: ArcticAppTextStyles.fredoka,
-          fontWeight: FontWeight.bold,
-          fontSize: 34,
-          color: ArcticColorTheme.slateblue,
-        ),
-      )
-          : LayoutBuilder(                                    // ADD: wrap in LayoutBuilder
-        builder: (context, constraints) => _quantityIcons(
-          tile.pairValue,
-          constraints.maxWidth,                          // ADD: pass available width
-          constraints.maxHeight,                         // ADD: pass available height
-        ),
-      ),
+              '${tile.pairValue}',
+              style: TextStyle(
+                fontFamily: ArcticAppTextStyles.fredoka,
+                fontWeight: FontWeight.bold,
+                fontSize: 34,
+                color: ArcticColorTheme.slateblue,
+              ),
+            )
+          : LayoutBuilder(
+              // ADD: wrap in LayoutBuilder
+              builder: (context, constraints) => _quantityIcons(
+                tile.pairValue,
+                constraints.maxWidth, // ADD: pass available width
+                constraints.maxHeight, // ADD: pass available height
+              ),
+            ),
     );
   }
 
   Widget _quantityIcons(int count, double maxWidth, double maxHeight) {
-    final columns = sqrt(count).ceil();                        // ADD: roughly-square grid of icons
+    final columns = sqrt(count).ceil(); // ADD: roughly-square grid of icons
     final rows = (count / columns).ceil();
-    final iconSize = min(maxWidth / columns, maxHeight / rows) * 0.8; // ADD: fit within both dimensions
+    final iconSize =
+        min(maxWidth / columns, maxHeight / rows) *
+        0.8; // ADD: fit within both dimensions
 
     return Padding(
       padding: const EdgeInsets.all(6),
@@ -505,11 +669,12 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
         runSpacing: 3,
         children: List.generate(
           count,
-              (_) => Image.asset(
+          (_) => Image.asset(
             _quantityIconAsset,
-            width: iconSize,                                    // CHANGED from hardcoded 40
-            height: iconSize,                                    // CHANGED from hardcoded 40
-            errorBuilder: (_, __, ___) => Text('❄️', style: TextStyle(fontSize: iconSize * 0.5)),
+            width: iconSize, // CHANGED from hardcoded 40
+            height: iconSize, // CHANGED from hardcoded 40
+            errorBuilder: (_, __, ___) =>
+                Text('❄️', style: TextStyle(fontSize: iconSize * 0.5)),
           ),
         ),
       ),
@@ -522,10 +687,7 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white, width: 3),
         gradient: LinearGradient(
-          colors: [
-            ArcticColorTheme.pictonblue,
-            ArcticColorTheme.lightblue
-          ],
+          colors: [ArcticColorTheme.pictonblue, ArcticColorTheme.lightblue],
         ),
       ),
     );
@@ -543,7 +705,9 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
           width: 10,
           height: 10,
           decoration: BoxDecoration(
-            color: done ? ArcticColorTheme.cadetblue : ArcticColorTheme.slateblue.withValues(alpha: 0.35),
+            color: done
+                ? ArcticColorTheme.cadetblue
+                : ArcticColorTheme.slateblue.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(6),
           ),
         );
@@ -590,7 +754,11 @@ class _AnimatedFlip extends StatelessWidget {
   final Widget front;
   final Widget back;
 
-  const _AnimatedFlip({required this.target, required this.front, required this.back});
+  const _AnimatedFlip({
+    required this.target,
+    required this.front,
+    required this.back,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -608,10 +776,10 @@ class _AnimatedFlip extends StatelessWidget {
             ..rotateY(angle),
           child: showFront
               ? Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()..rotateY(pi),
-            child: front,
-          )
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()..rotateY(pi),
+                  child: front,
+                )
               : back,
         );
       },
