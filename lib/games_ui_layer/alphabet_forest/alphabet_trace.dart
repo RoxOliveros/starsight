@@ -1167,7 +1167,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
           ),
 
           // 2. The Lighting Prompt Card (Valid here because it's inside the outer Stack's children list)
-          if (!isFaceDetected)
+          if (hasCapturedFirstFrame && !isFaceDetected)
             LightingPromptCard(
               onClose: () {
                 setState(() {

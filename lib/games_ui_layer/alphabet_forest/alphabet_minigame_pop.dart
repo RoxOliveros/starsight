@@ -546,7 +546,10 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
           ),
 
           // 2. The Lighting Prompt Card Overlay
-          if (!isFaceDetected)
+          // Gated on hasCapturedFirstFrame so this only shows for a REAL
+          // "no face" reading, not just while waiting for the first
+          // picture back on a freshly-mounted screen.
+          if (hasCapturedFirstFrame && !isFaceDetected)
             LightingPromptCard(
               onClose: () {
                 setState(() {

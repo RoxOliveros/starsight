@@ -7,7 +7,6 @@ import 'package:http/http.dart' as http;
 
 mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   CameraController? aiCameraController;
-  Future<void>? _initFuture;
   Timer? _analysisTimer;
   bool isCameraInitialized = false;
   bool isFaceDetected = false;
@@ -19,6 +18,9 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   VoidCallback? onFirstFaceDetected;
 
   ValueChanged<bool>? onFaceDetectionChanged;
+
+  VoidCallback? onCalibrationComplete;
+  bool _hasFiredCalibrationComplete = false;
 
   List<String> sessionEmotions = [];
 
@@ -41,8 +43,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         enableAudio: false,
       );
 
-      _initFuture = aiCameraController!.initialize();
-      await _initFuture;
+      await aiCameraController!.initialize();
       if (mounted) {
         setState(() {
           isCameraInitialized = true;
@@ -112,11 +113,17 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           onFaceDetectionChanged?.call(faceNowDetected);
         }
 
+        // Skip calibration/no-face readings — they're not real emotion
+        // data and shouldn't pollute the session log fed into reports.
         final isUsableReading =
             detectedEmotion != "NO FACE DETECTED" &&
             !detectedEmotion.startsWith("CALIBRATING");
         if (isUsableReading) {
           sessionEmotions.add(detectedEmotion);
+          if (!_hasFiredCalibrationComplete) {
+            _hasFiredCalibrationComplete = true;
+            onCalibrationComplete?.call();
+          }
         }
 
         print("Live Emotion: $detectedEmotion");
@@ -137,13 +144,6 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
 
   void disposeAiCamera() {
     _analysisTimer?.cancel();
-    final controller = aiCameraController;
-    aiCameraController = null;
-
-    if (controller == null) return;
-
-    (_initFuture ?? Future.value()).catchError((_) {}).whenComplete(() {
-      controller.dispose();
-    });
+    aiCameraController?.dispose();
   }
 }

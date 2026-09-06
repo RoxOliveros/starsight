@@ -261,7 +261,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-          
+
           onNext: () {
             Navigator.of(context).pop(); // close the dialog
             Navigator.of(context).pushReplacement(
@@ -300,8 +300,7 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
 
             if (!_introPlaying) buildTofi(context),
 
-            // ADD THIS: The conditionally rendered prompt card overlay
-            if (!isFaceDetected)
+            if (hasCapturedFirstFrame && !isFaceDetected)
               LightingPromptCard(
                 onClose: () {
                   setState(() {

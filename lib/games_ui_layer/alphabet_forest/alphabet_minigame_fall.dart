@@ -144,7 +144,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
       } while (_targetLetters.contains(letterToDrop));
     }
 
-    // Assign the unique image to the object being dropped!
     String objectImage = _getImageForLetter(letterToDrop);
 
     setState(() {
@@ -217,10 +216,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     });
   }
 
-  // --- FLEXIBLE NAVIGATION ---
-  // Same "what comes next" pattern used by the hunt/paint games:
-  // mark level complete if needed, then move to the next letter or
-  // back to the forest map once we run out of the alphabet.
   void _goToNext() {
     final String current = widget.letter.toUpperCase();
 
@@ -541,7 +536,10 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
           ),
 
           // 2. The Lighting Prompt Card
-          if (!isFaceDetected)
+          // Gated on hasCapturedFirstFrame so this only shows for a REAL
+          // "no face" reading, not just while waiting for the first
+          // picture back on a freshly-mounted screen.
+          if (hasCapturedFirstFrame && !isFaceDetected)
             LightingPromptCard(
               onClose: () {
                 setState(() {

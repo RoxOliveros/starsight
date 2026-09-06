@@ -549,7 +549,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
           ),
 
           // 2. The Lighting Prompt Card Overlay
-          if (!isFaceDetected)
+          if (hasCapturedFirstFrame && !isFaceDetected)
             LightingPromptCard(
               onClose: () {
                 setState(() {
