@@ -295,7 +295,6 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
       'V',
       'W',
       'Y',
-      'Z',
     };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
@@ -332,7 +331,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-          
+
           onNext: () {
             Navigator.pop(context);
             if (currentLetter == 'C') {

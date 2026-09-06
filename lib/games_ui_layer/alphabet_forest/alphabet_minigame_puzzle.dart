@@ -706,7 +706,6 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
       'V',
       'W',
       'Y',
-      'Z',
     };
 
     if (skipGoodJobLetters.contains(currentLetter)) {

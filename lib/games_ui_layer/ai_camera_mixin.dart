@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   CameraController? aiCameraController;
+  Future<void>? _initFuture;
   Timer? _analysisTimer;
   bool isCameraInitialized = false;
   bool isFaceDetected = false;
@@ -40,7 +41,8 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         enableAudio: false,
       );
 
-      await aiCameraController!.initialize();
+      _initFuture = aiCameraController!.initialize();
+      await _initFuture;
       if (mounted) {
         setState(() {
           isCameraInitialized = true;
@@ -135,6 +137,13 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
 
   void disposeAiCamera() {
     _analysisTimer?.cancel();
-    aiCameraController?.dispose();
+    final controller = aiCameraController;
+    aiCameraController = null;
+
+    if (controller == null) return;
+
+    (_initFuture ?? Future.value()).catchError((_) {}).whenComplete(() {
+      controller.dispose();
+    });
   }
 }

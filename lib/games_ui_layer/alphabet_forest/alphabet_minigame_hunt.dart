@@ -257,7 +257,6 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
       'V',
       'W',
       'Y',
-      'Z',
     };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
@@ -294,7 +293,6 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-          
 
           onNext: () {
             Navigator.pop(context); // Close the prompt

@@ -81,7 +81,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     startAiCamera(); // <-- Start the camera
     _tapTracker.startSession();
     if (_miniGameQueue.isEmpty) {
-      _miniGameQueue = List.generate(6, (i) => i);
+      _miniGameQueue = List.generate(5, (i) => i);
       _miniGameQueue.shuffle(_random);
     }
 

@@ -289,7 +289,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
       'V',
       'W',
       'Y',
-      'Z',
     };
 
     if (skipGoodJobLetters.contains(currentLetter)) {
@@ -326,7 +325,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-
 
           onNext: () {
             Navigator.pop(context); // Close the Good Job prompt
