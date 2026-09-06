@@ -1,4 +1,5 @@
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
@@ -12,7 +13,6 @@ import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'game_counttap.dart';
 
-// --- ADDED IMPORTS FOR AI & TRACKING ---
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/business_layer/arctic_database_service.dart';
@@ -37,7 +37,6 @@ class _Number012CountingObjectsScreenState
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin<Number012CountingObjectsScreen> {
-  // <-- ADDED MIXIN
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -108,7 +107,7 @@ class _Number012CountingObjectsScreenState
       CurvedAnimation(parent: _numberDanceCtrl, curve: Curves.easeInOut),
     );
 
-    // --- START AI AND TRACKERS ---
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
 
@@ -118,8 +117,6 @@ class _Number012CountingObjectsScreenState
       }
     };
 
-    // Let the loading screen play its full minimum duration before the
-    // lighting card is allowed to take its place — never simultaneously.
     _minLoadTimer = Timer(minLoadTime, () {
       if (mounted) setState(() => _loadingScreenElapsed = true);
     });

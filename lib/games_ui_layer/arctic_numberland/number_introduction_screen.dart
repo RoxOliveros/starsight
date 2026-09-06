@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
@@ -14,8 +15,6 @@ import 'minigame_ice_path.dart';
 import 'minigame_number_tap.dart';
 import 'minigame_snowflake.dart';
 import 'number_tracing_widget.dart';
-
-// --- ADDED IMPORTS FOR AI & TRACKING ---
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/business_layer/arctic_database_service.dart';
@@ -25,7 +24,6 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 // CONFIG
 // ═════════════════════════════════════════════════════════════════════════
 
-/// The shape every number mini-game widget builder must match.
 typedef NumberMiniGameBuilder =
     Widget Function({
       required int number,
@@ -119,12 +117,6 @@ final List<NumberMiniGameBuilder> kNumberMiniGames = [
     tapTracker: tapTracker, // <-- PASSED DOWN
   ),
 ];
-
-// ─────────────────────────────────────────────────────────────────────────
-// Object pool — every arctic object used across the mini-games lives here
-// once, so numbers just reference it by id instead of re-typing asset
-// paths, emojis, and labels every time.
-// ─────────────────────────────────────────────────────────────────────────
 
 class ArcticObjectAsset {
   final String id;
@@ -565,11 +557,10 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
     _initAnimations();
 
     // --- START AI AND TRACKERS ---
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
 
-    // Let the loading screen play its full minimum duration before the
-    // lighting card is allowed to take its place — never simultaneously.
     if (_shouldShowLoading) {
       _minLoadTimer = Timer(minLoadTime, () {
         if (mounted) setState(() => _loadingScreenElapsed = true);
@@ -833,17 +824,8 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       ],
     );
 
-    // Level 1's blocking gate: shown as soon as we know no face is
-    // confirmed yet, even before the camera's first real reading — this is
-    // the "at the beginning" check. Dismissing it manually is an escape
-    // hatch (in case detection is flaky) so a kid never gets stuck.
     final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
 
-    // Every level, reactively: only fires off a *confirmed* camera result
-    // (hasCapturedFirstFrame), never off the initial unknown state — so it
-    // never flashes just because a new level screen mounted. Resets its
-    // own dismissal once the face is regained, so it can reappear later on
-    // this same screen if the face is lost again mid-play.
     final reactiveNeedsLightingPrompt =
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
@@ -869,12 +851,6 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
         : content;
 
     if (_shouldShowLoading) {
-      // Sequential, never simultaneous: the real loading screen plays for
-      // its full minimum duration first. Only once that's elapsed do we
-      // swap it for the lighting card (if a face still hasn't been found)
-      // — the card takes the loading screen's place rather than sitting
-      // on top of it. gameBuilder (the actual intro) still only renders
-      // once finishLoading has run, i.e. once a face is confirmed.
       final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
           ? gateLightingCard()
           : LoadingScreen.arctic();

@@ -1,4 +1,6 @@
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
+import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/games_ui_layer/arctic_numberland/game_addition_package_delivery.dart';
 import 'package:StarSight/ui_layer/arctic_numberland/arctic_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
@@ -45,6 +47,8 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   bool _isLoading = true;
   final DateTime _loadStart = DateTime.now();
 
+  bool _hasCalibratedThisVisit = false;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +74,21 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   }
 
   Future<void> _openLevel(Widget screen) async {
+    if (!_hasCalibratedThisVisit) {
+      _hasCalibratedThisVisit = true;
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CalibrationScreen(
+            childSessionId: uid,
+            onCalibrationDone: () => Navigator.pop(context),
+          ),
+        ),
+      );
+      if (!mounted) return;
+    }
+
     final nextScreen = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
@@ -299,7 +318,6 @@ class _LevelTile extends StatelessWidget {
 
   Widget? _screenForLevel() {
     switch (level) {
-
       //1-2 intro here
       case 1:
         return NumberIntroductionScreen.forSequence(
