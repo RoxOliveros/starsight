@@ -617,7 +617,7 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     required bool isPlaced,
   }) {
     if (isPlaced) {
-      return const SizedBox.shrink(); // Hide the polaroid once placed
+      return const SizedBox.shrink();
     }
 
     return Draggable<String>(

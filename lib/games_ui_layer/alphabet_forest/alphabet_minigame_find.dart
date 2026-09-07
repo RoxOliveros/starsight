@@ -25,8 +25,6 @@ import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetFindScreen extends StatefulWidget {
   final String letter;
@@ -88,13 +86,15 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     ]).animate(CurvedAnimation(parent: _wiggleCtrl, curve: Curves.easeInOut));
     _loadRound();
 
-    onFirstFaceDetected = () {
-      _playInstructionThenVaseSounds();
-    };
-    if (isFaceDetected) {
-      onFirstFaceDetected?.call();
-      onFirstFaceDetected = null;
-    }
+    _playInstructionThenVaseSounds();
+
+    // onFirstFaceDetected = () {
+    //   _playInstructionThenVaseSounds();
+    // };
+    // if (isFaceDetected) {
+    //   onFirstFaceDetected?.call();
+    //   onFirstFaceDetected = null;
+    // }
   }
 
   void _loadRound() {
@@ -137,11 +137,11 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
       _choicesLocked = false;
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (isFaceDetected) {
+    if (_completedRounds > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         _playVaseSounds();
-      }
-    });
+      });
+    }
   }
 
   Future<void> _playInstructionThenVaseSounds() async {
@@ -480,6 +480,40 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
                 ),
 
                 buildTofi(context),
+
+                Align(
+                  alignment: const Alignment(0, -0.45),
+                  child: Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: ForestColorTheme.darkseagreen,
+                        width: 5,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 8,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      widget.letter.toUpperCase(),
+                      style: TextStyle(
+                        fontFamily: ForestAppTextStyles.fredoka,
+                        fontSize: 64,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF3C5729),
+                      ),
+                    ),
+                  ),
+                ),
 
                 Align(
                   alignment: Alignment.bottomCenter,

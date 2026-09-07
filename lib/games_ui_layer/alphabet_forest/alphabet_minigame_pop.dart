@@ -69,14 +69,16 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     _tapTracker.startSession();
 
     _generateBalls();
-    onFirstFaceDetected = () {
-      _playInstructionThenLetterThenStart();
-      _startGameLoop();
-    };
-    if (isFaceDetected) {
-      onFirstFaceDetected?.call();
-      onFirstFaceDetected = null;
-    }
+    _startGameLoop();
+    _playInstructionThenLetter();
+    // onFirstFaceDetected = () {
+    //   _playInstructionThenLetterThenStart();
+    //   _startGameLoop();
+    // };
+    // if (isFaceDetected) {
+    //   onFirstFaceDetected?.call();
+    //   onFirstFaceDetected = null;
+    // }
   }
 
   void _generateBalls() {
@@ -211,12 +213,6 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
         }
       });
     }
-  }
-
-  Future<void> _playInstructionThenLetterThenStart() async {
-    await _playInstructionThenLetter();
-    if (!mounted) return;
-    _startGameLoop();
   }
 
   Future<void> _playInstructionThenLetter() async {
