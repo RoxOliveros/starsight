@@ -93,14 +93,35 @@ class _CalibrationScreenState extends State<CalibrationScreen>
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20.0,
-            vertical: 16.0, // Reduced padding
-          ),
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [child]),
-          ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 16.0,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [child],
+                ),
+              ),
+            ),
+            // THE NEW SKIP BUTTON
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded),
+                color: const Color(0xFF5F7199).withValues(alpha: 0.5),
+                iconSize: 28,
+                onPressed: () {
+                  // Manually trigger completion to bypass the screen
+                  if (mounted) widget.onCalibrationDone();
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -49,15 +49,18 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
   final List<FallingObject> _activeObjects = [];
   final Random _random = Random();
-  late Timer _spawnTimer;
-  late Timer _gameTimer;
+
+  // Timers are safely nullable
+  Timer? _spawnTimer;
+  Timer? _gameTimer;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   int _correctCount = 0;
   final List<Map<String, double>> _wrongEffects = [];
 
-  static const String _fallInstructionWav = 'audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
+  static const String _fallInstructionWav =
+      'audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
 
   @override
   void initState() {
@@ -77,7 +80,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   }
 
   // --- FLEXIBLE TARGET LETTERS ---
-  // Catch both upper and lower case of whatever letter this instance is for.
   void _loadLevel() {
     final String upper = widget.letter.toUpperCase();
     final String lower = widget.letter.toLowerCase();
@@ -87,7 +89,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   }
 
   // --- THE IMAGE DICTIONARY ---
-  // Tells the game which image to attach to which falling letter!
   String _getImageForLetter(String letter) {
     const Map<String, String> objectMap = {
       'A': 'apple',
@@ -164,7 +165,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
   void _onObjectTap(FallingObject obj) async {
     if (_targetLetters.contains(obj.letter)) {
-      // Try to play the specific letter sound, fallback if playing big game
       try {
         String audioFile =
             'audio/alphabet_forest/sound_effects/sound_${obj.letter.toLowerCase()}.wav';
@@ -180,8 +180,8 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
         _activeObjects.remove(obj);
 
         if (_correctCount >= _winCondition) {
-          _spawnTimer.cancel();
-          _gameTimer.cancel();
+          _spawnTimer?.cancel();
+          _gameTimer?.cancel();
           _saveDataAndShowApplause();
         }
       });
@@ -245,19 +245,25 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   }
 
   Future<void> _playInstructionThenLetter() async {
-    await _player.play(AssetSource(_fallInstructionWav));
-    await _player.onPlayerComplete.first; // wait for instruction to finish
+    try {
+      await _player.play(AssetSource(_fallInstructionWav));
+      await _player.onPlayerComplete.first; // wait for instruction to finish
+    } catch (e) {
+      debugPrint("Instruction playback interrupted: $e");
+    }
+
     if (!mounted) return;
-    await _player.play(AssetSource(
-      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-    ));
+
+    await _player.play(
+      AssetSource(
+        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+      ),
+    );
   }
 
   Future<void> _saveDataAndShowApplause() async {
-    // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
-    // 2. Save raw data silently (No loading screen!)
     try {
       await ForestDatabaseService.saveGameData(
         gameId: 'letter_fall_${widget.letter.toLowerCase()}',
@@ -271,7 +277,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
       debugPrint("Error saving metrics: $e");
     }
 
-    // 3. Now show the normal win dialog
     _showApplause();
   }
 
@@ -310,7 +315,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
       return;
     }
 
-    // mark level complete for some letters
     const completeLevelsLetters = {'C', 'F', 'I', 'L', 'O', 'R', 'U', 'X', 'Z'};
 
     if (completeLevelsLetters.contains(currentLetter)) {
@@ -334,7 +338,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
           characterImage: 'assets/images/characters/dog.png',
 
           onNext: () {
-            Navigator.pop(context); // Close the Good Job prompt
+            Navigator.pop(context);
 
             if (currentLetter == 'C') {
               Navigator.pushReplacement(
@@ -418,7 +422,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
             });
           },
           onBack: () {
-            Navigator.pop(context); // Close the prompt
+            Navigator.pop(context);
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -433,9 +437,15 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
   @override
   void dispose() {
+    // Safely cancel timers using ?.
+    _spawnTimer?.cancel();
+    _gameTimer?.cancel();
+
+    // Stop audio to release platform locks safely
+    _player.stop();
+    _audioPlayer.stop();
+
     disposeAiCamera();
-    if (_spawnTimer.isActive) _spawnTimer.cancel();
-    if (_gameTimer.isActive) _gameTimer.cancel();
     _audioPlayer.dispose();
     _player.dispose();
     OrientationService.setLandscape();
@@ -444,18 +454,13 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
   @override
   Widget build(BuildContext context) {
-    final String letterLabel = widget.letter.toUpperCase();
-
     return Scaffold(
       body: Stack(
         children: [
           ForestBackground(
             child: Stack(
               children: [
-                // ── Back button ──
                 const Positioned(top: 25, left: 25, child: ForestXButton()),
-
-                // Level Badge
                 Positioned(
                   top: 25,
                   right: 20,
@@ -467,13 +472,10 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                         1,
                   ),
                 ),
-
                 buildTofi(context),
-
                 LayoutBuilder(
                   builder: (context, constraints) {
                     double objSize = constraints.maxWidth * 0.12;
-
                     return Stack(
                       children: [
                         ..._activeObjects.map((obj) {
@@ -546,18 +548,12 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
               ],
             ),
           ),
-
-          // 2. The Lighting Prompt Card
-          // Gated on hasCapturedFirstFrame so this only shows for a REAL
-          // "no face" reading, not just while waiting for the first
-          // picture back on a freshly-mounted screen.
           if (hasCapturedFirstFrame && !isFaceDetected)
             LightingPromptCard(
               onClose: () {
                 setState(() {
                   isFaceDetected = true;
                 });
-                // Manually trigger the start if they tap X
                 onFirstFaceDetected?.call();
                 onFirstFaceDetected = null;
               },

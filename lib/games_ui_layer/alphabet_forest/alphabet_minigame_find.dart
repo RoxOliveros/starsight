@@ -51,7 +51,8 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   static const String _vaseAsset = 'assets/images/objects/forest/vase.png';
 
-  static const String _findInstructionWav = 'audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
+  static const String _findInstructionWav =
+      'audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
 
   static const int _totalRounds = 3;
   int _completedRounds = 0;
@@ -144,8 +145,14 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   }
 
   Future<void> _playInstructionThenVaseSounds() async {
-    await _player.play(AssetSource(_findInstructionWav));
-    await _player.onPlayerComplete.first;
+    try {
+      await _player.play(AssetSource(_findInstructionWav));
+      await _player.onPlayerComplete.first;
+    } catch (e) {
+      // Catch the StateError if the player is disposed early
+      debugPrint("Instruction playback interrupted: $e");
+    }
+
     if (!mounted) return;
     await _playVaseSounds();
   }
@@ -438,6 +445,8 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   @override
   void dispose() {
+    _player.stop();
+    _promptPlayer.stop();
     disposeAiCamera();
     _wiggleCtrl.dispose(); // ADD
     _promptPlayer.dispose();

@@ -60,6 +60,22 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
       }
     } catch (e) {
       print("Camera Error: $e");
+
+      // PERMISSION FALLBACK
+      // This forces the game to start even if the emulator blocks the camera
+      if (mounted && !hasCapturedFirstFrame) {
+        setState(() {
+          hasCapturedFirstFrame = true;
+          isFaceDetected = true;
+        });
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+
+        if (!_hasFiredCalibrationComplete) {
+          _hasFiredCalibrationComplete = true;
+          onCalibrationComplete?.call();
+        }
+      }
     }
   }
 
@@ -146,14 +162,30 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
       }
     } catch (e) {
       // Clean up the file even if the network fails
-      if (imageFile != null && await imageFile.exists())
+      if (imageFile != null && await imageFile.exists()) {
         await imageFile.delete();
+      }
+
+      // OFFLINE FALLBACK
+      if (mounted && !hasCapturedFirstFrame) {
+        setState(() {
+          hasCapturedFirstFrame = true;
+          isFaceDetected = true;
+        });
+
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+
+        if (!_hasFiredCalibrationComplete) {
+          _hasFiredCalibrationComplete = true;
+          onCalibrationComplete?.call();
+        }
+      }
     }
   }
 
   List<String> stopAiCamera() {
-    _analysisTimer
-        ?.cancel(); // Stop taking pictures, but leave the camera on screen!
+    _analysisTimer?.cancel();
     print("GAME OVER! Final Emotions: $sessionEmotions");
     return List<String>.from(sessionEmotions);
   }

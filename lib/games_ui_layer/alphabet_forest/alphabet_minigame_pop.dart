@@ -45,7 +45,8 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
-  late Timer _gameTimer;
+  // Timer is safely nullable
+  Timer? _gameTimer;
   final List<BouncingBall> _activeBalls = [];
 
   int _correctCount = 0;
@@ -56,7 +57,8 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
   late List<double> _availableLanes;
 
-  static const String _popInstructionWav = 'audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
+  static const String _popInstructionWav =
+      'audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
 
   @override
   void initState() {
@@ -181,7 +183,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
           setState(() {
             _activeBalls.removeWhere((item) => item.id == ball.id);
             if (_correctCount >= _winCondition) {
-              _gameTimer.cancel();
+              _gameTimer?.cancel(); // Safe cancel
               _saveDataAndShowApplause();
             }
           });
@@ -218,12 +220,20 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   }
 
   Future<void> _playInstructionThenLetter() async {
-    await _audioPlayer.play(AssetSource(_popInstructionWav));
-    await _audioPlayer.onPlayerComplete.first;
+    try {
+      await _audioPlayer.play(AssetSource(_popInstructionWav));
+      await _audioPlayer.onPlayerComplete.first;
+    } catch (e) {
+      debugPrint("Instruction playback interrupted: $e");
+    }
+
     if (!mounted) return;
-    await _audioPlayer.play(AssetSource(
-      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-    ));
+
+    await _audioPlayer.play(
+      AssetSource(
+        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+      ),
+    );
   }
 
   Future<void> _saveDataAndShowApplause() async {
@@ -424,8 +434,9 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
   @override
   void dispose() {
+    _gameTimer?.cancel(); // Safe cancel
+    _audioPlayer.stop(); // Stop audio safely
     disposeAiCamera();
-    _gameTimer.cancel();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
