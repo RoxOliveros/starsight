@@ -5,10 +5,10 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart'; // Added GoodJobOverlay
-import 'package:StarSight/business_layer/town_progress_service.dart'; // Added for progression
+import 'package:StarSight/business_layer/town_progress_service.dart';
 
 class FamilyTreeGame extends StatefulWidget {
-  const FamilyTreeGame({Key? key}) : super(key: key);
+  const FamilyTreeGame({super.key});
 
   @override
   State<FamilyTreeGame> createState() => _FamilyTreeGameState();
@@ -529,8 +529,7 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
             ),
           ),
 
-          // Universal Back Button
-          const Positioned(top: 25, left: 20, child: LumiBackButton()),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
 
           // SUCCESS OVERLAY (Shows when all pieces are placed)
           if (_isGameWon)
@@ -542,7 +541,6 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
                   // Mark complete via progress service for Level 13
                   await TownProgressService.instance.markLevelComplete(13);
                   // TODO: Navigate to the next level
-                  print("Proceed to next level!");
                 },
                 onRestart: () {
                   setState(() {
@@ -618,8 +616,9 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     required double width,
     required bool isPlaced,
   }) {
-    if (isPlaced)
+    if (isPlaced) {
       return const SizedBox.shrink(); // Hide the polaroid once placed
+    }
 
     return Draggable<String>(
       data: id,

@@ -5,6 +5,7 @@ import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 
 class EmotionEndingScreen extends StatefulWidget {
@@ -148,20 +149,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                 tiltDegrees: -5,
               ),
 
-              // 3. UI Element: Exit Button
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 24.0, left: 24.0),
-                    child: SizedBox(
-                      width: 55,
-                      height: 55,
-                      child: Image.asset('assets/images/buttons/x_yellow.png'),
-                    ),
-                  ),
-                ),
-              ),
+              Positioned(top: 25, left: 25, child: LumiXButton()),
 
               // 4. Good Job Overlay (Renders on top of everything if activated)
               if (_showGoodJobOverlay && _selectedStarPath != null)

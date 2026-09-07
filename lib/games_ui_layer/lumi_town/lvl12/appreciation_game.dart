@@ -799,8 +799,7 @@ class _AppreciationGameState extends State<AppreciationGame>
               ),
           ],
 
-          // Universal Back Button (Always visible on all steps)
-          const Positioned(top: 25, left: 20, child: LumiBackButton()),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
 
           // SUCCESS OVERLAY (Shows after Scene 5)
           if (_isGameWon)

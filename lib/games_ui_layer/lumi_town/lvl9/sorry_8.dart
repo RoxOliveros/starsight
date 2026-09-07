@@ -5,11 +5,9 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl10/picking_trash_game.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../../business_layer/orientation_service.dart';
-// adjust import path to match your project structure
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 class Sorry8Screen extends StatefulWidget {
   const Sorry8Screen({super.key});
@@ -287,32 +285,7 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
               },
             ),
 
-          // 4. Close Button (Top Left)
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).maybePop(),
-                  child: Image.asset(
-                    'assets/images/buttons/x_blue.png',
-                    width: 50,
-                    height: 50,
-                    errorBuilder: (ctx, err, st) => Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF266589),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.close, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),
     );

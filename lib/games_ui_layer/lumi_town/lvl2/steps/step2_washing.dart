@@ -316,7 +316,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
               ),
             ),
 
-          Positioned(top: 16, left: 16, child: LumiXButton(onTap: _onBack)),
+          Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
         ],
       ),
     );

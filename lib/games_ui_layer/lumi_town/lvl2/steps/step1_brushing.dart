@@ -257,7 +257,7 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
             ),
 
           // X button
-          Positioned(top: 16, left: 16, child: LumiXButton(onTap: _onBack)),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),
     );

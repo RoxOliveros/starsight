@@ -1,9 +1,9 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_3.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 class Emotion2 extends StatefulWidget {
   const Emotion2({super.key});
@@ -114,7 +114,6 @@ class _Emotion2State extends State<Emotion2> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final double screenWidth = constraints.maxWidth;
-          final double screenHeight = constraints.maxHeight;
 
           return Stack(
             children: [
@@ -155,20 +154,7 @@ class _Emotion2State extends State<Emotion2> {
                 ),
               ),
 
-              // 4. UI Layer: Exit Button
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 24.0, left: 24.0),
-                    child: SizedBox(
-                      width: 55,
-                      height: 55,
-                      child: Image.asset('assets/images/buttons/x_yellow.png'),
-                    ),
-                  ),
-                ),
-              ),
+              Positioned(top: 25, left: 25, child: LumiXButton()),
             ],
           );
         },
@@ -193,7 +179,7 @@ class _Emotion2State extends State<Emotion2> {
               border: Border.all(color: const Color(0xFFE8D5B5), width: 5.0),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),

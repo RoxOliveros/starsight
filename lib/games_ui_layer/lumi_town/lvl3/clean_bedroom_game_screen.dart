@@ -88,8 +88,8 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
               fit: BoxFit.cover,
             ),
             Positioned(
-              top: 16,
-              left: 16,
+              top: 25,
+              left: 25,
               child: LumiXButton(onTap: _onBack),
             ),
           ],

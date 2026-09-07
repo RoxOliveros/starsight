@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 // IMPORTANT: Make sure this path matches where your sorry_5.dart is located!
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_5.dart';
 
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 class Sorry4Screen extends StatefulWidget {
   const Sorry4Screen({super.key});
@@ -156,32 +156,7 @@ class _Sorry4ScreenState extends State<Sorry4Screen>
             },
           ),
 
-          // 4. Close Button (Top Left)
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).maybePop(),
-                  child: Image.asset(
-                    'assets/images/buttons/x_blue.png',
-                    width: 50,
-                    height: 50,
-                    errorBuilder: (ctx, err, st) => Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF266589),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.close, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),
     );

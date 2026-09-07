@@ -1,10 +1,9 @@
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_8.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 class Emotion7Screen extends StatefulWidget {
   const Emotion7Screen({super.key});
@@ -117,7 +116,6 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
 
     final double centerImageWidth = screenWidth * 0.60;
     final double centerImageHeight = screenHeight * 0.75;
-    final double closeButtonSize = screenHeight * 0.12;
     final double starButtonSize = screenHeight * 0.28;
     final double paddingEdge = screenWidth * 0.04;
 
@@ -129,9 +127,7 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
             fit: BoxFit.cover,
           ),
         ),
-        child: SafeArea(
-          bottom: false,
-          child: Stack(
+        child: Stack(
             children: [
               // 1. Center Image as a DragTarget (The Drop Zone)
               Center(
@@ -211,7 +207,7 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
                               opacity: _showSparkles ? 1.0 : 0.0,
                               duration: const Duration(milliseconds: 400),
                               child: Container(
-                                color: Colors.white.withOpacity(0.4),
+                                color: Colors.white.withValues(alpha: 0.4),
                                 child: Image.asset(
                                   'assets/images/objects/lumi/sparkle.png',
                                   fit: BoxFit.cover,
@@ -226,21 +222,7 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
                 ),
               ),
 
-              // 2. Top Left Close Button
-              Positioned(
-                top: paddingEdge,
-                left: paddingEdge,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: Image.asset(
-                    'assets/images/buttons/x_yellow.png',
-                    width: closeButtonSize,
-                    height: closeButtonSize,
-                  ),
-                ),
-              ),
+              Positioned(top: 25, left: 25, child: LumiXButton()),
 
               // 3. Right Side Star Draggables (Now animated to fade in!)
               Positioned(
@@ -286,8 +268,7 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   /// Helper widget to build the draggable star buttons

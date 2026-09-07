@@ -1,4 +1,4 @@
-import 'dart:async'; // Added for StreamSubscription
+import 'dart:async';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 class PickingTrashGame extends StatefulWidget {
-  const PickingTrashGame({Key? key}) : super(key: key);
+  const PickingTrashGame({super.key});
 
   @override
   State<PickingTrashGame> createState() => _PickingTrashGameState();
@@ -289,7 +289,7 @@ class _PickingTrashGameState extends State<PickingTrashGame> {
             );
           }).toList(),
 
-          const Positioned(top: 25, left: 20, child: LumiBackButton()),
+          Positioned(top: 25, left: 25, child: LumiBackButton()),
 
           // 3. Dr. Woo (The Owl) Overlay[cite: 6]
           if (_showDrWoo)

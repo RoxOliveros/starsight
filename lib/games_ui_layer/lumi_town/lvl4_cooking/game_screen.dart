@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/town_level.dart';
 import '../../goodjob_prompt.dart';
 import 'audio_manager.dart';
@@ -486,6 +487,8 @@ class _CookingGameScreenState extends State<CookingGameScreen>
               ),
             ),
 
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
             // Scene content
             _buildSceneContent(),
 
@@ -517,7 +520,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
                 child: Center(
                   child: CookingProgressBar(
                     progress: _whiskProgress,
-                    label: 'Mix the batter!',
+                    label: '',
                     color: const Color(0xFFD4A853),
                   ),
                 ),
@@ -535,8 +538,8 @@ class _CookingGameScreenState extends State<CookingGameScreen>
                   child: CookingProgressBar(
                     progress: _cookProgress,
                     label: _pancakeFlipped
-                        ? 'Cooking other side...'
-                        : 'Sizzling...',
+                        ? ''
+                        : '',
                     color: Colors.orange,
                   ),
                 ),

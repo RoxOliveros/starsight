@@ -19,7 +19,7 @@ class TrashItem {
 }
 
 class ThrowingTrashGame extends StatefulWidget {
-  const ThrowingTrashGame({Key? key}) : super(key: key);
+  const ThrowingTrashGame({super.key});
 
   @override
   State<ThrowingTrashGame> createState() => _ThrowingTrashGameState();
@@ -274,7 +274,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
           ),
 
           // 2. Low Opacity White Overlay
-          Container(color: Colors.white.withOpacity(backgroundWhiteOpacity)),
+          Container(color: Colors.white.withValues(alpha: backgroundWhiteOpacity)),
 
           // 3. The Animated Trashcans Container
           AnimatedPositioned(
@@ -336,7 +336,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
           if (_introStep == 1)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(darkOverlayOpacity),
+                color: Colors.black.withValues(alpha: darkOverlayOpacity),
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: Transform.translate(
@@ -440,8 +440,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
               ),
             ),
 
-          // 8. Universal Back Button
-          const Positioned(top: 25, left: 20, child: LumiBackButton()),
+          const Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),
     );

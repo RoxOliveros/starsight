@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import 'package:audioplayers/audioplayers.dart';
 
-import '../../../business_layer/orientation_service.dart'; // Import the audio player
+import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart'; // Import the audio player
 
 class EmotionStarsScreen extends StatefulWidget {
   const EmotionStarsScreen({super.key});
@@ -218,20 +219,8 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
                 y: 0.30,
                 tiltDegrees: -5,
               ),
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 24.0, left: 24.0),
-                    child: SizedBox(
-                      width:
-                          55, // Adjust this to make the button bigger/smaller
-                      height: 55,
-                      child: Image.asset('assets/images/buttons/x_yellow.png'),
-                    ),
-                  ),
-                ),
-              ),
+
+              Positioned(top: 25, left: 25, child: LumiXButton()),
             ],
           );
         },

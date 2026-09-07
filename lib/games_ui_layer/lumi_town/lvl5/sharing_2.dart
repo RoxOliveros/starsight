@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import 'character_entrance.dart';
 import 'sharing_tutorial_prompt.dart';
 
@@ -645,33 +646,7 @@ class _Sharing2State extends State<Sharing2> {
               ),
             ),
 
-          // ── 7. Close button (Top Left) ────────────────────────────────
-          Positioned(
-            top: sh * 0.05,
-            left: sw * 0.03,
-            child: GestureDetector(
-              onTap: () => Navigator.of(context).maybePop(),
-              child: Image.asset(
-                'assets/images/buttons/x_blue.png', // <-- Update this path to where you saved x_blue.png!
-                width: sw * 0.065,
-                fit: BoxFit.contain,
-                // Keeps the old made-up button as a safe fallback just in case the asset path is mistyped:
-                errorBuilder: (ctx, err, st) => Container(
-                  width: sw * 0.065,
-                  height: sw * 0.065,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF266589),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: sw * 0.04,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
 
           // ── 8. "How to Play" Tutorial Overlay ─────────────────────────
           // Sits above everything else so it's the first thing the player

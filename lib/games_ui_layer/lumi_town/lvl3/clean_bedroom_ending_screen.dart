@@ -1,10 +1,10 @@
 import 'package:StarSight/business_layer/town_progress_service.dart';
-import 'package:StarSight/ui_layer/lumi_town/lumi_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../../business_layer/orientation_service.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../goodjob_prompt.dart';
 import '../lvl2/audio_helper.dart';
 import '../lvl4_cooking/game_screen.dart';
@@ -71,6 +71,9 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
               'assets/images/backgrounds/bg_lumi_bed.png',
               fit: BoxFit.cover,
             ),
+
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
             if (_showOverlay)
               GoodJobOverlay(
                 characterImage: 'assets/images/characters/dr.woo_the_owl.png',

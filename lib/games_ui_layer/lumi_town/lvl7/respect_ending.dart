@@ -8,6 +8,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 class RespectEnding extends StatefulWidget {
   const RespectEnding({super.key});
@@ -167,6 +168,8 @@ class _RespectEndingState extends State<RespectEnding> {
               ],
             ),
           ),
+
+          Positioned(top: 25, left: 25, child: LumiXButton()),
 
           // Layer 2: The Good Job Overlay (Delayed)[cite: 1]
           if (_showGoodJobOverlay)

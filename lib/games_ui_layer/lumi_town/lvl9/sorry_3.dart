@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_4.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -10,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:StarSight/business_layer/gesture_camera_view.dart';
 
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 // Adjust this to wherever your next screen/level is located!
 // import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_4.dart';
@@ -329,32 +329,7 @@ class _Sorry3ScreenState extends State<Sorry3Screen> {
             ),
           ],
 
-          // 4. Close Button (Top Left)
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: GestureDetector(
-                  onTap: _exitLevel,
-                  child: Image.asset(
-                    'assets/images/buttons/x_blue.png',
-                    width: 50,
-                    height: 50,
-                    errorBuilder: (ctx, err, st) => Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF266589),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.close, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),
     );

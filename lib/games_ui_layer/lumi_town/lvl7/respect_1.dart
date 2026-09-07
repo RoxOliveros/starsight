@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 class Respect1Screen extends StatefulWidget {
   const Respect1Screen({Key? key}) : super(key: key);
@@ -219,25 +220,7 @@ class _Respect1ScreenState extends State<Respect1Screen>
             ),
           ],
 
-          // Close Button
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: Image.asset(
-                    'assets/images/buttons/x_blue.png',
-                    width: 50,
-                    height: 50,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),
     );

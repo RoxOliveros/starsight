@@ -137,8 +137,8 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
           ),
 
           Positioned(
-            top: 16,
-            left: 16,
+            top: 25,
+            left: 25,
             child: LumiXButton(onTap: _onBack),
           ),
         ],

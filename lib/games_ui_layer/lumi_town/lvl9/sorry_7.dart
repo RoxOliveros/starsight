@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_8.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 class Sorry7Screen extends StatefulWidget {
   const Sorry7Screen({super.key});
@@ -447,32 +446,7 @@ class _Sorry7ScreenState extends State<Sorry7Screen> {
             ),
           ),
 
-          // 4. Close Button (Top Left)
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).maybePop(),
-                  child: Image.asset(
-                    'assets/images/buttons/x_blue.png',
-                    width: 50,
-                    height: 50,
-                    errorBuilder: (ctx, err, st) => Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF266589),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.close, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),
     );

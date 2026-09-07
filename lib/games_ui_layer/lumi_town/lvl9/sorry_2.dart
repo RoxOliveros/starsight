@@ -1,10 +1,9 @@
 import 'dart:math' as math;
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_3.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 class Sorry2Screen extends StatefulWidget {
   const Sorry2Screen({super.key});
@@ -159,6 +158,7 @@ class _Sorry2ScreenState extends State<Sorry2Screen>
               );
             },
           ),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),
     );

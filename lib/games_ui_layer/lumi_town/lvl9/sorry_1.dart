@@ -1,9 +1,8 @@
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 class Sorry1Screen extends StatefulWidget {
   const Sorry1Screen({super.key});
@@ -53,21 +52,25 @@ class _Sorry1ScreenState extends State<Sorry1Screen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SizedBox.expand(
-        child: Image.asset(
-          'assets/images/objects/lumi/lvl9_scene1.png',
-          // BoxFit.cover ensures the image fills the entire screen on any device
-          // while maintaining its aspect ratio without stretching
-          fit: BoxFit.cover,
-          alignment: Alignment.center,
-          errorBuilder: (context, error, stackTrace) {
-            return const Center(
-              child: Text(
-                'Scene asset could not be loaded.',
-                style: TextStyle(color: Colors.red, fontSize: 16),
-              ),
-            );
-          },
-        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/objects/lumi/lvl9_scene1.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(
+                  child: Text(
+                    'Scene asset could not be loaded.',
+                    style: TextStyle(color: Colors.red, fontSize: 16),
+                  ),
+                );
+              },
+            ),
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+          ],
+        )
       ),
     );
   }

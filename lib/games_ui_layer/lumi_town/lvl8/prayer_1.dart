@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import 'prayer_prompt_card.dart';
 
 class Prayer1 extends StatefulWidget {
@@ -198,24 +199,7 @@ class _Prayer1State extends State<Prayer1> {
               ),
             ),
 
-          // --- Universal Custom Yellow Close Button ---
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 16.0, left: 16.0),
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Image.asset(
-                    'assets/images/buttons/x_yellow.png',
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
 
           // --- Helpful Prompt Overlay ---
           Positioned.fill(

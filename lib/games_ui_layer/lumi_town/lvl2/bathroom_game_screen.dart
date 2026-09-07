@@ -103,27 +103,13 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
 
             // 3. X button — always on top
             Positioned(
-              top: 16,
-              left: 16,
-              child: LumiXButton(onTap: _onBack),
+              top: 25,
+              left: 25,
+              child: LumiXButton(),
             ),
           ],
         )
       ),
-    );
-  }
-
-  Widget _choiceIcon(String path, Color bg) {
-    return Container(
-      width: 90,
-      height: 90,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white, width: 3),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Image.asset(path, fit: BoxFit.contain),
     );
   }
 

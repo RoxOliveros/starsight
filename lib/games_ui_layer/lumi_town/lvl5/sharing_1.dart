@@ -11,6 +11,8 @@ import 'package:permission_handler/permission_handler.dart';
 // Adjust this import path to wherever you placed gesture_camera_view.dart
 import 'package:StarSight/business_layer/gesture_camera_view.dart';
 
+import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+
 /// Tracks whether we know yet if the camera can be used, and if so, whether
 /// the child granted or denied it.
 enum _CameraGestureState { checking, granted, denied }
@@ -440,32 +442,8 @@ class _Sharing1State extends State<Sharing1> {
           // flash of the fallback buttons before the permission prompt
           // resolves.
 
-          // ── 7. Close button (Top Left) ────────────────────────────────
-          Positioned(
-            top: sh * 0.05,
-            left: sw * 0.03,
-            child: GestureDetector(
-              onTap: _exitLevel,
-              child: Image.asset(
-                'assets/images/buttons/x_blue.png',
-                width: sw * 0.065,
-                fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => Container(
-                  width: sw * 0.065,
-                  height: sw * 0.065,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF266589),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: sw * 0.04,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: LumiXButton()),
+
         ],
       ),
     );

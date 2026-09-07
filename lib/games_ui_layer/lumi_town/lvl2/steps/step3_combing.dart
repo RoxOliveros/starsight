@@ -184,7 +184,7 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
               ),
             ),
 
-          Positioned(top: 16, left: 16, child: LumiXButton(onTap: _onBack)),
+          Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
         ],
       ),
     );
