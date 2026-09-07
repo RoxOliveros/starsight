@@ -155,11 +155,9 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
   @override
   void dispose() {
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
-    try {
-      _introPlayer?.dispose();
-    } catch (_) {}
+    try { _sfxPlayer.dispose(); } catch (_) {}
+    try { _completePlayer.dispose(); } catch (_) {}
+    try { _introPlayer?.dispose(); } catch (_) {}
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _itemDanceCtrl.dispose();
@@ -267,13 +265,17 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
     _roxieSlideCtrl.forward();
 
     await _playAudio(_audioIntro);
+    if (!mounted) return;
 
     _gameEnterCtrl.forward();
     _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
+
     await _playAudio(_audioInstructions);
   }
 
@@ -292,9 +294,13 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
     } finally {
-      await player.stop();
-      await player.dispose();
-      if (_introPlayer == player) _introPlayer = null; // ADD — prevents double-dispose in dispose()
+      try {
+        await player.stop();
+      } catch (_) {}     // ← ADD: swallow "already disposed/created" errors
+      try {
+        await player.dispose();
+      } catch (_) {}     // ← ADD: same guard here, dispose can throw too
+      if (_introPlayer == player) _introPlayer = null;
     }
   }
 
@@ -363,7 +369,9 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     final isCorrect = currentItem == basketObject;
 
     if (isCorrect) {
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', ''))).catchError((e) {
+        debugPrint('SFX error: $e');
+      });
 
       setState(() {
         if (basketObject == _basketObjectA) {
@@ -386,7 +394,9 @@ class _BasketSortScreenState extends State<BasketSortScreen>
         await Future.delayed(const Duration(milliseconds: 300));
         setState(() => _roundComplete = true);
         _completePulseCtrl.repeat(reverse: true);
-        _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
+        _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', ''))).catchError((e) {
+          debugPrint('SFX error: $e');
+        });
         await Future.delayed(const Duration(milliseconds: 1400));
 
         if (_round >= _kTotalRounds) {
@@ -477,6 +487,8 @@ class _BasketSortScreenState extends State<BasketSortScreen>
                 ],
               ),
 
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
               if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
             ],
           ),
@@ -496,7 +508,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
           child:Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),
@@ -618,7 +629,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
             Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),

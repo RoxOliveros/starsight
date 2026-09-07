@@ -338,21 +338,18 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-
     if (!mounted) return;
 
     _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
 
     await _playBgAudio(_audioIntro);
-
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
     _gameEnterCtrl.forward();
 
     _startRound();
-
     if (!mounted) return;
 
     setState(() {
@@ -360,7 +357,6 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     });
 
     await Future.delayed(const Duration(milliseconds: 350));
-
     if (!mounted) return;
 
     await _playInstructionAudio();
@@ -547,6 +543,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
                 buildRoxie(context),
               ],
             ),
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
         ),
@@ -566,7 +563,6 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),
@@ -677,7 +673,6 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),

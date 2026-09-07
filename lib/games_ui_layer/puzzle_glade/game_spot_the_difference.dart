@@ -205,11 +205,16 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;                    
+
     _roxieSlideCtrl.forward();
     await _playAudio(_audioIntro);
+    if (!mounted) return;                    
+
     _gameEnterCtrl.forward();
     await Future.delayed(const Duration(milliseconds: 650));
     if (!mounted) return;
+
     _buildRound();
     setState(() => _phase = _ScreenPhase.playing);
     _roundEnterCtrl.forward(from: 0);
@@ -230,8 +235,12 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
     } finally {
-      await player.stop();
-      await player.dispose();
+      try {
+        await player.stop();
+      } catch (_) {}      
+      try {
+        await player.dispose();
+      } catch (_) {}      
     }
   }
 
@@ -359,6 +368,9 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
                       buildRoxie(context),
                     ],
                   ),
+
+                Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
       ),
@@ -378,7 +390,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
           child:Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),
@@ -545,7 +556,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
             Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),

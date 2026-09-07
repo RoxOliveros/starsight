@@ -320,14 +320,12 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-
     if (!mounted) return;
 
     _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
 
     await _playBgAudio(_audioIntro);
-
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
@@ -340,7 +338,6 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     setState(() => _screenPhase = _ScreenPhase.game);
 
     await _playBgAudio(_audioInstructions);
-
     if (!mounted) return;
   }
 
@@ -499,6 +496,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
                       buildRoxie(context),
                     ],
                   ),
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
         ),
@@ -518,7 +516,6 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),
@@ -633,7 +630,6 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),

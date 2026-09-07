@@ -255,7 +255,7 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
 
   Future<void> _playAudio(String asset) async {
     final player = AudioPlayer();
-    _introPlayer = player;                      // <-- track it
+    _introPlayer = player;
     try {
       await player.setReleaseMode(ReleaseMode.stop);
       final completer = Completer<void>();
@@ -268,9 +268,13 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
     } finally {
-      await player.stop();
-      await player.dispose();
-      if (_introPlayer == player) _introPlayer = null;  
+      try {
+        await player.stop();
+      } catch (_) {}
+      try {
+        await player.dispose();
+      } catch (_) {}
+      if (_introPlayer == player) _introPlayer = null;
     }
   }
 
@@ -422,6 +426,9 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
                       buildRoxie(context),
                     ],
                   ),
+
+                Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
       ),
@@ -441,7 +448,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
           child:Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),
@@ -582,7 +588,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
             Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),

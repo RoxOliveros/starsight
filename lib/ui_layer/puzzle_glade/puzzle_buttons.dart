@@ -32,3 +32,17 @@ class PuzzleBackButton extends StatelessWidget {
     );
   }
 }
+
+class PuzzleXButton extends StatelessWidget {
+  final VoidCallback? onTap;
+
+  const PuzzleXButton({super.key, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+        onTap: onTap ?? () => Navigator.pop(context),
+        child: Image.asset('assets/images/buttons/x_yellow.png', width: 50)
+    );
+  }
+}

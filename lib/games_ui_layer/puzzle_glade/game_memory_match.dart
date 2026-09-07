@@ -207,11 +207,13 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   // ── Intro flow ─────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;                       
     _roxieSlideCtrl.forward();
 
     _setIntroPhase(_IntroPhase.playingIntro);
     _speechBubbleCtrl.forward(from: 0);
     await _playAudio(_audioIntro);
+    if (!mounted) return;                       
 
     _setIntroPhase(_IntroPhase.playingWelcome);
     _speechBubbleCtrl.forward(from: 0);
@@ -222,7 +224,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
     await _playAudio(_audioInstructions);
   }
-
+  
   Future<void> _playAudio(String asset) async {
     StreamSubscription? sub;
     try {
@@ -407,6 +409,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
                     ],
                   ),
 
+                Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
           if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
         ],
       ),
@@ -425,7 +429,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
           child:Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
               Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
             ],
           ),
@@ -549,7 +552,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
             Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),

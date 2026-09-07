@@ -251,10 +251,12 @@ import 'game_what_goes_together_screen.dart';
 
     Future<void> _startIntroFlow() async {
       await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
       _roxieSlideCtrl.forward();
 
       _speechBubbleCtrl.forward(from: 0);
       await _playBgAudio(_audioIntro);
+      if (!mounted) return;
 
       _speechBubbleCtrl.forward(from: 0);
 
@@ -452,6 +454,7 @@ import 'game_what_goes_together_screen.dart';
                   buildRoxie(context),
                 ],
               ),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
               if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
             ],
           ),
@@ -471,7 +474,6 @@ import 'game_what_goes_together_screen.dart';
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
                 Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
               ],
             ),
@@ -590,7 +592,6 @@ import 'game_what_goes_together_screen.dart';
               child: Stack(
                 alignment: Alignment.topCenter,
                 children: [
-                  Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
                   Align(
                     alignment: Alignment.center,
                     child: _buildRotateInstruction(target),

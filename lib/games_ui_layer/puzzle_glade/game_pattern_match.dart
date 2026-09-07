@@ -239,10 +239,13 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;                    
+
     _roxieSlideCtrl.forward();
 
     _speechBubbleCtrl.forward(from: 0);
     await _playBgAudio(_audioIntro);
+    if (!mounted) return;                    
 
     _speechBubbleCtrl.forward(from: 0);
 
@@ -256,7 +259,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     }
     await _playBgAudio(_audioInstructions);
   }
-
+  
   Future<void> _playBgAudio(String asset) async {
     StreamSubscription? sub;
     try {
@@ -459,6 +462,8 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
 
             if (_screenPhase == _ScreenPhase.game) buildRoxie(context),
 
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
             // ---> CONDITIONAL LIGHTING PROMPT <---
             if ((!isCameraInitialized || !isFaceDetected) &&
                 !_hideLightingPrompt)
@@ -496,7 +501,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
               Align(
                 alignment: Alignment.centerRight,
                 child: PuzzleLevelBadge(level: widget.level),
@@ -661,10 +665,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: PuzzleBackButton(),
-                ),
                 Align(
                   alignment: Alignment.centerRight,
                   child: PuzzleLevelBadge(level: widget.level),

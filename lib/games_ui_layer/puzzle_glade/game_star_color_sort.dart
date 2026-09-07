@@ -489,6 +489,9 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
             _screenPhase == _ScreenPhase.intro
                 ? _buildIntroLayer()
                 : FadeTransition(opacity: _gameFade, child: _buildGameLayer()),
+
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
             //wag to tin
             // ---> LIVE DEMO CAMERA <---
             if (isCameraInitialized && aiCameraController != null)
@@ -529,7 +532,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerLeft, child: PuzzleBackButton()),
               Align(
                 alignment: Alignment.centerRight,
                 child: PuzzleLevelBadge(level: widget.level),
@@ -660,10 +662,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
               child: Stack(
                 alignment: Alignment.topCenter,
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: PuzzleBackButton(),
-                  ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: PuzzleLevelBadge(level: widget.level),
