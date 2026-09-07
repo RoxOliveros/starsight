@@ -5,12 +5,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'games_ui_layer/alphabet_forest/alphabet_minigame_fall.dart';
-import 'games_ui_layer/alphabet_forest/alphabet_minigame_find.dart';
-import 'games_ui_layer/alphabet_forest/alphabet_minigame_hunt.dart';
-import 'games_ui_layer/alphabet_forest/alphabet_minigame_pop.dart';
-import 'games_ui_layer/alphabet_forest/alphabet_minigame_puzzle.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -29,6 +23,6 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: AlphabetPuzzleScreen(letter: 'd'));
+    return MaterialApp(debugShowCheckedModeBanner: false, home: SplashScreen());
   }
 }
