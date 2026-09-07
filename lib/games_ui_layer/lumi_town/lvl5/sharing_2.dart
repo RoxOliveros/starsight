@@ -10,6 +10,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../../tryagain_prompt.dart';
 import 'character_entrance.dart';
 import 'sharing_tutorial_prompt.dart';
 
@@ -65,7 +66,7 @@ class _Sharing2State extends State<Sharing2> {
     'dog': 'assets/images/characters/tofi_smiling.png',
   };
 
-  static const Map<String, String> characterVoiceovers = {
+  static const Map<String, String> characterThankYouVoiceovers = {
     'bunny': 'audio/lumi_town/level5/bunny_thankyou.wav',
     'cat': 'audio/lumi_town/level5/cat_thankyou.wav',
     'fox': 'audio/lumi_town/level5/fox_thankyou.wav',
@@ -153,7 +154,7 @@ class _Sharing2State extends State<Sharing2> {
     super.dispose();
   }
 
-  void _checkNextCharacter() {
+  Future<void> _checkNextCharacter() async {
     if (_hasGivenPancake && _hasGivenWater) {
       String currentCharKey = _sequence[_charIndex];
 
@@ -162,13 +163,11 @@ class _Sharing2State extends State<Sharing2> {
         _currentMood = 'smiling';
       });
 
-      String audioPath =
-          characterVoiceovers[currentCharKey] ??
-          'audio/lumi_town/level5/share_yes.wav';
+      String audioPath = characterThankYouVoiceovers[currentCharKey] ?? 'audio/lumi_town/level5/share_yes.wav';
 
-      _audioPlayer.play(AssetSource(audioPath));
+      await _audioPlayer.play(AssetSource(audioPath));
 
-      Future.delayed(const Duration(milliseconds: 1500), () {
+      Future.delayed(const Duration(milliseconds: 2500), () {
         if (!mounted) return;
 
         if (_charIndex < _sequence.length - 1) {
@@ -216,7 +215,7 @@ class _Sharing2State extends State<Sharing2> {
             _audioPlayer.play(
               AssetSource('audio/lumi_town/level5/sharing_wrong.wav'),
             );
-            Future.delayed(const Duration(seconds: 12), () {
+            Future.delayed(const Duration(seconds: 17), () {
               if (!mounted) return;
               setState(() {
                 _showTryAgainButton = true;
@@ -711,46 +710,31 @@ class _Sharing2State extends State<Sharing2> {
                   // 5. Try Again Button (Appears ONLY after audio finishes)
                   if (_showTryAgainButton)
                     Positioned.fill(
-                      child: Container(
-                        color: Colors.black45, // Slight dim to pop the button
-                        child: Center(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE8A037),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: sw * 0.06,
-                                vertical: sh * 0.04,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                      child: TryJobOverlay(
+                        characterImage: 'assets/images/characters/dr.woo_smiling.png',
+                        onRestart: () {
+                          // Reset the game completely
+                          setState(() {
+                            _showSadBearFailedUI = false;
+                            _showTryAgainButton = false;
+                            _charIndex = 0;
+                            _pancakesLeft = 7;
+                            _waterLeft = 7;
+                            _hasGivenPancake = false;
+                            _hasGivenWater = false;
+                            _readyForEntrance = true;
+                            _secondFoxCanceled = false;
+                            _currentMood = 'normal';
+                          });
+                        },
+                        onBack: () {
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (_) => const LumiLevelScreen(),
                             ),
-                            onPressed: () {
-                              // Reset the game completely
-                              setState(() {
-                                _showSadBearFailedUI = false;
-                                _showTryAgainButton = false;
-                                _charIndex = 0;
-                                _pancakesLeft = 7;
-                                _waterLeft = 7;
-                                _hasGivenPancake = false;
-                                _hasGivenWater = false;
-                                _readyForEntrance = true;
-                                _secondFoxCanceled = false;
-                                _currentMood = 'normal';
-                              });
-                            },
-                            child: const Text(
-                              'Subukan Ulit', // Try Again
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontFamily: 'Fredoka',
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
+                                (route) => route.isFirst,
+                          );
+                        },
                       ),
                     ),
                 ],
@@ -851,7 +835,7 @@ class _Sharing2State extends State<Sharing2> {
                       onRestart: () {
                         setState(() {
                           _showAllCharactersSuccessUI = false;
-                          _showGoodJobOverlay = false; // Reset this too!
+                          _showGoodJobOverlay = false;
                           _charIndex = 0;
                           _pancakesLeft = 7;
                           _waterLeft = 7;

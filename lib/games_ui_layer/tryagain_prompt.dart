@@ -2,27 +2,25 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../UI_Layer/app_dialog.dart';
 
-class GoodJobOverlay extends StatefulWidget {
+class TryJobOverlay extends StatefulWidget {
   final String characterImage;
-  final VoidCallback onNext;
   final VoidCallback onRestart;
   final VoidCallback onBack;
   final double characterSizeFactor;
 
-  const GoodJobOverlay({
+  const TryJobOverlay({
     super.key,
     required this.characterImage,
-    required this.onNext,
     required this.onRestart,
     required this.onBack,
     this.characterSizeFactor = 1.0,
   });
 
   @override
-  State<GoodJobOverlay> createState() => _GoodJobOverlayState();
+  State<TryJobOverlay> createState() => _TryJobOverlayState();
 }
 
-class _GoodJobOverlayState extends State<GoodJobOverlay>
+class _TryJobOverlayState extends State<TryJobOverlay>
     with TickerProviderStateMixin {
   late AnimationController _entranceCtrl;
   late AnimationController _starsCtrl;
@@ -40,7 +38,6 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
     super.initState();
 
     _initAudio();
-    _playYeySound();
 
     _entranceCtrl = AnimationController(
       vsync: this,
@@ -90,10 +87,6 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
     await _audioPlayer.setReleaseMode(ReleaseMode.stop);
   }
 
-  Future<void> _playYeySound() async {
-    await _audioPlayer.play(AssetSource('audio/sound_effects/yey.wav'));
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -123,7 +116,7 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
 
         final double characterHeight = (350 * scale) * widget.characterSizeFactor;
         final double characterTop =
-        (screenHeight * 0.17).clamp(90.0, 190.0);
+        (screenHeight * 0.32).clamp(90.0, 190.0);
 
         final double actionButtonSize =
         (88 * scale).clamp(56.0, 120.0);
@@ -150,7 +143,7 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
                       padding: EdgeInsets.only(top: 8 * scale),
                       child: ScaleTransition(
                         scale: _bannerScale,
-                        child: _ArcedGoodJobBanner(width: bannerWidth),
+                        child: _ArcedTryJobBanner(width: bannerWidth),
                       ),
                     ),
                   ),
@@ -187,18 +180,6 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
                   ),
                 ),
 
-                // ── Next button — bottom right ────────────────────────
-                Positioned(
-                  bottom: bottomMargin,
-                  right: edgeMargin,
-                  child: _ImageButton(
-                    imagePath: 'assets/images/buttons/next.png',
-                    onTap: widget.onNext,
-                    size: actionButtonSize,
-                    tooltip: 'Next Level',
-                  ),
-                ),
-
                 // ── X (Back) button — top left ────────────────────────
                 Positioned(
                   top: 25,
@@ -226,17 +207,17 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
   }
 }
 
-// ── Arced "GOOD JOB!" banner ──────────────────────────────────────────────────
+// ── Arced "Try JOB!" banner ──────────────────────────────────────────────────
 
-class _ArcedGoodJobBanner extends StatelessWidget {
+class _ArcedTryJobBanner extends StatelessWidget {
   final double width;
 
-  const _ArcedGoodJobBanner({required this.width});
+  const _ArcedTryJobBanner({required this.width});
 
   @override
   Widget build(BuildContext context) {
     return Image.asset(
-      'assets/images/goodjob.png',
+      'assets/images/tryagain.png',
       width: width,
       fit: BoxFit.contain,
     );

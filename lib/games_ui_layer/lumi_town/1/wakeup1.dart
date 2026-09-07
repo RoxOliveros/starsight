@@ -8,6 +8,7 @@ import 'package:lottie/lottie.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 class Lumi1ValuesWakeup extends StatefulWidget {
@@ -48,6 +49,8 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   late Animation<double> _fadeAnimation;
 
   bool _animationReady = false;
+  bool _isLoadingProgress = true;
+  final DateTime _loadStart = DateTime.now();
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
@@ -69,12 +72,22 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   }
 
   Future<void> _loadAnimation() async {
-    await Future.wait([
-      AssetLottie(widget.imagePath).load(),
-      AssetLottie('assets/animations/awake.json').load(),
-    ]);
-    if (!mounted) return;
-    setState(() => _animationReady = true);
+    AssetLottie(widget.imagePath).load();
+    AssetLottie('assets/animations/awake.json').load();
+
+    if (_isLoadingProgress) {
+      final elapsed = DateTime.now().difference(_loadStart);
+      final remaining = const Duration(milliseconds: 1500) - elapsed;
+      if (remaining > Duration.zero) {
+        await Future.delayed(remaining);
+      }
+      if (!mounted) return;
+    }
+
+    setState(() {
+      _animationReady = true;
+      _isLoadingProgress = false;
+    });
     _fadeController.forward();
     _initAudio();
   }
@@ -229,7 +242,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       body: _animationReady
           ? FadeTransition(
               opacity: _fadeAnimation,
@@ -267,12 +280,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
                 ],
               ),
             )
-          : Center(
-              child: Image.asset(
-                'assets/images/characters/dr.woo_the_owl.png',
-                width: 120,
-              ),
-            ),
+          : LoadingScreen.lumiTown(),
     );
   }
 
