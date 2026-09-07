@@ -51,6 +51,8 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   static const String _vaseAsset = 'assets/images/objects/forest/vase.png';
 
+  static const String _findInstructionWav = 'audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
+
   static const int _totalRounds = 3;
   int _completedRounds = 0;
 
@@ -86,7 +88,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     _loadRound();
 
     onFirstFaceDetected = () {
-      _playVaseSounds();
+      _playInstructionThenVaseSounds();
     };
     if (isFaceDetected) {
       onFirstFaceDetected?.call();
@@ -139,6 +141,13 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
         _playVaseSounds();
       }
     });
+  }
+
+  Future<void> _playInstructionThenVaseSounds() async {
+    await _player.play(AssetSource(_findInstructionWav));
+    await _player.onPlayerComplete.first;
+    if (!mounted) return;
+    await _playVaseSounds();
   }
 
   Future<void> _playVaseSounds() async {

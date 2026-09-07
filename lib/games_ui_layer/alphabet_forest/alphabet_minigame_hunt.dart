@@ -51,6 +51,8 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
+  static const String _huntInstructionWav = 'audio/alphabet_forest/alphabet_minigame_hunt_instruction.wav';
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +66,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
     // 2. Generate the scattered objects
     _generateHuntField();
+    _playInstructionThenLetter();
   }
 
   // --- THE DYNAMIC 3-LETTER POOL ---
@@ -212,6 +215,15 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
         }
       });
     }
+  }
+
+  Future<void> _playInstructionThenLetter() async {
+    await _audioPlayer.play(AssetSource(_huntInstructionWav));
+    await _audioPlayer.onPlayerComplete.first;
+    if (!mounted) return;
+    await _audioPlayer.play(AssetSource(
+      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+    ));
   }
 
   Future<void> _saveDataAndShowApplause() async {

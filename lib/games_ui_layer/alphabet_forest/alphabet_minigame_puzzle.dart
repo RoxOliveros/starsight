@@ -57,6 +57,8 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   late List<PuzzlePiece> _allPieces;
   late String _fullImagePath; // Added for the background hint
 
+  static const String _puzzleInstructionWav = 'audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
+
   @override
   void initState() {
     super.initState();
@@ -67,6 +69,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
 
     // Load the correct pieces and background before starting the game
     _loadLetter(widget.letter);
+    _playInstructionThenLetter();
     _resetGame();
   }
 
@@ -650,6 +653,15 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
       _placedPieces.clear();
       _availablePieces = List.from(_allPieces)..shuffle();
     });
+  }
+
+  Future<void> _playInstructionThenLetter() async {
+    await _player.play(AssetSource(_puzzleInstructionWav));
+    await _player.onPlayerComplete.first;
+    if (!mounted) return;
+    await _player.play(AssetSource(
+      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+    ));
   }
 
   Future<void> _saveDataAndShowSuccessDialog() async {

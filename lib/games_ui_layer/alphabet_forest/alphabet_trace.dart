@@ -65,6 +65,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   static List<int> _miniGameQueue = [];
   static int _miniGameIndex = 0;
 
+  static const String _traceInstructionWav = 'audio/alphabet_forest/trace_letter_instruction.wav';
+
   int _nextMiniGame() {
     if (_miniGameIndex >= _miniGameQueue.length) {
       _miniGameQueue.shuffle(_random);
@@ -86,8 +88,16 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     }
 
     _loadLetter(widget.letter);
+    _playInstructionThenLetter();
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _generateDensePaths());
+  }
+
+  Future<void> _playInstructionThenLetter() async {
+    await _player.play(AssetSource(_traceInstructionWav));
+    await _player.onPlayerComplete.first;
+    if (!mounted) return;
+    await _player.play(AssetSource('audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav'));
   }
 
   @override
@@ -98,7 +108,6 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     super.dispose();
   }
 
-  // --- THE DYNAMIC LETTER LOADER ---
   void _loadLetter(String letter) {
     switch (letter.toUpperCase()) {
       case 'A':

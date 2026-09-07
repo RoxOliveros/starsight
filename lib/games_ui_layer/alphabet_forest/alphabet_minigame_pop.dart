@@ -14,7 +14,6 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
@@ -24,11 +23,8 @@ import 'forest_game_mushroom_hidenseek.dart';
 import 'forest_game_paw_print.dart';
 import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
-
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetPopScreen extends StatefulWidget {
   final String letter;
@@ -60,6 +56,8 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
   late List<double> _availableLanes;
 
+  static const String _popInstructionWav = 'audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +68,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
     _generateBalls();
     onFirstFaceDetected = () {
+      _playInstructionThenLetterThenStart();
       _startGameLoop();
     };
     if (isFaceDetected) {
@@ -210,6 +209,21 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
         }
       });
     }
+  }
+
+  Future<void> _playInstructionThenLetterThenStart() async {
+    await _playInstructionThenLetter();
+    if (!mounted) return;
+    _startGameLoop();
+  }
+
+  Future<void> _playInstructionThenLetter() async {
+    await _audioPlayer.play(AssetSource(_popInstructionWav));
+    await _audioPlayer.onPlayerComplete.first;
+    if (!mounted) return;
+    await _audioPlayer.play(AssetSource(
+      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+    ));
   }
 
   Future<void> _saveDataAndShowApplause() async {

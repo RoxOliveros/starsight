@@ -57,6 +57,8 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   int _correctCount = 0;
   final List<Map<String, double>> _wrongEffects = [];
 
+  static const String _fallInstructionWav = 'audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +66,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     startAiCamera();
     _tapTracker.startSession();
     _loadLevel();
+    _playInstructionThenLetter();
     onFirstFaceDetected = () {
       _startGameLoops();
     };
@@ -239,6 +242,15 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
         MaterialPageRoute(builder: (context) => const ForestLevelScreen()),
       );
     }
+  }
+
+  Future<void> _playInstructionThenLetter() async {
+    await _player.play(AssetSource(_fallInstructionWav));
+    await _player.onPlayerComplete.first; // wait for instruction to finish
+    if (!mounted) return;
+    await _player.play(AssetSource(
+      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+    ));
   }
 
   Future<void> _saveDataAndShowApplause() async {
