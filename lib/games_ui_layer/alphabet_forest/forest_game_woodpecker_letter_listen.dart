@@ -107,10 +107,11 @@ class _WoodpeckerLetterListenGameState extends State<WoodpeckerLetterListenGame>
       }
     });
     _loadRound();
+    _startIntroFlow();
 
-    onFirstFaceDetected = () {
+    /*onFirstFaceDetected = () {
       _startIntroFlow();
-    };
+    };*/
   }
 
   Future<void> _startIntroFlow() async {

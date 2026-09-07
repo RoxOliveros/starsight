@@ -144,9 +144,11 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     });
     _loadRound();
 
-    onFirstFaceDetected = () {
-      _startIntroFlow();
-    };
+    _startIntroFlow();
+
+    // onFirstFaceDetected = () {
+    //   _startIntroFlow();
+    // };
   }
 
   Future<void> _startIntroFlow() async {
