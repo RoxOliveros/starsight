@@ -120,7 +120,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _balancePulseCtrl;
@@ -188,14 +187,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
-
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -546,10 +537,10 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     final screenH = MediaQuery.of(context).size.height;
     return Stack(
       children: [
-        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, left: 25, child: ArcticXButton()),
         Positioned(
           top: 25,
-          right: 20,
+          right: 25,
           child: ArcticLevelBadge(level: widget.level),
         ),
         Center(
@@ -616,19 +607,18 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
             Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                  padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
                   child: Stack(
                     alignment: Alignment.topCenter,
                     children: [
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: ArcticBackButton(),
+                        child: ArcticXButton(),
                       ),
                       Align(
                         alignment: Alignment.centerRight,
                         child: ArcticLevelBadge(level: widget.level),
                       ),
-                      Center(child: _buildInstructionBanner(h)),
                     ],
                   ),
                 ),
@@ -709,46 +699,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         height: pupSize,
         errorBuilder: (_, __, ___) =>
             Text('🦭', style: TextStyle(fontSize: pupSize * 0.7)),
-      ),
-    );
-  }
-
-  Widget _buildInstructionBanner(double h) {
-    return ScaleTransition(
-      scale: _instructionBounce,
-      child: GestureDetector(
-        onTap: () => _playVoice(_audioInstructionPrompt),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-          decoration: BoxDecoration(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Text(
-            'Add up, then load the bridge to match!',
-            style: TextStyle(
-              fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              shadows: const [
-                Shadow(
-                  color: Color(0x55003366),
-                  blurRadius: 6,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -975,20 +925,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                     border: Border.all(
                       color: ArcticColorTheme.slateblue.withValues(alpha: 0.35),
                       width: 2,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Drop\nweights',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: ArcticAppTextStyles.fredoka,
-                        fontSize: size * 0.12,
-                        color: ArcticColorTheme.slateblue.withValues(
-                          alpha: 0.6,
-                        ),
-                        fontWeight: FontWeight.w600,
-                      ),
                     ),
                   ),
                 )

@@ -553,32 +553,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
             ).animate().fadeIn(duration: 500.ms),
           ),
 
-          // ── 5. Close / Exit Button ─────────────────────────────────────
-          Positioned(
-            top: sh * 0.05,
-            left: sw * 0.03,
-            child: GestureDetector(
-              onTap: () => Navigator.of(context).maybePop(),
-              child: Image.asset(
-                'assets/images/buttons/x_blue.png',
-                width: sw * 0.065,
-                fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => Container(
-                  width: sw * 0.065,
-                  height: sw * 0.065,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF266589),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: sw * 0.04,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
 
           // ── 6. End Game UI (GoodJobOverlay) ───────────────────────────
           if (_showSuccessUI)

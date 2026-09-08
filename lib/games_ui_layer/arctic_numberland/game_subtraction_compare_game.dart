@@ -308,8 +308,8 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     final screenH = MediaQuery.of(context).size.height;
     return Stack(
       children: [
-        Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(top: 25, left: 25, child: ArcticXButton()),
+        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -372,16 +372,15 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+              padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
               child: Stack(
                 alignment: Alignment.topCenter,
                 children: [
-                  Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                  Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
                   Align(
                     alignment: Alignment.centerRight,
                     child: ArcticLevelBadge(level: widget.level),
                   ),
-                  Center(child: _buildInstructionBanner(h)),
                 ],
               ),
             ),
@@ -423,40 +422,6 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
           ],
         );
       },
-    );
-  }
-
-  Widget _buildInstructionBanner(double h) {
-    return ScaleTransition(
-      scale: _instructionBounce,
-      child: GestureDetector(
-        onTap: () => _playVoice(_audioInstruction),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-          decoration: BoxDecoration(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Text(
-            'How many candy canes are left without a treat?',
-            style: TextStyle(
-              fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
-            ),
-          ),
-        ),
-      ),
     );
   }
 

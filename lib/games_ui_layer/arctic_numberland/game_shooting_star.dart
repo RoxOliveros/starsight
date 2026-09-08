@@ -117,7 +117,6 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
 
@@ -148,11 +147,6 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -178,7 +172,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     await Future.delayed(const Duration(milliseconds: 300));
 
     if (mounted) {
-      playVoice(_audioInstruction);
+      await playVoice(_audioInstruction);
     }
   }
 
@@ -367,8 +361,8 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     final screenH = MediaQuery.of(context).size.height;
     return Stack(
       children: [
-        Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(top: 25, left: 25, child: ArcticXButton()),
+        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
         Center(
           child: AnimatedBuilder(
             animation: _domaFloatCtrl,
@@ -420,16 +414,15 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
             Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                  padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
                   child: Stack(
                     alignment: Alignment.topCenter,
                     children: [
-                      Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                      Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
                       Align(
                         alignment: Alignment.centerRight,
                         child: ArcticLevelBadge(level: widget.level),
                       ),
-                      Center(child: _buildPromptBanner(h)),
                     ],
                   ),
                 ),
@@ -450,43 +443,6 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
           ],
         );
       },
-    );
-  }
-
-  Widget _buildPromptBanner(double h) {
-    final watching = _phase == _RoundPhase.watching;
-    final text = watching ? 'Watch the shooting stars!' : 'How many did you count?';
-
-    return ScaleTransition(
-      scale: _instructionBounce,
-      child: GestureDetector(
-        onTap: () => playVoice(watching ? _audioInstruction : _audioAskCount),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          decoration: BoxDecoration(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Text(
-            text,
-            style: TextStyle(
-              fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
-            ),
-          ),
-        ),
-      ),
     );
   }
 

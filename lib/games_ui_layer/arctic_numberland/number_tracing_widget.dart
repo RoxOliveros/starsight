@@ -226,18 +226,17 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
           ),
 
         Positioned(
-          left: 20,
-          right: 20,
+          left: 25,
+          right: 25,
           top: 25,
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+              Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
               Align(
                 alignment: Alignment.centerRight,
                 child: ArcticLevelBadge(level: widget.level),
               ),
-              Center(child: _buildBanner(h)),
             ],
           ),
         ),
@@ -452,41 +451,6 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
                   color: Colors.white.withValues(alpha: 0.35),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBanner(double h) {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      decoration: BoxDecoration(
-        color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Text(
-        'Trace the number ${widget.number}!',
-        style: TextStyle(
-          fontFamily: ArcticAppTextStyles.fredoka,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-          shadows: const [
-            Shadow(
-              color: Color(0x55003366),
-              blurRadius: 6,
-              offset: Offset(0, 2),
             ),
           ],
         ),

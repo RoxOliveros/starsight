@@ -488,10 +488,10 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
   Widget _buildIntroLayer() {
     return Stack(
       children: [
-        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, left: 25, child: ArcticXButton()),
         Positioned(
           top: 25,
-          right: 20,
+          right: 25,
           child: ArcticLevelBadge(level: widget.level),
         ),
         Positioned.fill(
@@ -604,13 +604,12 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
                     children: [
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: ArcticBackButton(),
+                        child: ArcticXButton(),
                       ),
                       Align(
                         alignment: Alignment.centerRight,
                         child: ArcticLevelBadge(level: widget.level),
                       ),
-                      Center(child: _buildInstructionBanner(h)),
                     ],
                   ),
                 ),
@@ -656,85 +655,6 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
           ],
         );
       },
-    );
-  }
-
-  // ── Instruction Banner ─────────────────────────────────────────────────────
-  Widget _buildInstructionBanner(double h) {
-    return ScaleTransition(
-      scale: _instructionBounce,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-        decoration: BoxDecoration(
-          color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: Colors.white, width: 3),
-          boxShadow: [
-            BoxShadow(
-              color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Put',
-              style: TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                shadows: const [
-                  Shadow(
-                    color: Color(0x55003366),
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-            ),
-            // Show the target number prominently
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              child: Text(
-                '$_targetCount',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: const [
-                    Shadow(
-                      color: Color(0x55003366),
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Text(
-              'block/s into the igloo!',
-              style: TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                shadows: const [
-                  Shadow(
-                    color: Color(0x55003366),
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

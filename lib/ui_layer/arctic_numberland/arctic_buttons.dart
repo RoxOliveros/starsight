@@ -29,6 +29,20 @@ class ArcticBackButton extends StatelessWidget {
   }
 }
 
+class ArcticXButton extends StatelessWidget {
+  final VoidCallback? onTap;
+
+  const ArcticXButton({super.key, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+        onTap: onTap ?? () => Navigator.pop(context),
+        child: Image.asset('assets/images/buttons/x_blue.png', width: 50)
+    );
+  }
+}
+
 class ArcticSkipButton extends StatelessWidget {
   final VoidCallback onTap;
 

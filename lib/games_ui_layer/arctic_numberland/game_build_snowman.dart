@@ -74,7 +74,6 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _popCtrl; // per-snowball pop-in when stacked
@@ -134,13 +133,6 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -345,10 +337,10 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
     final screenH = MediaQuery.of(context).size.height;
     return Stack(
       children: [
-        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, left: 25, child: ArcticXButton()),
         Positioned(
           top: 25,
-          right: 20,
+          right: 25,
           child: ArcticLevelBadge(level: widget.level),
         ),
         Center(
@@ -412,8 +404,8 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(
-                      left: 20,
-                      right: 20,
+                      left: 25,
+                      right: 25,
                       top: 25,
                     ),
                     child: Stack(
@@ -421,13 +413,12 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                       children: [
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: ArcticBackButton(),
+                          child: ArcticXButton(),
                         ),
                         Align(
                           alignment: Alignment.centerRight,
                           child: ArcticLevelBadge(level: widget.level),
                         ),
-                        Center(child: _buildPromptBanner(h)),
                       ],
                     ),
                   ),
@@ -441,53 +432,13 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
             ),
             Positioned(right: 70, top: 100, child: _buildTargetBadge(h * 0.22)),
             Positioned(
-              right: 20,
+              right: 25,
               bottom: 16,
               child: _buildSnowballSource((h * 0.16).clamp(36.0, 70.0)),
             ),
           ],
         );
       },
-    );
-  }
-
-  Widget _buildPromptBanner(double h) {
-    return ScaleTransition(
-      scale: _instructionBounce,
-      child: GestureDetector(
-        onTap: _announceRound,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          decoration: BoxDecoration(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Text(
-            'Drag the snowball to build the snowman!',
-            style: TextStyle(
-              fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              shadows: const [
-                Shadow(
-                  color: Color(0x55003366),
-                  blurRadius: 6,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 

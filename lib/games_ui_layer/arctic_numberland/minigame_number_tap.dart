@@ -210,21 +210,17 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
           return Stack(
             children: [
               Padding(
-                padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
                 child: Stack(
                   alignment: Alignment.topCenter,
                   children: [
                     Align(
                       alignment: Alignment.topLeft,
-                      child: ArcticBackButton(),
+                      child: ArcticXButton(),
                     ),
                     Align(
                       alignment: Alignment.topRight,
                       child: ArcticLevelBadge(level: widget.level),
-                    ),
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: _buildBanner(h),
                     ),
                   ],
                 ),
@@ -235,41 +231,6 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildBanner(double h) {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      decoration: BoxDecoration(
-        color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Text(
-        widget.instructionText,
-        style: TextStyle(
-          fontFamily: ArcticAppTextStyles.fredoka,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-          shadows: const [
-            Shadow(
-              color: Color(0x55003366),
-              blurRadius: 6,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -10,6 +10,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   Timer? _analysisTimer;
   bool isCameraInitialized = false;
   bool isFaceDetected = false;
+  bool _isCameraDisposed = false;
 
   String sessionId = 'default';
 
@@ -33,13 +34,14 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   Future<void> startAiCamera({
     Duration captureInterval = const Duration(seconds: 3),
   }) async {
+    _isCameraDisposed = false;
     isFaceDetected = false;
     hasCapturedFirstFrame = false;
     sessionEmotions = [];
     try {
       final cameras = await availableCameras();
       final frontCamera = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.front,
+            (c) => c.lensDirection == CameraLensDirection.front,
       );
 
       aiCameraController = CameraController(
@@ -49,6 +51,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
       );
 
       await aiCameraController!.initialize();
+      if (_isCameraDisposed) return;
       if (mounted) {
         setState(() {
           isCameraInitialized = true;
@@ -91,13 +94,16 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   }
 
   Future<void> _captureAndAnalyzeFrame() async {
-    if (aiCameraController == null || !aiCameraController!.value.isInitialized)
+    if (_isCameraDisposed) return; 
+    if (aiCameraController == null || !aiCameraController!.value.isInitialized) {
       return;
+    }
     if (aiCameraController!.value.isTakingPicture) return;
 
     File? imageFile;
     try {
       final XFile rawImage = await aiCameraController!.takePicture();
+      if (_isCameraDisposed || !mounted) return; 
       imageFile = File(rawImage.path);
 
       var request = http.MultipartRequest('POST', Uri.parse(pythonServerUrl));
@@ -106,6 +112,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         await http.MultipartFile.fromPath('image', imageFile.path),
       );
       var response = await request.send();
+      if (_isCameraDisposed || !mounted) return; 
 
       // SECURE DELETION
       if (await imageFile.exists()) await imageFile.delete();
@@ -118,7 +125,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         final isFirstReading = !hasCapturedFirstFrame;
         final changed = faceNowDetected != isFaceDetected;
 
-        if (mounted && (isFirstReading || changed)) {
+        if (mounted && !_isCameraDisposed && (isFirstReading || changed)) {
           setState(() {
             hasCapturedFirstFrame = true;
             isFaceDetected = faceNowDetected;
@@ -130,6 +137,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           final newNeeded =
               jsonResponse['calibration_needed'] as int? ?? calibrationNeeded;
           if (mounted &&
+              !_isCameraDisposed &&
               (newProgress != calibrationProgress ||
                   newNeeded != calibrationNeeded)) {
             setState(() {
@@ -167,7 +175,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
       }
 
       // OFFLINE FALLBACK
-      if (mounted && !hasCapturedFirstFrame) {
+      if (mounted && !_isCameraDisposed && !hasCapturedFirstFrame) {
         setState(() {
           hasCapturedFirstFrame = true;
           isFaceDetected = true;
@@ -185,13 +193,17 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   }
 
   List<String> stopAiCamera() {
+    if (_isCameraDisposed) return List<String>.from(sessionEmotions); 
     _analysisTimer?.cancel();
     print("GAME OVER! Final Emotions: $sessionEmotions");
     return List<String>.from(sessionEmotions);
   }
 
   void disposeAiCamera() {
+    _isCameraDisposed = true; 
     _analysisTimer?.cancel();
-    aiCameraController?.dispose();
+    final controller = aiCameraController;
+    aiCameraController = null; 
+    controller?.dispose();
   }
 }

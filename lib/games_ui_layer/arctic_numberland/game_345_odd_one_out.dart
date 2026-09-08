@@ -54,12 +54,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
     5: 'assets/audio/arctic_numberland/level16/odd_five.wav',
   };
 
-  static const Map<int, String> _numberWords = {
-    3: 'THREE',
-    4: 'FOUR',
-    5: 'FIVE',
-  };
-
   // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
@@ -105,7 +99,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   late AnimationController _domaFloatCtrl;
 
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
 
   late AnimationController _cardsEnterCtrl;
   late Animation<double> _cardsEnter;
@@ -161,13 +154,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _cardsEnterCtrl = AnimationController(
       vsync: this,
@@ -404,10 +390,10 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
           padding: const EdgeInsets.only(top: 5),
           child: Stack(
             children: [
-              Positioned(top: 25, left: 20, child: ArcticBackButton()),
+              Positioned(top: 25, left: 25, child: ArcticXButton()),
               Positioned(
                 top: 25,
-                right: 20,
+                right: 25,
                 child: ArcticLevelBadge(level: widget.level),
               ),
               Center(child: _buildDoma(h)),
@@ -435,13 +421,12 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: ArcticBackButton(),
+                    child: ArcticXButton(),
                   ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: ArcticLevelBadge(level: widget.level),
                   ),
-                  Center(child: _buildInstructionBanner(h)),
                 ],
               ),
             ),
@@ -459,69 +444,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
           ],
         );
       },
-    );
-  }
-
-  // ── Banner ─────────────────────────────────────────────────────────────────
-  Widget _buildInstructionBanner(double h) {
-    final word = _numberWords[_targetNumber] ?? '';
-    return ScaleTransition(
-      scale: _instructionBounce,
-      child: GestureDetector(
-        onTap: () => _playAudio(_numberAudio[_targetNumber]!),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-          decoration: BoxDecoration(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Which is NOT $word?',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: const [
-                    Shadow(
-                      color: Color(0x55003366),
-                      blurRadius: 6,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              // Number image
-              Image.asset(
-                'assets/fonts/game_numbers/$_targetNumber.png',
-                height: (h * 0.08).clamp(28.0, 44.0),
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Text(
-                  '$_targetNumber',
-                  style: TextStyle(
-                    fontFamily: ArcticAppTextStyles.fredoka,
-                    fontSize: (h * 0.08).clamp(22.0, 34.0),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 

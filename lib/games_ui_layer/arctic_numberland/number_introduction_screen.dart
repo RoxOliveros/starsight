@@ -797,19 +797,18 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
           Column(
             children: [
               Padding(
-                padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
                 child: Stack(
                   alignment: Alignment.topCenter,
                   children: [
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: ArcticBackButton(),
+                      child: ArcticXButton(),
                     ),
                     Align(
                       alignment: Alignment.centerRight,
                       child: ArcticLevelBadge(level: widget.level),
                     ),
-                    Center(child: _buildInstructionBanner()),
                   ],
                 ),
               ),
@@ -875,50 +874,6 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
               ],
             )
           : contentWithOverlay,
-    );
-  }
-
-  // ── Instruction Banner ────────────────────────────────────────────────
-  Widget _buildInstructionBanner() {
-    String text;
-    if (_screenPhase == _ScreenPhase.intro) {
-      return const SizedBox.shrink(); // Doma is talking; no banner needed yet
-    } else if (_miniGamePhase == _MiniGamePhase.tracing) {
-      text = 'Trace the number!';
-    } else {
-      text = _config.objects?.instructionText ?? 'Let\'s play!';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-      decoration: BoxDecoration(
-        color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontFamily: ArcticAppTextStyles.fredoka,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-          shadows: const [
-            Shadow(
-              color: Color(0x55003366),
-              blurRadius: 6,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

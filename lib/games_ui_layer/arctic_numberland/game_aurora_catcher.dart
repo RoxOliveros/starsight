@@ -157,7 +157,6 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _jarBounceCtrl;
@@ -188,11 +187,6 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -371,8 +365,8 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     final screenH = MediaQuery.of(context).size.height;
     return Stack(
       children: [
-        Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(top: 25, left: 25, child: ArcticXButton()),
+        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
         Center(
           child: AnimatedBuilder(
               animation: _domaFloatCtrl,
@@ -421,16 +415,15 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
             Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+                  padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
                   child: Stack(
                     alignment: Alignment.topCenter,
                     children: [
-                      Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
+                      Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
                       Align(
                         alignment: Alignment.centerRight,
                         child: ArcticLevelBadge(level: widget.level),
                       ),
-                      Center(child: _buildPromptBanner(h)),
                     ],
                   ),
                 ),
@@ -452,59 +445,6 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     );
   }
 
-  Widget _buildPromptBanner(double h) {
-    final done = _targetIndex >= _round.targets.length;
-    final promptColor = done ? null : _round.targets[_targetIndex];
-
-    return ScaleTransition(
-      scale: _instructionBounce,
-      child: GestureDetector(
-        onTap: () => playVoice(_audioInstruction),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          decoration: BoxDecoration(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (promptColor != null) ...[
-                Container(
-                  width: (h * 0.05).clamp(16.0, 22.0),
-                  height: (h * 0.05).clamp(16.0, 22.0),
-                  decoration: BoxDecoration(
-                    color: promptColor.swatch,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-                const SizedBox(width: 10),
-              ],
-              Text(
-                promptColor == null ? 'Catch the lights!' : 'Catch the light!',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   // ── Sky scene ────────────────────────────────────────────────────────────
   Widget _buildSkyScene(double w, double h) {

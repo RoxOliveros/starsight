@@ -41,15 +41,11 @@ class _Number1to5CountingTreesScreenState
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _treeAsset =
-      'assets/images/objects/arctic/snowy_tree.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _treeAsset = 'assets/images/objects/arctic/snowy_tree.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level18/intro.wav';
-  static const String _audioQuestion =
-      'assets/audio/arctic_numberland/level18/how_many.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level18/intro.wav';
+  static const String _audioQuestion = 'assets/audio/arctic_numberland/level18/how_many.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -80,7 +76,6 @@ class _Number1to5CountingTreesScreenState
   late AnimationController _domaFloatCtrl;
 
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
 
   late AnimationController _treesEnterCtrl;
   late Animation<double> _treesEnter;
@@ -142,13 +137,6 @@ class _Number1to5CountingTreesScreenState
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _treesEnterCtrl = AnimationController(
       vsync: this,
@@ -448,10 +436,10 @@ class _Number1to5CountingTreesScreenState
   Widget _buildIntroLayer() {
     return Stack(
       children: [
-        Positioned(top: 25, left: 20, child: ArcticBackButton()),
+        Positioned(top: 25, left: 25, child: ArcticXButton()),
         Positioned(
           top: 25,
-          right: 20,
+          right: 25,
           child: ArcticLevelBadge(level: widget.level),
         ),
         Positioned.fill(
@@ -560,13 +548,12 @@ class _Number1to5CountingTreesScreenState
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: ArcticBackButton(),
+                    child: ArcticXButton(),
                   ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: ArcticLevelBadge(level: widget.level),
                   ),
-                  Center(child: _buildInstructionBanner(h)),
                 ],
               ),
             ),
@@ -607,48 +594,6 @@ class _Number1to5CountingTreesScreenState
     );
   }
 
-  // ── Banner ─────────────────────────────────────────────────────────────────
-  Widget _buildInstructionBanner(double h) {
-    return ScaleTransition(
-      scale: _instructionBounce,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-        decoration: BoxDecoration(
-          color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: Colors.white, width: 3),
-          boxShadow: [
-            BoxShadow(
-              color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'How many trees are there?',
-              style: TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                shadows: const [
-                  Shadow(
-                    color: Color(0x55003366),
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // ── Tree Scene ─────────────────────────────────────────────────────────────
   Widget _buildTreeScene(double w, double h) {

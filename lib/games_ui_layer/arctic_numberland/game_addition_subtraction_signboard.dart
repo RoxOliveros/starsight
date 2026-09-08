@@ -118,7 +118,6 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _snapPulseCtrl;
@@ -144,11 +143,6 @@ class _SignboardMathGameState extends State<SignboardMathGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -365,8 +359,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     final screenH = MediaQuery.of(context).size.height;
     return Stack(
       children: [
-        Positioned(top: 25, left: 20, child: ArcticBackButton()),
-        Positioned(top: 25, right: 20, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(top: 25, left: 25, child: ArcticXButton()),
+        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -423,16 +417,13 @@ class _SignboardMathGameState extends State<SignboardMathGame>
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+              padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
               child: Stack(
                 alignment: Alignment.topCenter,
                 children: [
-                  Align(alignment: Alignment.centerLeft, child: ArcticBackButton()),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ArcticLevelBadge(level: widget.level),
+                  Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
+                  Align(alignment: Alignment.centerRight, child: ArcticLevelBadge(level: widget.level),
                   ),
-                  Center(child: _buildInstructionBanner(h)),
                 ],
               ),
             ),
@@ -448,7 +439,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                   ),
 
                   // Choices fixed on the right
-                  Padding(padding: EdgeInsetsGeometry.only(right: 20),
+                  Padding(padding: EdgeInsetsGeometry.only(right: 25),
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: _buildPieceTray(h),
@@ -464,46 +455,6 @@ class _SignboardMathGameState extends State<SignboardMathGame>
           ],
         );
       },
-    );
-  }
-
-  Widget _buildInstructionBanner(double h) {
-    final label = _spec.type == _RoundType.addition
-        ? 'Count them together, then fit the piece!'
-        : 'Brush some away, then fit the piece!';
-
-    return ScaleTransition(
-      scale: _instructionBounce,
-      child: GestureDetector(
-        onTap: () => _playVoice(
-          _spec.type == _RoundType.addition ? _audioRoundPromptAdd : _audioRoundPromptSub,
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-          decoration: BoxDecoration(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontFamily: ArcticAppTextStyles.fredoka,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              shadows: const [Shadow(color: Color(0x55003366), blurRadius: 6, offset: Offset(0, 2))],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
