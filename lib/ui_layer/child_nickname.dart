@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 import 'package:StarSight/ui_layer/child_goal.dart';
+=======
+import 'package:StarSight/ui_layer/child_birthdate_screen.dart';
+>>>>>>> Stashed changes
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -54,11 +58,20 @@ class _ChildNickname extends State<ChildNickname> {
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
+<<<<<<< Updated upstream
         pageBuilder: (context, animation, secondaryAnimation) => ChildGoal(
           nickname: nickname,
           parentBirthYear: widget.parentBirthYear,
         ),
 
+=======
+
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            ChildBirthdateScreen(
+              nickname: nickname,
+              parentBirthYear: widget.parentBirthYear,
+            ),
+>>>>>>> Stashed changes
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final tween = Tween(
             begin: const Offset(0, 1),
