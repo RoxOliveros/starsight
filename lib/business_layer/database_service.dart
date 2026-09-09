@@ -9,7 +9,8 @@ class DatabaseService {
     String email = '',
     required String parentBirthYear,
     required String childNickname,
-    required List<String> childGoals,
+    required String childBirthdate, // <-- REPLACED GOALS
+    required String childGender, // <-- REPLACED GOALS
     required String parentPin,
   }) async {
     // Save to Firestore
@@ -26,10 +27,11 @@ class DatabaseService {
         .collection('children')
         .doc(childNickname)
         .set({
-      'nickname': childNickname,
-      'goals': childGoals,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+          'nickname': childNickname,
+          'birthdate': childBirthdate, // <-- SAVING BIRTHDATE
+          'gender': childGender, // <-- SAVING GENDER
+          'createdAt': FieldValue.serverTimestamp(),
+        });
   }
 
   // Check if an email is already registered
@@ -80,7 +82,7 @@ class DatabaseService {
             .doc(currentUser.uid)
             .get();
         if (doc.exists && doc.data() != null) {
-          return doc.get('parentPin'); // <-- Grabs the PIN field
+          return doc.get('parentPin');
         }
       }
     } catch (e) {
@@ -88,31 +90,6 @@ class DatabaseService {
     }
     return null;
   }
-
-
-  // Future<List<Map<String, dynamic>>> getChildren() async {
-  //   try {
-  //     final User? currentUser = FirebaseAuth.instance.currentUser;
-  //     if (currentUser == null) return [];
-  //
-  //     final QuerySnapshot snapshot = await _db
-  //         .collection('users')
-  //         .doc(currentUser.uid)
-  //         .collection('children')
-  //         .get();
-  //
-  //     return snapshot.docs
-  //         .map((doc) =>
-  //     {
-  //       'id': doc.id, // this is the child's nickname (used as doc ID)
-  //       ...doc.data() as Map<String, dynamic>,
-  //     })
-  //         .toList();
-  //   } catch (e) {
-  //     print("Error fetching children: $e");
-  //     return [];
-  //   }
-  // }
 
   Future<List<Map<String, dynamic>>> getChildren() async {
     try {
@@ -126,11 +103,7 @@ class DatabaseService {
           .get();
 
       return snapshot.docs
-          .map((doc) =>
-      {
-        'id': doc.id, // this is the child's nickname (used as doc ID)
-        ...doc.data() as Map<String, dynamic>,
-      })
+          .map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>})
           .toList();
     } catch (e) {
       print("Error fetching children: $e");
