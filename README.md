@@ -1,7 +1,3 @@
-# starsight
-
-A new Flutter project.
-
 ## Getting Started
 
 # StarSight
