@@ -19,13 +19,15 @@ abstract class Fonts {
 class ParentPinVerification extends StatefulWidget {
   final String nickname;
   final String parentBirthYear;
-  final List<String> goals;
+  final String childBirthdate; // <-- REPLACED GOALS
+  final String childGender; // <-- REPLACED GOALS
 
   const ParentPinVerification({
     super.key,
     required this.nickname,
     required this.parentBirthYear,
-    required this.goals,
+    required this.childBirthdate,
+    required this.childGender,
   });
 
   @override
@@ -54,8 +56,6 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
 
   void _onComplete() {
     if (!_isConfirmStep) {
-      // --- NEW: Check for repetitive numbers (e.g. 1111, 2222) ---
-      // If they enter 4 of the same number, turning it into a Set shrinks the length to 1.
       if (_pin.toSet().length == 1) {
         AppDialog.showError(
           context,
@@ -63,13 +63,12 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
               "PIN is too weak. Please do not use repeating numbers (e.g., 1111).",
         );
         setState(() => _pin.clear());
-        return; // Stop them from moving to the confirm step
+        return;
       }
 
       setState(() => _isConfirmStep = true);
     } else {
       if (_pin.join() == _confirmPin.join()) {
-        // --- NEW: Pass the PIN to the SignUpAccount screen ---
         Navigator.push(
           context,
           PageRouteBuilder(
@@ -77,9 +76,10 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
             pageBuilder: (context, animation, secondaryAnimation) =>
                 SignUpAccount(
                   nickname: widget.nickname,
-                  goals: widget.goals,
+                  childBirthdate: widget.childBirthdate, // <-- PASSING DATA
+                  childGender: widget.childGender, // <-- PASSING DATA
                   parentBirthYear: widget.parentBirthYear,
-                  parentPin: _pin.join(), // We are sending the exact PIN here!
+                  parentPin: _pin.join(),
                 ),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
@@ -215,7 +215,6 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
       backgroundColor: ColorTheme.deepNavyBlue,
       body: Stack(
         children: [
-          // Top-right cloud
           Positioned(
             top: -screenHeight * 0.01,
             right: -100,
@@ -229,7 +228,6 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
               ),
             ),
           ),
-          // Bottom-left cloud
           Positioned(
             bottom: screenHeight * -0.1,
             left: -130,
@@ -250,15 +248,12 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
               children: [
                 AppTopBar(progress: 1.0),
 
-                // ── Rest of your screen ──
                 Expanded(
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         SizedBox(height: screenHeight * 0.05),
-
-                        // Dog + message row
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: Row(
@@ -296,7 +291,6 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
 
                         const SizedBox(height: 20),
 
-                        // Input display
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 45),
                           child: Container(
@@ -327,7 +321,6 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
 
                         const SizedBox(height: 50),
 
-                        // Numpad
                         Column(
                           children: [
                             Row(
@@ -358,7 +351,6 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
 
                         const Spacer(),
 
-                        // Bottom sign in link
                         Padding(
                           padding: const EdgeInsets.only(bottom: 30),
                           child: GestureDetector(

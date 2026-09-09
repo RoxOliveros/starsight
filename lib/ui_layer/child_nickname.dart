@@ -1,4 +1,4 @@
-import 'package:StarSight/ui_layer/child_goal.dart';
+import 'package:StarSight/ui_layer/child_details_screen.dart.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -54,11 +54,12 @@ class _ChildNickname extends State<ChildNickname> {
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
-        pageBuilder: (context, animation, secondaryAnimation) => ChildGoal(
-          nickname: nickname,
-          parentBirthYear: widget.parentBirthYear,
-        ),
-
+        // --- UPDATED NAVIGATION TO ChildDetailsScreen ---
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            ChildDetailsScreen(
+              nickname: nickname,
+              parentBirthYear: widget.parentBirthYear,
+            ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final tween = Tween(
             begin: const Offset(0, 1),
