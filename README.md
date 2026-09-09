@@ -15,6 +15,7 @@ to support children's learning through play-based activities.
 
 ## Project Structure
 
+```text
 starsight/
 ├── assets/
 │   ├── animations/
@@ -34,6 +35,7 @@ starsight/
 │   ├── ui_layer/
 │   └── main.dart
 └── test/
+```
 
 ## Branching Strategy
 
