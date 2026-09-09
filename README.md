@@ -85,9 +85,9 @@ correction and goes through the required review and testing process again.
 Commit messages must be precise and concise.
 
 Format:
-
+```
 <ticket>: <short description>
-
+```
 Examples:
 
 SCRUM-91: add odd one out game
