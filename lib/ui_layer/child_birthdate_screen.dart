@@ -1,9 +1,5 @@
-<<<<<<<< Updated upstream:lib/ui_layer/child_goal.dart
-import 'package:StarSight/ui_layer/parents_pin_setup.dart';
-========
 import 'package:StarSight/ui_layer/app_dialog.dart';
 import 'package:StarSight/ui_layer/child_gender_screen.dart';
->>>>>>>> Stashed changes:lib/ui_layer/child_birthdate_screen.dart
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -20,46 +16,17 @@ abstract class Fonts {
   static const String fredoka = 'Fredoka';
 }
 
-<<<<<<<< Updated upstream:lib/ui_layer/child_goal.dart
-class ChildGoal extends StatefulWidget {
-  final String nickname;
-  final String parentBirthYear;
-
-  const ChildGoal({
-========
 class ChildBirthdateScreen extends StatefulWidget {
   final String nickname;
   final String parentBirthYear;
 
   const ChildBirthdateScreen({
->>>>>>>> Stashed changes:lib/ui_layer/child_birthdate_screen.dart
     super.key,
     required this.nickname,
     required this.parentBirthYear,
   });
 
   @override
-<<<<<<<< Updated upstream:lib/ui_layer/child_goal.dart
-  State<ChildGoal> createState() => _ChildGoalState();
-}
-
-class _ChildGoalState extends State<ChildGoal> {
-  final List<String> _goals = [
-    'READING',
-    'MATH',
-    'PROBLEM SOLVING',
-    'FOCUS/ATTENTION',
-    'MEMORY',
-    'VALUE',
-  ];
-
-  final Set<int> _selectedIndices = {};
-
-  void _onNext() {
-    List<String> selectedGoals = _selectedIndices
-        .map((i) => _goals[i])
-        .toList();
-========
   State<ChildBirthdateScreen> createState() => _ChildBirthdateScreenState();
 }
 
@@ -118,26 +85,17 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
 
     String formattedDate =
         "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}";
->>>>>>>> Stashed changes:lib/ui_layer/child_birthdate_screen.dart
 
     Navigator.push(
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
-<<<<<<<< Updated upstream:lib/ui_layer/child_goal.dart
-        pageBuilder: (context, animation, secondaryAnimation) => ParentPinVerification(
-          nickname: widget.nickname,
-          goals: selectedGoals,
-          parentBirthYear: widget.parentBirthYear,
-        ),
-========
         pageBuilder: (context, animation, secondaryAnimation) =>
             ChildGenderScreen(
               nickname: widget.nickname,
               childBirthdate: formattedDate,
               parentBirthYear: widget.parentBirthYear,
             ),
->>>>>>>> Stashed changes:lib/ui_layer/child_birthdate_screen.dart
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final tween = Tween(
             begin: const Offset(0, 1),
@@ -156,16 +114,12 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-<<<<<<<< Updated upstream:lib/ui_layer/child_goal.dart
-========
     final bool isReady = _selectedDate != null;
->>>>>>>> Stashed changes:lib/ui_layer/child_birthdate_screen.dart
 
     return Scaffold(
       backgroundColor: ColorTheme.darkBlue,
       body: Stack(
         children: [
-          // Cloud decoration bottom left
           Positioned(
             bottom: screenHeight * 0.12,
             left: -80,
@@ -184,9 +138,8 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AppTopBar(progress: 0.65), // Adjusted progress
+                AppTopBar(progress: 0.65),
 
-                // Header row
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
@@ -209,11 +162,7 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                       ),
                       Expanded(
                         child: Text(
-<<<<<<<< Updated upstream:lib/ui_layer/child_goal.dart
-                          'Which areas would you like ${widget.nickname} to work on? (Select all that apply)',
-========
                           "When is ${widget.nickname}'s birthday?",
->>>>>>>> Stashed changes:lib/ui_layer/child_birthdate_screen.dart
                           style: const TextStyle(
                             color: ColorTheme.cream,
                             fontSize: 18,
@@ -226,28 +175,8 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
 
-<<<<<<<< Updated upstream:lib/ui_layer/child_goal.dart
-                // Goal options
-                Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    itemCount: _goals.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, i) {
-                      final isSelected = _selectedIndices.contains(i);
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (isSelected) {
-                              _selectedIndices.remove(i);
-                            } else {
-                              _selectedIndices.add(i);
-                            }
-                          });
-                        },
-========
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
@@ -265,19 +194,14 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                       const SizedBox(height: 8),
                       GestureDetector(
                         onTap: _selectDate,
->>>>>>>> Stashed changes:lib/ui_layer/child_birthdate_screen.dart
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           height: 56,
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? ColorTheme.goldenYellow.withValues(
-                                    alpha: 0.35,
-                                  )
-                                : Colors.white.withValues(alpha: 0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(32),
                             border: Border.all(
-                              color: isSelected
+                              color: _selectedDate != null
                                   ? ColorTheme.goldenYellow
                                   : Colors.transparent,
                               width: 2,
@@ -287,43 +211,40 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                           child: Row(
                             children: [
                               Icon(
-                                Icons.star_rounded,
-                                color: isSelected
+                                Icons.calendar_today_rounded,
+                                color: _selectedDate != null
                                     ? ColorTheme.goldenYellow
                                     : ColorTheme.goldenYellow.withValues(
                                         alpha: 0.6,
                                       ),
-                                size: 28,
+                                size: 24,
                               ),
                               const SizedBox(width: 16),
                               Text(
-                                _goals[i],
+                                _selectedDate != null
+                                    ? "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}"
+                                    : "Select Birthdate",
                                 style: TextStyle(
                                   fontFamily: Fonts.fredoka,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: isSelected
+                                  color: _selectedDate != null
                                       ? ColorTheme.cream
                                       : ColorTheme.cream.withValues(
                                           alpha: 0.75,
                                         ),
-                                  letterSpacing: 1.2,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
                 ),
 
-<<<<<<<< Updated upstream:lib/ui_layer/child_goal.dart
-                // Bottom buttons
-========
                 const Spacer(),
 
->>>>>>>> Stashed changes:lib/ui_layer/child_birthdate_screen.dart
                 Padding(
                   padding: const EdgeInsets.only(
                     bottom: 30,
@@ -338,9 +259,7 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                           width: 200,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: _selectedIndices.isNotEmpty
-                                ? _onNext
-                                : null,
+                            onPressed: isReady ? _onNext : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: ColorTheme.goldenYellow,
                               disabledBackgroundColor: ColorTheme.goldenYellow

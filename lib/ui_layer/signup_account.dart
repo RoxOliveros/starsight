@@ -34,14 +34,16 @@ abstract class AppTextStyles {
 
 class SignUpAccount extends StatefulWidget {
   final String nickname;
-  final List<String> goals;
+  final String childBirthdate;
+  final String childGender;
   final String parentBirthYear;
   final String parentPin;
 
   const SignUpAccount({
     super.key,
     required this.nickname,
-    required this.goals,
+    required this.childBirthdate,
+    required this.childGender,
     required this.parentBirthYear,
     required this.parentPin,
   });
@@ -55,7 +57,7 @@ class _SignUpAccountState extends State<SignUpAccount>
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-      TextEditingController(); // 1. ADDED CONTROLLER
+      TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -128,7 +130,8 @@ class _SignUpAccountState extends State<SignUpAccount>
           uid: user.uid,
           email: email,
           childNickname: widget.nickname,
-          childGoals: widget.goals,
+          childBirthdate: widget.childBirthdate,
+          childGender: widget.childGender,
           parentBirthYear: widget.parentBirthYear,
           parentPin: widget.parentPin,
         );
@@ -154,7 +157,8 @@ class _SignUpAccountState extends State<SignUpAccount>
           uid: user.uid,
           email: user.email ?? '',
           childNickname: widget.nickname,
-          childGoals: widget.goals,
+          childBirthdate: widget.childBirthdate,
+          childGender: widget.childGender,
           parentBirthYear: widget.parentBirthYear,
           parentPin: widget.parentPin,
         );
@@ -225,7 +229,6 @@ class _SignUpAccountState extends State<SignUpAccount>
 
                       const SizedBox(height: 32),
 
-                      // EMAIL AND PASSWORD FIELDS
                       Column(
                         children: [
                           TextField(
@@ -320,7 +323,6 @@ class _SignUpAccountState extends State<SignUpAccount>
                           const SizedBox(height: 16),
 
                           TextField(
-                            // Fixed the controller name to match the top of your file!
                             controller: _confirmPasswordController,
                             obscureText: _obscureConfirmPassword,
                             style: const TextStyle(
@@ -341,7 +343,6 @@ class _SignUpAccountState extends State<SignUpAccount>
                                 horizontal: 20,
                                 vertical: 14,
                               ),
-                              // --- ADDED THE EYE ICON HERE ---
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscureConfirmPassword
@@ -356,7 +357,6 @@ class _SignUpAccountState extends State<SignUpAccount>
                                   });
                                 },
                               ),
-                              // -------------------------------
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(30),
                                 borderSide: const BorderSide(
