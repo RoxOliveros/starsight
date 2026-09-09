@@ -1,16 +1,9 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:StarSight/business_layer/ai_summary_service.dart';
-import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
-import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:StarSight/games_ui_layer/generating_summary_card.dart';
-import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/game_shadow_match.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -35,25 +28,24 @@ class StarColorSortScreen extends StatefulWidget {
 }
 
 class _StarColorSortScreenState extends State<StarColorSortScreen>
-    with
-        TickerProviderStateMixin,
-        RoxieReactionMixin,
-        AiCameraMixin,
-        GameLoadingMixin {
-  //wag tong AiCameraMixin tin
-  // Required by the mixin — point it to your existing _player
+    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin {
   @override
   AudioPlayer get roxiePlayer => _player;
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _audioIntro = 'assets/audio/puzzle_glade/star_sort_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/star_sort_instruction.wav';
-  static const String _audioGameComplete = 'assets/audio/puzzle_glade/star_sort_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/star_sort_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/star_sort_instruction.wav';
+  static const String _audioGameComplete =
+      'assets/audio/puzzle_glade/star_sort_complete.wav';
 
-  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioCorrect =
+      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
 
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
   static const String _jarImage = 'assets/images/objects/puzzle/jar_bnw.png';
@@ -112,14 +104,10 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   late List<_Ball> _poolBalls;
   late List<_Ball> _jarABalls;
   late List<_Ball> _jarBBalls;
-  bool _hideLightingPrompt = false;
   bool _wrongFlashA = false;
   bool _wrongFlashB = false;
   bool _roundComplete = false;
   bool _showWinDialog = false;
-  bool _isGeneratingSummary = false;
-
-  final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _player = AudioPlayer();
@@ -151,13 +139,11 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     OrientationService.setLandscape();
     _initAnimations();
     _startRound();
-    startAiCamera(); //wag to tin
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
-    disposeAiCamera(); // Eto pa tin
     _player.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
@@ -237,7 +223,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     if (mounted) {
       setState(() {
         _screenPhase = _ScreenPhase.game;
-        _tapTracker.startSession();
       });
       _gameEnterCtrl.forward();
     }
@@ -309,7 +294,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     final correct = ball.jarIndex == jarIndex;
 
     if (correct) {
-      _tapTracker.recordCorrectTap();
       setState(() {
         _poolBalls.remove(ball);
         if (jarIndex == 0) {
@@ -347,90 +331,12 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
           await _player.play(
             AssetSource(_audioGameComplete.replaceFirst('assets/', '')),
           );
-          //Wag To
-          setState(() {
-            _isGeneratingSummary = true;
-          });
-
-          // ---> 1. GRAB THE EMOTIONS FROM THE CAMERA <---
-          List<String> finalEmotions = stopAiCamera();
-
-          String parentUid = FirebaseAuth.instance.currentUser!.uid;
-          String actualChildName = "Little Explorer";
-
-          try {
-            var childrenSnapshot = await FirebaseFirestore.instance
-                .collection('users')
-                .doc(parentUid)
-                .collection('children')
-                .limit(1)
-                .get();
-
-            if (childrenSnapshot.docs.isNotEmpty) {
-              var childData = childrenSnapshot.docs.first.data();
-              if (childData.containsKey('nickname')) {
-                actualChildName = childData['nickname'];
-              }
-            }
-          } catch (e) {
-            debugPrint("Could not fetch nickname: $e");
-          }
-          // ---> CALCULATE EXACT TIME PLAYED <---
-
-          // ---> 2. ASK GEMINI FOR THE SUMMARY <---
-          debugPrint("Sending data to Gemini... Please wait.");
-          String geminiSummary = await AiSummaryService.generateParentSummary(
-            gameId: 'puzzle_star_sort', // <-- Use your registry ID
-            childName: actualChildName,
-            emotionsList: finalEmotions,
-            timePlayed: _tapTracker.formattedDuration, // <-- Use tracker
-            totalTaps: _tapTracker.totalTaps, // <-- Use tracker
-            mistakesMade: _tapTracker.mistakeCount, // <-- Use tracker
-          );
-
-          // ---> 3. SAVE TO YOUR EXISTING FIRESTORE ARCHITECTURE <---
-          debugPrint("Saving report to parent database...");
-          try {
-            String parentUid = FirebaseAuth.instance.currentUser!.uid;
-
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(parentUid)
-                .collection('reports')
-                .add({
-                  'gameId': 'puzzle_star_sort',
-                  'activityName': "Star Color Sort",
-                  'summary': geminiSummary,
-                  'totalTaps': _tapTracker.totalTaps, // <-- Save metrics
-                  'mistakes': _tapTracker.mistakeCount, // <-- Save metrics
-                  'timePlayed':
-                      _tapTracker.formattedDuration, // <-- Save metrics
-                  'timestamp': FieldValue.serverTimestamp(),
-                });
-            debugPrint("Successfully saved to: $parentUid");
-
-            try {
-              var checkData = await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(parentUid)
-                  .collection('reports')
-                  .get();
-              debugPrint(
-                "RADAR TEST: I can see ${checkData.docs.length} reports saved here!",
-              );
-            } catch (e) {
-              debugPrint("RADAR TEST ERROR: $e");
-            }
-          } catch (e) {
-            debugPrint("Database Error: $e");
-          }
 
           await Future.delayed(const Duration(milliseconds: 800));
 
           await PuzzleProgressService.instance.markLevelComplete(1);
 
           if (mounted) {
-            _isGeneratingSummary = false;
             setState(() => _showWinDialog = true);
           }
         } else {
@@ -441,7 +347,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
         }
       }
     } else {
-      _tapTracker.recordMistake();
       setState(() {
         if (jarIndex == 0) {
           _wrongFlashA = true;
@@ -491,28 +396,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
                 : FadeTransition(opacity: _gameFade, child: _buildGameLayer()),
 
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
-
-            //wag to tin
-            // ---> LIVE DEMO CAMERA <---
-            if (isCameraInitialized && aiCameraController != null)
-              const SizedBox.shrink(),
-
-            // ---> CONDITIONAL LIGHTING PROMPT <---
-            if ((!isCameraInitialized || !isFaceDetected) &&
-                !_hideLightingPrompt)
-              Positioned.fill(
-                child: LightingPromptCard(
-                  onClose: () {
-                    setState(() {
-                      _hideLightingPrompt =
-                          true; // This forces it to stay hidden!
-                    });
-                  },
-                ),
-              ),
-
-            if (_isGeneratingSummary)
-              const Positioned.fill(child: GeneratingSummaryCard()),
 
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
@@ -945,7 +828,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
+
       onNext: () {
         Navigator.pushReplacement(
           context,

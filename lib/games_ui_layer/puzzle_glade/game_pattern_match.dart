@@ -1,15 +1,8 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:StarSight/business_layer/ai_summary_service.dart';
-import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
-import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:StarSight/games_ui_layer/generating_summary_card.dart';
-import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -75,23 +68,23 @@ class PatternMatchScreen extends StatefulWidget {
 }
 
 class _PatternMatchScreenState extends State<PatternMatchScreen>
-    with
-        TickerProviderStateMixin,
-        RoxieReactionMixin,
-        AiCameraMixin,
-        GameLoadingMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin {
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/pattern_match_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/pattern_match_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/pattern_match_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/pattern_match_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/pattern_match_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/pattern_match_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
 
@@ -107,12 +100,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   bool _rightFlash = false;
   bool _roundComplete = false;
   bool _showWinDialog = false;
-
-  // ── AI TRACKERS  ────────────────────────────────────────────────────────────
-
-  bool _isGeneratingSummary = false;
-  bool _hideLightingPrompt = false;
-  final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -150,13 +137,11 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     super.initState();
     OrientationService.setLandscape();
     _initAnimations();
-    startAiCamera();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
-    disposeAiCamera();
     _roxiePlayer.dispose();
     _bgPlayer.dispose();
     _sfxPlayer.dispose();
@@ -239,13 +224,13 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;                    
+    if (!mounted) return;
 
     _roxieSlideCtrl.forward();
 
     _speechBubbleCtrl.forward(from: 0);
     await _playBgAudio(_audioIntro);
-    if (!mounted) return;                    
+    if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
 
@@ -254,12 +239,11 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     if (mounted) {
       setState(() {
         _screenPhase = _ScreenPhase.game;
-        _tapTracker.startSession();
       });
     }
     await _playBgAudio(_audioInstructions);
   }
-  
+
   Future<void> _playBgAudio(String asset) async {
     StreamSubscription? sub;
     try {
@@ -326,7 +310,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     if (_roundComplete || _wrongFlash || _rightFlash) return;
 
     if (tapped == _answerColor) {
-      _tapTracker.recordCorrectTap();
       setState(() {
         _rightFlash = true;
         _roundComplete = true;
@@ -343,63 +326,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
       if (_round >= _kTotalRounds) {
         await _bgPlayer.stop();
         await _sfxPlayer.stop();
-        setState(() {
-          _isGeneratingSummary = true; // Shows the loading screen
-        });
-
-        // 1. Grab Emotions & Time
-        List<String> finalEmotions = stopAiCamera();
-
-        // 2. Get Child's Name
-        String parentUid = FirebaseAuth.instance.currentUser!.uid;
-        String actualChildName = "Little Explorer";
-        try {
-          var childrenSnapshot = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(parentUid)
-              .collection('children')
-              .limit(1)
-              .get();
-
-          if (childrenSnapshot.docs.isNotEmpty) {
-            var childData = childrenSnapshot.docs.first.data();
-            if (childData.containsKey('nickname')) {
-              actualChildName = childData['nickname'];
-            }
-          }
-        } catch (e) {
-          debugPrint("Could not fetch nickname: $e");
-        }
-
-        // 3. Ask Gemini for Summary
-        debugPrint("Sending data to Gemini... Please wait.");
-        String geminiSummary = await AiSummaryService.generateParentSummary(
-          gameId: 'puzzle_pattern_match', // <-- Use your registry ID
-          childName: actualChildName,
-          emotionsList: finalEmotions,
-          timePlayed: _tapTracker.formattedDuration, // <-- Use tracker
-          totalTaps: _tapTracker.totalTaps, // <-- Use tracker
-          mistakesMade: _tapTracker.mistakeCount, // <-- Use tracker
-        );
-
-        // 4. Save to Firestore
-        try {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(parentUid)
-              .collection('reports')
-              .add({
-                'gameId': 'puzzle_pattern_match',
-                'activityName': "Star Pattern Match",
-                'summary': geminiSummary,
-                'totalTaps': _tapTracker.totalTaps, // <-- Save metrics
-                'mistakes': _tapTracker.mistakeCount, // <-- Save metrics
-                'timePlayed': _tapTracker.formattedDuration, // <-- Save metrics
-                'timestamp': FieldValue.serverTimestamp(),
-              });
-        } catch (e) {
-          debugPrint("Database Error: $e");
-        }
 
         final completer = Completer<void>();
         final sub = _completePlayer.onPlayerComplete.listen((_) {
@@ -422,7 +348,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         });
       }
     } else {
-      _tapTracker.recordMistake();
       setState(() {
         _wrongFlash = true;
       });
@@ -463,24 +388,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
             if (_screenPhase == _ScreenPhase.game) buildRoxie(context),
 
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
-
-            // ---> CONDITIONAL LIGHTING PROMPT <---
-            if ((!isCameraInitialized || !isFaceDetected) &&
-                !_hideLightingPrompt)
-              Positioned.fill(
-                child: LightingPromptCard(
-                  onClose: () {
-                    setState(() {
-                      _hideLightingPrompt =
-                          true; // This forces it to stay hidden!
-                    });
-                  },
-                ),
-              ),
-
-            // ---> LOADING SUMMARY PROMPT <---
-            if (_isGeneratingSummary)
-              const Positioned.fill(child: GeneratingSummaryCard()),
 
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
@@ -855,7 +762,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
+
       onNext: () {
         Navigator.pushReplacement(
           context,
