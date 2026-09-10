@@ -115,7 +115,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_night.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_night_sky.png';
   static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _auroraAsset = 'assets/images/objects/arctic/aurora.png';
 

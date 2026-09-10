@@ -76,7 +76,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_night.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_night_sky.png';
   static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _shootingStarAsset = 'assets/images/objects/arctic/shooting_star.png';
 
