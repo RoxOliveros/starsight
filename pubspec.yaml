@@ -105,6 +105,8 @@ flutter:
     - assets/fonts/game_numbers/
     - assets/audio/
     - assets/audio/sound_effects/
+    - assets/audio/bg_musics/
+    - assets/audio/bg_musics/mood/
     - assets/audio/arctic_numberland/
     - assets/audio/arctic_numberland/level4/
     - assets/audio/arctic_numberland/level5/
