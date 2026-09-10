@@ -1,13 +1,41 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 
 class ForestAudioHelper {
-
   final AudioPlayer voicePlayer = AudioPlayer();
   final AudioPlayer sfxPlayer = AudioPlayer();
 
-  /// Plays a voice line and waits for it to finish (or times out).
+  // Separate player for background music so it can loop independently
+  // underneath voice lines / sound effects without being stopped by them.
+  final AudioPlayer bgPlayer = AudioPlayer();
+  String? _currentBgTrack;
+
+  ForestAudioHelper() {
+    _applyMixingAudioContext();
+  }
+
+  Future<void> _applyMixingAudioContext() async {
+    final mixContext = AudioContext(
+      android: const AudioContextAndroid(
+        contentType: AndroidContentType.music,
+        usageType: AndroidUsageType.media,
+        audioFocus: AndroidAudioFocus.none,
+      ),
+    );
+
+    try {
+      await Future.wait([
+        voicePlayer.setAudioContext(mixContext),
+        sfxPlayer.setAudioContext(mixContext),
+        bgPlayer.setAudioContext(mixContext),
+      ]);
+    } catch (e) {
+      debugPrint('ForestAudioHelper: failed to set mixing audio context: $e');
+    }
+  }
+
   Future<void> playVoice(
       String asset, {
         Duration timeout = const Duration(seconds: 20),
@@ -15,7 +43,7 @@ class ForestAudioHelper {
     StreamSubscription? sub;
 
     try {
-      await voicePlayer.stop();   // <-- Add this
+      await voicePlayer.stop(); // <-- Add this
 
       final completer = Completer<void>();
 
@@ -25,9 +53,7 @@ class ForestAudioHelper {
         }
       });
 
-      await voicePlayer.play(
-        AssetSource(_strip(asset)),
-      );
+      await voicePlayer.play(AssetSource(_strip(asset)));
 
       await completer.future.timeout(timeout);
     } catch (e) {
@@ -41,7 +67,10 @@ class ForestAudioHelper {
   Future<void> stopVoice() => voicePlayer.stop();
 
   /// Plays a short sound effect. Does not await completion.
-  Future<void> playSfx(String asset, {Duration fallback = const Duration(milliseconds: 900)}) async {
+  Future<void> playSfx(
+      String asset, {
+        Duration fallback = const Duration(milliseconds: 900),
+      }) async {
     try {
       final source = AssetSource(_strip(asset));
       await sfxPlayer.play(source);
@@ -52,12 +81,46 @@ class ForestAudioHelper {
     }
   }
 
+  // ── BACKGROUND MUSIC ─────────────────────────────────────────────────
+
+  //bg music volume
+  Future<void> playBackgroundMusic({String? track, double volume = 0.15}) async {
+    final resolved = track != null
+        ? BgMusicAssets.resolve(track)
+        : BgMusicAssets.random();
+
+    if (_currentBgTrack == resolved && bgPlayer.state == PlayerState.playing) {
+      return; // Already playing this track — don't restart it.
+    }
+
+    try {
+      await bgPlayer.stop();
+      await bgPlayer.setReleaseMode(ReleaseMode.loop);
+      await bgPlayer.setVolume(volume);
+      await bgPlayer.play(AssetSource(_strip(resolved)));
+      _currentBgTrack = resolved;
+    } catch (e) {
+      debugPrint('ForestAudioHelper: bg music error ($resolved): $e');
+    }
+  }
+
+  /// Stops the background music.
+  Future<void> stopBackgroundMusic() async {
+    await bgPlayer.stop();
+    _currentBgTrack = null;
+  }
+
+  /// Adjusts background music volume without restarting the track.
+  Future<void> setBackgroundMusicVolume(double volume) =>
+      bgPlayer.setVolume(volume);
+
   String _strip(String asset) => asset.replaceFirst('assets/', '');
 
   /// Call from the widget's [State.dispose].
   void dispose() {
     voicePlayer.dispose();
     sfxPlayer.dispose();
+    bgPlayer.dispose();
   }
 }
 
@@ -159,14 +222,97 @@ class ForestAudioAssets {
   }
 }
 
+// USAGE
+// init
+// // Default: random track from bg_musics
+// playBackgroundMusic();
+//
+// // Specific track by name (still assumes bg_musics folder)
+// playBackgroundMusic(track: 'happy2');
+//
+// // A file in a completely different folder — just give the path
+// // (with or without the leading "assets/", both work)
+// playBackgroundMusic(track: 'assets/audio/level_themes/boss_fight.wav');
+// playBackgroundMusic(track: 'audio/level_themes/boss_fight.wav');
+//
+// dispose
+// stopBackgroundMusic();
+
+class BgMusicAssets {
+  BgMusicAssets._();
+
+  static const String base = 'assets/audio/bg_musics';
+
+  static const String adventurous = '$base/bg_music_adventurous.wav';
+  static const String cheerful = '$base/bg_music_cheerful.wav';
+  static const String cute = '$base/bg_music_cute.wav';
+  static const String funny = '$base/bg_music_funny.wav';
+  static const String happy = '$base/bg_music_happy.wav';
+  static const String happy2 = '$base/bg_music_happy2.wav';
+  static const String happy3 = '$base/bg_music_happy3.wav';
+  static const String happy4 = '$base/bg_music_happy4.wav';
+
+  static const List<String> tracks = [
+    adventurous,
+    cheerful,
+    cute,
+    funny,
+    happy,
+    happy2,
+    happy3,
+    happy4,
+  ];
+
+  static String random() => tracks[Random().nextInt(tracks.length)];
+  static String resolve(String track) {
+    if (track.startsWith('assets/')) return track;
+    if (track.contains('/')) return 'assets/$track';
+
+    var name = track;
+    if (!name.endsWith('.wav')) name = '$name.wav';
+    if (!name.startsWith('bg_music_')) name = 'bg_music_$name';
+
+    final candidate = '$base/$name';
+
+    if (!tracks.contains(candidate)) {
+      debugPrint(
+        'BgMusicAssets: "$track" did not match a known track — '
+            'playing it anyway at $candidate. Check the file name/path.',
+      );
+    }
+
+    return candidate;
+  }
+}
+
 mixin ForestAudioMixin<T extends StatefulWidget> on State<T> {
   final ForestAudioHelper audio = ForestAudioHelper();
+  AppLifecycleListener? _audioLifecycleListener;
 
   Future<void> playVoice(String asset) => audio.playVoice(asset);
   Future<void> playSfx(String asset) => audio.playSfx(asset);
 
+  // bg music volume
+  Future<void> playBackgroundMusic({String? track, double volume = 0.10}) =>
+      audio.playBackgroundMusic(track: track, volume: volume);
+
+  Future<void> stopBackgroundMusic() => audio.stopBackgroundMusic();
+
+  Future<void> setBackgroundMusicVolume(double volume) =>
+      audio.setBackgroundMusicVolume(volume);
+
+  @override
+  void initState() {
+    super.initState();
+    _audioLifecycleListener = AppLifecycleListener(
+      onPause: () => audio.bgPlayer.pause(),
+      onResume: () => audio.bgPlayer.resume(),
+    );
+  }
+
   @override
   void dispose() {
+    _audioLifecycleListener?.dispose();
     audio.dispose();
     super.dispose();
   }
