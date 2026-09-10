@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import 'package:StarSight/ui_layer/child_details_screen.dart.dart';
-=======
 import 'package:StarSight/ui_layer/child_birthdate_screen.dart';
->>>>>>> fetures/Scrum-134-Add-Child's-Gender
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -58,14 +54,8 @@ class _ChildNickname extends State<ChildNickname> {
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
-<<<<<<< HEAD
-        // --- UPDATED NAVIGATION TO ChildDetailsScreen ---
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            ChildDetailsScreen(
-=======
         pageBuilder: (context, animation, secondaryAnimation) =>
             ChildBirthdateScreen(
->>>>>>> fetures/Scrum-134-Add-Child's-Gender
               nickname: nickname,
               parentBirthYear: widget.parentBirthYear,
             ),

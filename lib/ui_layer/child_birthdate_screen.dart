@@ -1,9 +1,5 @@
 import 'package:StarSight/ui_layer/app_dialog.dart';
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-import 'package:StarSight/ui_layer/parents_pin_setup.dart';
-========
 import 'package:StarSight/ui_layer/child_gender_screen.dart';
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -20,43 +16,23 @@ abstract class Fonts {
   static const String fredoka = 'Fredoka';
 }
 
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-class ChildDetailsScreen extends StatefulWidget {
-  final String nickname;
-  final String parentBirthYear;
-
-  const ChildDetailsScreen({
-========
 class ChildBirthdateScreen extends StatefulWidget {
   final String nickname;
   final String parentBirthYear;
 
   const ChildBirthdateScreen({
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
     super.key,
     required this.nickname,
     required this.parentBirthYear,
   });
 
   @override
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-  State<ChildDetailsScreen> createState() => _ChildDetailsScreenState();
-}
-
-class _ChildDetailsScreenState extends State<ChildDetailsScreen> {
-  DateTime? _selectedDate;
-  String? _selectedGender;
-
-  final List<String> _genders = ['Boy', 'Girl'];
-
-========
   State<ChildBirthdateScreen> createState() => _ChildBirthdateScreenState();
 }
 
 class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
   DateTime? _selectedDate;
 
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
   void _selectDate() async {
     DateTime? picked = await showDatePicker(
       context: context,
@@ -83,10 +59,6 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
   }
 
   void _onNext() {
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-    // 1. Calculate the current year, ages, and the age difference
-========
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
     int currentYear = DateTime.now().year;
     int parentYear = int.tryParse(widget.parentBirthYear) ?? 0;
     int childYear = _selectedDate!.year;
@@ -94,10 +66,6 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
     int childAge = currentYear - childYear;
     int ageDifference = childYear - parentYear;
 
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-    // 2. Validate Child Age (must be 3 to 5 years old)
-========
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
     if (childAge < 3 || childAge > 5) {
       AppDialog.showError(
         context,
@@ -106,10 +74,6 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
       return;
     }
 
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-    // 3. Validate Age Difference (parent must be at least 20 years older than the child)
-========
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
     if (ageDifference < 20) {
       AppDialog.showError(
         context,
@@ -119,10 +83,6 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
       return;
     }
 
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-    // If validation passes, proceed normally!
-========
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
     String formattedDate =
         "${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}";
 
@@ -131,16 +91,9 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
         pageBuilder: (context, animation, secondaryAnimation) =>
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-            ParentPinVerification(
-              nickname: widget.nickname,
-              childBirthdate: formattedDate,
-              childGender: _selectedGender!,
-========
             ChildGenderScreen(
               nickname: widget.nickname,
               childBirthdate: formattedDate,
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
               parentBirthYear: widget.parentBirthYear,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -161,11 +114,7 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-    final bool isReady = _selectedDate != null && _selectedGender != null;
-========
     final bool isReady = _selectedDate != null;
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
 
     return Scaffold(
       backgroundColor: ColorTheme.darkBlue,
@@ -213,11 +162,7 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                       ),
                       Expanded(
                         child: Text(
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-                          'Tell us a bit more about ${widget.nickname}!',
-========
                           "When is ${widget.nickname}'s birthday?",
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
                           style: const TextStyle(
                             color: ColorTheme.cream,
                             fontSize: 18,
@@ -232,10 +177,6 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
 
                 const SizedBox(height: 16),
 
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-                // Date Picker UI
-========
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
@@ -302,94 +243,6 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                   ),
                 ),
 
-<<<<<<<< HEAD:lib/ui_layer/child_details_screen.dart.dart
-                const SizedBox(height: 24),
-
-                // Gender Selection UI
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Gender",
-                        style: TextStyle(
-                          color: ColorTheme.cream,
-                          fontSize: 16,
-                          fontFamily: Fonts.fredoka,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Column(
-                        children: _genders.map((gender) {
-                          final isSelected = _selectedGender == gender;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _selectedGender = gender;
-                                });
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? ColorTheme.goldenYellow.withValues(
-                                          alpha: 0.35,
-                                        )
-                                      : Colors.white.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(32),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? ColorTheme.goldenYellow
-                                        : Colors.transparent,
-                                    width: 2,
-                                  ),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.person_rounded,
-                                      color: isSelected
-                                          ? ColorTheme.goldenYellow
-                                          : ColorTheme.goldenYellow.withValues(
-                                              alpha: 0.6,
-                                            ),
-                                      size: 28,
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Text(
-                                      gender,
-                                      style: TextStyle(
-                                        fontFamily: Fonts.fredoka,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: isSelected
-                                            ? ColorTheme.cream
-                                            : ColorTheme.cream.withValues(
-                                                alpha: 0.75,
-                                              ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
-                ),
-
-========
->>>>>>>> fetures/Scrum-134-Add-Child's-Gender:lib/ui_layer/child_birthdate_screen.dart
                 const Spacer(),
 
                 Padding(

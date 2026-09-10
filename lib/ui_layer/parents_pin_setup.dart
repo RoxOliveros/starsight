@@ -19,13 +19,8 @@ abstract class Fonts {
 class ParentPinVerification extends StatefulWidget {
   final String nickname;
   final String parentBirthYear;
-<<<<<<< HEAD
-  final String childBirthdate; // <-- REPLACED GOALS
-  final String childGender; // <-- REPLACED GOALS
-=======
   final String childBirthdate;
   final String childGender;
->>>>>>> fetures/Scrum-134-Add-Child's-Gender
 
   const ParentPinVerification({
     super.key,
@@ -81,13 +76,8 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
             pageBuilder: (context, animation, secondaryAnimation) =>
                 SignUpAccount(
                   nickname: widget.nickname,
-<<<<<<< HEAD
-                  childBirthdate: widget.childBirthdate, // <-- PASSING DATA
-                  childGender: widget.childGender, // <-- PASSING DATA
-=======
                   childBirthdate: widget.childBirthdate,
                   childGender: widget.childGender,
->>>>>>> fetures/Scrum-134-Add-Child's-Gender
                   parentBirthYear: widget.parentBirthYear,
                   parentPin: _pin.join(),
                 ),

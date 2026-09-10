@@ -1,4 +1,4 @@
-import 'package:StarSight/ui_layer/parents_pin_setup.dart'; // <-- Navigates here next
+import 'package:StarSight/ui_layer/parents_pin_setup.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
