@@ -9,8 +9,8 @@ class DatabaseService {
     String email = '',
     required String parentBirthYear,
     required String childNickname,
-    required String childBirthdate, // <-- REPLACED GOALS
-    required String childGender, // <-- REPLACED GOALS
+    required String childBirthdate,
+    required String childGender,
     required String parentPin,
   }) async {
     // Save to Firestore
@@ -28,8 +28,8 @@ class DatabaseService {
         .doc(childNickname)
         .set({
           'nickname': childNickname,
-          'birthdate': childBirthdate, // <-- SAVING BIRTHDATE
-          'gender': childGender, // <-- SAVING GENDER
+          'birthdate': childBirthdate,
+          'gender': childGender,
           'createdAt': FieldValue.serverTimestamp(),
         });
   }

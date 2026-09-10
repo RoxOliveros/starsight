@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import 'package:StarSight/ui_layer/child_details_screen.dart.dart';
+=======
+import 'package:StarSight/ui_layer/child_birthdate_screen.dart';
+>>>>>>> fetures/Scrum-134-Add-Child's-Gender
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -54,9 +58,14 @@ class _ChildNickname extends State<ChildNickname> {
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
+<<<<<<< HEAD
         // --- UPDATED NAVIGATION TO ChildDetailsScreen ---
         pageBuilder: (context, animation, secondaryAnimation) =>
             ChildDetailsScreen(
+=======
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            ChildBirthdateScreen(
+>>>>>>> fetures/Scrum-134-Add-Child's-Gender
               nickname: nickname,
               parentBirthYear: widget.parentBirthYear,
             ),
@@ -90,7 +99,6 @@ class _ChildNickname extends State<ChildNickname> {
       backgroundColor: ColorTheme.darkBlue,
       body: Stack(
         children: [
-          // Mid-right cloud
           Positioned(
             top: screenHeight * 0.65,
             right: -130,
@@ -104,7 +112,6 @@ class _ChildNickname extends State<ChildNickname> {
               ),
             ),
           ),
-          // Top-left cloud
           Positioned(
             bottom: screenHeight * 0.90,
             left: -130,
@@ -118,8 +125,6 @@ class _ChildNickname extends State<ChildNickname> {
               ),
             ),
           ),
-
-          // Stars
           Positioned(
             top: screenHeight * 0.70,
             left: screenWidth * 0.20,
@@ -157,18 +162,13 @@ class _ChildNickname extends State<ChildNickname> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Top bar: back button + progress bar ──
                 AppTopBar(progress: 0.50),
-
-                // ── Rest of your screen ──
                 Expanded(
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         SizedBox(height: screenHeight * 0.04),
-
-                        // Dog + message row
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: Row(
@@ -203,8 +203,6 @@ class _ChildNickname extends State<ChildNickname> {
                         ),
 
                         const SizedBox(height: 32),
-
-                        // Nickname input + Next button
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: Column(
@@ -279,7 +277,6 @@ class _ChildNickname extends State<ChildNickname> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-
                               const Padding(
                                 padding: EdgeInsets.only(left: 20),
                                 child: Text(
@@ -294,10 +291,7 @@ class _ChildNickname extends State<ChildNickname> {
                             ],
                           ),
                         ),
-
                         const Spacer(),
-
-                        // Bottom sign in link
                         Padding(
                           padding: const EdgeInsets.only(bottom: 30),
                           child: GestureDetector(

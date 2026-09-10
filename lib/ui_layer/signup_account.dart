@@ -34,8 +34,13 @@ abstract class AppTextStyles {
 
 class SignUpAccount extends StatefulWidget {
   final String nickname;
+<<<<<<< HEAD
   final String childBirthdate; // <-- REPLACED GOALS
   final String childGender; // <-- REPLACED GOALS
+=======
+  final String childBirthdate;
+  final String childGender;
+>>>>>>> fetures/Scrum-134-Add-Child's-Gender
   final String parentBirthYear;
   final String parentPin;
 
@@ -130,8 +135,13 @@ class _SignUpAccountState extends State<SignUpAccount>
           uid: user.uid,
           email: email,
           childNickname: widget.nickname,
+<<<<<<< HEAD
           childBirthdate: widget.childBirthdate, // <-- PASSING DATA
           childGender: widget.childGender, // <-- PASSING DATA
+=======
+          childBirthdate: widget.childBirthdate,
+          childGender: widget.childGender,
+>>>>>>> fetures/Scrum-134-Add-Child's-Gender
           parentBirthYear: widget.parentBirthYear,
           parentPin: widget.parentPin,
         );
@@ -157,8 +167,13 @@ class _SignUpAccountState extends State<SignUpAccount>
           uid: user.uid,
           email: user.email ?? '',
           childNickname: widget.nickname,
+<<<<<<< HEAD
           childBirthdate: widget.childBirthdate, // <-- PASSING DATA
           childGender: widget.childGender, // <-- PASSING DATA
+=======
+          childBirthdate: widget.childBirthdate,
+          childGender: widget.childGender,
+>>>>>>> fetures/Scrum-134-Add-Child's-Gender
           parentBirthYear: widget.parentBirthYear,
           parentPin: widget.parentPin,
         );
