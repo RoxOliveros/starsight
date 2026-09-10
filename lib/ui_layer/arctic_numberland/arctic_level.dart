@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/arctic_numberland/game_addition_rescue_bridge.dart';
 import '../../games_ui_layer/arctic_numberland/game_addition_subtraction_signboard.dart';
+import '../../games_ui_layer/arctic_numberland/game_arctic_festival.dart';
 import '../../games_ui_layer/arctic_numberland/game_aurora_catcher.dart';
 import '../../games_ui_layer/arctic_numberland/game_decorate_snowy_tree.dart';
 import '../../games_ui_layer/arctic_numberland/game_build_snowman.dart';
@@ -406,10 +407,8 @@ class _LevelTile extends StatelessWidget {
         return const AuroraCatcherGame(level: 28);
       case 29:
         return const ShootingStarCountingGame(level: 29);
-
-      //TODO: @Tin add an ending game for arctic
       case 30:
-        return null;
+        return const ArcticFestivalFinaleGame(level: 30);
 
       default:
         return null;
