@@ -19,7 +19,7 @@ class StarRoundIndicator extends StatefulWidget {
 
   static const String _litAsset = 'assets/images/objects/arctic/star.png';
   static const String _unlitAsset = 'assets/images/objects/arctic/star_bnw.png';
-  static const double _size = 34;
+  static const double _size = 24;
   static const double _spacing = 4;
   static const Color _glowColor = Color(0xFFF9D552);
 
