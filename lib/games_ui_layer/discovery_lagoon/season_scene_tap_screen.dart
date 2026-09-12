@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/pickup_game.dart';
@@ -6,10 +7,13 @@ import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
+import '../audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../star_round_indicator.dart';
 import 'audio_helper.dart';
 import 'intro_phase.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
 /// A scene (image) the child must match to the correct [seasonId].
@@ -30,13 +34,27 @@ class SeasonSceneTapScreen extends StatefulWidget {
 }
 
 class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
-    with TickerProviderStateMixin, LagoonIntroMixin {
+    with TickerProviderStateMixin, LagoonIntroMixin, KikiReactionMixin {
   final AudioPlayer _introPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer = AudioPlayer();
+  final AudioPlayer _sfxPlayer = AudioPlayer();
+
+  late final AudioHelper _audioHelper = AudioHelper(
+    shouldResumeOnForeground: () => _screenPhase == LagoonScreenPhase.game,
+  );
 
   @override
   AudioPlayer get introAudioPlayer => _introPlayer;
 
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
+
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
+
+  static const String _audioIntro = 'assets/audio/discovery_lagoon/season_tap_intro.wav';
+  static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
 
   static const Map<String, String> _seasonNames = {
     'spring': 'Spring',
@@ -73,6 +91,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
 
   late List<SeasonScene> _rounds;
   int _currentRound = 0;
+  int _starsLit = 0;
 
   String? _selectedSeasonId;
   bool _isCorrect = false;
@@ -89,6 +108,8 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     super.initState();
     OrientationService.setLandscape();
     initLagoonIntro();
+
+    _audioHelper.playBackgroundMusic();
 
     _rounds = List<SeasonScene>.from(_allScenes)..shuffle();
 
@@ -111,7 +132,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     ).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn));
 
     startLagoonIntro(
-      introAudioAsset: 'assets/audio/discovery_lagoon/season_tap_intro.wav',
+      introAudioAsset: _audioIntro,
       onGameStart: () {
         if (mounted) setState(() => _screenPhase = LagoonScreenPhase.game);
       },
@@ -120,8 +141,13 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
 
   @override
   void dispose() {
+    _audioHelper.stopBackgroundMusic();
+    _audioHelper.dispose();
+
     disposeLagoonIntro();
     _introPlayer.dispose();
+    _kikiPlayer.dispose();
+    _sfxPlayer.dispose();
     _bounceCtrl.dispose();
     _shakeCtrl.dispose();
     OrientationService.setLandscape();
@@ -131,7 +157,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
   bool get _isLastRound => _currentRound == _rounds.length - 1;
 
   Future<void> _onChoiceTap(String seasonId) async {
-    if (_showFeedback) return; // ignore taps while resolving
+    if (_showFeedback) return;
 
     final scene = _rounds[_currentRound];
     final correct = seasonId == scene.seasonId;
@@ -144,9 +170,13 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
 
     if (correct) {
       _bounceCtrl.forward(from: 0);
+      showKikiReaction(KikiState.correct);
       LagoonAudio.instance.play(_seasonAudioKeys[scene.seasonId]!);
     } else {
       _shakeCtrl.forward(from: 0);
+      await _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+      Future.delayed(Duration(seconds: 1));
+      showKikiReaction(KikiState.wrong);
     }
 
     await Future.delayed(const Duration(milliseconds: 900));
@@ -154,10 +184,13 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
 
     if (correct) {
       if (_isLastRound) {
+        setState(() => _starsLit = _rounds.length);
+        await LagoonProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
         setState(() {
           _currentRound++;
+          _starsLit = _currentRound;
           _selectedSeasonId = null;
           _isCorrect = false;
           _showFeedback = false;
@@ -176,6 +209,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     setState(() {
       _rounds = List<SeasonScene>.from(_allScenes)..shuffle();
       _currentRound = 0;
+      _starsLit = 0;
       _selectedSeasonId = null;
       _isCorrect = false;
       _showFeedback = false;
@@ -190,13 +224,14 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
         children: [
           Positioned.fill(
             child: Image.asset(
-              'assets/images/backgrounds/bg_game_lagoon.png',
+              _bgImage,
               fit: BoxFit.cover,
             ),
           ),
            _screenPhase == LagoonScreenPhase.intro
                 ? _buildIntroContent()
                 : _buildGameContent(),
+          if (_screenPhase == LagoonScreenPhase.game) buildKiki(context),
           // X Button and Level Badge
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
           Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
@@ -257,7 +292,10 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
               ),
             ),
             const SizedBox(height: 8),
-            _buildProgressDots(),
+            StarRoundIndicator(
+              totalRounds: _rounds.length,
+              litCount: _starsLit,
+            ),
             const SizedBox(height: 10),
           ],
         ),
@@ -328,13 +366,18 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
         borderRadius: BorderRadius.circular(13),
         child: Stack(
           children: [
-            Image.asset(
-              seasonImages[seasonId]!,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: LagoonColorTheme.pastelorange,
-                child: const Center(
-                  child: Text('🖼️', style: TextStyle(fontSize: 32)),
+            Container(
+              color: Colors.white.withValues(alpha: 0.85),
+              child: Center(
+                child: Image.asset(
+                  seasonImages[seasonId]!,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: LagoonColorTheme.pastelorange,
+                    child: const Center(
+                      child: Text('🖼️', style: TextStyle(fontSize: 32)),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -342,20 +385,10 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
             if (showAsCorrect || showAsWrong)
               Container(
                 color:
-                    (showAsCorrect
-                            ? LagoonColorTheme.sagegreen
-                            : const Color(0xFFE05A5A))
-                        .withValues(alpha: 0.45),
-                child: Center(
-                  child: Text(
-                    showAsCorrect ? '✓' : '✗',
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+                (showAsCorrect
+                    ? LagoonColorTheme.sagegreen
+                    : const Color(0xFFE05A5A))
+                    .withValues(alpha: 0.45),
               ),
           ],
         ),
@@ -378,32 +411,6 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     return GestureDetector(onTap: () => _onChoiceTap(seasonId), child: button);
   }
 
-  // ── Progress dots ─────────────────────────────────────────────────────────
-
-  Widget _buildProgressDots() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_rounds.length, (i) {
-        final done = i < _currentRound;
-        final current = i == _currentRound;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(horizontal: 5),
-          width: current ? 28 : 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: done
-                ? LagoonColorTheme.darkbrown
-                : current
-                ? LagoonColorTheme.ferngreen
-                : LagoonColorTheme.darkbrown.withValues(alpha: 0.20),
-            borderRadius: BorderRadius.circular(8),
-          ),
-        );
-      }),
-    );
-  }
-
   // ── Win overlay ───────────────────────────────────────────────────────────
 
   Widget _buildGoodJobOverlay() {
@@ -413,8 +420,6 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
       
       characterSizeFactor: 0.9,
       onNext: () async {
-        // 1. Mark the current level as complete (Change the number for each game)
-        await LagoonProgressService.instance.markLevelComplete(14);
 
         if (context.mounted) {
           // 2. Push directly to the next level's screen

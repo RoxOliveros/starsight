@@ -2,6 +2,29 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+// USAGE
+//
+// KikiReactionMixin
+//
+// final AudioPlayer _kikiPlayer = AudioPlayer();
+//
+// @override
+// AudioPlayer get kikiPlayer => _kikiPlayer;
+//
+// dispose
+// _kikiPlayer.dispose();
+//
+// right
+// unawaited(showKikiReaction(KikiState.correct));
+//
+// wrong
+// unawaited(showKikiReaction(KikiState.wrong));
+//
+// build
+// if (_screenPhase == introgame) buildKiki(context),
+// or
+// buildkiki in gamephase or after introphase
+
 enum KikiState { normal, correct, wrong }
 
 mixin KikiReactionMixin<T extends StatefulWidget> on State<T> {

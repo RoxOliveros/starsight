@@ -1,14 +1,51 @@
 import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
 
-class AudioHelper {
+// USAGE
+// WidgetsBindingObserver - for pause & resume
+//
+// late final AudioHelper _audioHelper = AudioHelper(
+//   shouldResumeOnForeground: () => _screenPhase == LagoonScreenPhase.game,
+// );
+//
+// init
+// _audioHelper.playBackgroundMusic();
+// WidgetsBinding.instance.addObserver(this);
+//
+// dispose
+// WidgetsBinding.instance.removeObserver(this);
+// _audioHelper.stopBackgroundMusic();
+// _audioHelper.dispose();
+
+class AudioHelper with WidgetsBindingObserver {
   final AudioPlayer bgPlayer = AudioPlayer();
 
   String? _currentBgTrack;
 
-  AudioHelper() {
+  final bool Function()? shouldResumeOnForeground;
+
+  AudioHelper({this.shouldResumeOnForeground}) {
     _applyMixingAudioContext();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        pauseBackgroundMusic();
+        break;
+      case AppLifecycleState.resumed:
+        if (shouldResumeOnForeground?.call() ?? true) {
+          resumeBackgroundMusic();
+        }
+        break;
+      case AppLifecycleState.detached:
+        break;
+    }
   }
 
   Future<void> _applyMixingAudioContext() async {
@@ -114,6 +151,7 @@ class AudioHelper {
   }
 
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     bgPlayer.dispose();
   }
 }
