@@ -141,7 +141,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
   // Round complete pulse
   late AnimationController _completePulseCtrl;
-  late Animation<double> _completePulseAnim;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -255,9 +254,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     _completePulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
-    );
-    _completePulseAnim = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(parent: _completePulseCtrl, curve: Curves.easeInOut),
     );
   }
 
@@ -424,7 +420,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
           }
         }
       } else {
-        // Animate next item in
         _itemEnterCtrl.forward(from: 0);
       }
     } else {
@@ -435,7 +430,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
           _flashA = true;
         } else if (basketObject == _basketObjectB) {
           _flashB = true;
-        } else { // ADD — basket C branch
+        } else {
           _flashC = true;
         }
       });
@@ -444,7 +439,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
         setState(() {
           _flashA = false;
           _flashB = false;
-          _flashC = false; // ADD
+          _flashC = false;
         });
       }
 
