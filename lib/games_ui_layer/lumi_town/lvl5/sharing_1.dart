@@ -3,18 +3,12 @@ import 'dart:math' as math;
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl5/sharing_2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
-
-// Adjust this import path to wherever you placed gesture_camera_view.dart
 import 'package:StarSight/business_layer/gesture_camera_view.dart';
-
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
-/// Tracks whether we know yet if the camera can be used, and if so, whether
-/// the child granted or denied it.
 enum _CameraGestureState { checking, granted, denied }
 
 class Sharing1 extends StatefulWidget {
@@ -25,28 +19,17 @@ class Sharing1 extends StatefulWidget {
 }
 
 class _Sharing1State extends State<Sharing1> {
-  // Initialize a localized AudioPlayer for this specific screen
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   _CameraGestureState _cameraState = _CameraGestureState.checking;
 
-  // Guards against a single gesture hold firing the action twice (e.g. the
-  // debounced GestureCameraView still emits once more before we navigate).
   bool _actionTaken = false;
-
-  // The camera preview + "show a thumbs up" prompt only appear once the
-  // intro narration has finished, so it doesn't compete with it.
   bool _introFinished = false;
 
-  // If no gesture (of any kind) is detected within this window, we assume
-  // the camera can't see the child's hands well and offer the button
-  // fallback instead of leaving them stuck.
   static const _noHandsTimeout = Duration(seconds: 8);
   Timer? _noHandsTimer;
-  bool _showNoHandsPrompt = false;
 
-  // Set when the child explicitly chooses "Use buttons instead" from the
-  // no-hands prompt — overrides camera mode even if permission is granted.
+  bool _showNoHandsPrompt = false;
   bool _forceButtonFallback = false;
 
   @override
@@ -54,12 +37,7 @@ class _Sharing1State extends State<Sharing1> {
     super.initState();
     OrientationService.setLandscape();
 
-    // Play the audio intro as soon as the screen initializes
     _audioPlayer.play(AssetSource('audio/lumi_town/level5/intro.wav'));
-
-    // Fires once the intro finishes. Also fires again later when share_yes/
-    // share_no finish playing, but that's harmless since _introFinished just
-    // stays true after the first time.
     _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted && !_introFinished) {
         setState(() {
@@ -82,9 +60,6 @@ class _Sharing1State extends State<Sharing1> {
     });
   }
 
-  /// Called on EVERY gesture result the camera detects (not just thumbs up/
-  /// down — any recognized gesture proves a hand is visible). Resets the
-  /// "no hands detected" countdown and clears the fallback prompt if shown.
   void _onAnyGestureDetected() {
     _noHandsTimer?.cancel();
     _noHandsTimer = Timer(_noHandsTimeout, () {
@@ -96,8 +71,6 @@ class _Sharing1State extends State<Sharing1> {
     }
   }
 
-  /// Starts the no-hands countdown the first time the camera view actually
-  /// becomes active (idempotent — safe to call on every build).
   void _ensureNoHandsWatcherStarted() {
     if (_noHandsTimer != null) return;
     _noHandsTimer = Timer(_noHandsTimeout, () {
@@ -115,39 +88,18 @@ class _Sharing1State extends State<Sharing1> {
 
   @override
   void dispose() {
-    // Stop and dispose of the player to free up resources when exiting
     _audioPlayer.dispose();
     _noHandsTimer?.cancel();
 
-    // NOTE: orientation is intentionally NOT reset here anymore. Sharing2
-    // locks itself to landscape in its own initState as soon as it mounts,
-    // and resetting to portrait here at the same moment created a race
-    // between the two async platform calls — sometimes portrait won,
-    // causing Sharing2 to briefly (or fully) load in portrait. Orientation
-    // reset now only happens when the child actually exits the level via
-    // the close (X) button — see _exitLevel().
     super.dispose();
   }
 
-  /// Used only when the child is actually leaving this level (close button),
-  /// not when progressing forward to the next screen — see the comment in
-  /// dispose() for why this distinction matters.
-  Future<void> _exitLevel() async {
-    OrientationService.setLandscape();
-    if (!mounted) return;
-    Navigator.of(context).maybePop();
-  }
-
-  // ── Shared action logic — called by BOTH the camera gesture AND the
-  // fallback tap buttons, so behavior stays identical regardless of input
   // method. ──────────────────────────────────────────────────────────────
 
   Future<void> _handleThumbsUp() async {
     if (_actionTaken) return;
     _actionTaken = true;
 
-    // An answer is being processed now — stop watching for "no hands",
-    // otherwise it can fire while we're mid-navigation.
     _noHandsTimer?.cancel();
     _noHandsTimer = null;
     if (_showNoHandsPrompt) {
@@ -182,13 +134,10 @@ class _Sharing1State extends State<Sharing1> {
     await _audioPlayer.stop();
     await _audioPlayer.play(AssetSource('audio/lumi_town/level5/share_no.wav'));
 
-    // Give the child another chance to answer, same as the original behavior
-    // (no navigation on thumbs down).
     if (!mounted) return;
     setState(() {
       _actionTaken = false;
     });
-    // Restart the watcher now that we're waiting on a fresh answer.
     _ensureNoHandsWatcherStarted();
   }
 
@@ -355,10 +304,6 @@ class _Sharing1State extends State<Sharing1> {
             ).animate().fadeIn(duration: const Duration(milliseconds: 500)),
           ),
 
-          // ── 5. Camera gesture detection (PRIMARY, camera hidden) or
-          // thumb buttons (FALLBACK — shown if denied OR the child chose
-          // "use buttons" from the no-hands prompt). Both wait until the
-          // intro narration finishes. ────────────────────────────────────
           if (_introFinished &&
               _cameraState == _CameraGestureState.granted &&
               !_forceButtonFallback) ...[
@@ -438,24 +383,13 @@ class _Sharing1State extends State<Sharing1> {
                 ),
               ),
             ),
-          // While _cameraState == checking, neither is shown yet — avoids a
-          // flash of the fallback buttons before the permission prompt
-          // resolves.
-
           Positioned(top: 25, left: 25, child: LumiXButton()),
-
         ],
       ),
     );
   }
 }
 
-/// Runs the camera + gesture detection WITHOUT showing any visible preview.
-/// The AndroidView still needs to exist in the widget tree to keep working
-/// (camera/MediaPipe run natively regardless of what's visually drawn), so
-/// this renders it at a near-zero size and fully transparent instead of
-/// removing it — that keeps detection alive while showing nothing on
-/// screen.
 class _HiddenGestureDetector extends StatefulWidget {
   final void Function(GestureResult result) onGesture;
   final VoidCallback onMounted;
@@ -473,15 +407,12 @@ class _HiddenGestureDetectorState extends State<_HiddenGestureDetector> {
   @override
   void initState() {
     super.initState();
-    // Start the no-hands countdown once this is actually in the tree.
     WidgetsBinding.instance.addPostFrameCallback((_) => widget.onMounted());
   }
 
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      // Off in a corner, effectively invisible, but still a real, live
-      // platform view so the camera keeps running.
       top: 0,
       left: 0,
       child: IgnorePointer(
@@ -498,8 +429,6 @@ class _HiddenGestureDetectorState extends State<_HiddenGestureDetector> {
   }
 }
 
-/// Shown when no hand has been detected for a while — offers the child (or
-/// parent) a way out to the button fallback instead of getting stuck.
 class _NoHandsPrompt extends StatelessWidget {
   final VoidCallback onUseButtons;
 

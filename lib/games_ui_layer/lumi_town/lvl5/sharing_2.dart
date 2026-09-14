@@ -199,7 +199,7 @@ class _Sharing2State extends State<Sharing2> {
               _showAllCharactersSuccessUI = true;
             });
             _audioPlayer.play(
-              AssetSource('audio/lumi_town/level5/success_narration.wav'),
+              AssetSource('audio/sound_effects/shine.wav'), // TODO: @Tin change to good ending dialog
             );
             Future.delayed(const Duration(seconds: 2), () {
               if (!mounted) return;

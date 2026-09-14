@@ -3,11 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import 'tutorial_prompt_card.dart';
 
-/// The "How to Play" tutorial for the Sharing mini-game.
-///
-/// This is a thin content wrapper around the universal [TutorialPromptCard] —
-/// all the shared layout/animation/audio-timing logic lives there so other
-/// screens (lighting, etc.) can reuse it with their own content.
 class SharingTutorialPrompt extends StatelessWidget {
   final VoidCallback? onClose;
 
@@ -33,9 +28,6 @@ class SharingTutorialPrompt extends StatelessWidget {
   }
 }
 
-/// The animated "pancake/water sliding toward a character" illustration.
-/// Sized relative to the available width via [LayoutBuilder] so it never
-/// overflows on narrow cards/screens.
 class _SharingDemoVisual extends StatelessWidget {
   const _SharingDemoVisual();
 
@@ -53,7 +45,6 @@ class _SharingDemoVisual extends StatelessWidget {
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Pancake on the left, sliding right towards the character
             Flexible(
               child:
                   Image.asset(
@@ -75,7 +66,6 @@ class _SharingDemoVisual extends StatelessWidget {
 
             SizedBox(width: spacing),
 
-            // Receiving character in the center
             Flexible(
               child: Image.asset(
                 'assets/images/characters/roxie_standing.png',
@@ -90,7 +80,6 @@ class _SharingDemoVisual extends StatelessWidget {
 
             SizedBox(width: spacing),
 
-            // Water glass on the right, sliding left towards the character
             Flexible(
               child:
                   Image.asset(
