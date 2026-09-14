@@ -13,6 +13,7 @@ import '../../ui_layer/loading_screen.dart';
 import 'arctic_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
+import 'game_arctic_festival.dart';
 import 'goodjob_doma_prompt.dart';
 
 enum _RoundPhase { watching, answering }
@@ -599,13 +600,12 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        // TODO: @Tin navigate to the next game after ending level is done
-        // Navigator.pushReplacement(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (_) => (level: widget.level + 1),
-        //   ),
-        // );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ArcticFestivalFinaleGame(level: widget.level + 1),
+          ),
+        );
       },
       onRestart: () {
         setState(() {
