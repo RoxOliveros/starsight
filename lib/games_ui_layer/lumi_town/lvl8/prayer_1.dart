@@ -3,6 +3,7 @@ import 'package:StarSight/business_layer/gesture_camera_view.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
+import 'package:StarSight/ui_layer/lumi_town/lumi_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -27,28 +28,26 @@ class _Prayer1State extends State<Prayer1> {
   // Timers
   Timer? _scene2Timer;
   Timer? _scene3Timer;
-  Timer? _promptTimer; // Timer to trigger the helpful prompt
+  Timer? _promptTimer;
+  Timer? _skipTimer;
 
   // State flags for interactive gesture logic
   bool _hasCameraPermission = false;
   bool _isWaitingForPrayerGesture = false;
   bool _gestureDetected = false;
-  bool _showPromptCard = false; // Controls whether the prompt card is visible
-  bool _showGoodJob = false; // Controls whether the Good Job overlay is shown
+  bool _showPromptCard = false;
+  bool _showSkipButton = false;
+  bool _showGoodJob = false;
 
   @override
   void initState() {
     super.initState();
-
-    // Force Landscape & Immersive Full-Screen
     OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-
     _initializeSequence();
   }
 
   Future<void> _initializeSequence() async {
-    // 1. Check if camera permission is granted
     final status = await Permission.camera.request();
 
     if (mounted) {
@@ -57,13 +56,8 @@ class _Prayer1State extends State<Prayer1> {
       });
     }
 
-    // 2. Play the first prayer audio immediately
     await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_1.wav'));
 
-    // 3. Scene2 at 4s, scene3 at 9s — purely visual pacing that plays out
-    // during the narration, independent of gesture detection. If the child
-    // does the praying gesture at any point before these fire,
-    // _onGestureDetected cancels both timers and jumps straight to scene4.
     _scene2Timer = Timer(const Duration(seconds: 4), () {
       if (!mounted || _gestureDetected) return;
 
@@ -79,11 +73,6 @@ class _Prayer1State extends State<Prayer1> {
       });
     });
 
-    // 4. Wait for pray_1 to actually finish playing before turning on
-    // gesture detection or arming the prompt timer. This guarantees the
-    // prompt (and the ability to trigger scene4) can never appear while the
-    // child is still mid-narration or still looking at scene2/scene3 — it
-    // only kicks in once they've heard the full instruction.
     await _audioPlayer.onPlayerComplete.first;
     if (!mounted || _gestureDetected) return;
 
@@ -92,71 +81,75 @@ class _Prayer1State extends State<Prayer1> {
         _isWaitingForPrayerGesture = true;
       });
 
-      // Give them a few seconds to actually try the gesture before nudging
-      // with the prompt card.
       _promptTimer = Timer(const Duration(seconds: 5), () {
         if (mounted && _isWaitingForPrayerGesture && !_gestureDetected) {
           setState(() {
             _showPromptCard = true;
+          });
+
+          _skipTimer = Timer(const Duration(seconds: 5), () {
+            if (mounted && _isWaitingForPrayerGesture && !_gestureDetected) {
+              setState(() {
+                _showPromptCard = false;
+                _showSkipButton = true;
+              });
+            }
           });
         }
       });
     }
   }
 
-  // This callback fires when your MediaPipe camera detects a stable gesture
-  void _onGestureDetected(GestureResult result) async {
+  Future<void> _triggerSuccessSequence() async {
+    // Cancel any pending timers
+    _scene2Timer?.cancel();
+    _scene3Timer?.cancel();
+    _promptTimer?.cancel();
+    _skipTimer?.cancel();
+
+    setState(() {
+      _gestureDetected = true;
+      _isWaitingForPrayerGesture = false;
+      _showPromptCard = false;
+      _showSkipButton = false; // Hide the skip button if it was used!
+      _currentScene = 'assets/images/objects/lumi/lvl8_scene4.png';
+    });
+
+    await _audioPlayer.stop();
+    await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_2.wav'));
+
+    await _audioPlayer.onPlayerComplete.first;
+    if (!mounted) return;
+
+    setState(() {
+      _currentScene = 'assets/images/objects/lumi/lvl8_scene2.png';
+    });
+
+    await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_3.wav'));
+
+    await _audioPlayer.onPlayerComplete.first;
+    if (!mounted) return;
+
+    setState(() {
+      _showGoodJob = true;
+    });
+  }
+
+  void _onGestureDetected(GestureResult result) {
     if (!_isWaitingForPrayerGesture || _gestureDetected) return;
 
-    // Check if the child did the praying gesture!
     if (result.isPraying) {
-      // Cancel any pending timers — scene2/scene3 may still be pending if
-      // pray_1's audio was unusually short, and the prompt timer may still
-      // be pending regardless.
-      _scene2Timer?.cancel();
-      _scene3Timer?.cancel();
-      _promptTimer?.cancel();
-
-      setState(() {
-        _gestureDetected = true;
-        _isWaitingForPrayerGesture = false;
-        _showPromptCard =
-            false; // Hide the prompt card immediately if it was open!
-        _currentScene = 'assets/images/objects/lumi/lvl8_scene4.png';
-      });
-
-      // Stop the first audio if it's still playing, and play pray_2.wav!
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_2.wav'));
-
-      // Once pray_2 finishes, go back to scene2, play pray_3, then show
-      // the Good Job overlay once that finishes too.
-      await _audioPlayer.onPlayerComplete.first;
-      if (!mounted) return;
-
-      setState(() {
-        _currentScene = 'assets/images/objects/lumi/lvl8_scene2.png';
-      });
-
-      await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_3.wav'));
-
-      await _audioPlayer.onPlayerComplete.first;
-      if (!mounted) return;
-
-      setState(() {
-        _showGoodJob = true;
-      });
+      _triggerSuccessSequence();
     }
   }
 
   @override
   void dispose() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-
-    // Clean up all timers & audio
     _scene2Timer?.cancel();
     _scene3Timer?.cancel();
     _promptTimer?.cancel();
+    _skipTimer?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -168,9 +161,6 @@ class _Prayer1State extends State<Prayer1> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // --- Universal Storyboard Background Layer ---
-          // Notice we moved the illustration to the VERY BOTTOM of the stack
-          // so it acts as the true background layer.
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 500),
             child: Image.asset(
@@ -182,26 +172,23 @@ class _Prayer1State extends State<Prayer1> {
             ),
           ),
 
-          // --- Hidden Camera Layer (FIXED) ---
-          // Using Positioned overrides StackFit.expand and lets us hide
-          // the native AndroidView off the edge of the screen!
           if (_hasCameraPermission)
             Positioned(
-              left: -10, // Tucks it off screen to the left
-              top: -10, // Tucks it off screen to the top
-              width: 1, // Locks size to 1x1 pixel
+              left: -10,
+              top: -10,
+              width: 1,
               height: 1,
               child: GestureCameraView(
+                key: const ValueKey('prayer_camera_2_hands'),
                 onGesture: _onGestureDetected,
                 minConfidence: 0.7,
                 requiredConsecutiveFrames: 4,
-                requiredHands: 2, // needed for palms-together praying detection
+                requiredHands: 2,
               ),
             ),
 
           Positioned(top: 25, left: 25, child: LumiXButton()),
 
-          // --- Helpful Prompt Overlay ---
           Positioned.fill(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
@@ -218,29 +205,59 @@ class _Prayer1State extends State<Prayer1> {
             ),
           ),
 
-          // --- Good Job Overlay ---
+          // ---  Skip Button  ---
+          if (_showSkipButton)
+            Positioned(
+              bottom: 25,
+              right: 25,
+              child: GestureDetector(
+                onTap: () {
+                  if (!_gestureDetected) {
+                    _triggerSuccessSequence();
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: LumiColorTheme.seaglass,
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(
+                      color: LumiColorTheme.darkolive,
+                      width: 5,
+                    ),
+                  ),
+                  child: const Text(
+                    'Skip',
+                    style: TextStyle(
+                      fontFamily: LumiAppTextStyles.fredoka,
+                      fontSize: 18,
+                      color: LumiColorTheme.darkolive,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           if (_showGoodJob)
             GoodJobOverlay(
               characterImage: 'assets/images/characters/dr.woo_smiling.png',
-              // TODO: replace with the actual theme color for this level
-              
-
               onNext: () async {
                 await TownProgressService.instance.markLevelComplete(8);
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (context) => const Sorry1Screen()),
                 );
               },
-              // TODO: replay this level (e.g. pushReplacement to Prayer1())
               onRestart: () {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => const Prayer1()),
                 );
               },
-
               onBack: () async {
                 await TownProgressService.instance.markLevelComplete(7);
-
                 if (mounted) {
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(builder: (_) => const Prayer1()),
