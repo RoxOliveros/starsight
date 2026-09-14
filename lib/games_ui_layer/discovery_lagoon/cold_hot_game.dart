@@ -6,9 +6,7 @@ import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_tap_sort_scree
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
 // Represents an item to be sorted
