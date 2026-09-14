@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'signup_signin.dart';
 import 'behavior_reports_screen.dart';
+import 'add_child_screen.dart';
 import 'app_dialog.dart';
 import 'avatar_picker_dialog.dart'; // for kDefaultAvatarPath
 import '../business_layer/orientation_service.dart';
@@ -15,7 +16,7 @@ abstract class ColorTheme {
   static const Color yellow = Color(0xFFF9D552);
   static const Color brown = Color(0xFF6F6764);
   // New colors to match the "Parent's Area" mock.
-  static const Color cardYellow = Color(0x80F6CE66);// Your Children card bg
+  static const Color cardYellow = Color(0x80F6CE66); // Your Children card bg
   static const Color teal = Color(0xFF54BDB8); // Support section accent
   static const Color mutedGrey = Color(0xFFB9B2A9); // Privacy / Terms links
   // "Parent's Area" title palette (cycled letter by letter).
@@ -53,10 +54,10 @@ class ChildProfile {
   });
 
   factory ChildProfile.fromMap(
-      String id,
-      Map<String, dynamic> data, {
-        String fallbackAvatarPath = kDefaultAvatarPath,
-      }) {
+    String id,
+    Map<String, dynamic> data, {
+    String fallbackAvatarPath = kDefaultAvatarPath,
+  }) {
     return ChildProfile(
       id: id,
       name: (data['nickname'] as String?)?.trim().isNotEmpty == true
@@ -130,11 +131,13 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
       final accountAvatarPath = await AvatarStorage.getSelectedAvatarPath();
 
       final children = rawChildren
-          .map((data) => ChildProfile.fromMap(
-        data['id'] as String,
-        data,
-        fallbackAvatarPath: accountAvatarPath,
-      ))
+          .map(
+            (data) => ChildProfile.fromMap(
+              data['id'] as String,
+              data,
+              fallbackAvatarPath: accountAvatarPath,
+            ),
+          )
           .toList();
 
       if (!mounted) return;
@@ -153,12 +156,11 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
   }
 
   Future<void> _addChild() async {
-    // TODO: point this to your real "Add Child" flow, e.g.:
-    // final added = await Navigator.push<bool>(
-    //   context,
-    //   MaterialPageRoute(builder: (_) => const AddChildScreen()),
-    // );
-    // if (added == true) _loadChildren();
+    final added = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const AddChildScreen()),
+    );
+    if (added == true) _loadChildren();
   }
 
   void _openMenuItem(String label) {
@@ -169,13 +171,13 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           MaterialPageRoute(builder: (_) => const BehaviorReportsScreen()),
         );
         break;
-    // TODO: wire the remaining items to their real screens as you build
-    // them, e.g. ScreenTimeScreen(), AccountSettingsScreen(),
-    // AboutUsScreen(), HelpCenterScreen(), NotificationsScreen(), etc.
+      // TODO: wire the remaining items to their real screens as you build
+      // them, e.g. ScreenTimeScreen(), AccountSettingsScreen(),
+      // AboutUsScreen(), HelpCenterScreen(), NotificationsScreen(), etc.
       default:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label — coming soon')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
     }
   }
 
@@ -196,25 +198,33 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const SignUpSignInScreen()),
-          (route) => false,
+      (route) => false,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: ColorTheme.cream,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _loadChildren,
-                child: _buildBody(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Pass the name back when the system back button is used
+        Navigator.pop(context, _selectedChild?.name);
+      },
+      child: Scaffold(
+        backgroundColor: ColorTheme.cream,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _loadChildren,
+                  child: _buildBody(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -270,7 +280,6 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
                 label: 'Notification',
                 onTap: () => _openMenuItem('Notifications'),
               ),
-
             ],
           ),
           const SizedBox(height: 27),
@@ -297,7 +306,9 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
             alignment: Alignment.centerLeft,
             child: TextButton(
               onPressed: () => _openMenuItem('Privacy & Data'),
-              style: TextButton.styleFrom(foregroundColor: ColorTheme.mutedGrey),
+              style: TextButton.styleFrom(
+                foregroundColor: ColorTheme.mutedGrey,
+              ),
               child: const Text(
                 'Privacy Policy',
                 style: TextStyle(
@@ -311,7 +322,9 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
             alignment: Alignment.centerLeft,
             child: TextButton(
               onPressed: () => _openMenuItem('Terms of Use'),
-              style: TextButton.styleFrom(foregroundColor: ColorTheme.mutedGrey),
+              style: TextButton.styleFrom(
+                foregroundColor: ColorTheme.mutedGrey,
+              ),
               child: const Text(
                 'Terms of Use',
                 style: TextStyle(
@@ -363,7 +376,6 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    // Just the back button — the "Parent's Area" title lives in the body now.
     return SizedBox(
       height: 44,
       child: Align(
@@ -373,7 +385,8 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
             Icons.arrow_back_ios_new_rounded,
             color: ColorTheme.deepNavyBlue,
           ),
-          onPressed: () => Navigator.pop(context),
+
+          onPressed: () => Navigator.pop(context, _selectedChild?.name),
         ),
       ),
     );
@@ -396,10 +409,12 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
         color = palette[pairIndex % palette.length];
         letterIndex++;
       }
-      spans.add(TextSpan(
-        text: char,
-        style: TextStyle(color: color),
-      ));
+      spans.add(
+        TextSpan(
+          text: char,
+          style: TextStyle(color: color),
+        ),
+      );
     }
     return RichText(
       textAlign: TextAlign.center,
@@ -661,10 +676,8 @@ class _ChildAvatarCircle extends StatelessWidget {
               child: Image.asset(
                 child.avatarPath,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stack) => Image.asset(
-                  kDefaultAvatarPath,
-                  fit: BoxFit.cover,
-                ),
+                errorBuilder: (context, error, stack) =>
+                    Image.asset(kDefaultAvatarPath, fit: BoxFit.cover),
               ),
             ),
           ),

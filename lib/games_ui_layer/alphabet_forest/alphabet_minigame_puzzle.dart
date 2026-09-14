@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
@@ -22,8 +23,6 @@ import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class PuzzlePiece {
   final int id; // 0=TL, 1=TR, 2=BL, 3=BR
@@ -57,7 +56,8 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   late List<PuzzlePiece> _allPieces;
   late String _fullImagePath; // Added for the background hint
 
-  static const String _puzzleInstructionWav = 'audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
+  static const String _puzzleInstructionWav =
+      'audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
 
   @override
   void initState() {
@@ -659,36 +659,27 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     await _player.play(AssetSource(_puzzleInstructionWav));
     await _player.onPlayerComplete.first;
     if (!mounted) return;
-    await _player.play(AssetSource(
-      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-    ));
+    await _player.play(
+      AssetSource(
+        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+      ),
+    );
   }
 
   Future<void> _saveDataAndShowSuccessDialog() async {
     // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
-    // 2. Save raw data silently
+    // 2. Save raw data silently using the centralized service
     try {
-      String parentUid = FirebaseAuth.instance.currentUser!.uid;
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(parentUid)
-          .collection('category_progress')
-          .doc('alphabet_forest')
-          .collection('games_played')
-          .doc(
-            'letter_puzzle_${widget.letter.toLowerCase()}',
-          ) // e.g., 'letter_puzzle_a'
-          .set({
-            'activityName': "Alphabet Puzzle (${widget.letter.toUpperCase()})",
-            'emotions': finalEmotions,
-            'totalTaps': _tapTracker.totalTaps,
-            'mistakes': _tapTracker.mistakeCount,
-            'timePlayedSeconds': _tapTracker.formattedDuration,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
+      await ForestDatabaseService.saveGameData(
+        gameId: 'letter_puzzle_${widget.letter.toLowerCase()}',
+        activityName: "Alphabet Puzzle (${widget.letter.toUpperCase()})",
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
     } catch (e) {
       debugPrint("Database Error saving Puzzle metrics: $e");
     }
@@ -775,8 +766,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      const ForestMailDeliveryGame(level: 2),
+                  builder: (context) => const ForestMailDeliveryGame(level: 2),
                 ),
               );
             } else if (currentLetter == 'F') {

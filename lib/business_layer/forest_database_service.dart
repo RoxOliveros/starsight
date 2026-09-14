@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 class ForestDatabaseService {
+  static String? activeChildId;
   static Future<void> saveGameData({
     required String gameId,
     required String activityName,
@@ -13,12 +14,14 @@ class ForestDatabaseService {
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null || activeChildId == null) return;
       final uid = user.uid;
 
       final trackerRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
+          .collection('children')
+          .doc(activeChildId)
           .collection('category_progress')
           .doc('alphabet_forest');
 

@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_pop.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
@@ -16,8 +17,6 @@ import 'alphabet_minigame_fall.dart';
 import 'alphabet_minigame_find.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class TraceLevel {
   final String letterName;
@@ -65,7 +64,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   static List<int> _miniGameQueue = [];
   static int _miniGameIndex = 0;
 
-  static const String _traceInstructionWav = 'audio/alphabet_forest/trace_letter_instruction.wav';
+  static const String _traceInstructionWav =
+      'audio/alphabet_forest/trace_letter_instruction.wav';
 
   int _nextMiniGame() {
     if (_miniGameIndex >= _miniGameQueue.length) {
@@ -97,7 +97,11 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     await _player.play(AssetSource(_traceInstructionWav));
     await _player.onPlayerComplete.first;
     if (!mounted) return;
-    await _player.play(AssetSource('audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav'));
+    await _player.play(
+      AssetSource(
+        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+      ),
+    );
   }
 
   @override
@@ -1058,28 +1062,17 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     List<String> finalEmotions = stopAiCamera();
 
     try {
-      String parentUid = FirebaseAuth.instance.currentUser!.uid;
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(parentUid)
-          .collection('category_progress')
-          .doc('alphabet_forest')
-          .collection('games_played')
-          .doc(
-            'letter_trace_${widget.letter.toLowerCase()}',
-          ) // e.g., 'letter_trace_a'
-          .set({
-            'activityName': "Alphabet Trace (${widget.letter.toUpperCase()})",
-            'emotions': finalEmotions,
-            'totalTaps': _tapTracker.totalTaps, // Represents strokes completed
-            'mistakes': 0, // Tracing doesn't record discrete mistakes
-            'timePlayedSeconds': _tapTracker.formattedDuration,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
+      await ForestDatabaseService.saveGameData(
+        gameId: 'letter_trace_${widget.letter.toLowerCase()}',
+        activityName: "Alphabet Trace (${widget.letter.toUpperCase()})",
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps, // Represents strokes completed
+        mistakes: 0, // Tracing doesn't record discrete mistakes
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
     } catch (e) {
       debugPrint("Database Error saving Trace metrics: $e");
     }
-
     // --- 2. SMART MINI-GAME ROUTER ---
     String letter = widget.letter.toUpperCase();
 

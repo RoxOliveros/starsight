@@ -1,5 +1,6 @@
 import 'package:StarSight/UI_Layer/signup_signin.dart';
 import 'package:StarSight/ui_layer/behavior_reports_screen.dart';
+import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:StarSight/ui_layer/parents_pin_validation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -47,9 +48,7 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
   Future<void> _openAvatarPicker() async {
     final selected = await showDialog<String>(
       context: context,
-      builder: (context) => AvatarPickerDialog(
-        selectedAssetPath: _avatarPath,
-      ),
+      builder: (context) => AvatarPickerDialog(selectedAssetPath: _avatarPath),
     );
 
     if (selected == null) return; // user closed without confirming
@@ -103,10 +102,7 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                             ),
                           ),
                           child: ClipOval(
-                            child: Image.asset(
-                              _avatarPath,
-                              fit: BoxFit.cover,
-                            ),
+                            child: Image.asset(_avatarPath, fit: BoxFit.cover),
                           ),
                         ),
                       ),
@@ -185,11 +181,23 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                     );
 
                     if (authenticated == true) {
-                      navigator.push(
+                      // 1. Await the returned nickname from ParentsAreaScreen
+                      final selectedNickname = await navigator.push(
                         MaterialPageRoute(
                           builder: (_) => const ParentsAreaScreen(),
                         ),
                       );
+
+                      // 2. If a nickname was returned, reload the Dashboard
+                      if (selectedNickname != null &&
+                          selectedNickname is String) {
+                        navigator.pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                DashboardScreen(nickname: selectedNickname),
+                          ),
+                        );
+                      }
                     }
                   },
                 ),
@@ -218,7 +226,7 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                       MaterialPageRoute(
                         builder: (context) => const SignUpSignInScreen(),
                       ),
-                          (route) => false,
+                      (route) => false,
                     );
                   },
                 ),
@@ -236,11 +244,7 @@ class _ProfileOption extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
 
-  const _ProfileOption({
-    required this.icon,
-    required this.label,
-    this.onTap,
-  });
+  const _ProfileOption({required this.icon, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {

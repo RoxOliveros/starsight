@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
@@ -14,8 +15,6 @@ import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import 'forest_audio_helper.dart';
 
@@ -25,12 +24,16 @@ class ForestMailDeliveryGame extends StatefulWidget {
   const ForestMailDeliveryGame({super.key, required this.level});
 
   @override
-  State<ForestMailDeliveryGame> createState() =>
-      _ForestMailDeliveryGameState();
+  State<ForestMailDeliveryGame> createState() => _ForestMailDeliveryGameState();
 }
 
 class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
-    with TickerProviderStateMixin, GameLoadingMixin, ForestAudioMixin, TofiReactionMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin,
+        ForestAudioMixin,
+        TofiReactionMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => _player;
 
@@ -60,9 +63,12 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _bgImage = 'assets/images/backgrounds/bg_forest_3houses.png';
-  static const String _envelopImage = 'assets/images/objects/forest/envelope.png';
-  static const String _mailboxImage = 'assets/images/objects/forest/mailbox.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_forest_3houses.png';
+  static const String _envelopImage =
+      'assets/images/objects/forest/envelope.png';
+  static const String _mailboxImage =
+      'assets/images/objects/forest/mailbox.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/mail_intro.wav';
@@ -139,9 +145,8 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
     if (!mounted) return;
 
-    await playVoice(_audioInstruction,);
+    await playVoice(_audioInstruction);
   }
-
 
   // ── ROUND SETUP ──────────────────────────────────────────────────────
 
@@ -251,23 +256,14 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
     List<String> finalEmotions = stopAiCamera();
 
     try {
-      String parentUid = FirebaseAuth.instance.currentUser!.uid;
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(parentUid)
-          .collection('category_progress')
-          .doc('alphabet_forest')
-          .collection('games_played')
-          .doc('forest_mail_delivery')
-          .set({
-        'activityName': 'Forest Mail Delivery',
-        'emotions': finalEmotions,
-        'totalTaps': _tapTracker.totalTaps,
-        'mistakes': _tapTracker.mistakeCount,
-        'timePlayedSeconds': _tapTracker.formattedDuration,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_mail_delivery',
+        activityName: 'Forest Mail Delivery',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
     } catch (e) {
       debugPrint("Database Error saving Forest Mail Delivery metrics: $e");
     }
@@ -298,8 +294,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) =>
-                    ForestMailDeliveryGame(level: widget.level),
+                builder: (_) => ForestMailDeliveryGame(level: widget.level),
               ),
             );
           },
@@ -346,12 +341,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
     return Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(
-            _bgImage,
-            fit: BoxFit.cover,
-          ),
-        ),
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
         const Positioned(top: 25, left: 25, child: ForestXButton()),
 
@@ -376,10 +366,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
               ),
               child: child,
             ),
-            child: Image.asset(
-              _dogImage,
-              height: screenH * .72,
-            ),
+            child: Image.asset(_dogImage, height: screenH * .72),
           ),
         ),
       ],
@@ -391,12 +378,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
       builder: (context, constraints) {
         return Stack(
           children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-              ),
-            ),
+            Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
             const Positioned(top: 25, left: 25, child: ForestXButton()),
 

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class PuzzleProgressService {
+  String? activeChildId;
   PuzzleProgressService._();
   static final PuzzleProgressService instance = PuzzleProgressService._();
 
@@ -11,10 +12,12 @@ class PuzzleProgressService {
 
   DocumentReference<Map<String, dynamic>>? get _docRef {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return null;
+    if (uid == null || activeChildId == null) return null;
     return FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
+        .collection('children')
+        .doc(activeChildId)
         .collection('progress')
         .doc('puzzle'); // Saves specifically to 'puzzle'
   }
