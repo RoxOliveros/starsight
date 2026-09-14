@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ArcticProgressService {
+  String? activeChildId;
   ArcticProgressService._();
   static final ArcticProgressService instance = ArcticProgressService._();
 
@@ -10,10 +11,12 @@ class ArcticProgressService {
 
   DocumentReference<Map<String, dynamic>>? get _docRef {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return null;
+    if (uid == null || activeChildId == null) return null;
     return FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
+        .collection('children')
+        .doc(activeChildId)
         .collection('progress')
         .doc('arctic'); // Saves to 'arctic' instead of 'forest'
   }

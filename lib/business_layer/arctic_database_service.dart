@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class ArcticDatabaseService {
   static const int _gamesPerCycle = 20;
+  static String? activeChildId;
 
   static Future<void> saveGameData({
     required String gameId,
@@ -10,11 +11,16 @@ class ArcticDatabaseService {
     required List<String> emotions,
   }) async {
     try {
-      String uid = FirebaseAuth.instance.currentUser!.uid;
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null || activeChildId == null) return;
+      final uid = user.uid;
 
       final trackerRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
+          .collection('children')
+          .doc(activeChildId)
           .collection('category_progress')
           .doc('arctic_numberland');
 

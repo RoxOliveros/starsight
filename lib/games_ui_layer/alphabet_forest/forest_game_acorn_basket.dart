@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
@@ -15,8 +16,6 @@ import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AcornBasketGame extends StatefulWidget {
   final int level;
@@ -328,29 +327,19 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
-    // 2. Save raw data silently
+    // 2. Save raw data silently using the service
     try {
-      String parentUid = FirebaseAuth.instance.currentUser!.uid;
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(parentUid)
-          .collection('category_progress')
-          .doc('alphabet_forest')
-          .collection('games_played')
-          .doc('forest_acorn_basket') // The unique ID for this game
-          .set({
-            'activityName': "Acorn Basket",
-            'emotions': finalEmotions,
-            'totalTaps': _tapTracker.totalTaps,
-            'mistakes': _tapTracker.mistakeCount,
-            'timePlayedSeconds': _tapTracker.formattedDuration,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_acorn_basket',
+        activityName: "Acorn Basket",
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
     } catch (e) {
       debugPrint("Database Error saving Acorn metrics: $e");
     }
-
     // 3. Now show the normal win dialog
     _showGoodJob();
   }

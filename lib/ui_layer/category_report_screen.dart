@@ -120,6 +120,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       final trackerDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
+          .collection('children')
+          .doc(widget.childName)
           .collection('category_progress')
           .doc(widget.categoryId)
           .get();
@@ -158,6 +160,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       final cycleRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
+          .collection('children')
+          .doc(widget.childName)
           .collection('category_progress')
           .doc(widget.categoryId)
           .collection('cycles')

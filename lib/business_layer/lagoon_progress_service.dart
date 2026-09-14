@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class LagoonProgressService {
+  String? activeChildId;
   LagoonProgressService._();
   static final LagoonProgressService instance = LagoonProgressService._();
 
@@ -10,10 +11,12 @@ class LagoonProgressService {
 
   DocumentReference<Map<String, dynamic>>? get _docRef {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return null;
+    if (uid == null || activeChildId == null) return null;
     return FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
+        .collection('children')
+        .doc(activeChildId)
         .collection('progress')
         .doc('lagoon');
   }
