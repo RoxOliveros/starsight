@@ -148,8 +148,8 @@ class GestureRecognizerView(
     // NOT raw pixel/normalized distances, so they hold up across distance-from-camera.
     // Expect to tune these against real footage of kids' hands/arm lengths.
     private object PrayThresholds {
-        const val MAX_PALM_GAP_RATIO = 1.3f      // palm-center distance / avg hand width
-        const val MAX_HEIGHT_DELTA_RATIO = 0.8f  // vertical offset between palms / avg hand width
+        const val MAX_PALM_GAP_RATIO = 2.5f     // palm-center distance / avg hand width
+        const val MAX_HEIGHT_DELTA_RATIO = 1.8f  // vertical offset between palms / avg hand width
     }
 
     private fun dist(a: NormalizedLandmark, b: NormalizedLandmark): Float =
