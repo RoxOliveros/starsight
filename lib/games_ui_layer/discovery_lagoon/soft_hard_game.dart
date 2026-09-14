@@ -1,20 +1,18 @@
 import 'dart:math';
-import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/feed_the_animal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-
+import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
-// Represents an item to be sorted
 class SortableItem {
   final String imagePath;
-  final bool isSoft; // true = goes Left (Soft), false = goes Right (Hard)
+  final bool isSoft;
 
   SortableItem({required this.imagePath, required this.isSoft});
 }
@@ -29,11 +27,17 @@ class SoftHardGameScreen extends StatefulWidget {
 }
 
 class _SoftHardGameScreenState extends State<SoftHardGameScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, KikiReactionMixin {
   late final AudioPlayer _audioPlayer;
   final Random _random = Random();
 
+  final AudioPlayer _kikiPlayer = AudioPlayer();
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
+
   bool _isIntroPlaying = true;
+  bool _hasPlayedInstruction = false;
 
   // List of all items to sort
   late List<SortableItem> _remainingItems;
@@ -49,6 +53,27 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
 
   // Track if game is won
   bool _isGameWon = false;
+  bool _showVictoryOverlay = false;
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
+  static const String _softCloudImage = 'assets/images/objects/lagoon/soft_cloud.png';
+  static const String _hardRockImage = 'assets/images/objects/lagoon/hard_rock.png';
+  static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
+  static const String _goodJobImage = 'assets/images/characters/cat_holding_fishbone.png';
+
+  static const String _pillowImage = 'assets/images/objects/lagoon/pillow.png';
+  static const String _cushionImage = 'assets/images/objects/lagoon/cushion.png';
+  static const String _towelImage = 'assets/images/objects/lagoon/towel.png';
+  static const String _teddybearImage = 'assets/images/objects/lagoon/teddybear.png';
+  static const String _yarnImage = 'assets/images/objects/lagoon/yarn_wb.png';
+  static const String _yoyoImage = 'assets/images/objects/lagoon/yoyo_wb.png';
+  static const String _planeImage = 'assets/images/objects/lagoon/plane_wb.png';
+  static const String _trainImage = 'assets/images/objects/lagoon/train_wb.png';
+
+  static const String _introAudio = 'audio/discovery_lagoon/soft&hard_intro&tutorial.wav';
+  static const String _instructionAudio = 'audio/discovery_lagoon/soft&hard_instruction.wav';
+  static const String _wrongAudio = 'audio/sound_effects/bubble_pop.wav';
+
 
   @override
   void initState() {
@@ -59,11 +84,15 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
 
     _audioPlayer = AudioPlayer();
 
-    // --- NEW: Listen for when the intro audio finishes playing ---
     _audioPlayer.onPlayerComplete.listen((event) {
-      if (mounted && _isIntroPlaying) {
+      if (!mounted) return;
+
+      if (_isIntroPlaying && !_hasPlayedInstruction) {
+        _hasPlayedInstruction = true;
+        _playInstruction();
+      } else if (_isIntroPlaying) {
         setState(() {
-          _isIntroPlaying = false; // Hide Kiki and show the game!
+          _isIntroPlaying = false;
         });
       }
     });
@@ -74,13 +103,20 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
 
   Future<void> _playIntro() async {
     try {
-      // Ensure the path matches where you placed soft&hard_intro&tutorial.wav in your assets folder
-      await _audioPlayer.play(
-        AssetSource('audio/discovery_lagoon/soft&hard_intro&tutorial.wav'),
-      );
+      await _audioPlayer.play(AssetSource(_introAudio));
     } catch (e) {
       debugPrint("Error playing intro audio: $e");
-      // Fallback just in case the audio fails to load, so the game isn't stuck
+      if (mounted) {
+        setState(() => _isIntroPlaying = false);
+      }
+    }
+  }
+
+  Future<void> _playInstruction() async {
+    try {
+      await _audioPlayer.play(AssetSource(_instructionAudio));
+    } catch (e) {
+      debugPrint("Error playing instruction audio: $e");
       if (mounted) {
         setState(() => _isIntroPlaying = false);
       }
@@ -88,40 +124,15 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   }
 
   void _initGame() {
-    // Populate with 4 soft items and 4 hard items
     _remainingItems = [
-      SortableItem(
-        imagePath: 'assets/images/objects/lagoon/pillow.png',
-        isSoft: true,
-      ),
-      SortableItem(
-        imagePath: 'assets/images/objects/lagoon/cushion.png',
-        isSoft: true,
-      ),
-      SortableItem(
-        imagePath: 'assets/images/objects/lagoon/towel.png',
-        isSoft: true,
-      ),
-      SortableItem(
-        imagePath: 'assets/images/objects/lagoon/teddybear.png',
-        isSoft: true,
-      ),
-      SortableItem(
-        imagePath: 'assets/images/objects/lagoon/yarn_wb.png',
-        isSoft: false,
-      ),
-      SortableItem(
-        imagePath: 'assets/images/objects/lagoon/yoyo_wb.png',
-        isSoft: false,
-      ),
-      SortableItem(
-        imagePath: 'assets/images/objects/lagoon/plane_wb.png',
-        isSoft: false,
-      ),
-      SortableItem(
-        imagePath: 'assets/images/objects/lagoon/train_wb.png',
-        isSoft: false,
-      ),
+      SortableItem(imagePath: _pillowImage, isSoft: true),
+      SortableItem(imagePath: _cushionImage, isSoft: true),
+      SortableItem(imagePath: _towelImage, isSoft: true),
+      SortableItem(imagePath: _teddybearImage, isSoft: true),
+      SortableItem(imagePath: _yarnImage, isSoft: false),
+      SortableItem(imagePath: _yoyoImage, isSoft: false),
+      SortableItem(imagePath: _planeImage, isSoft: false),
+      SortableItem(imagePath: _trainImage, isSoft: false),
     ];
 
     // Clear old sorted arrays when restarting!
@@ -141,7 +152,19 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
         _currentItem = _remainingItems.removeLast();
       } else {
         _currentItem = null;
-        _isGameWon = true; // All items sorted!
+        _isGameWon = true;
+        LagoonProgressService.instance.markLevelComplete(widget.level);
+        _triggerVictoryOverlay();
+      }
+    });
+  }
+
+  void _triggerVictoryOverlay() {
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted && _isGameWon) {
+        setState(() {
+          _showVictoryOverlay = true;
+        });
       }
     });
   }
@@ -155,42 +178,37 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
     }
   }
 
-  /// Handles when the player releases an item after dragging
-  void _onPanEnd(DragEndDetails details, double screenWidth) {
+  Future<void> _onPanEnd(DragEndDetails details, double screenWidth) async {
     if (_currentItem == null) return;
 
     setState(() {
       _isDragging = false;
     });
 
-    // Calculate where the item was dropped horizontally relative to screen center
     final double droppedX = (screenWidth / 2) + _dragOffset.dx;
     final bool droppedOnLeft = droppedX < screenWidth * 0.45;
     final bool droppedOnRight = droppedX > screenWidth * 0.55;
 
     // Check if sorted correctly!
     if (_currentItem!.isSoft && droppedOnLeft) {
-      // Correctly placed in SOFT! Add it to the soft display array so it stays visible!
-      _playSound('audio/sound_effects/shine.wav');
+      showKikiReaction(KikiState.correct);
       setState(() {
         _sortedSoftItems.add(_currentItem!);
       });
       _loadNextItem();
     } else if (!_currentItem!.isSoft && droppedOnRight) {
-      // Correctly placed in HARD! Add it to the hard display array so it stays visible!
-      _playSound('audio/sound_effects/shine.wav');
+      showKikiReaction(KikiState.correct);
       setState(() {
         _sortedHardItems.add(_currentItem!);
       });
       _loadNextItem();
     } else if (droppedOnLeft || droppedOnRight) {
-      // Placed on the WRONG side! Snap back to center and play try-again sound.
-      _playSound('audio/discovery_lagoon/kiki_tryagain.wav');
+      await _playSound(_wrongAudio);
+      showKikiReaction(KikiState.wrong);
       setState(() {
-        _dragOffset = Offset.zero; // Snap back to center line
+        _dragOffset = Offset.zero;
       });
     } else {
-      // Dropped too close to the middle dashed line, just snap back
       setState(() {
         _dragOffset = Offset.zero;
       });
@@ -200,6 +218,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   @override
   void dispose() {
     _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
@@ -216,14 +235,43 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
         fit: StackFit.expand,
         children: [
           // A. BACKGROUND LAYER
-          Image.asset(
-            'assets/images/objects/lagoon/soft_hard_bg.png',
-            fit: BoxFit.cover,
+          Image.asset(_bgImage, fit: BoxFit.cover),
+
+          // SOFT cloud badge (upper-left-center)
+          Positioned(
+            top: sh * 0.03,
+            left: sw * 0.5 - (sw * 0.34),
+            child: Image.asset(
+              _softCloudImage,
+              height: sw * 0.11,
+              fit: BoxFit.contain,
+            ),
           ),
 
-          // X Button and Level Badge
-          Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          // HARD rock badge (upper-right-center)
+          Positioned(
+            top: sh * 0.03,
+            right: sw * 0.5 - (sw * 0.34),
+            child: Image.asset(
+              _hardRockImage,
+              height: sw * 0.11,
+              fit: BoxFit.contain,
+            ),
+          ),
+
+          // Dashed vertical separator line down the middle
+          Positioned(
+            top: 0,
+            bottom: 0,
+            left: sw / 2 - 1,
+            child: CustomPaint(
+              size: Size(2, sh),
+              painter: _DashedLinePainter(
+                topPadding: sh * 0.15,
+                bottomPadding: sh * 0.08,
+              ),
+            ),
+          ),
 
           // C. SORTED SOFT ITEMS LAYER (Displays correctly sorted items on the Left!)
           Positioned(
@@ -308,33 +356,27 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
           if (_isIntroPlaying)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(
-                  0.5,
-                ), // Dims the background slightly
-                // Align to the bottom and push down by 50% of the image's height
+                color: Colors.black.withValues(alpha: 0.5,),
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: FractionalTranslation(
                     translation: const Offset(0.0, 0.2),
-                    child: Image.asset(
-                      'assets/images/characters/kiki_the_cat.png',
-                      height: sh * 1, // Your adjusted height
-                      fit: BoxFit.contain,
-                    ),
+                    child: Image.asset(_kikiImage, height: sh * 1, fit: BoxFit.contain),
                   ),
                 ),
               ),
             ),
 
+          // X Button and Level Badge
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+
           // F. GOOD JOB VICTORY OVERLAY (Appears once all 8 items are sorted!)
-          if (_isGameWon)
+          if (_showVictoryOverlay)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-              
+              characterImage: _goodJobImage,
               characterSizeFactor: 0.9,
               onNext: () async {
-                // Mark Level 5 as complete to unlock Level 6
-                await LagoonProgressService.instance.markLevelComplete(5);
                 if (context.mounted) {
                   // 2. Push directly to the next level's screen
                   Navigator.pushReplacement(
@@ -348,6 +390,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
               onRestart: () {
                 setState(() {
                   _isGameWon = false;
+                  _showVictoryOverlay = false;
                   _initGame();
                 });
               },
@@ -357,4 +400,40 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
       ),
     );
   }
+}
+
+class _DashedLinePainter extends CustomPainter {
+  final double topPadding;
+  final double bottomPadding;
+
+  _DashedLinePainter({
+    this.topPadding = 0,
+    this.bottomPadding = 0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF737373).withValues(alpha: 0.85)
+      ..strokeWidth = 3;
+
+    const dashHeight = 12.0;
+    const dashSpace = 8.0;
+    double startY = topPadding;
+    final double endY = size.height - bottomPadding;
+
+    while (startY < endY) {
+      canvas.drawLine(
+        Offset(size.width / 2, startY),
+        Offset(size.width / 2, startY + dashHeight),
+        paint,
+      );
+      startY += dashHeight + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedLinePainter oldDelegate) =>
+      oldDelegate.topPadding != topPadding ||
+          oldDelegate.bottomPadding != bottomPadding;
 }
