@@ -1,10 +1,6 @@
-import 'package:StarSight/UI_Layer/signup_signin.dart';
-import 'package:StarSight/ui_layer/behavior_reports_screen.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:StarSight/ui_layer/parents_pin_validation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'app_dialog.dart';
 import 'avatar_picker_dialog.dart';
 import 'parents_area_screen.dart';
 import 'analysis_report_screen.dart';
@@ -199,35 +195,6 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                         );
                       }
                     }
-                  },
-                ),
-
-                const SizedBox(height: 14),
-
-                _ProfileOption(
-                  icon: Icons.logout,
-                  label: "Log out",
-                  onTap: () async {
-                    final confirmed = await AppDialog.showConfirm(
-                      context,
-                      message: "Are you sure you want to log out?",
-                      confirmLabel: "Log Out",
-                      cancelLabel: "Cancel",
-                    );
-
-                    if (!confirmed) return;
-
-                    await FirebaseAuth.instance.signOut();
-
-                    if (!context.mounted) return;
-
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SignUpSignInScreen(),
-                      ),
-                      (route) => false,
-                    );
                   },
                 ),
               ],
