@@ -9,8 +9,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import 'alphabet_game_ui.dart';
-import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
+import 'forest_game_finale.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -137,9 +137,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _tofiFloatCtrl; // dog idle float
   late AnimationController _targetBounceCtrl; // gentle bounce on the target letter
-  late Animation<double> _targetBounce;
   late AnimationController _instructionCtrl; // banner bounce on round start
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _piecesEntranceCtrl; // letter pieces entrance
@@ -172,19 +170,11 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
       vsync: this,
       duration: const Duration(milliseconds: 1100),
     )..repeat(reverse: true);
-    _targetBounce = Tween<double>(begin: -4, end: 4).animate(
-      CurvedAnimation(parent: _targetBounceCtrl, curve: Curves.easeInOut),
-    );
 
     _instructionCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -414,10 +404,9 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
           
           onNext: () {
             Navigator.of(context).pop();
-            // TODO: @Tin fix nav after ending game
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => AlphabetIntroScreen(letter: 'A'),
+                builder: (_) => AlphabetForestFinaleGame(level: widget.level + 1),
               ),
             );
           },
@@ -490,7 +479,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     return Stack(
       children: [
         Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
-        const Positioned(top: 25, left: 25, child: ForestXButton()),
+        Positioned(top: 25, left: 25, child: ForestXButton()),
         Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
         Center(
           child: Row(

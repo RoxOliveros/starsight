@@ -10,6 +10,7 @@ import '../../games_ui_layer/alphabet_forest/forest_game_apple_tree.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_berry_bush_harvest.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_butterfly_flower.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_catterpillar_letter_match.dart';
+import '../../games_ui_layer/alphabet_forest/forest_game_finale.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_fishing.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_letter_fireflies.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_letter_match.dart';
@@ -96,39 +97,49 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
       [1, 2, 3, 4, 5, 6, 7, 8],
       [9, 10, 11, 12, 13, 14, 15, 16],
       [17, 18, 19, 20, 21, 22, 23, 24],
+      [25],
     ];
+
     final levels = pages[_currentPage];
+
+    Widget buildSlot(int index) {
+      if (index >= levels.length) {
+        // Empty slot so positioning stays consistent.
+        return SizedBox(
+          width: tileSize,
+          height: tileSize,
+        );
+      }
+
+      return _LevelTile(
+        level: levels[index],
+        unlockedLevel: _unlockedLevel,
+        onOpenLevel: _openLevel,
+        size: tileSize,
+      );
+    }
 
     return [
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: levels
-            .sublist(0, 4)
-            .map(
-              (lvl) => _LevelTile(
-                level: lvl,
-                unlockedLevel: _unlockedLevel,
-                onOpenLevel: _openLevel,
-                size: tileSize,
-              ),
-            )
-            .toList(),
+        children: [
+          buildSlot(0),
+          buildSlot(1),
+          buildSlot(2),
+          buildSlot(3),
+        ],
       ),
+
       const SizedBox(height: 16),
-      const SizedBox(height: 16),
+
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: levels
-            .sublist(4, 8)
-            .map(
-              (lvl) => _LevelTile(
-                level: lvl,
-                unlockedLevel: _unlockedLevel,
-                onOpenLevel: _openLevel,
-                size: tileSize,
-              ),
-            )
-            .toList(),
+        children: [
+          buildSlot(4),
+          buildSlot(5),
+          buildSlot(6),
+          buildSlot(7),
+        ],
       ),
     ];
   }
@@ -277,12 +288,12 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
-                            if (_currentPage < 2) {
+                            if (_currentPage < 3) {
                               setState(() => _currentPage++);
                             }
                           },
                           child: Opacity(
-                            opacity: _currentPage < 2 ? 1.0 : 0.3,
+                            opacity: _currentPage < 3 ? 1.0 : 0.3,
                             child: Image.asset(
                               'assets/images/arrows/bttn_forest_arrow_right.png',
                               width: arrowSize,
@@ -402,10 +413,8 @@ class _LevelTile extends StatelessWidget {
         return const AlphabetTrainGame(level: 23);
       case 24:
         return const LetterTreehouseGame(level: 24);
-
-      // TODO: @Tin forest ending game
       case 25:
-        return null;
+        return const AlphabetForestFinaleGame(level: 25);
       default:
         return null;
     }
