@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import 'signup_signin.dart';
 import 'behavior_reports_screen.dart';
 import 'add_child_screen.dart';
 import 'app_dialog.dart';
-import 'avatar_picker_dialog.dart'; // for kDefaultAvatarPath
+import 'avatar_picker_dialog.dart';
 import '../business_layer/orientation_service.dart';
 import '../business_layer/database_service.dart';
 
@@ -90,6 +89,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
   int _selectedIndex = 0;
   bool _loading = true;
   String? _error;
+  bool _isLoggingOut = false;
 
   ChildProfile? get _selectedChild =>
       _children.isEmpty ? null : _children[_selectedIndex];
@@ -104,8 +104,10 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
 
   @override
   void dispose() {
-    // Restore the app's default landscape lock for everything else.
-    OrientationService.setLandscape();
+    if (!_isLoggingOut) {
+      OrientationService.setLandscape();
+    }
+
     super.dispose();
   }
 
@@ -195,10 +197,16 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
 
     if (!context.mounted) return;
 
+    _isLoggingOut = true;
+
+    OrientationService.setPortrait();
+
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const SignUpSignInScreen()),
-      (route) => false,
+      MaterialPageRoute(
+        builder: (context) => const SignUpSignInScreen(),
+      ),
+          (route) => false,
     );
   }
 
