@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
+import 'package:StarSight/ui_layer/lumi_town/lumi_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
@@ -14,8 +15,8 @@ import '../goodjob_prompt.dart';
 // ============================================================================
 
 const String _roomBg = 'assets/images/backgrounds/bg_classroom_closeup.png';
-const String _bearWritingBook = 'assets/images/characters/bear_writing_book.png';
-const String _imageTrWoo = 'assets/images/characters/dr.woo_standing.png';
+const String _tableBg = 'assets/images/backgrounds/bg_table.png';
+const String _bearWritingBookImage = 'assets/images/characters/bear_writing_book.png';
 
 const String _audioBase = 'assets/audio/lumi_town/';
 const String _introAudio = '${_audioBase}diary_intro.wav';
@@ -40,24 +41,22 @@ enum DailySequencePhase {
 
 class DiarySceneCard {
   final String id;
-  final int correctNumber; // 1..4 — the slot this card belongs in.
+  final int correctNumber;
   final String imageAsset;
-  final String label;
 
   const DiarySceneCard({
     required this.id,
     required this.correctNumber,
     required this.imageAsset,
-    required this.label,
   });
 }
 
 // Fixed reading order: 1 upper-left, 2 upper-right, 3 lower-left, 4 lower-right.
 const List<DiarySceneCard> _diaryScenes = [
-  DiarySceneCard(id: 'wake', correctNumber: 1, imageAsset: _wakeScene, label: 'Gising'),
-  DiarySceneCard(id: 'bath', correctNumber: 2, imageAsset: _bathScene, label: 'Naligo'),
-  DiarySceneCard(id: 'eat', correctNumber: 3, imageAsset: _eatScene, label: 'Kumain'),
-  DiarySceneCard(id: 'school', correctNumber: 4, imageAsset: _schoolScene, label: 'Paaralan'),
+  DiarySceneCard(id: 'wake', correctNumber: 1, imageAsset: _wakeScene),
+  DiarySceneCard(id: 'bath', correctNumber: 2, imageAsset: _bathScene),
+  DiarySceneCard(id: 'eat', correctNumber: 3, imageAsset: _eatScene),
+  DiarySceneCard(id: 'school', correctNumber: 4, imageAsset: _schoolScene),
 ];
 
 // ============================================================================
@@ -80,16 +79,12 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
   // --- Audio ----------------------------------------------------------
   final AudioPlayer _narrationPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
-
-  // Dedicated player for Tr. Woo's reactions — do NOT alias this to any
-  // other player, that causes audio collisions.
   final AudioPlayer _drWooPlayer = AudioPlayer();
 
   @override
   AudioPlayer get drWooPlayer => _drWooPlayer;
 
   // --- Game state -------------------------------------------------------
-  // slotScenes[i] is the card currently sitting in fixed slot (i+1).
   late List<DiarySceneCard> _slotScenes;
   List<bool> _slotLocked = [false, false, false, false];
 
@@ -144,7 +139,7 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
   List<DiarySceneCard> _shuffledScenes() {
     final rand = Random();
     List<DiarySceneCard> arr = List.of(_diaryScenes);
-    bool solved;
+    bool anyCorrect;
     do {
       for (int i = arr.length - 1; i > 0; i--) {
         final j = rand.nextInt(i + 1);
@@ -152,14 +147,14 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
         arr[i] = arr[j];
         arr[j] = tmp;
       }
-      solved = true;
+      anyCorrect = false;
       for (int i = 0; i < arr.length; i++) {
-        if (arr[i].correctNumber != i + 1) {
-          solved = false;
+        if (arr[i].correctNumber == i + 1) {
+          anyCorrect = true;
           break;
         }
       }
-    } while (solved);
+    } while (anyCorrect);
     return arr;
   }
 
@@ -229,6 +224,9 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
         _slotScenes[targetIndex] = draggedCard;
         _slotScenes[originIndex] = other;
         _slotLocked[targetIndex] = true;
+        if (other.correctNumber == originIndex + 1) {
+          _slotLocked[originIndex] = true;
+        }
       });
 
       unawaited(showDrWooReaction(DrWooState.correct));
@@ -317,7 +315,14 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
         fit: StackFit.expand,
         children: [
           Positioned.fill(
-            child: Image.asset(_roomBg, fit: BoxFit.cover),
+            child: Image.asset(
+              (_phase == DailySequencePhase.game ||
+                  _phase == DailySequencePhase.instruction ||
+                  _phase == DailySequencePhase.complete)
+                  ? _tableBg
+                  : _roomBg,
+              fit: BoxFit.cover,
+            ),
           ),
 
           LayoutBuilder(
@@ -328,24 +333,25 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
               return Stack(
                 fit: StackFit.expand,
                 children: [
-                  // TR. WOO DURING INTRO + COMPLETE
-                  if (_phase == DailySequencePhase.intro ||
-                      _phase == DailySequencePhase.complete)
+                  // BEAR DURING INTRO
+                  if (_phase == DailySequencePhase.intro)
                     Positioned(
-                      right: width * 0.05,
-                      bottom: -50,
+                      right: 0,
+                      left: 0,
+                      bottom: -110,
                       child: SizedBox(
                         height: height * 1.2,
                         child: Image.asset(
-                          _imageTrWoo,
+                          _bearWritingBookImage,
                           fit: BoxFit.contain,
                         ),
                       ),
                     ),
 
-                  // DIARY GRID — instruction (locked preview) + game phases
+                  // DIARY GRID
                   if (_phase == DailySequencePhase.instruction ||
-                      _phase == DailySequencePhase.game)
+                      _phase == DailySequencePhase.game ||
+                      _phase == DailySequencePhase.complete)
                     Positioned(
                       left: width * 0.10,
                       right: width * 0.10,
@@ -364,10 +370,6 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
             },
           ),
 
-          // Correct / wrong reaction
-          if (_phase == DailySequencePhase.game && drWooState != DrWooState.normal)
-            buildDrWoo(context),
-
           // Back button.
           Positioned(top: 25, left: 25, child: LumiXButton()),
 
@@ -376,14 +378,11 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
             GoodJobOverlay(
               characterImage: 'assets/images/characters/dr.woo_the_owl.png',
               onNext: () async {
-
-                if (mounted) {
-                  // Navigator.of(context).pushReplacement( // TODO: @Tin wire to next Lumi Town level.
-                  //   MaterialPageRoute(
-                  //     builder: (_) => const (),
-                  //   ),
-                  // );
-                }
+                // Navigator.of(context).pushReplacement( // TODO: @Tin wire to next Lumi Town level.
+                //   MaterialPageRoute(
+                //     builder: (_) => const (),
+                //   ),
+                // );
               },
               onRestart: _restartGame,
               onBack: _goBack,
@@ -417,7 +416,6 @@ class _DiaryGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        image: const DecorationImage(image: AssetImage(_bearWritingBook), fit: BoxFit.fill),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Padding(
@@ -504,18 +502,6 @@ class _DiarySlot extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           image,
-          Positioned(
-            left: 8,
-            bottom: 8,
-            child: Text(
-              scene.label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -566,8 +552,7 @@ class _DiarySlot extends StatelessWidget {
                     )
                   : card,
 
-              // Numbered destination badge — fixed to this slot, always
-              // lower-right of the area.
+              // Numbered destination badge
               Positioned(
                 right: 8,
                 bottom: 8,
@@ -576,7 +561,7 @@ class _DiarySlot extends StatelessWidget {
                   height: 34,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: locked ? Colors.amber : Colors.brown.shade700,
+                    color: locked ? Colors.amber : LumiColorTheme.rust,
                     boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3)],
                   ),
                   alignment: Alignment.center,
