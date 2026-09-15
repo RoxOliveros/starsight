@@ -6,6 +6,29 @@ import 'game_prompts.dart';
 class CategorySummaryService {
   static final String apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
 
+  static const int _shortSummaryMaxWords = 35;
+
+  /// Ensures a shortSummary never overflows the outer card's 4-line limit
+  /// in a way that reads as cut off mid-sentence. If the model returns
+  /// more than [_shortSummaryMaxWords] words, trims to the last full word
+  /// within that budget and closes it out with a period, so the card
+  /// always shows a complete-looking thought instead of a dangling clause.
+  static String _clampShortSummary(String text) {
+    final trimmed = text.trim();
+    final words = trimmed.split(RegExp(r'\s+'));
+    if (words.length <= _shortSummaryMaxWords) return trimmed;
+
+    String clipped = words.take(_shortSummaryMaxWords).join(' ');
+    // Drop a trailing comma/semicolon/dash left dangling by the cut.
+    clipped = clipped.replaceAll(RegExp(r'[,;:\-–—]+$'), '');
+    if (!clipped.endsWith('.') &&
+        !clipped.endsWith('!') &&
+        !clipped.endsWith('?')) {
+      clipped = '$clipped.';
+    }
+    return clipped;
+  }
+
   static Future<Map<String, dynamic>> generateCategoryReport({
     required String categoryName,
     required String childName,
@@ -45,28 +68,44 @@ It must stay strictly observational:
 - Do NOT use "Confident" as a band — the only two allowed bands are
   "Emerging" and "Developing". Even strong performance should be described
   within "Developing", with the description explaining just how strong it
-  was — the certainty implied by "Confident" isn't something we can claim.
-- Each "description" should be 3-5 sentences, written in warm, plain
-  language a parent with no background in child development or psychology
-  could easily follow. Avoid clinical or academic terms. Be specific about
-  what was actually observed during play (not generic filler), and explain
-  in simple terms what that pattern generally means for a child this age
-  — without turning it into advice.
+  was.
+
+These two fields serve very different places in the UI and must never overlap in content:
+- "shortSummary" appears ALONE on a small outer summary card, with no other
+  text next to it. The card has room for about 4 lines of text, so
+  "shortSummary" should be 1-2 complete sentences, roughly 20-30 words, and
+  MUST NOT exceed 35 words (hard limit, never exceed this). It must be a
+  punchy, self-contained, parent-friendly highlight — not a trimmed-down or
+  compressed version of the detailed paragraph, and not a generic
+  restatement of the band name. It should surface the single most notable,
+  specific takeaway (e.g. a concrete behavior or standout moment), written
+  so every sentence in it is fully finished within the word limit — never
+  write a longer passage and assume it will be cut off, since it will
+  display exactly as written and get truncated with "..." if too long.
+- "detailedDescription" appears ONLY inside a separate "Learn More" dialog
+  that the parent opens deliberately. This is the sole place for the fuller
+  3-5 sentence explanation — supporting observations, nuance, and what the
+  pattern generally indicates. Do not front-load its content into
+  shortSummary; assume the parent has not yet seen detailedDescription when
+  they read shortSummary.
 
 Provide a JSON response strictly matching this structure:
 {
   "overallAnalysis": "Write 3-4 sentences summarizing their overall performance and confidence, in plain language a parent can easily follow.",
   "engagement": {
     "band": "Emerging" | "Developing",
-    "description": "3-5 sentences describing their engagement in detail — what was observed, and what it generally suggests."
+    "shortSummary": "1-2 complete sentences (~20-30 words) for the outer card — the single most notable takeaway about their engagement, not a summary of detailedDescription.",
+    "detailedDescription": "3-5 sentences, shown only in the 'Learn More' dialog, describing their engagement in detail — what was observed, and what it generally suggests."
   },
   "attention": {
     "band": "Emerging" | "Developing",
-    "description": "3-5 sentences describing their attention/focus in detail, based on mistakes and consistency — what was observed, and what it generally suggests."
+    "shortSummary": "1-2 complete sentences (~20-30 words) for the outer card — the single most notable takeaway about their attention, not a summary of detailedDescription.",
+    "detailedDescription": "3-5 sentences, shown only in the 'Learn More' dialog, describing their attention/focus in detail, based on mistakes and consistency — what was observed, and what it generally suggests."
   },
   "focus": {
     "band": "Emerging" | "Developing",
-    "description": "3-5 sentences describing their ability to stick with tasks in detail — what was observed, and what it generally suggests."
+    "shortSummary": "1-2 complete sentences (~20-30 words) for the outer card — the single most notable takeaway about their focus, not a summary of detailedDescription.",
+    "detailedDescription": "3-5 sentences, shown only in the 'Learn More' dialog, describing their ability to stick with tasks in detail — what was observed, and what it generally suggests."
   }
 }
 ''';
@@ -83,16 +122,27 @@ Provide a JSON response strictly matching this structure:
 
       if (response.text != null) {
         Map<String, dynamic> reportData = jsonDecode(response.text!);
-        // Append the disclaimer to the overall analysis
         reportData['overallAnalysis'] =
             reportData['overallAnalysis'] + disclaimer;
+
+        // Safety net: the model is instructed to keep shortSummary to
+        // <=12 words, but if it ever overshoots, the card (maxLines: 2,
+        // ellipsis) would cut it off mid-sentence and look broken. Trim at
+        // a clean word boundary instead of letting the UI hard-truncate.
+        for (final key in ['engagement', 'attention', 'focus']) {
+          final construct = reportData[key];
+          if (construct is Map && construct['shortSummary'] is String) {
+            construct['shortSummary'] = _clampShortSummary(
+              construct['shortSummary'] as String,
+            );
+          }
+        }
+
         return reportData;
       }
       throw Exception("Null response from model");
     } catch (e) {
       print("Gemini API Error: $e");
-      // Safe fallback map if offline or error — kept in the same
-      // observational, no-advice, two-band style as the real prompt above.
       return {
         "overallAnalysis":
             "$childName explored $categoryName during this session, engaging with a mix of the activities available. "
@@ -100,21 +150,27 @@ Provide a JSON response strictly matching this structure:
             "where attention shifted elsewhere.$disclaimer",
         "engagement": {
           "band": "Developing",
-          "description":
+          "shortSummary":
+              "Curiosity led the way this session, with $childName diving into activities eagerly and needing only the occasional pause.",
+          "detailedDescription":
               "$childName showed curiosity while exploring the activities in $categoryName. "
               "There were periods of active participation mixed with brief pauses. "
               "This kind of variation is a normal part of how young children engage with new material.",
         },
         "attention": {
           "band": "Developing",
-          "description":
+          "shortSummary":
+              "Focus moved between tasks throughout the session, holding steadiest on the activities $childName found most engaging.",
+          "detailedDescription":
               "During this session, $childName's focus shifted between the tasks at different points. "
               "Some activities held their attention more consistently than others. "
               "This pattern is common while a child is still building familiarity with an activity.",
         },
         "focus": {
           "band": "Developing",
-          "description":
+          "shortSummary":
+              "A steady, self-paced approach to each activity, with some tasks completed more smoothly than others.",
+          "detailedDescription":
               "$childName worked through the activities at their own pace, with some tasks completed more smoothly than others. "
               "This reflects a child who is still developing the ability to stay with a task from start to finish.",
         },
