@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/CategorySummaryService.dart';
-import '../ui_layer/analysis_report_screen.dart';
 import 'Parents_Area_Screen.dart';
 
 class CategoryReportScreen extends StatefulWidget {
@@ -31,6 +30,9 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   int _latestCycle = 1;
   int _selectedCycle = 1;
   List<int> _availableCycles = [1];
+
+  static const int _maxStoredCycles = 2;
+  Map<int, int> _slotToPlaythroughNumber = {};
 
   @override
   void initState() {
@@ -117,22 +119,59 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   Future<void> _initReportData() async {
     try {
       String uid = FirebaseAuth.instance.currentUser!.uid;
-      final trackerDoc = await FirebaseFirestore.instance
+      final categoryRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .collection('children')
           .doc(widget.childName)
           .collection('category_progress')
-          .doc(widget.categoryId)
-          .get();
+          .doc(widget.categoryId);
+
+      final trackerDoc = await categoryRef.get();
 
       if (trackerDoc.exists && trackerDoc.data()!.containsKey('currentCycle')) {
         _latestCycle = trackerDoc.data()!['currentCycle'];
       }
 
-      // Populate the dropdown list (e.g., [1, 2, 3])
-      _availableCycles = List.generate(_latestCycle, (index) => index + 1);
-      _selectedCycle = _latestCycle;
+      // Only cycle_1..cycle_[_maxStoredCycles] ever get written to (the
+      // database service rotates through them), so read exactly those
+      // slots instead of assuming a doc exists for every play up to
+      // _latestCycle.
+      final slotDocs = await Future.wait(
+        List.generate(_maxStoredCycles, (i) => i + 1).map(
+          (slot) => categoryRef.collection('cycles').doc('cycle_$slot').get(),
+        ),
+      );
+
+      final Map<int, int> slotToPlaythrough = {};
+      final List<int> slotsWithData = [];
+      for (final doc in slotDocs) {
+        if (!doc.exists) continue;
+        final slot = int.parse(doc.id.replaceFirst('cycle_', ''));
+        // playthroughNumber is only present on docs written after this
+        // rotation change; fall back to the slot number for older data.
+        final playthroughNumber =
+            (doc.data()?['playthroughNumber'] as int?) ?? slot;
+        slotToPlaythrough[slot] = playthroughNumber;
+        slotsWithData.add(slot);
+      }
+
+      if (slotsWithData.isEmpty) {
+        // Nothing played yet — keep the old single-slot default so the
+        // rest of the screen still has something sane to point at.
+        slotToPlaythrough[1] = 1;
+        slotsWithData.add(1);
+      }
+
+      // Most recent playthrough first.
+      slotsWithData.sort(
+        (a, b) =>
+            (slotToPlaythrough[b] ?? b).compareTo(slotToPlaythrough[a] ?? a),
+      );
+
+      _slotToPlaythroughNumber = slotToPlaythrough;
+      _availableCycles = slotsWithData;
+      _selectedCycle = slotsWithData.first;
 
       await _loadSpecificCycle(_selectedCycle);
     } catch (e) {
@@ -182,7 +221,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         if (!mounted) return;
         setState(() {
           _isLoading = false;
-          _error = "No games played in Cycle $cycleToLoad yet!";
+          _error =
+              "No games played in ${_playLabel(_slotToPlaythroughNumber[cycleToLoad] ?? cycleToLoad)} yet!";
         });
         return;
       }
@@ -710,7 +750,11 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                               items: _availableCycles.map((cycle) {
                                 return DropdownMenuItem<int>(
                                   value: cycle,
-                                  child: Text(_playLabel(cycle)),
+                                  child: Text(
+                                    _playLabel(
+                                      _slotToPlaythroughNumber[cycle] ?? cycle,
+                                    ),
+                                  ),
                                 );
                               }).toList(),
                               onChanged: (newValue) {
@@ -725,7 +769,10 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                         )
                       else
                         Text(
-                          _playLabel(_selectedCycle),
+                          _playLabel(
+                            _slotToPlaythroughNumber[_selectedCycle] ??
+                                _selectedCycle,
+                          ),
                           style: const TextStyle(
                             fontFamily: AppTextStyles.fredoka,
                             fontSize: 14,

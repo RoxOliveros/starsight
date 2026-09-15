@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 
 class ForestDatabaseService {
   static String? activeChildId;
+
+  static const int _maxStoredCycles = 2;
+
   static Future<void> saveGameData({
     required String gameId,
     required String activityName,
@@ -37,9 +40,10 @@ class ForestDatabaseService {
         }, SetOptions(merge: true));
       }
 
-      final currentCycleRef = trackerRef
+      int slot = ((currentCycle - 1) % _maxStoredCycles) + 1;
+      DocumentReference<Map<String, dynamic>> currentCycleRef = trackerRef
           .collection('cycles')
-          .doc('cycle_$currentCycle');
+          .doc('cycle_$slot');
 
       // 2. SMARTER DUPLICATE CHECK
       final gamesSnapshot = await currentCycleRef
@@ -56,16 +60,20 @@ class ForestDatabaseService {
         await trackerRef.set({
           'currentCycle': currentCycle,
         }, SetOptions(merge: true));
+
+        slot = ((currentCycle - 1) % _maxStoredCycles) + 1;
+        currentCycleRef = trackerRef.collection('cycles').doc('cycle_$slot');
+
+        await _clearCycleSlot(currentCycleRef);
       }
 
       // 3. Save the data to the correct cycle
-      final saveRef = trackerRef
-          .collection('cycles')
-          .doc('cycle_$currentCycle');
+      final saveRef = currentCycleRef;
 
       // Timestamp the cycle itself so the report knows when this playthrough started
       await saveRef.set({
         'lastUpdated': FieldValue.serverTimestamp(),
+        'playthroughNumber': currentCycle,
       }, SetOptions(merge: true));
 
       // Save the actual game metrics
@@ -80,5 +88,22 @@ class ForestDatabaseService {
     } catch (e) {
       debugPrint("Cycle Tracking Error: $e");
     }
+  }
+
+  /// Wipes a rotating cycle slot's old games and cached report before it
+  /// gets reused for a new playthrough, so old and new data never mix.
+  static Future<void> _clearCycleSlot(
+    DocumentReference<Map<String, dynamic>> cycleRef,
+  ) async {
+    final oldGames = await cycleRef.collection('games_played').get();
+    final batch = FirebaseFirestore.instance.batch();
+    for (final doc in oldGames.docs) {
+      batch.delete(doc.reference);
+    }
+    batch.set(cycleRef, {
+      'cachedReportData': FieldValue.delete(),
+      'cachedReportCount': FieldValue.delete(),
+    }, SetOptions(merge: true));
+    await batch.commit();
   }
 }
