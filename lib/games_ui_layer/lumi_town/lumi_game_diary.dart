@@ -9,6 +9,7 @@ import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
+import 'lumi_game_behavior.dart';
 
 // ============================================================================
 // ASSET PATHS — replace if your exact filenames/folders differ
@@ -378,11 +379,11 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
             GoodJobOverlay(
               characterImage: 'assets/images/characters/dr.woo_the_owl.png',
               onNext: () async {
-                // Navigator.of(context).pushReplacement( // TODO: @Tin wire to next Lumi Town level.
-                //   MaterialPageRoute(
-                //     builder: (_) => const (),
-                //   ),
-                // );
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => BehaviorGameScreen(level: widget.level + 1),
+                  ),
+                );
               },
               onRestart: _restartGame,
               onBack: _goBack,

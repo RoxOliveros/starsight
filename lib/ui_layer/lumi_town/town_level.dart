@@ -13,6 +13,7 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/lumi_town/1/wakeup1.dart';
+import '../../games_ui_layer/lumi_town/lumi_game_behavior.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_diary.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_stoplight.dart';
 import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
@@ -314,9 +315,9 @@ class _LevelTile extends StatelessWidget {
         return StoplightGameScreen(level: 14);
       case 15:
         return DiaryGameScreen(level: 15);
-
       case 16:
-        return null;
+        return BehaviorGameScreen(level: 16);
+
       case 17:
         return null;
       case 18:
