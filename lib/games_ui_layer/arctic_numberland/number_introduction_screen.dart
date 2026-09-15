@@ -715,7 +715,8 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
         debugPrint("Database Error saving Arctic metrics: $e");
       }
 
-      await ArcticProgressService.instance.markLevelComplete(_config.levelId);
+      await ArcticProgressService.instance.markLevelComplete(widget.level);
+
       if (!mounted) return;
       setState(() => _showWinDialog = true);
     } else {

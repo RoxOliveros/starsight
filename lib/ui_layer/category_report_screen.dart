@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/CategorySummaryService.dart';
-import '../ui_layer/analysis_report_screen.dart';
 import 'Parents_Area_Screen.dart';
 
 class CategoryReportScreen extends StatefulWidget {
@@ -31,6 +30,9 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   int _latestCycle = 1;
   int _selectedCycle = 1;
   List<int> _availableCycles = [1];
+
+  static const int _maxStoredCycles = 2;
+  Map<int, int> _slotToPlaythroughNumber = {};
 
   @override
   void initState() {
@@ -117,22 +119,59 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   Future<void> _initReportData() async {
     try {
       String uid = FirebaseAuth.instance.currentUser!.uid;
-      final trackerDoc = await FirebaseFirestore.instance
+      final categoryRef = FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .collection('children')
           .doc(widget.childName)
           .collection('category_progress')
-          .doc(widget.categoryId)
-          .get();
+          .doc(widget.categoryId);
+
+      final trackerDoc = await categoryRef.get();
 
       if (trackerDoc.exists && trackerDoc.data()!.containsKey('currentCycle')) {
         _latestCycle = trackerDoc.data()!['currentCycle'];
       }
 
-      // Populate the dropdown list (e.g., [1, 2, 3])
-      _availableCycles = List.generate(_latestCycle, (index) => index + 1);
-      _selectedCycle = _latestCycle;
+      // Only cycle_1..cycle_[_maxStoredCycles] ever get written to (the
+      // database service rotates through them), so read exactly those
+      // slots instead of assuming a doc exists for every play up to
+      // _latestCycle.
+      final slotDocs = await Future.wait(
+        List.generate(_maxStoredCycles, (i) => i + 1).map(
+          (slot) => categoryRef.collection('cycles').doc('cycle_$slot').get(),
+        ),
+      );
+
+      final Map<int, int> slotToPlaythrough = {};
+      final List<int> slotsWithData = [];
+      for (final doc in slotDocs) {
+        if (!doc.exists) continue;
+        final slot = int.parse(doc.id.replaceFirst('cycle_', ''));
+        // playthroughNumber is only present on docs written after this
+        // rotation change; fall back to the slot number for older data.
+        final playthroughNumber =
+            (doc.data()?['playthroughNumber'] as int?) ?? slot;
+        slotToPlaythrough[slot] = playthroughNumber;
+        slotsWithData.add(slot);
+      }
+
+      if (slotsWithData.isEmpty) {
+        // Nothing played yet — keep the old single-slot default so the
+        // rest of the screen still has something sane to point at.
+        slotToPlaythrough[1] = 1;
+        slotsWithData.add(1);
+      }
+
+      // Most recent playthrough first.
+      slotsWithData.sort(
+        (a, b) =>
+            (slotToPlaythrough[b] ?? b).compareTo(slotToPlaythrough[a] ?? a),
+      );
+
+      _slotToPlaythroughNumber = slotToPlaythrough;
+      _availableCycles = slotsWithData;
+      _selectedCycle = slotsWithData.first;
 
       await _loadSpecificCycle(_selectedCycle);
     } catch (e) {
@@ -182,7 +221,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         if (!mounted) return;
         setState(() {
           _isLoading = false;
-          _error = "No games played in Cycle $cycleToLoad yet!";
+          _error =
+              "No games played in ${_playLabel(_slotToPlaythroughNumber[cycleToLoad] ?? cycleToLoad)} yet!";
         });
         return;
       }
@@ -358,6 +398,139 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     );
   }
 
+  // --- LEARN MORE DIALOG ---
+  void _showLearnMoreDialog(
+    String title,
+    Map<String, dynamic> insightData,
+    Color color,
+    IconData icon,
+  ) {
+    String measurementExplanation = "";
+
+    if (title.toLowerCase() == "engagement") {
+      measurementExplanation =
+          "Engagement is measured using facial expression metrics. The computer vision model detects emotional cues (such as happiness, surprise, or neutrality) while the child plays to understand their emotional response to the activity.";
+    } else if (title.toLowerCase() == "attention") {
+      measurementExplanation =
+          "Attention is measured using gaze tracking. The system maps optical focus to observe whether the child's eyes remain fixed on the learning activities or if they frequently look away from the screen.";
+    } else if (title.toLowerCase() == "focus") {
+      measurementExplanation =
+          "Focus is measured using motion tracking and interaction rates. It evaluates continuous physical engagement and task completion speed to determine if the child is working steadily without prolonged pauses.";
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: ColorTheme.cream,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 28),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title.toUpperCase(),
+                      style: TextStyle(
+                        fontFamily: AppTextStyles.fredoka,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: ColorTheme.mutedGrey,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 24, thickness: 1, color: Colors.grey),
+              Row(
+                children: [
+                  Icon(Icons.star_rounded, color: color, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    insightData['band'] ?? '',
+                    style: TextStyle(
+                      fontFamily: 'Nunito',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Shows the FULL detailed analysis here
+              // Shows the FULL detailed analysis here
+              Text(
+                // Use the new detailed description, or fallback to the old description if cached
+                insightData['detailedDescription'] ??
+                    insightData['description'] ??
+                    '',
+                style: const TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 15,
+                  color: ColorTheme.brown,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Explanatory text defining the tracking metrics
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.science_outlined, size: 18, color: color),
+                        const SizedBox(width: 6),
+                        Text(
+                          "How it's measured",
+                          style: TextStyle(
+                            fontFamily: AppTextStyles.fredoka,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      measurementExplanation,
+                      style: const TextStyle(
+                        fontFamily: 'Nunito',
+                        fontSize: 13,
+                        color: ColorTheme.brown,
+                        fontStyle: FontStyle.italic,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // --- CONSTRUCT CARD (Matches Leader's Design) ---
   Widget _buildConstructCard(
     String title,
@@ -387,13 +560,38 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
             children: [
               Icon(icon, color: color, size: 28),
               const SizedBox(width: 10),
-              Text(
-                title.toUpperCase(),
-                style: TextStyle(
-                  fontFamily: AppTextStyles.fredoka,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+              Expanded(
+                child: Text(
+                  title.toUpperCase(),
+                  style: TextStyle(
+                    fontFamily: AppTextStyles.fredoka,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ),
+              // Learn More Button
+              GestureDetector(
+                onTap: () =>
+                    _showLearnMoreDialog(title, insightData, color, icon),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "Learn More",
+                      style: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                        decoration: TextDecoration.underline,
+                        decorationColor: color,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.info_outline_rounded, color: color, size: 16),
+                  ],
                 ),
               ),
             ],
@@ -415,12 +613,15 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
             ],
           ),
           const SizedBox(height: 10),
+
+          // Short Analysis preview
           Text(
-            insightData['description'] ?? '',
+            insightData['shortSummary'] ?? insightData['description'] ?? '',
             style: const TextStyle(
               fontFamily: 'Nunito',
               fontSize: 15,
               color: ColorTheme.brown,
+              height: 1.35,
             ),
           ),
         ],
@@ -549,7 +750,11 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                               items: _availableCycles.map((cycle) {
                                 return DropdownMenuItem<int>(
                                   value: cycle,
-                                  child: Text(_playLabel(cycle)),
+                                  child: Text(
+                                    _playLabel(
+                                      _slotToPlaythroughNumber[cycle] ?? cycle,
+                                    ),
+                                  ),
                                 );
                               }).toList(),
                               onChanged: (newValue) {
@@ -564,7 +769,10 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                         )
                       else
                         Text(
-                          _playLabel(_selectedCycle),
+                          _playLabel(
+                            _slotToPlaythroughNumber[_selectedCycle] ??
+                                _selectedCycle,
+                          ),
                           style: const TextStyle(
                             fontFamily: AppTextStyles.fredoka,
                             fontSize: 14,
