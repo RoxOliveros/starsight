@@ -880,8 +880,8 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
 
   // ── Intro content ─────────────────────────────────────────────────────
   Widget _buildIntroContent() {
-    return Positioned.fill(
-      top: 50,
+    return Padding(
+      padding: const EdgeInsets.only(top: 50),
       child: Row(
         children: [
           Expanded(
@@ -983,55 +983,53 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
 
   // ── Mini game ─────────────────────────────────────────────────────────
   Widget _buildMiniGame() {
-    return Positioned.fill(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final w = constraints.maxWidth;
-          final h = constraints.maxHeight;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
 
-          return Stack(
-            children: [
-              if (_miniGamePhase == _MiniGamePhase.tracing)
-                NumberTracingWidget(
+        return Stack(
+          children: [
+            if (_miniGamePhase == _MiniGamePhase.tracing)
+              NumberTracingWidget(
+                number: _config.number,
+                player: _player,
+                onComplete: () {
+                  if (_config.objects != null) {
+                    setState(() {
+                      _miniGamePhase = _MiniGamePhase.tapping;
+                      _miniGameIndex = _miniGameRotator.next();
+                    });
+                  } else {
+                    _completeLevel();
+                  }
+                },
+                level: widget.level,
+                tapTracker: _tapTracker, // <-- ADDED TRACKER
+              )
+            else ...[
+              Positioned(
+                left: w * 0.08,
+                top: h * 0.5 - (h * 0.30) / 2,
+                child: _NumberCard(
                   number: _config.number,
-                  player: _player,
-                  onComplete: () {
-                    if (_config.objects != null) {
-                      setState(() {
-                        _miniGamePhase = _MiniGamePhase.tapping;
-                        _miniGameIndex = _miniGameRotator.next();
-                      });
-                    } else {
-                      _completeLevel();
-                    }
-                  },
-                  level: widget.level,
-                  tapTracker: _tapTracker, // <-- ADDED TRACKER
-                )
-              else ...[
-                Positioned(
-                  left: w * 0.08,
-                  top: h * 0.5 - (h * 0.30) / 2,
-                  child: _NumberCard(
-                    number: _config.number,
-                    word: _config.numberWord,
-                    size: h * 0.3,
-                  ),
+                  word: _config.numberWord,
+                  size: h * 0.3,
                 ),
-                kNumberMiniGames[_miniGameIndex!](
-                  number: _config.number,
-                  numberWord: _config.numberWord,
-                  objects: _config.objects!,
-                  player: _player,
-                  onComplete: _completeLevel,
-                  level: widget.level,
-                  tapTracker: _tapTracker, // <-- ADDED TRACKER
-                ),
-              ],
+              ),
+              kNumberMiniGames[_miniGameIndex!](
+                number: _config.number,
+                numberWord: _config.numberWord,
+                objects: _config.objects!,
+                player: _player,
+                onComplete: _completeLevel,
+                level: widget.level,
+                tapTracker: _tapTracker, // <-- ADDED TRACKER
+              ),
             ],
-          );
-        },
-      ),
+          ],
+        );
+      },
     );
   }
 
