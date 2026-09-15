@@ -1,5 +1,6 @@
 import 'package:StarSight/business_layer/arctic_database_service.dart';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
+import 'package:StarSight/business_layer/database_service.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
@@ -354,9 +355,19 @@ class _AvatarBadgeState extends State<_AvatarBadge> {
     _load();
   }
 
+  // Inside class _AvatarBadgeState...
+
   Future<void> _load() async {
-    final path = await AvatarStorage.getSelectedAvatarPath();
-    if (mounted) setState(() => _avatarPath = path);
+    final children = await DatabaseService().getChildren();
+    final myChild = children.firstWhere(
+      (c) => c['nickname'] == widget.name,
+      orElse: () => {},
+    );
+    final path = myChild['avatarPath'] as String?;
+
+    if (mounted) {
+      setState(() => _avatarPath = path ?? kDefaultAvatarPath);
+    }
   }
 
   void refresh() => _load();
