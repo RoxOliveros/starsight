@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
-import 'package:StarSight/ui_layer/lumi_town/lumi_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
@@ -15,12 +14,15 @@ import '../goodjob_prompt.dart';
 // ============================================================================
 
 const String _classroomBg = 'assets/images/backgrounds/bg_lumi_classroom.png';
+const String _gameBg = 'assets/images/backgrounds/bg_table.png';
 const String _teacherWooImage = 'assets/images/characters/dr.woo_the_owl.png';
 
 const String _audioBase = 'assets/audio/lumi_town/';
 const String _introAudio = '${_audioBase}behavior_intro.wav';
 const String _instructionAudio = '${_audioBase}behavior_instructions.wav';
 const String _winAudio = '${_audioBase}behavior_win.wav';
+const String _audioCorrect = 'assets/audio/sound_effects/shine.wav';
+const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
 
 const String _redButton = 'assets/images/buttons/red_button.png';
 const String _redButtonClicked = 'assets/images/buttons/red_clicked.png';
@@ -122,6 +124,7 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
   final AudioPlayer _narrationPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _drWooPlayer = AudioPlayer();
+  final AudioPlayer _sfxPlayer = AudioPlayer();
 
   @override
   AudioPlayer get drWooPlayer => _drWooPlayer;
@@ -174,6 +177,7 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
     _narrationPlayer.dispose();
     _completePlayer.dispose();
     _drWooPlayer.dispose();
+    _sfxPlayer.dispose();
     super.dispose();
   }
 
@@ -268,7 +272,9 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
     final bool isCorrect = pickedGreen == _current.expectedGreen;
 
     if (isCorrect) {
-      unawaited(showDrWooReaction(DrWooState.correct));
+
+      await _playAndWait(_sfxPlayer, _audioCorrect);
+      if (!mounted) return;
 
       await _playAndWait(_narrationPlayer, _current.correctFeedbackAudio);
       if (!mounted) return;
@@ -283,6 +289,9 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
         await _playCurrentNarration();
       }
     } else {
+      await _playAndWait(_sfxPlayer, _audioWrong);
+      if (!mounted) return;
+
       unawaited(showDrWooReaction(DrWooState.wrong));
 
       await Future<void>.delayed(const Duration(milliseconds: 900));
@@ -355,7 +364,13 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
         fit: StackFit.expand,
         children: [
           Positioned.fill(
-            child: Image.asset(_classroomBg, fit: BoxFit.cover),
+            child: Image.asset(
+              (_phase == BehaviorSequencePhase.intro ||
+                  _phase == BehaviorSequencePhase.complete)
+                  ? _classroomBg
+                  : _gameBg,
+              fit: BoxFit.cover,
+            ),
           ),
 
           LayoutBuilder(
@@ -371,16 +386,15 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
                     Positioned(
                       right: 0,
                       left: 0,
-                      bottom: -110,
+                      bottom: -70,
                       child: SizedBox(
-                        height: height * 1.2,
+                        height: height * 1,
                         child: Image.asset(_teacherWooImage, fit: BoxFit.contain),
                       ),
                     ),
 
                   // BEHAVIOR SCENE + ANSWER BUTTONS
-                  if (_phase == BehaviorSequencePhase.game ||
-                      _phase == BehaviorSequencePhase.complete)
+                  if (_phase == BehaviorSequencePhase.game)
                     Positioned(
                       left: width * 0.08,
                       right: width * 0.08,
@@ -392,6 +406,17 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
                         pressedButton: _pressedButton,
                         onRed: () => _onAnswer(false),
                         onGreen: () => _onAnswer(true),
+                      ),
+                    ),
+
+                  if (_phase == BehaviorSequencePhase.complete)
+                    Positioned(
+                      right: 0,
+                      left: 0,
+                      bottom: -70,
+                      child: SizedBox(
+                        height: height * 1,
+                        child: Image.asset(_teacherWooImage, fit: BoxFit.contain),
                       ),
                     ),
                 ],
@@ -454,15 +479,16 @@ class _BehaviorRound extends StatelessWidget {
         ),
         const SizedBox(width: 18),
         Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border.all(color: LumiColorTheme.rust, width: 3),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4)),
-                ],
-              ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFf5dbb6), width: 8),
+              boxShadow: const [
+                BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, 4)),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
               child: Image.asset(
                 scene.imageAsset,
                 fit: BoxFit.cover,
