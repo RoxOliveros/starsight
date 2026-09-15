@@ -6,8 +6,9 @@
   import '../../business_layer/orientation_service.dart';
   import '../../business_layer/town_progress_service.dart';
   import '../../ui_layer/loading_screen.dart';
-import '../../ui_layer/lumi_town/lumi_buttons.dart';
-import '../goodjob_prompt.dart';
+  import '../../ui_layer/lumi_town/lumi_buttons.dart';
+  import '../goodjob_prompt.dart';
+  import 'lumi_game_diary.dart';
 
   // ============================================================================
   // ASSET PATHS — replace if your exact filenames/folders differ
@@ -414,112 +415,107 @@ import '../goodjob_prompt.dart';
 
       return Scaffold(
         body: Stack(
-            fit: StackFit.expand,
-            children: [
-              Positioned.fill(
-                child: Image.asset(_roadBg, fit: BoxFit.cover),
-              ),
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: Image.asset(_roadBg, fit: BoxFit.cover),
+            ),
 
-              // Main responsive layout.
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.maxWidth;
-                  final height = constraints.maxHeight;
+            // Main responsive layout.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final height = constraints.maxHeight;
 
-                  final stoplightWidth = width * 0.21;
-                  final scenarioWidth = width * 0.48;
+                final stoplightWidth = width * 0.21;
+                final scenarioWidth = width * 0.48;
 
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
 
-                      // STOPLIGHT
+                    // STOPLIGHT
+                    Positioned(
+                      left: width * 0.15,
+                      bottom: -80,
+                      child: SizedBox(
+                        width: stoplightWidth,
+                        child: _StoplightWidget(
+                          imagePath: _stoplight,
+                          enabled: _buttonsEnabled && !_checkingAnswer,
+                          selectedAnswer:
+                          _phase == StoplightPhase.complete
+                              ? null
+                              : _phase == StoplightPhase.instruction
+                              ? _instructionFlash
+                              : _selectedAnswer,
+                          onTap: _onLightTapped,
+                        ),
+                      ),
+                    ),
+
+                    // TR. WOO DURING INTRO + COMPLETE
+                    if (_phase == StoplightPhase.intro ||
+                        _phase == StoplightPhase.complete)
                       Positioned(
-                        left: width * 0.15,
-                        bottom: -80,
+                        right: width * 0.05,
+                        bottom: -50,
                         child: SizedBox(
-                          width: stoplightWidth,
-                          child: _StoplightWidget(
-                            imagePath: _stoplight,
-                            enabled: _buttonsEnabled && !_checkingAnswer,
-                            selectedAnswer:
-                            _phase == StoplightPhase.complete
-                                ? null
-                                : _phase == StoplightPhase.instruction
-                                ? _instructionFlash
-                                : _selectedAnswer,
-                            onTap: _onLightTapped,
+                          height: height * 1.2,
+                          child: Image.asset(
+                            _imageTrWoo,
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
 
-                      // TR. WOO DURING INTRO + COMPLETE
-                      if (_phase == StoplightPhase.intro ||
-                          _phase == StoplightPhase.complete)
-                        Positioned(
-                          right: width * 0.05,
-                          bottom: -50,
-                          child: SizedBox(
-                            height: height * 1.2,
-                            child: Image.asset(
-                              _imageTrWoo,
-                              fit: BoxFit.contain,
+                    // SCENARIO
+                    if (_phase == StoplightPhase.instruction ||
+                        _phase == StoplightPhase.game)
+                      Positioned(
+                        right: width * 0.08,
+                        top: height * 0.20,
+                        child: SizedBox(
+                          width: scenarioWidth,
+                          child: AspectRatio(
+                            aspectRatio: 16 / 9,
+                            child: _ScenarioCard(
+                              scenario: _scenario,
+                              selectedAnswer: _selectedAnswer,
                             ),
                           ),
                         ),
+                      ),
+                  ],
+                );
+              },
+            ),
 
-                      // SCENARIO
-                      if (_phase == StoplightPhase.instruction ||
-                          _phase == StoplightPhase.game)
-                        Positioned(
-                          right: width * 0.08,
-                          top: height * 0.20,
-                          child: SizedBox(
-                            width: scenarioWidth,
-                            child: AspectRatio(
-                              aspectRatio: 16 / 9,
-                              child: _ScenarioCard(
-                                scenario: _scenario,
-                                selectedAnswer: _selectedAnswer,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                  },
-              ),
+            // Correct / wrong reaction
+            if (_phase == StoplightPhase.game &&
+                drWooState != DrWooState.normal)
+              buildDrWoo(context),
 
-              // Correct / wrong reaction
-              if (_phase == StoplightPhase.game &&
-                  drWooState != DrWooState.normal)
-                buildDrWoo(context),
+            // Back button.
+            Positioned(top: 25, left: 25, child: LumiXButton()),
 
-              // Back button.
-              Positioned(top: 25, left: 25, child: LumiXButton()),
-
-              // Completion overlay.
-              if (_gameComplete)
+            // Completion overlay.
+            if (_gameComplete)
               GoodJobOverlay(
                 characterImage: 'assets/images/characters/dr.woo_the_owl.png',
-                
                 onNext: () async {
-
-                  await TownProgressService.instance.markLevelComplete(widget.level + 1);
-
-                  if (mounted) {
-                    // Navigator.of(context).pushReplacement( // TODO: @Tin wire to next Lumi Town level.
-                    //   MaterialPageRoute(
-                    //     builder: (_) => const (),
-                    //   ),
-                    // );
-                  }
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          DiaryGameScreen(level: widget.level + 1),
+                    ),
+                  );
                 },
                 onRestart: _restartGame,
                 onBack: _goBack,
               ),
-            ],
-          ),
+          ],
+        ),
       );
     }
   }

@@ -13,10 +13,11 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/lumi_town/1/wakeup1.dart';
+import '../../games_ui_layer/lumi_town/lumi_game_diary.dart';
+import '../../games_ui_layer/lumi_town/lumi_game_stoplight.dart';
 import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl3/clean_bedroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl4_cooking/game_screen.dart';
-import '../../games_ui_layer/lumi_town/stoplight_game_screen.dart';
 import '../loading_screen.dart';
 import 'lumi_buttons.dart';
 import 'lumi_theme.dart';
@@ -70,13 +71,6 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
     _progressSub?.cancel();
     OrientationService.setLandscape();
     super.dispose();
-  }
-
-  Future<void> _openLevel(Widget screen) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => screen),
-    );
   }
 
   @override
@@ -318,6 +312,20 @@ class _LevelTile extends StatelessWidget {
         return FamilyTreeGame();
       case 14:
         return StoplightGameScreen(level: 14);
+      case 15:
+        return DiaryGameScreen(level: 15);
+
+      case 16:
+        return null;
+      case 17:
+        return null;
+      case 18:
+        return null;
+      case 19:
+        return null;
+      case 20:
+        return null;
+      // TODO: @Tin add game nav
       default:
         return null;
     }
