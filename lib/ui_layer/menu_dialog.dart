@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/database_service.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:StarSight/ui_layer/parents_pin_validation.dart';
 import 'package:flutter/material.dart';
@@ -36,20 +37,32 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
   }
 
   Future<void> _loadAvatar() async {
-    final saved = await AvatarStorage.getSelectedAvatarPath();
+    final children = await DatabaseService().getChildren();
+    // Find this specific child's data
+    final myChild = children.firstWhere(
+      (c) => c['nickname'] == widget.name,
+      orElse: () => {},
+    );
+    final path = myChild['avatarPath'] as String?;
+
     if (!mounted) return;
-    setState(() => _avatarPath = saved);
+    setState(() => _avatarPath = path ?? kDefaultAvatarPath);
   }
 
+  // Replace your existing _openAvatarPicker method:
   Future<void> _openAvatarPicker() async {
     final selected = await showDialog<String>(
       context: context,
       builder: (context) => AvatarPickerDialog(selectedAssetPath: _avatarPath),
     );
 
-    if (selected == null) return; // user closed without confirming
+    if (selected == null) return;
 
-    await AvatarStorage.setSelectedAvatarPath(selected);
+    // Save directly to the specific child's database document!
+    await DatabaseService().updateChildAvatar(
+      childNickname: widget.name,
+      avatarPath: selected,
+    );
 
     if (!mounted) return;
     setState(() => _avatarPath = selected);

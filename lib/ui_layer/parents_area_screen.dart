@@ -1,3 +1,4 @@
+import 'package:StarSight/ui_layer/analysis_report_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_signin.dart';
@@ -168,10 +169,15 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
   void _openMenuItem(String label) {
     switch (label) {
       case 'Analysis and Reports':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const BehaviorReportsScreen()),
-        );
+        if (_selectedChild != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              // Pass the selected child exactly as the screen expects!
+              builder: (_) => AnalysisReportsScreen(child: _selectedChild),
+            ),
+          );
+        }
         break;
       // TODO: wire the remaining items to their real screens as you build
       // them, e.g. ScreenTimeScreen(), AccountSettingsScreen(),
@@ -203,10 +209,8 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (context) => const SignUpSignInScreen(),
-      ),
-          (route) => false,
+      MaterialPageRoute(builder: (context) => const SignUpSignInScreen()),
+      (route) => false,
     );
   }
 

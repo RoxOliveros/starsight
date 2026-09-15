@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/CategorySummaryService.dart';
-import 'Parents_Area_Screen.dart';
+import 'parents_area_screen.dart'; // lowercase
 
 class CategoryReportScreen extends StatefulWidget {
   final String categoryId;
