@@ -109,7 +109,7 @@ class _SignInAccountState extends State<SignInAccount>
         AppDialog.showError(
           context,
           message:
-              "Profile data was missing! We have cleaned up the corrupted account. You can now successfully Sign Up again.",
+          "Profile data was missing! We have cleaned up the corrupted account. You can now successfully Sign Up again.",
         );
         return;
       }
@@ -119,7 +119,7 @@ class _SignInAccountState extends State<SignInAccount>
         MaterialPageRoute(
           builder: (_) => DashboardScreen(nickname: fetchedNickname),
         ),
-        (route) => false,
+            (route) => false,
       );
     } else {
       String friendlyMessage = error;
@@ -138,7 +138,7 @@ class _SignInAccountState extends State<SignInAccount>
         friendlyMessage = "Please enter a valid email format.";
       } else if (lowerCaseError.contains('network-request-failed')) {
         friendlyMessage =
-            "Network error. Please check your internet connection.";
+        "Network error. Please check your internet connection.";
       } else if (lowerCaseError.contains('too-many-requests')) {
         friendlyMessage = "Too many failed attempts. Please try again later.";
       }
@@ -154,7 +154,7 @@ class _SignInAccountState extends State<SignInAccount>
       AppDialog.showError(
         context,
         message:
-            "Please type your email address in the box above first, then click 'Forgot Password'.",
+        "Please type your email address in the box above first, then click 'Forgot Password'.",
       );
       return;
     }
@@ -174,7 +174,7 @@ class _SignInAccountState extends State<SignInAccount>
       AppDialog.showError(
         context,
         message:
-            "We couldn't find an account with that email. Please check for typos or sign up first.",
+        "We couldn't find an account with that email. Please check for typos or sign up first.",
       );
       return;
     }
@@ -188,7 +188,7 @@ class _SignInAccountState extends State<SignInAccount>
       AppDialog.showSuccess(
         context,
         message:
-            "Check your inbox for a link to reset your password.\n\nBe sure to check your spam folder!",
+        "Check your inbox for a link to reset your password.\n\nBe sure to check your spam folder!",
       );
     } else {
       AppDialog.showError(context, message: error);
@@ -248,7 +248,7 @@ class _SignInAccountState extends State<SignInAccount>
           AppDialog.showError(
             context,
             message:
-                "Profile data was missing! We have cleaned up the corrupted account. You can now successfully Sign Up again.",
+            "Profile data was missing! We have cleaned up the corrupted account. You can now successfully Sign Up again.",
           );
           return;
         }
@@ -257,7 +257,7 @@ class _SignInAccountState extends State<SignInAccount>
           MaterialPageRoute(
             builder: (_) => DashboardScreen(nickname: fetchedNickname),
           ),
-          (route) => false,
+              (route) => false,
         );
       } else {
         if (!mounted) return;
@@ -276,7 +276,7 @@ class _SignInAccountState extends State<SignInAccount>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       backgroundColor: ColorTheme.cream,
       appBar: AppBar(
         backgroundColor: ColorTheme.cream,
@@ -289,232 +289,263 @@ class _SignInAccountState extends State<SignInAccount>
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeIn,
-          child: Column(
-            children: [
-              Flexible(
-                flex: 0,
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: Lottie.asset(
-                    'assets/animations/white_clouds.json',
-                    fit: BoxFit.fitWidth,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: Lottie.asset(
+                            'assets/animations/white_clouds.json',
+                            fit: BoxFit.fitWidth,
+                          ),
+                        ),
+
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              RichText(
+                                textAlign: TextAlign.center,
+                                text: const TextSpan(
+                                  style: TextStyle(
+                                    fontFamily: AppTextStyles.fredoka,
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w700,
+                                    color: ColorTheme.deepNavyBlue,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text:
+                                      'Welcome back Parents!\nLog in to your ',
+                                    ),
+                                    TextSpan(
+                                      text: 'StarSight',
+                                      style: TextStyle(
+                                        color: ColorTheme.goldenYellow,
+                                      ),
+                                    ),
+                                    TextSpan(text: '\naccount.'),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 32),
+
+                              // EMAIL AND PASSWORD FIELDS
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  TextField(
+                                    controller: _emailController,
+                                    keyboardType: TextInputType.emailAddress,
+                                    style: const TextStyle(
+                                      fontFamily: AppTextStyles.fredoka,
+                                      fontSize: 15,
+                                      color: ColorTheme.deepNavyBlue,
+                                    ),
+                                    decoration: InputDecoration(
+                                      labelText: 'Email Address:',
+                                      labelStyle: const TextStyle(
+                                        fontFamily: AppTextStyles.fredoka,
+                                        fontSize: 14,
+                                        color: ColorTheme.deepNavyBlue,
+                                      ),
+                                      floatingLabelBehavior:
+                                      FloatingLabelBehavior.always,
+                                      contentPadding:
+                                      const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 14,
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius:
+                                        BorderRadius.circular(30),
+                                        borderSide: const BorderSide(
+                                          color: ColorTheme.deepNavyBlue,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius:
+                                        BorderRadius.circular(30),
+                                        borderSide: const BorderSide(
+                                          color: ColorTheme.blue,
+                                          width: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TextField(
+                                    controller: _passwordController,
+                                    obscureText: _obscurePassword,
+                                    style: const TextStyle(
+                                      fontFamily: AppTextStyles.fredoka,
+                                      fontSize: 15,
+                                      color: ColorTheme.deepNavyBlue,
+                                    ),
+                                    decoration: InputDecoration(
+                                      labelText: 'Password:',
+                                      labelStyle: const TextStyle(
+                                        fontFamily: AppTextStyles.fredoka,
+                                        fontSize: 14,
+                                        color: ColorTheme.deepNavyBlue,
+                                      ),
+                                      floatingLabelBehavior:
+                                      FloatingLabelBehavior.always,
+                                      contentPadding:
+                                      const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 14,
+                                      ),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscurePassword
+                                              ? Icons.visibility_off
+                                              : Icons.visibility,
+                                          color: ColorTheme.deepNavyBlue,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _obscurePassword =
+                                            !_obscurePassword;
+                                          });
+                                        },
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius:
+                                        BorderRadius.circular(30),
+                                        borderSide: const BorderSide(
+                                          color: ColorTheme.deepNavyBlue,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius:
+                                        BorderRadius.circular(30),
+                                        borderSide: const BorderSide(
+                                          color: ColorTheme.blue,
+                                          width: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  GestureDetector(
+                                    onTap: _onForgotPassword,
+                                    child: const Text(
+                                      "Forgot Password?",
+                                      style: TextStyle(
+                                        fontFamily: AppTextStyles.fredoka,
+                                        color: ColorTheme.deepNavyBlue,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 50),
+
+                              SizedBox(
+                                width: 190,
+                                height: 52,
+                                child: ElevatedButton(
+                                  onPressed: _onSignIn,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: ColorTheme.deepNavyBlue,
+                                    foregroundColor: ColorTheme.cream,
+                                    elevation: 4,
+                                    shadowColor: ColorTheme.deepNavyBlue
+                                        .withValues(alpha: 0.45),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'LOG IN',
+                                    style: TextStyle(
+                                      fontFamily: AppTextStyles.fredoka,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: ColorTheme.cream,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              const Text(
+                                'or',
+                                style: TextStyle(
+                                  fontFamily: AppTextStyles.fredoka,
+                                  fontSize: 14,
+                                  color: ColorTheme.deepNavyBlue,
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              GestureDetector(
+                                onTap: _onGoogleSignIn,
+                                child: Image.asset(
+                                  'assets/images/buttons/google_signin.png',
+                                  height: 52,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Pushes the terms text to the bottom of the
+                        // viewport when content is shorter than the
+                        // screen; collapses and lets the page scroll
+                        // when the keyboard makes content taller.
+                        const Spacer(),
+
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: 28,
+                            right: 28,
+                            bottom: 15,
+                            top: 16,
+                          ),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: const TextSpan(
+                              style: AppTextStyles.body,
+                              children: [
+                                TextSpan(
+                                    text:
+                                    'By signing in, you agree to our '),
+                                TextSpan(
+                                  text: 'Terms and Conditions',
+                                  style: AppTextStyles.bodylink,
+                                ),
+                                TextSpan(text: '\nand '),
+                                TextSpan(
+                                  text: 'Privacy Policy',
+                                  style: AppTextStyles.bodylink,
+                                ),
+                                TextSpan(text: '.'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      RichText(
-                        textAlign: TextAlign.center,
-                        text: const TextSpan(
-                          style: TextStyle(
-                            fontFamily: AppTextStyles.fredoka,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            color: ColorTheme.deepNavyBlue,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: 'Welcome back Parents!\nLog in to your ',
-                            ),
-                            TextSpan(
-                              text: 'StarSight',
-                              style: TextStyle(color: ColorTheme.goldenYellow),
-                            ),
-                            TextSpan(text: '\naccount.'),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // EMAIL AND PASSWORD FIELDS
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          TextField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            style: const TextStyle(
-                              fontFamily: AppTextStyles.fredoka,
-                              fontSize: 15,
-                              color: ColorTheme.deepNavyBlue,
-                            ),
-                            decoration: InputDecoration(
-                              labelText: 'Email Address:',
-                              labelStyle: const TextStyle(
-                                fontFamily: AppTextStyles.fredoka,
-                                fontSize: 14,
-                                color: ColorTheme.deepNavyBlue,
-                              ),
-                              floatingLabelBehavior:
-                                  FloatingLabelBehavior.always,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 14,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: const BorderSide(
-                                  color: ColorTheme.deepNavyBlue,
-                                  width: 1.5,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: const BorderSide(
-                                  color: ColorTheme.blue,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            style: const TextStyle(
-                              fontFamily: AppTextStyles.fredoka,
-                              fontSize: 15,
-                              color: ColorTheme.deepNavyBlue,
-                            ),
-                            decoration: InputDecoration(
-                              labelText: 'Password:',
-                              labelStyle: const TextStyle(
-                                fontFamily: AppTextStyles.fredoka,
-                                fontSize: 14,
-                                color: ColorTheme.deepNavyBlue,
-                              ),
-                              floatingLabelBehavior:
-                                  FloatingLabelBehavior.always,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 14,
-                              ),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                  color: ColorTheme.deepNavyBlue,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: const BorderSide(
-                                  color: ColorTheme.deepNavyBlue,
-                                  width: 1.5,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: const BorderSide(
-                                  color: ColorTheme.blue,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          GestureDetector(
-                            onTap: _onForgotPassword,
-                            child: const Text(
-                              "Forgot Password?",
-                              style: TextStyle(
-                                fontFamily: AppTextStyles.fredoka,
-                                color: ColorTheme.deepNavyBlue,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 50),
-
-                      SizedBox(
-                        width: 190,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _onSignIn,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ColorTheme.deepNavyBlue,
-                            foregroundColor: ColorTheme.cream,
-                            elevation: 4,
-                            shadowColor: ColorTheme.deepNavyBlue.withValues(
-                              alpha: 0.45,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                          child: const Text(
-                            'LOG IN',
-                            style: TextStyle(
-                              fontFamily: AppTextStyles.fredoka,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: ColorTheme.cream,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      const Text(
-                        'or',
-                        style: TextStyle(
-                          fontFamily: AppTextStyles.fredoka,
-                          fontSize: 14,
-                          color: ColorTheme.deepNavyBlue,
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      GestureDetector(
-                        onTap: _onGoogleSignIn,
-                        child: Image.asset(
-                          'assets/images/buttons/google_signin.png',
-                          height: 52,
-                        ),
-                      ),
-
-                      const Spacer(),
-
-                      RichText(
-                        textAlign: TextAlign.center,
-                        text: const TextSpan(
-                          style: AppTextStyles.body,
-                          children: [
-                            TextSpan(text: 'By signing in, you agree to our '),
-                            TextSpan(
-                              text: 'Terms and Conditions',
-                              style: AppTextStyles.bodylink,
-                            ),
-                            TextSpan(text: '\nand '),
-                            TextSpan(
-                              text: 'Privacy Policy',
-                              style: AppTextStyles.bodylink,
-                            ),
-                            TextSpan(text: '.'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
