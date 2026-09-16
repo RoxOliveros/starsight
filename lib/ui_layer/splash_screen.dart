@@ -337,10 +337,8 @@ class _SplashScreenState extends State<SplashScreen>
                                 builder: (context, constraints) {
                                   final barWidth = constraints.maxWidth;
                                   const double bunnyAspectRatio = 108 / 149;
-                                  final double bunnyHeight =
-                                      screenHeight * 0.20;
-                                  final double bunnyWidth =
-                                      bunnyHeight * bunnyAspectRatio;
+                                  final double bunnyHeight = screenHeight * 0.15;
+                                  final double bunnyWidth = bunnyHeight * bunnyAspectRatio;
 
                                   return AnimatedBuilder(
                                     animation: _loadingAnimation,
@@ -391,7 +389,7 @@ class _SplashScreenState extends State<SplashScreen>
                                             child: Image.asset(
                                               'assets/images/characters/bunny_riding_star.png',
                                               key: _bunnyKey,
-                                              height: screenHeight * 0.15,
+                                              height: bunnyHeight,
                                               fit: BoxFit.contain,
                                             ),
                                           ),
