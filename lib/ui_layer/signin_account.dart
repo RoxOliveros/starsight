@@ -70,6 +70,7 @@ class _SignInAccountState extends State<SignInAccount>
   }
 
   void _onSignIn() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
 
@@ -109,7 +110,7 @@ class _SignInAccountState extends State<SignInAccount>
         AppDialog.showError(
           context,
           message:
-          "Profile data was missing! We have cleaned up the corrupted account. You can now successfully Sign Up again.",
+              "Profile data was missing! We have cleaned up the corrupted account. You can now successfully Sign Up again.",
         );
         return;
       }
@@ -119,7 +120,7 @@ class _SignInAccountState extends State<SignInAccount>
         MaterialPageRoute(
           builder: (_) => DashboardScreen(nickname: fetchedNickname),
         ),
-            (route) => false,
+        (route) => false,
       );
     } else {
       String friendlyMessage = error;
@@ -138,7 +139,7 @@ class _SignInAccountState extends State<SignInAccount>
         friendlyMessage = "Please enter a valid email format.";
       } else if (lowerCaseError.contains('network-request-failed')) {
         friendlyMessage =
-        "Network error. Please check your internet connection.";
+            "Network error. Please check your internet connection.";
       } else if (lowerCaseError.contains('too-many-requests')) {
         friendlyMessage = "Too many failed attempts. Please try again later.";
       }
@@ -154,7 +155,7 @@ class _SignInAccountState extends State<SignInAccount>
       AppDialog.showError(
         context,
         message:
-        "Please type your email address in the box above first, then click 'Forgot Password'.",
+            "Please type your email address in the box above first, then click 'Forgot Password'.",
       );
       return;
     }
@@ -174,7 +175,7 @@ class _SignInAccountState extends State<SignInAccount>
       AppDialog.showError(
         context,
         message:
-        "We couldn't find an account with that email. Please check for typos or sign up first.",
+            "We couldn't find an account with that email. Please check for typos or sign up first.",
       );
       return;
     }
@@ -188,7 +189,7 @@ class _SignInAccountState extends State<SignInAccount>
       AppDialog.showSuccess(
         context,
         message:
-        "Check your inbox for a link to reset your password.\n\nBe sure to check your spam folder!",
+            "Check your inbox for a link to reset your password.\n\nBe sure to check your spam folder!",
       );
     } else {
       AppDialog.showError(context, message: error);
@@ -248,7 +249,7 @@ class _SignInAccountState extends State<SignInAccount>
           AppDialog.showError(
             context,
             message:
-            "Profile data was missing! We have cleaned up the corrupted account. You can now successfully Sign Up again.",
+                "Profile data was missing! We have cleaned up the corrupted account. You can now successfully Sign Up again.",
           );
           return;
         }
@@ -257,7 +258,7 @@ class _SignInAccountState extends State<SignInAccount>
           MaterialPageRoute(
             builder: (_) => DashboardScreen(nickname: fetchedNickname),
           ),
-              (route) => false,
+          (route) => false,
         );
       } else {
         if (!mounted) return;
@@ -293,9 +294,7 @@ class _SignInAccountState extends State<SignInAccount>
             builder: (context, constraints) {
               return SingleChildScrollView(
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight,
-                  ),
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: IntrinsicHeight(
                     child: Column(
                       children: [
@@ -324,7 +323,7 @@ class _SignInAccountState extends State<SignInAccount>
                                   children: [
                                     TextSpan(
                                       text:
-                                      'Welcome back Parents!\nLog in to your ',
+                                          'Welcome back Parents!\nLog in to your ',
                                     ),
                                     TextSpan(
                                       text: 'StarSight',
@@ -359,23 +358,21 @@ class _SignInAccountState extends State<SignInAccount>
                                         color: ColorTheme.deepNavyBlue,
                                       ),
                                       floatingLabelBehavior:
-                                      FloatingLabelBehavior.always,
+                                          FloatingLabelBehavior.always,
                                       contentPadding:
-                                      const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 14,
-                                      ),
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 14,
+                                          ),
                                       enabledBorder: OutlineInputBorder(
-                                        borderRadius:
-                                        BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(30),
                                         borderSide: const BorderSide(
                                           color: ColorTheme.deepNavyBlue,
                                           width: 1.5,
                                         ),
                                       ),
                                       focusedBorder: OutlineInputBorder(
-                                        borderRadius:
-                                        BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(30),
                                         borderSide: const BorderSide(
                                           color: ColorTheme.blue,
                                           width: 2,
@@ -400,12 +397,12 @@ class _SignInAccountState extends State<SignInAccount>
                                         color: ColorTheme.deepNavyBlue,
                                       ),
                                       floatingLabelBehavior:
-                                      FloatingLabelBehavior.always,
+                                          FloatingLabelBehavior.always,
                                       contentPadding:
-                                      const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 14,
-                                      ),
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 14,
+                                          ),
                                       suffixIcon: IconButton(
                                         icon: Icon(
                                           _obscurePassword
@@ -416,21 +413,19 @@ class _SignInAccountState extends State<SignInAccount>
                                         onPressed: () {
                                           setState(() {
                                             _obscurePassword =
-                                            !_obscurePassword;
+                                                !_obscurePassword;
                                           });
                                         },
                                       ),
                                       enabledBorder: OutlineInputBorder(
-                                        borderRadius:
-                                        BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(30),
                                         borderSide: const BorderSide(
                                           color: ColorTheme.deepNavyBlue,
                                           width: 1.5,
                                         ),
                                       ),
                                       focusedBorder: OutlineInputBorder(
-                                        borderRadius:
-                                        BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(30),
                                         borderSide: const BorderSide(
                                           color: ColorTheme.blue,
                                           width: 2,
@@ -524,8 +519,8 @@ class _SignInAccountState extends State<SignInAccount>
                               style: AppTextStyles.body,
                               children: [
                                 TextSpan(
-                                    text:
-                                    'By signing in, you agree to our '),
+                                  text: 'By signing in, you agree to our ',
+                                ),
                                 TextSpan(
                                   text: 'Terms and Conditions',
                                   style: AppTextStyles.bodylink,
