@@ -7,7 +7,7 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_background.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:flutter/material.dart';
 
-import '../../UI_Layer/app_dialog.dart';
+import '../../ui_layer/app_dialog.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 
 // --- DATA MODEL FOR BODY PARTS ---
@@ -160,7 +160,8 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
   }
 
   Color _getLetterColor(int index) {
-    return LagoonColorTheme.canvaColors[index % LagoonColorTheme.canvaColors.length];
+    return LagoonColorTheme.canvaColors[index %
+        LagoonColorTheme.canvaColors.length];
   }
 
   // --- 3. THE GOOD JOB OVERLAY ---
@@ -173,7 +174,7 @@ class _BodyPartsDragScreenState extends State<BodyPartsDragScreen>
       barrierDismissible: false,
       builder: (context) => GoodJobOverlay(
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-        
+
         onNext: () {
           Navigator.pop(context); // Close the overlay
           _goToNextLevel();
