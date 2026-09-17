@@ -1,4 +1,4 @@
-import 'package:StarSight/UI_Layer/signup_signin.dart';
+import 'package:StarSight/ui_layer/signup_signin.dart';
 import 'package:StarSight/business_layer/database_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -337,8 +337,10 @@ class _SplashScreenState extends State<SplashScreen>
                                 builder: (context, constraints) {
                                   final barWidth = constraints.maxWidth;
                                   const double bunnyAspectRatio = 108 / 149;
-                                  final double bunnyHeight = screenHeight * 0.15;
-                                  final double bunnyWidth = bunnyHeight * bunnyAspectRatio;
+                                  final double bunnyHeight =
+                                      screenHeight * 0.15;
+                                  final double bunnyWidth =
+                                      bunnyHeight * bunnyAspectRatio;
 
                                   return AnimatedBuilder(
                                     animation: _loadingAnimation,

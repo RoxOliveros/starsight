@@ -1,6 +1,6 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import '../UI_Layer/app_dialog.dart';
+import '../ui_layer/app_dialog.dart';
 
 class GoodJobOverlay extends StatefulWidget {
   final String characterImage;
@@ -101,36 +101,37 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
         // Fall back to MediaQuery if this widget is given unbounded/loose
         // constraints (e.g. wrapped in a Stack without explicit size).
         final mq = MediaQuery.of(context).size;
-        final double screenWidth =
-        constraints.maxWidth.isFinite ? constraints.maxWidth : mq.width;
-        final double screenHeight =
-        constraints.maxHeight.isFinite ? constraints.maxHeight : mq.height;
+        final double screenWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : mq.width;
+        final double screenHeight = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : mq.height;
 
         // Use the shorter side so layout stays sane in both portrait and
         // landscape, and on tablets/desktop as well as phones.
-        final double shortestSide =
-        screenWidth < screenHeight ? screenWidth : screenHeight;
+        final double shortestSide = screenWidth < screenHeight
+            ? screenWidth
+            : screenHeight;
 
         // Reference: a 390pt-wide phone is "1.0" scale. Clamp so things
         // don't get comically small on tiny screens or huge on tablets.
         final double scale = (shortestSide / 390).clamp(0.7, 1.6);
 
         // ── Responsive metrics ────────────────────────────────────────
-        final double bannerWidth =
-        (550 * scale).clamp(220.0, screenWidth * 0.9);
-        final double bannerTop =
-        (screenHeight * 0.06).clamp(24.0, 70.0);
+        final double bannerWidth = (550 * scale).clamp(
+          220.0,
+          screenWidth * 0.9,
+        );
+        final double bannerTop = (screenHeight * 0.06).clamp(24.0, 70.0);
 
-        final double characterHeight = (350 * scale) * widget.characterSizeFactor;
-        final double characterTop =
-        (screenHeight * 0.17).clamp(90.0, 190.0);
+        final double characterHeight =
+            (350 * scale) * widget.characterSizeFactor;
+        final double characterTop = (screenHeight * 0.17).clamp(90.0, 190.0);
 
-        final double actionButtonSize =
-        (88 * scale).clamp(56.0, 120.0);
-        final double edgeMargin =
-        (screenWidth * 0.08).clamp(16.0, 48.0);
-        final double bottomMargin =
-        (screenHeight * 0.035).clamp(16.0, 44.0);
+        final double actionButtonSize = (88 * scale).clamp(56.0, 120.0);
+        final double edgeMargin = (screenWidth * 0.08).clamp(16.0, 48.0);
+        final double bottomMargin = (screenHeight * 0.035).clamp(16.0, 44.0);
 
         return FadeTransition(
           opacity: _fadeAnim,
@@ -203,9 +204,7 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
                 Positioned(
                   top: 25,
                   left: 25,
-                  child: _CloseButton(
-                    onTap: widget.onBack,
-                  ),
+                  child: _CloseButton(onTap: widget.onBack),
                 ),
               ],
             ),
@@ -248,9 +247,7 @@ class _ArcedGoodJobBanner extends StatelessWidget {
 class _CloseButton extends StatelessWidget {
   final VoidCallback onTap;
 
-  const _CloseButton({
-    required this.onTap,
-  });
+  const _CloseButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
