@@ -193,7 +193,8 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                       // 1. Await the returned nickname from ParentsAreaScreen
                       final selectedNickname = await navigator.push(
                         MaterialPageRoute(
-                          builder: (_) => const ParentsAreaScreen(),
+                          builder: (_) =>
+                              ParentsAreaScreen(activeNickname: widget.name),
                         ),
                       );
 

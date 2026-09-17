@@ -2,7 +2,6 @@ import 'package:StarSight/ui_layer/analysis_report_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_signin.dart';
-import 'behavior_reports_screen.dart';
 import 'add_child_screen.dart';
 import 'app_dialog.dart';
 import 'avatar_picker_dialog.dart';
@@ -29,13 +28,6 @@ abstract class AppTextStyles {
   static const String fredoka = 'Fredoka';
 }
 
-/// Data model for a child profile shown in the Parent's Area.
-///
-/// Maps to `users/{uid}/children/{nickname}` in Firestore. Today that
-/// document only has `nickname`, `goals`, and `createdAt` — there's no
-/// `avatarPath`, `progress`, or screen-time field yet, so those fall back
-/// to placeholders below until you add per-child fields for them (see the
-/// notes next to `getChildren()` in DatabaseService).
 class ChildProfile {
   final String id; // Firestore doc ID — currently the nickname itself
   final String name;
@@ -79,7 +71,9 @@ class ChildProfile {
 }
 
 class ParentsAreaScreen extends StatefulWidget {
-  const ParentsAreaScreen({super.key});
+  final String? activeNickname;
+
+  const ParentsAreaScreen({super.key, this.activeNickname});
 
   @override
   State<ParentsAreaScreen> createState() => _ParentsAreaScreenState();
@@ -143,10 +137,14 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           )
           .toList();
 
+      final activeIndex = children.indexWhere(
+        (c) => c.id == widget.activeNickname,
+      );
+
       if (!mounted) return;
       setState(() {
         _children = children;
-        _selectedIndex = 0;
+        _selectedIndex = activeIndex >= 0 ? activeIndex : 0;
         _loading = false;
       });
     } catch (e) {
