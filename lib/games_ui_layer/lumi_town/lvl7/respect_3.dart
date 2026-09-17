@@ -16,7 +16,7 @@ class Respect3Screen extends StatefulWidget {
 }
 
 class _Respect3ScreenState extends State<Respect3Screen>
-    with TickerProviderStateMixin, DrWooReactionMixin {
+    with TickerProviderStateMixin, TrWooReactionMixin {
   late final AudioPlayer _audioPlayer;
   bool _showButtons = false;
 
@@ -51,17 +51,17 @@ class _Respect3ScreenState extends State<Respect3Screen>
   }
 
   @override
-  AudioPlayer get drWooPlayer => _audioPlayer;
+  AudioPlayer get trWooPlayer => _audioPlayer;
 
   // ---------------------------------------------------------------------------
   // Custom visual-only reaction
   // ---------------------------------------------------------------------------
-  Future<void> showDrWooReactionQuietly(DrWooState state) async {
+  Future<void> showDrWooReactionQuietly(TrWooState state) async {
     if (!mounted) return;
-    setState(() => drWooState = state);
+    setState(() => trWooState = state);
 
     await Future.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => drWooState = DrWooState.normal);
+    if (mounted) setState(() => trWooState = TrWooState.normal);
   }
 
   Future<void> _playSceneAudio() async {
@@ -85,7 +85,7 @@ class _Respect3ScreenState extends State<Respect3Screen>
   // OVERRIDDEN: Dr. Woo is back to his static placement
   // ---------------------------------------------------------------------------
   @override
-  Widget buildDrWoo(BuildContext context) {
+  Widget buildTrWoo(BuildContext context) {
     final owlHeight = MediaQuery.of(context).size.height * 1.18;
 
     return Positioned(
@@ -93,17 +93,17 @@ class _Respect3ScreenState extends State<Respect3Screen>
       bottom: -(owlHeight * 0.15),
       child: SizedBox(
         height: owlHeight,
-        child: switch (drWooState) {
-          DrWooState.correct => Image.asset(
+        child: switch (trWooState) {
+          TrWooState.correct => Image.asset(
             'assets/animations/characters/dr.woo_thumbsup.webp',
             fit: BoxFit.contain,
           ),
-          DrWooState.wrong => Image.asset(
-            'assets/images/characters/dr.woo_tryagain.png',
+          TrWooState.wrong => Image.asset(
+            'assets/images/characters/tr.woo_tryagain.png',
             fit: BoxFit.contain,
           ),
-          DrWooState.normal => Image.asset(
-            'assets/images/characters/dr.woo_standing.png',
+          TrWooState.normal => Image.asset(
+            'assets/images/characters/tr.woo_standing.png',
             fit: BoxFit.contain,
           ),
         },
@@ -136,7 +136,7 @@ class _Respect3ScreenState extends State<Respect3Screen>
           ),
 
           // 1. Dr. Woo Layer (Left Side - Static)
-          buildDrWoo(context),
+          buildTrWoo(context),
 
           // 2. characters layer
           AnimatedBuilder(
@@ -178,7 +178,7 @@ class _Respect3ScreenState extends State<Respect3Screen>
                   );
                   // 2. The Magic Fix: Wait for BOTH the reaction AND the audio to finish!
                   await Future.wait([
-                    showDrWooReactionQuietly(DrWooState.correct),
+                    showDrWooReactionQuietly(TrWooState.correct),
                     _audioPlayer.onPlayerComplete.first,
                   ]);
 
@@ -206,7 +206,7 @@ class _Respect3ScreenState extends State<Respect3Screen>
               bottom: 40,
               child: GestureDetector(
                 onTap: () {
-                  showDrWooReaction(DrWooState.wrong);
+                  showTrWooReaction(TrWooState.wrong);
                 },
                 child: Image.asset(
                   'assets/images/objects/lumi/thumbs_down.png',

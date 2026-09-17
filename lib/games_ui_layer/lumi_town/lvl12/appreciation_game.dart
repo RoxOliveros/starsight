@@ -789,7 +789,7 @@ class _AppreciationGameState extends State<AppreciationGame>
                     child: Transform.translate(
                       offset: Offset(0, drWooVerticalOffset),
                       child: Image.asset(
-                        'assets/images/characters/dr.woo_the_owl.png',
+                        'assets/images/characters/tr.woo_the_owl.png',
                         height: sh * drWooHeightPercentage,
                         fit: BoxFit.contain,
                       ),
@@ -805,7 +805,7 @@ class _AppreciationGameState extends State<AppreciationGame>
           if (_isGameWon)
             Positioned.fill(
               child: GoodJobOverlay(
-                characterImage: 'assets/images/characters/dr.woo_smiling.png',
+                characterImage: 'assets/images/characters/tr.woo_smiling.png',
                 
                 onNext: () async {
                   await TownProgressService.instance.markLevelComplete(12);

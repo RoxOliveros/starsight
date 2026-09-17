@@ -244,7 +244,7 @@ class _Prayer1State extends State<Prayer1> {
 
           if (_showGoodJob)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/dr.woo_smiling.png',
+              characterImage: 'assets/images/characters/tr.woo_smiling.png',
               onNext: () async {
                 await TownProgressService.instance.markLevelComplete(8);
                 Navigator.of(context).pushReplacement(

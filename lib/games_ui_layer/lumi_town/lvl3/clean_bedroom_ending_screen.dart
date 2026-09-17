@@ -76,7 +76,7 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
 
             if (_showOverlay)
               GoodJobOverlay(
-                characterImage: 'assets/images/characters/dr.woo_the_owl.png',
+                characterImage: 'assets/images/characters/tr.woo_the_owl.png',
                 onNext: _onNext,
                 onRestart: _onRestart,
                 onBack: _onBack,

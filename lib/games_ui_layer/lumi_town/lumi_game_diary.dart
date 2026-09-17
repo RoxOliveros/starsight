@@ -74,7 +74,7 @@ class DiaryGameScreen extends StatefulWidget {
 }
 
 class _DiaryGameScreenState extends State<DiaryGameScreen>
-    with DrWooReactionMixin<DiaryGameScreen> {
+    with TrWooReactionMixin<DiaryGameScreen> {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
@@ -83,7 +83,7 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
   final AudioPlayer _drWooPlayer = AudioPlayer();
 
   @override
-  AudioPlayer get drWooPlayer => _drWooPlayer;
+  AudioPlayer get trWooPlayer => _drWooPlayer;
 
   // --- Game state -------------------------------------------------------
   late List<DiarySceneCard> _slotScenes;
@@ -230,7 +230,7 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
         }
       });
 
-      unawaited(showDrWooReaction(DrWooState.correct));
+      unawaited(showTrWooReaction(TrWooState.correct));
 
       await Future<void>.delayed(const Duration(milliseconds: 900));
       if (!mounted) return;
@@ -241,7 +241,7 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
         await _completeGame();
       }
     } else {
-      unawaited(showDrWooReaction(DrWooState.wrong));
+      unawaited(showTrWooReaction(TrWooState.wrong));
       setState(() => _wrongFlashSlot = targetIndex);
 
       await Future<void>.delayed(const Duration(milliseconds: 900));
@@ -377,7 +377,7 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
           // Completion overlay.
           if (_gameComplete)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/dr.woo_the_owl.png',
+              characterImage: 'assets/images/characters/tr.woo_the_owl.png',
               onNext: () async {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(

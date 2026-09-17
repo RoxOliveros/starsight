@@ -132,7 +132,7 @@ class _Emotion2State extends State<Emotion2> {
                 child: SizedBox(
                   width: screenWidth * 0.35,
                   child: Image.asset(
-                    'assets/images/characters/dr.woo_the_owl.png',
+                    'assets/images/characters/tr.woo_the_owl.png',
                     fit: BoxFit.contain,
                   ),
                 ),

@@ -53,7 +53,7 @@ class _Sharing2State extends State<Sharing2> {
     'cat': 'assets/images/characters/kiki_the_cat.png',
     'fox': 'assets/images/characters/jack_the_fox.png',
     'penguin': 'assets/images/characters/doma_the_penguin2.png',
-    'owl': 'assets/images/characters/dr.woo_the_owl.png',
+    'owl': 'assets/images/characters/tr.woo_the_owl.png',
     'dog': 'assets/images/characters/tofi_the_dog.png',
   };
 
@@ -62,7 +62,7 @@ class _Sharing2State extends State<Sharing2> {
     'cat': 'assets/images/characters/kiki_smiling.png',
     'fox': 'assets/images/characters/jack_smiling.png',
     'penguin': 'assets/images/characters/doma_smiling.png',
-    'owl': 'assets/images/characters/dr.woo_smiling.png',
+    'owl': 'assets/images/characters/tr.woo_smiling.png',
     'dog': 'assets/images/characters/tofi_smiling.png',
   };
 
@@ -711,7 +711,7 @@ class _Sharing2State extends State<Sharing2> {
                   if (_showTryAgainButton)
                     Positioned.fill(
                       child: TryJobOverlay(
-                        characterImage: 'assets/images/characters/dr.woo_smiling.png',
+                        characterImage: 'assets/images/characters/tr.woo_smiling.png',
                         onRestart: () {
                           // Reset the game completely
                           setState(() {
@@ -822,7 +822,7 @@ class _Sharing2State extends State<Sharing2> {
                   if (_showGoodJobOverlay)
                     GoodJobOverlay(
                       characterImage:
-                          'assets/images/characters/dr.woo_smiling.png',
+                          'assets/images/characters/tr.woo_smiling.png',
                       
                       onNext: () async {
                         await TownProgressService.instance.markLevelComplete(5);

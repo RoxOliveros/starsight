@@ -28,7 +28,7 @@ class _RespectEndingState extends State<RespectEnding> {
     'cat': 'assets/images/characters/kiki_smiling.png',
     'fox': 'assets/images/characters/jack_smiling.png',
     'penguin': 'assets/images/characters/doma_smiling.png',
-    'owl': 'assets/images/characters/dr.woo_smiling.png',
+    'owl': 'assets/images/characters/tr.woo_smiling.png',
     'dog': 'assets/images/characters/tofi_smiling.png',
     'bear': 'assets/images/characters/little_bear_uniform.png',
   };
@@ -174,7 +174,7 @@ class _RespectEndingState extends State<RespectEnding> {
           // Layer 2: The Good Job Overlay (Delayed)[cite: 1]
           if (_showGoodJobOverlay)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/dr.woo_smiling.png',
+              characterImage: 'assets/images/characters/tr.woo_smiling.png',
               
               onNext: () async {
                 await TownProgressService.instance.markLevelComplete(7);

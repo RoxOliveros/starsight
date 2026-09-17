@@ -1211,7 +1211,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
         // Play again button
         if (_state.dialogIndex >= 2)
           GoodJobOverlay(
-            characterImage: 'assets/images/characters/dr.woo_the_owl.png',
+            characterImage: 'assets/images/characters/tr.woo_the_owl.png',
             onNext: () async {
               // TODO: navigate to next level
               await TownProgressService.instance.markLevelComplete(4);

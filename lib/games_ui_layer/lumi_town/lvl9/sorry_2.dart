@@ -122,7 +122,7 @@ class _Sorry2ScreenState extends State<Sorry2Screen>
             child: SizedBox(
               height: baseCharacterHeight * 0.80,
               child: Image.asset(
-                'assets/images/characters/dr.woo_the_owl.png',
+                'assets/images/characters/tr.woo_the_owl.png',
                 fit: BoxFit.contain,
               ),
             ),

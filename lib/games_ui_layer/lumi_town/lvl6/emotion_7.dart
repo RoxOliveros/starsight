@@ -13,7 +13,7 @@ class Emotion7Screen extends StatefulWidget {
 }
 
 class _Emotion7ScreenState extends State<Emotion7Screen>
-    with DrWooReactionMixin {
+    with TrWooReactionMixin {
   // Player for Dr. Woo's SFX (Required by Mixin)
   late final AudioPlayer _audioPlayer;
 
@@ -78,7 +78,7 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
   }
 
   @override
-  Widget buildDrWoo(BuildContext context) {
+  Widget buildTrWoo(BuildContext context) {
     return Positioned(
       left: -40,
       bottom: 0,
@@ -86,17 +86,17 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
         translation: const Offset(0, 0.02),
         child: SizedBox(
           height: MediaQuery.of(context).size.height * 0.70,
-          child: switch (drWooState) {
-            DrWooState.correct => Image.asset(
+          child: switch (trWooState) {
+            TrWooState.correct => Image.asset(
               'assets/animations/characters/dr.woo_thumbsup.webp',
               fit: BoxFit.contain,
             ),
-            DrWooState.wrong => Image.asset(
-              'assets/images/characters/dr.woo_tryagain.png',
+            TrWooState.wrong => Image.asset(
+              'assets/images/characters/tr.woo_tryagain.png',
               fit: BoxFit.contain,
             ),
-            DrWooState.normal => Image.asset(
-              'assets/images/characters/dr.woo_standing.png',
+            TrWooState.normal => Image.asset(
+              'assets/images/characters/tr.woo_standing.png',
               fit: BoxFit.contain,
             ),
           },
@@ -106,7 +106,7 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
   }
 
   @override
-  AudioPlayer get drWooPlayer => _audioPlayer;
+  AudioPlayer get trWooPlayer => _audioPlayer;
 
   @override
   Widget build(BuildContext context) {
@@ -144,15 +144,15 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(18),
                     // DragTarget listens for Draggable widgets carrying a DrWooState
-                    child: DragTarget<DrWooState>(
+                    child: DragTarget<TrWooState>(
                       onAcceptWithDetails: (details) async {
                         final droppedState = details.data;
 
                         // 1. Always trigger Dr. Woo's reaction on drop immediately
-                        showDrWooReaction(droppedState);
+                        showTrWooReaction(droppedState);
 
                         // 2. If it is the correct answer, run the sequence
-                        if (droppedState == DrWooState.correct &&
+                        if (droppedState == TrWooState.correct &&
                             !_isCorrectlyAnswered) {
                           // Lock the answer so it can't be triggered twice
                           _isCorrectlyAnswered = true;
@@ -242,19 +242,19 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
                       children: [
                         _buildReactionDraggable(
                           'assets/images/objects/lumi/angry_wb.png',
-                          DrWooState.correct,
+                          TrWooState.correct,
                           starButtonSize,
                         ),
                         SizedBox(height: screenHeight * 0.03),
                         _buildReactionDraggable(
                           'assets/images/objects/lumi/disgust_wb.png',
-                          DrWooState.wrong,
+                          TrWooState.wrong,
                           starButtonSize,
                         ),
                         SizedBox(height: screenHeight * 0.03),
                         _buildReactionDraggable(
                           'assets/images/objects/lumi/sad_wb.png',
-                          DrWooState.wrong,
+                          TrWooState.wrong,
                           starButtonSize,
                         ),
                       ],
@@ -264,7 +264,7 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
               ),
 
               // 4. Dr. Woo Owl Character
-              buildDrWoo(context),
+              buildTrWoo(context),
             ],
           ),
         ),
@@ -274,10 +274,10 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
   /// Helper widget to build the draggable star buttons
   Widget _buildReactionDraggable(
     String assetPath,
-    DrWooState stateToTrigger,
+    TrWooState stateToTrigger,
     double size,
   ) {
-    return Draggable<DrWooState>(
+    return Draggable<TrWooState>(
       data: stateToTrigger,
       feedback: Material(
         color: Colors.transparent,
