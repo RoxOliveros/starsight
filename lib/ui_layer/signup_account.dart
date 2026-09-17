@@ -1,5 +1,6 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
@@ -57,7 +58,7 @@ class _SignUpAccountState extends State<SignUpAccount>
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-  TextEditingController();
+      TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -140,7 +141,7 @@ class _SignUpAccountState extends State<SignUpAccount>
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const ConsentScreen()),
-            (route) => false,
+        (route) => false,
       );
     } else {
       AppDialog.showError(context, message: error);
@@ -148,11 +149,39 @@ class _SignUpAccountState extends State<SignUpAccount>
   }
 
   void _onGoogleSignUp() async {
+    // Show a loading circle while checking the database
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
     bool success = await AuthService().signInWithGoogle();
 
     if (success) {
       final user = FirebaseAuth.instance.currentUser;
+
       if (user != null) {
+        //CHECK IF THE EMAIL ALREADY EXISTS IN FIRESTORE
+        bool emailExists = await DatabaseService().doesEmailExist(
+          user.email ?? '',
+        );
+
+        if (emailExists) {
+          await FirebaseAuth.instance.signOut();
+          await GoogleSignIn.instance.signOut();
+
+          if (!mounted) return;
+          Navigator.pop(context); // Dismiss loading circle
+
+          AppDialog.showError(
+            context,
+            message:
+                "An account with this Google email already exists. Please go to the Log In screen.",
+          );
+          return;
+        }
+
         await DatabaseService().createParentAndChild(
           uid: user.uid,
           email: user.email ?? '',
@@ -165,12 +194,17 @@ class _SignUpAccountState extends State<SignUpAccount>
       }
 
       if (!mounted) return;
-      Navigator.push(
+      Navigator.pop(context);
+
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const ConsentScreen()),
+        (route) => false,
       );
     } else {
       if (!mounted) return;
+      Navigator.pop(context);
+
       AppDialog.showError(
         context,
         message: "Google Sign-Up was canceled or failed.",
@@ -190,9 +224,7 @@ class _SignUpAccountState extends State<SignUpAccount>
             builder: (context, constraints) {
               return SingleChildScrollView(
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight,
-                  ),
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: IntrinsicHeight(
                     child: Column(
                       children: [
@@ -253,23 +285,21 @@ class _SignUpAccountState extends State<SignUpAccount>
                                         color: ColorTheme.deepNavyBlue,
                                       ),
                                       floatingLabelBehavior:
-                                      FloatingLabelBehavior.always,
+                                          FloatingLabelBehavior.always,
                                       contentPadding:
-                                      const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 14,
-                                      ),
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 14,
+                                          ),
                                       enabledBorder: OutlineInputBorder(
-                                        borderRadius:
-                                        BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(30),
                                         borderSide: const BorderSide(
                                           color: ColorTheme.deepNavyBlue,
                                           width: 1.5,
                                         ),
                                       ),
                                       focusedBorder: OutlineInputBorder(
-                                        borderRadius:
-                                        BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(30),
                                         borderSide: const BorderSide(
                                           color: ColorTheme.blue,
                                           width: 2,
@@ -295,12 +325,12 @@ class _SignUpAccountState extends State<SignUpAccount>
                                         color: ColorTheme.deepNavyBlue,
                                       ),
                                       floatingLabelBehavior:
-                                      FloatingLabelBehavior.always,
+                                          FloatingLabelBehavior.always,
                                       contentPadding:
-                                      const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 14,
-                                      ),
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 14,
+                                          ),
                                       suffixIcon: IconButton(
                                         icon: Icon(
                                           _obscurePassword
@@ -310,22 +340,20 @@ class _SignUpAccountState extends State<SignUpAccount>
                                         ),
                                         onPressed: () {
                                           setState(
-                                                () => _obscurePassword =
-                                            !_obscurePassword,
+                                            () => _obscurePassword =
+                                                !_obscurePassword,
                                           );
                                         },
                                       ),
                                       enabledBorder: OutlineInputBorder(
-                                        borderRadius:
-                                        BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(30),
                                         borderSide: const BorderSide(
                                           color: ColorTheme.deepNavyBlue,
                                           width: 1.5,
                                         ),
                                       ),
                                       focusedBorder: OutlineInputBorder(
-                                        borderRadius:
-                                        BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(30),
                                         borderSide: const BorderSide(
                                           color: ColorTheme.blue,
                                           width: 2,
@@ -351,12 +379,12 @@ class _SignUpAccountState extends State<SignUpAccount>
                                         color: ColorTheme.deepNavyBlue,
                                       ),
                                       floatingLabelBehavior:
-                                      FloatingLabelBehavior.always,
+                                          FloatingLabelBehavior.always,
                                       contentPadding:
-                                      const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 14,
-                                      ),
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 14,
+                                          ),
                                       suffixIcon: IconButton(
                                         icon: Icon(
                                           _obscureConfirmPassword
@@ -367,21 +395,19 @@ class _SignUpAccountState extends State<SignUpAccount>
                                         onPressed: () {
                                           setState(() {
                                             _obscureConfirmPassword =
-                                            !_obscureConfirmPassword;
+                                                !_obscureConfirmPassword;
                                           });
                                         },
                                       ),
                                       enabledBorder: OutlineInputBorder(
-                                        borderRadius:
-                                        BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(30),
                                         borderSide: const BorderSide(
                                           color: ColorTheme.deepNavyBlue,
                                           width: 1.5,
                                         ),
                                       ),
                                       focusedBorder: OutlineInputBorder(
-                                        borderRadius:
-                                        BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(30),
                                         borderSide: const BorderSide(
                                           color: ColorTheme.blue,
                                           width: 2,
@@ -460,7 +486,8 @@ class _SignUpAccountState extends State<SignUpAccount>
                               style: AppTextStyles.body,
                               children: [
                                 TextSpan(
-                                    text: 'By signing up, you agree to our '),
+                                  text: 'By signing up, you agree to our ',
+                                ),
                                 TextSpan(
                                   text: 'Terms and Conditions',
                                   style: AppTextStyles.bodylink,
