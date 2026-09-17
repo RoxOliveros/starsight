@@ -1,9 +1,7 @@
 name: Build StarSight APK
 
 on:
-  push:
-    branches:
-      - chore/STAR-152-Github-Actions
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
