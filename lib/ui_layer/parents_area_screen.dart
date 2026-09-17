@@ -174,7 +174,10 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
             context,
             MaterialPageRoute(
               // Pass the selected child exactly as the screen expects!
-              builder: (_) => AnalysisReportsScreen(child: _selectedChild),
+              builder: (_) => AnalysisReportsScreen(
+                child: _selectedChild,
+                isFromParentsArea: true,
+              ),
             ),
           );
         }
