@@ -342,7 +342,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
                   child: Transform.translate(
                     offset: Offset(0, drWooVerticalOffset),
                     child: Image.asset(
-                      'assets/images/characters/dr.woo_the_owl.png',
+                      'assets/images/characters/tr.woo_the_owl.png',
                       height: sh * drWooHeightPercentage,
                       fit: BoxFit.contain,
                     ),
@@ -416,7 +416,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
           if (_isGameWon)
             Positioned.fill(
               child: GoodJobOverlay(
-                characterImage: 'assets/images/characters/dr.woo_the_owl.png',
+                characterImage: 'assets/images/characters/tr.woo_the_owl.png',
                 
                 onNext: () async {
                   await TownProgressService.instance.markLevelComplete(11);

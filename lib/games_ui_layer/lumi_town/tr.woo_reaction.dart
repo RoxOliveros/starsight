@@ -2,36 +2,35 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-enum DrWooState { normal, correct, wrong }
+enum TrWooState { normal, correct, wrong }
 
-mixin DrWooReactionMixin<T extends StatefulWidget> on State<T> {
-  DrWooState drWooState = DrWooState.normal;
+mixin TrWooReactionMixin<T extends StatefulWidget> on State<T> {
+  TrWooState trWooState = TrWooState.normal;
 
-  // Override this in your screen to provide the AudioPlayer
-  AudioPlayer get drWooPlayer;
+  AudioPlayer get trWooPlayer;
 
-  Future<void> showDrWooReaction(DrWooState state) async {
+  Future<void> showTrWooReaction(TrWooState state) async {
     if (!mounted) return;
-    setState(() => drWooState = state);
+    setState(() => trWooState = state);
 
-    if (state == DrWooState.correct) {
-      await _playDrWooAudio('assets/audio/sound_effects/shine.wav');
-    } else if (state == DrWooState.wrong) {
-      await _playDrWooAudio('assets/audio/lumi_town/dr.woo_tryagain.wav');
+    if (state == TrWooState.correct) {
+      await _playTrWooAudio('assets/audio/sound_effects/shine.wav');
+    } else if (state == TrWooState.wrong) {
+      await _playTrWooAudio('assets/audio/lumi_town/dr.woo_tryagain.wav');
     }
 
     await Future.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => drWooState = DrWooState.normal);
+    if (mounted) setState(() => trWooState = TrWooState.normal);
   }
 
-  Future<void> _playDrWooAudio(String asset) async {
+  Future<void> _playTrWooAudio(String asset) async {
     StreamSubscription? sub;
     try {
       final completer = Completer<void>();
-      sub = drWooPlayer.onPlayerComplete.listen((_) {
+      sub = trWooPlayer.onPlayerComplete.listen((_) {
         if (!completer.isCompleted) completer.complete();
       });
-      await drWooPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
+      await trWooPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
       await completer.future.timeout(const Duration(seconds: 10));
     } catch (e) {
       debugPrint('Dr. Woo audio error ($asset): $e');
@@ -40,23 +39,23 @@ mixin DrWooReactionMixin<T extends StatefulWidget> on State<T> {
     }
   }
 
-  Widget buildDrWoo(BuildContext context) {
+  Widget buildTrWoo(BuildContext context) {
     return Positioned(
       left: 0,
       bottom: 0,
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.50,
-        child: switch (drWooState) {
-          DrWooState.correct => Image.asset(
+        child: switch (trWooState) {
+          TrWooState.correct => Image.asset(
             'assets/animations/characters/dr.woo_thumbsup.webp',
             fit: BoxFit.contain,
           ),
-          DrWooState.wrong => Image.asset(
-            'assets/images/characters/dr.woo_tryagain.png',
+          TrWooState.wrong => Image.asset(
+            'assets/images/characters/tr.woo_tryagain.png',
             fit: BoxFit.contain,
           ),
-          DrWooState.normal => Image.asset(
-            'assets/images/characters/dr.woo_standing.png',
+          TrWooState.normal => Image.asset(
+            'assets/images/characters/tr.woo_standing.png',
             fit: BoxFit.contain,
           ),
         },

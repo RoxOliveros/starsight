@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/lumi_town/1/wakeup1.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_behavior.dart';
+import '../../games_ui_layer/lumi_town/lumi_game_cleaning.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_diary.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_stoplight.dart';
 import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
@@ -317,9 +318,9 @@ class _LevelTile extends StatelessWidget {
         return DiaryGameScreen(level: 15);
       case 16:
         return BehaviorGameScreen(level: 16);
-
       case 17:
-        return null;
+        return CleaningGameScreen(level: 17);
+
       case 18:
         return null;
       case 19:

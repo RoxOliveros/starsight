@@ -77,7 +77,7 @@ class _StepEndingScreenState extends State<StepEndingScreen> {
           if (_showOverlay)
             GoodJobOverlay(
               // Mr. Woo the owl appears in the Good Job screen
-              characterImage: 'assets/images/characters/dr.woo_the_owl.png',
+              characterImage: 'assets/images/characters/tr.woo_the_owl.png',
               onNext: _onNext,
               onRestart: _onRestart,
               onBack: _onBack,

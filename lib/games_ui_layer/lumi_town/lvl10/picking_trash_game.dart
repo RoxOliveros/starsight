@@ -298,7 +298,7 @@ class _PickingTrashGameState extends State<PickingTrashGame> {
               top: screenSize.height * drWooY,
               width: screenSize.width * drWooSize,
               child: Image.asset(
-                'assets/images/characters/dr.woo_the_owl.png',
+                'assets/images/characters/tr.woo_the_owl.png',
                 fit: BoxFit.contain,
               ),
             ),
@@ -307,7 +307,7 @@ class _PickingTrashGameState extends State<PickingTrashGame> {
           if (_isGameFinished)
             Positioned.fill(
               child: GoodJobOverlay(
-                characterImage: 'assets/images/characters/dr.woo_the_owl.png',
+                characterImage: 'assets/images/characters/tr.woo_the_owl.png',
                 onNext: () async {
                   await TownProgressService.instance.markLevelComplete(10);
 

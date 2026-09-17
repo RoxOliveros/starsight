@@ -8,6 +8,7 @@ import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
+import 'lumi_game_cleaning.dart';
 
 // ============================================================================
 // ASSET PATHS — replace if your exact filenames/folders differ
@@ -15,7 +16,7 @@ import '../goodjob_prompt.dart';
 
 const String _classroomBg = 'assets/images/backgrounds/bg_lumi_classroom.png';
 const String _gameBg = 'assets/images/backgrounds/bg_table.png';
-const String _teacherWooImage = 'assets/images/characters/dr.woo_the_owl.png';
+const String _teacherWooImage = 'assets/images/characters/tr.woo_the_owl.png';
 
 const String _audioBase = 'assets/audio/lumi_town/';
 const String _introAudio = '${_audioBase}behavior_intro.wav';
@@ -117,7 +118,7 @@ class BehaviorGameScreen extends StatefulWidget {
 }
 
 class _BehaviorGameScreenState extends State<BehaviorGameScreen>
-    with DrWooReactionMixin<BehaviorGameScreen> {
+    with TrWooReactionMixin<BehaviorGameScreen> {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
@@ -127,7 +128,7 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
   final AudioPlayer _sfxPlayer = AudioPlayer();
 
   @override
-  AudioPlayer get drWooPlayer => _drWooPlayer;
+  AudioPlayer get trWooPlayer => _drWooPlayer;
 
   // --- Game state -------------------------------------------------------
   late List<BehaviorSceneModel> _queue;
@@ -292,7 +293,7 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
       await _playAndWait(_sfxPlayer, _audioWrong);
       if (!mounted) return;
 
-      unawaited(showDrWooReaction(DrWooState.wrong));
+      unawaited(showTrWooReaction(TrWooState.wrong));
 
       await Future<void>.delayed(const Duration(milliseconds: 900));
       if (!mounted) return;
@@ -430,13 +431,13 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
           // Completion overlay.
           if (_gameComplete)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/dr.woo_the_owl.png',
+              characterImage: 'assets/images/characters/tr.woo_the_owl.png',
               onNext: () async {
-                // Navigator.of(context).pushReplacement( // TODO: wire to next Lumi Town level.
-                //   MaterialPageRoute(
-                //     builder: (_) => const (),
-                //   ),
-                // );
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => CleaningGameScreen(level: widget.level + 1),
+                  ),
+                );
               },
               onRestart: _restartGame,
               onBack: _goBack,

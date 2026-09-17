@@ -258,7 +258,7 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
             GoodJobOverlay(
               // Swap for whichever character should headline this level's
               // completion screen (Little Bear, Jack, or another asset)
-              characterImage: 'assets/images/characters/dr.woo_smiling.png',
+              characterImage: 'assets/images/characters/tr.woo_smiling.png',
               
               onNext: () async {
                 await TownProgressService.instance.markLevelComplete(9);

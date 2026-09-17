@@ -14,7 +14,7 @@ class LumiClassroomScreen extends StatefulWidget {
 }
 
 class _LumiClassroomScreenState extends State<LumiClassroomScreen>
-    with DrWooReactionMixin {
+    with TrWooReactionMixin {
   late final AudioPlayer _audioPlayer;
 
   @override
@@ -36,13 +36,13 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
   }
 
   @override
-  AudioPlayer get drWooPlayer => _audioPlayer;
+  AudioPlayer get trWooPlayer => _audioPlayer;
 
-  Future<void> showDrWooReactionQuietly(DrWooState state) async {
+  Future<void> showDrWooReactionQuietly(TrWooState state) async {
     if (!mounted) return;
-    setState(() => drWooState = state);
+    setState(() => trWooState = state);
     await Future.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => drWooState = DrWooState.normal);
+    if (mounted) setState(() => trWooState = TrWooState.normal);
   }
 
   Future<void> _playIntroAudio() async {
@@ -62,7 +62,7 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
       // 3. Trigger Dr. Woo 6 seconds in
       Future.delayed(const Duration(seconds: 6), () {
         if (mounted) {
-          showDrWooReactionQuietly(DrWooState.correct);
+          showDrWooReactionQuietly(TrWooState.correct);
         }
       });
 
@@ -80,7 +80,7 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
   }
 
   @override
-  Widget buildDrWoo(BuildContext context) {
+  Widget buildTrWoo(BuildContext context) {
     final owlHeight = MediaQuery.of(context).size.height * 1.18;
 
     return Positioned(
@@ -91,17 +91,17 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
         alignment: Alignment.bottomCenter,
         child: SizedBox(
           height: owlHeight,
-          child: switch (drWooState) {
-            DrWooState.correct => Image.asset(
+          child: switch (trWooState) {
+            TrWooState.correct => Image.asset(
               'assets/animations/characters/dr.woo_thumbsup.webp',
               fit: BoxFit.contain,
             ),
-            DrWooState.wrong => Image.asset(
-              'assets/images/characters/dr.woo_tryagain.png',
+            TrWooState.wrong => Image.asset(
+              'assets/images/characters/tr.woo_tryagain.png',
               fit: BoxFit.contain,
             ),
-            DrWooState.normal => Image.asset(
-              'assets/images/characters/dr.woo_standing.png',
+            TrWooState.normal => Image.asset(
+              'assets/images/characters/tr.woo_standing.png',
               fit: BoxFit.contain,
             ),
           },
@@ -120,7 +120,7 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
             'assets/images/backgrounds/bg_lumi_classroom.png',
             fit: BoxFit.cover,
           ),
-          buildDrWoo(context),
+          buildTrWoo(context),
           Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),

@@ -78,7 +78,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
           ),
           if (_showGoodJob)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/dr.woo_the_owl.png',
+              characterImage: 'assets/images/characters/tr.woo_the_owl.png',
               
               onNext: () async {
                 // Unlock level 2!

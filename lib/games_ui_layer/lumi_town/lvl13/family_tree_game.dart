@@ -535,7 +535,7 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
           if (_isGameWon)
             Positioned.fill(
               child: GoodJobOverlay(
-                characterImage: 'assets/images/characters/dr.woo_smiling.png',
+                characterImage: 'assets/images/characters/tr.woo_smiling.png',
                 
                 onNext: () async {
                   // Mark complete via progress service for Level 13

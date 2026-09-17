@@ -17,7 +17,7 @@
   const String _roadBg = 'assets/images/backgrounds/bg_road.png';
   const String _stoplight = 'assets/images/objects/lumi/stoplight.png';
   const String _park = 'assets/images/backgrounds/bg_park_sunny.png';
-  const String _imageTrWoo = 'assets/images/characters/dr.woo_standing.png';
+  const String _imageTrWoo = 'assets/images/characters/tr.woo_standing.png';
   const String _domaExercise = 'assets/animations/characters/doma_flying.webp';
 
   const String _audioBase = 'assets/audio/lumi_town/';
@@ -116,7 +116,7 @@
   }
 
   class _StoplightGameScreenState extends State<StoplightGameScreen>
-      with DrWooReactionMixin<StoplightGameScreen> {
+      with TrWooReactionMixin<StoplightGameScreen> {
     final DateTime _loadStart = DateTime.now();
 
     // --- Audio ----------------------------------------------------------
@@ -129,7 +129,7 @@
     final AudioPlayer _drWooPlayer = AudioPlayer();
 
     @override
-    AudioPlayer get drWooPlayer => _drWooPlayer;
+    AudioPlayer get trWooPlayer => _drWooPlayer;
 
     // --- Game state -------------------------------------------------------
     int _currentRound = 0;
@@ -322,7 +322,7 @@
       if (isCorrect) {
         // Fire Tr. Woo's reaction immediately; do not sequentially await it
         // before continuing the flow.
-        unawaited(showDrWooReaction(DrWooState.correct));
+        unawaited(showTrWooReaction(TrWooState.correct));
 
         // Let the reaction play out before advancing.
         await Future<void>.delayed(const Duration(milliseconds: 1600));
@@ -331,7 +331,7 @@
         _checkingAnswer = false;
         await _advanceRound();
       } else {
-        unawaited(showDrWooReaction(DrWooState.wrong));
+        unawaited(showTrWooReaction(TrWooState.wrong));
 
         await Future<void>.delayed(const Duration(milliseconds: 1600));
         if (!mounted) return;
@@ -493,8 +493,8 @@
 
             // Correct / wrong reaction
             if (_phase == StoplightPhase.game &&
-                drWooState != DrWooState.normal)
-              buildDrWoo(context),
+                trWooState != TrWooState.normal)
+              buildTrWoo(context),
 
             // Back button.
             Positioned(top: 25, left: 25, child: LumiXButton()),
@@ -502,7 +502,7 @@
             // Completion overlay.
             if (_gameComplete)
               GoodJobOverlay(
-                characterImage: 'assets/images/characters/dr.woo_the_owl.png',
+                characterImage: 'assets/images/characters/tr.woo_the_owl.png',
                 onNext: () async {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
