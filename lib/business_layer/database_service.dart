@@ -53,24 +53,52 @@ class DatabaseService {
   Future<String?> getNickname() async {
     try {
       User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return null;
 
-      if (currentUser != null) {
-        QuerySnapshot childrenDocs = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.uid)
-            .collection('children')
-            .limit(1)
-            .get();
+      final childrenRef = _db
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('children');
 
-        if (childrenDocs.docs.isNotEmpty) {
-          var childDoc = childrenDocs.docs.first;
-          return childDoc.get('nickname');
+      // Prefer whichever child was last set active, so a cold app launch
+      // resumes on the same profile the parent last selected.
+      final userDoc = await _db.collection('users').doc(currentUser.uid).get();
+      final activeChildNickname =
+          userDoc.data()?['activeChildNickname'] as String?;
+
+      if (activeChildNickname != null) {
+        final activeDoc = await childrenRef.doc(activeChildNickname).get();
+        if (activeDoc.exists) {
+          return activeChildNickname;
         }
+        // Falls through if the previously active child was deleted since.
+      }
+
+      // No persisted selection yet (e.g. first launch) — fall back to
+      // whichever child comes back first.
+      QuerySnapshot childrenDocs = await childrenRef.limit(1).get();
+
+      if (childrenDocs.docs.isNotEmpty) {
+        var childDoc = childrenDocs.docs.first;
+        return childDoc.get('nickname');
       }
     } catch (e) {
       print("Error fetching nickname: $e");
     }
     return null;
+  }
+
+  Future<void> setActiveChild(String nickname) async {
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      await _db.collection('users').doc(currentUser.uid).set({
+        'activeChildNickname': nickname,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print("Error setting active child: $e");
+    }
   }
 
   Future<String?> getParentPin() async {
