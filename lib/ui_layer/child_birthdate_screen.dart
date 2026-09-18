@@ -66,10 +66,10 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
     int childAge = currentYear - childYear;
     int ageDifference = childYear - parentYear;
 
-    if (childAge < 3 || childAge > 5) {
+    if (childAge < 3) {
       AppDialog.showError(
         context,
-        message: "The child must be between 3 and 5 years old to register.",
+        message: "The child must be at least 3 years old to register.",
       );
       return;
     }
