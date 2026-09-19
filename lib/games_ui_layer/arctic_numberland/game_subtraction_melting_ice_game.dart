@@ -12,11 +12,16 @@ import '../../ui_layer/loading_screen.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class SubtractionMeltingIceGame extends StatefulWidget {
   final int level;
 
-  const SubtractionMeltingIceGame({super.key,required this.level});
+  const SubtractionMeltingIceGame({super.key, required this.level});
 
   @override
   State<SubtractionMeltingIceGame> createState() =>
@@ -27,20 +32,24 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     with
         TickerProviderStateMixin,
         DomaReactionMixin<SubtractionMeltingIceGame>,
-        GameLoadingMixin<SubtractionMeltingIceGame> {
+        GameLoadingMixin<SubtractionMeltingIceGame>,
+        AiCameraMixin<SubtractionMeltingIceGame> {
   // ADD GameLoadingMixin
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
   static const String _iceAsset = 'assets/images/objects/arctic/ice_1.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/melting_ice_intro.wav';
-  static const String _audioInstructionPrompt = '$_audioBase/melting_ice_instruction.wav';
-  static const String _audioMeltRefreeze = 'assets/audio/sound_effects/plip.wav';
+  static const String _audioInstructionPrompt =
+      '$_audioBase/melting_ice_instruction.wav';
+  static const String _audioMeltRefreeze =
+      'assets/audio/sound_effects/plip.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -80,6 +89,28 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
 
   Timer? _solveTimer;
 
+  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  /// Stops the camera and saves mistakes + emotions once per playthrough.
+  Future<void> _saveGameResult() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = stopAiCamera();
+    try {
+      await ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint('Database Error saving Arctic metrics: $e');
+    }
+  }
+
   // ── Audio ────────────────────────────────────────────────────────────────
   final AudioPlayer _voicePlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -101,6 +132,16 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     super.initState();
     _roundPool = [..._factPool]..shuffle();
     _initAnimations();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     finishLoading(_startIntroFlow);
   }
 
@@ -161,7 +202,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -185,7 +226,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     if (_currentRound == 0) {
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
-          _playVoice(_audioInstructionPrompt);
+          playVoiceRestartingOnFaceLoss(_voicePlayer, _audioInstructionPrompt);
         }
       });
     }
@@ -218,6 +259,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   }
 
   Future<void> _onSolved() async {
+    _tapTracker.recordCorrectTap();
     setState(() => _resolvingRound = true);
     HapticFeedback.mediumImpact();
     showDomaReaction(DomaState.correct);
@@ -229,6 +271,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     if (!mounted) return;
 
     if (_currentRound + 1 >= _totalRounds) {
+      await _saveGameResult();
       await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -239,6 +282,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   }
 
   Future<void> _onTooManyMelted() async {
+    _tapTracker.recordMistake();
     setState(() {
       _resolvingRound = true;
       _shattering = true;
@@ -257,22 +301,6 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   }
 
   // ── Audio ────────────────────────────────────────────────────────────────
-  Future<void> _playVoice(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _voicePlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _voicePlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 15));
-    } catch (e) {
-      debugPrint('Voice audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
   void _playSfx(String asset) {
     _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
       e,
@@ -283,6 +311,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _solveTimer?.cancel();
     _voicePlayer.dispose();
     _sfxPlayer.dispose();
@@ -297,26 +326,54 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    // Only reacts to a *confirmed* camera result, so it never flashes just
+    // because the screen mounted. Reappears if the face is lost again.
+    final needsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    return Listener(
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () {
+            final gameContent = Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: const Color(0xFFDCEFFA)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: _introPlaying
+                      ? _buildIntroLayer()
+                      : _buildGameContent(),
+                ),
+                if (!_introPlaying) buildDoma(context),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
+              ],
+            );
+            return needsLightingPrompt
+                ? Stack(
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(
+                        child: LightingPromptCard(
+                          onClose: () {
+                            setState(() => _hideLightingCard = true);
+                            releaseFaceGate(); // don't leave audio stuck
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : gameContent;
+          },
         ),
       ),
     );
@@ -328,7 +385,11 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 25, child: ArcticXButton()),
-        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -354,7 +415,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
-                    const Text('🐧', style: TextStyle(fontSize: 70)),
+                        const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
               ),
@@ -368,7 +429,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
                       height: screenH * 0.3,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>
-                      const Text('🧊', style: TextStyle(fontSize: 70)),
+                          const Text('🧊', style: TextStyle(fontSize: 70)),
                     ),
                   ],
                 ),
@@ -587,14 +648,14 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
         );
       },
       onRestart: () {
-        setState(() {
-          _showWinDialog = false;
-          _currentRound = 0;
-          _solvedCount = 0;
-          _roundPool = [..._factPool]..shuffle();
-          _setupRound();
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubtractionMeltingIceGame(level: widget.level),
+          ),
+        );
       },
+
       onBack: () {
         Navigator.pop(context);
       },
