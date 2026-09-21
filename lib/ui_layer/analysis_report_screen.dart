@@ -162,8 +162,14 @@ class AnalysisReportsScreen extends StatefulWidget {
   /// TODO: wire this to a real birthdate/age field once one exists on
   /// ChildProfile — for now it defaults to a value in your 3–4.5 range.
   final double age;
+  final bool isFromParentsArea;
 
-  const AnalysisReportsScreen({super.key, this.child, this.age = 3.5});
+  const AnalysisReportsScreen({
+    super.key,
+    this.child,
+    this.age = 3.5,
+    this.isFromParentsArea = false,
+  });
 
   @override
   State<AnalysisReportsScreen> createState() => _AnalysisReportsScreenState();
@@ -188,7 +194,9 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   @override
   void dispose() {
     // Restore the app's default landscape lock for everything else.
-    OrientationService.setLandscape();
+    if (!widget.isFromParentsArea) {
+      OrientationService.setLandscape();
+    }
     super.dispose();
   }
 

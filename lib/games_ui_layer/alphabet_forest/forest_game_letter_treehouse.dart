@@ -2,6 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -14,16 +19,11 @@ import 'forest_game_finale.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
-// ═════════════════════════════════════════════════════════════════════════
-// MODELS
-// ═════════════════════════════════════════════════════════════════════════
-
-/// One draggable letter piece in this round's choice set.
 class _ForestLetterData {
   final String letter;
-  bool wrong; // currently shaking from a wrong drop
-  bool dragging; // currently being panned by the child
-  bool consumed; // true once correctly placed on the plank
+  bool wrong;
+  bool dragging;
+  bool consumed;
 
   _ForestLetterData({
     required this.letter,
@@ -33,35 +33,46 @@ class _ForestLetterData {
   });
 }
 
-/// Per-round difficulty: how many letter choices are on screen.
 class _RoundConfig {
   final int choiceCount;
   const _RoundConfig({required this.choiceCount});
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// GAME
-// ═════════════════════════════════════════════════════════════════════════
-
-/// "Letter Treehouse" — the child helps build a treehouse by dragging the
-/// letter matching the one shown above a wooden plank onto that plank.
-/// Five rounds, one correct letter per round among a few distractors.
 class LetterTreehouseGame extends StatefulWidget {
   final int level;
 
-  /// Letters this level draws its target + distractors from — same
-  /// letter-pool philosophy as AlphabetFishingGame.
   final List<String> letterPool;
 
   const LetterTreehouseGame({
     super.key,
     required this.level,
     this.letterPool = const [
-      'A', 'B', 'C', 'D', 'E', 'F',
-      'G', 'H', 'I', 'J', 'K', 'L',
-      'M', 'N', 'O', 'P', 'Q', 'R',
-      'S', 'T', 'U', 'V', 'W', 'X',
-      'Y', 'Z',
+      'A',
+      'B',
+      'C',
+      'D',
+      'E',
+      'F',
+      'G',
+      'H',
+      'I',
+      'J',
+      'K',
+      'L',
+      'M',
+      'N',
+      'O',
+      'P',
+      'Q',
+      'R',
+      'S',
+      'T',
+      'U',
+      'V',
+      'W',
+      'X',
+      'Y',
+      'Z',
     ],
   });
 
@@ -72,26 +83,27 @@ class LetterTreehouseGame extends StatefulWidget {
 class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     with
         TickerProviderStateMixin,
-        // ASSUMPTION: I don't have Number1to5FillIglooScreen's source, so I
-        // can't confirm it uses GameLoadingMixin/LoadingScreen — I've kept
-        // them here for consistency with the rest of the Alphabet Forest
-        // module. Drop this mixin (and the buildWithLoading() wrapper in
-        // BUILD below) if FillIgloo actually loads differently.
         GameLoadingMixin<LetterTreehouseGame>,
         ForestAudioMixin<LetterTreehouseGame>,
-        TofiReactionMixin<LetterTreehouseGame> {
+        TofiReactionMixin<LetterTreehouseGame>,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   // ═════════════════════════════════════════════════════════════════════
   // ASSETS
   // ═════════════════════════════════════════════════════════════════════
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_zoom_out.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_forest_zoom_out.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _plankImage = 'assets/images/objects/forest/plank.png';
-  static const String _treeHouseImage = 'assets/images/objects/forest/treehouse.png';
-  static const String _treeHouseBrokenImage = 'assets/images/objects/forest/treehouse_broken.png';
+  static const String _treeHouseImage =
+      'assets/images/objects/forest/treehouse.png';
+  static const String _treeHouseBrokenImage =
+      'assets/images/objects/forest/treehouse_broken.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _sfxBase = ForestAudioAssets.sfxBase;
@@ -121,30 +133,32 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   bool _introPlaying = true;
   int _currentRound = 0;
   int _solvedRounds = 0;
-  bool _interactionLocked = false; // true right after a correct drop, and during win sequence
+  bool _interactionLocked = false;
 
   String _targetLetter = 'A';
   late List<_ForestLetterData> _pieces;
   bool _plankFilled = false;
 
-  // Live drag tracking, in GLOBAL (screen) coordinates.
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   _ForestLetterData? _draggedPiece;
   Offset? _dragGlobalPos;
 
-  final GlobalKey _gameAreaKey = GlobalKey(); // for global → local conversion of the ghost
-  final GlobalKey _plankKey = GlobalKey(); // for global drop-zone hit testing
+  final GlobalKey _gameAreaKey = GlobalKey();
+  final GlobalKey _plankKey = GlobalKey();
 
   // ── Animations ───────────────────────────────────────────────────────────
-  late AnimationController _tofiFloatCtrl; // dog idle float
-  late AnimationController _targetBounceCtrl; // gentle bounce on the target letter
-  late AnimationController _instructionCtrl; // banner bounce on round start
+  late AnimationController _tofiFloatCtrl;
+  late AnimationController _targetBounceCtrl;
+  late AnimationController _instructionCtrl;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
-  late AnimationController _piecesEntranceCtrl; // letter pieces entrance
+  late AnimationController _piecesEntranceCtrl;
   late Animation<double> _piecesEntrance;
 
-  late AnimationController _plankPulseCtrl; // plank pulse + letter pop on correct
-  late List<AnimationController> _shakeCtrls; // one wrong-answer shake per piece slot
+  late AnimationController _plankPulseCtrl;
+  late List<AnimationController> _shakeCtrls;
   late List<Animation<double>> _shakeAnims;
 
   // ═════════════════════════════════════════════════════════════════════
@@ -155,6 +169,15 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   void initState() {
     OrientationService.setLandscape();
     super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     _setupRound(isFirstRound: true);
     finishLoading(_startIntroFlow);
@@ -180,13 +203,19 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _piecesEntranceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _piecesEntrance = CurvedAnimation(parent: _piecesEntranceCtrl, curve: Curves.easeOutBack);
+    _piecesEntrance = CurvedAnimation(
+      parent: _piecesEntranceCtrl,
+      curve: Curves.easeOutBack,
+    );
 
     _plankPulseCtrl = AnimationController(
       vsync: this,
@@ -195,7 +224,10 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
 
     _shakeCtrls = List.generate(
       _maxChoices,
-      (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 400)),
+      (_) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 400),
+      ),
     );
     _shakeAnims = _shakeCtrls
         .map(
@@ -210,7 +242,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -240,8 +272,9 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     final rng = Random();
 
     _targetLetter = widget.letterPool[rng.nextInt(widget.letterPool.length)];
-    final distractorPool = widget.letterPool.where((l) => l != _targetLetter).toList()
-      ..shuffle(rng);
+    final distractorPool =
+        widget.letterPool.where((l) => l != _targetLetter).toList()
+          ..shuffle(rng);
     final distractorCount = min(config.choiceCount - 1, distractorPool.length);
     final distractors = distractorPool.take(distractorCount).toList();
 
@@ -292,11 +325,8 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     if (droppedOnPlank) {
       _onLetterDropped(dropLetter, piece);
     }
-    // If released elsewhere: nothing else to do — the piece's base widget
-    // never moved from its grid slot, so it's already "back" in place.
   }
 
-  /// Global-position hit test: is [globalPos] currently over the plank?
   bool _isOverPlank(Offset globalPos) {
     final plankBox = _plankKey.currentContext?.findRenderObject() as RenderBox?;
     if (plankBox == null || !plankBox.attached) return false;
@@ -306,7 +336,10 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   }
 
   Future<void> _announceInstruction() async {
-    await playVoice(ForestAudioAssets.forLetter(_targetLetter));
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      ForestAudioAssets.forLetter(_targetLetter),
+    );
   }
 
   Future<void> _onLetterDropped(String letter, _ForestLetterData piece) async {
@@ -324,7 +357,8 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   // ═════════════════════════════════════════════════════════════════════
 
   Future<void> _handleCorrectAnswer(_ForestLetterData piece) async {
-    if (_interactionLocked) return; // guard against double-fires
+    if (_interactionLocked) return;
+    _tapTracker.recordCorrectTap();
     _interactionLocked = true;
     HapticFeedback.mediumImpact();
 
@@ -355,6 +389,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   // ═════════════════════════════════════════════════════════════════════
 
   Future<void> _handleWrongAnswer(_ForestLetterData piece) async {
+    _tapTracker.recordMistake();
     HapticFeedback.heavyImpact();
 
     final index = _pieces.indexOf(piece).clamp(0, _maxChoices - 1);
@@ -364,7 +399,6 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     await showTofiReaction(TofiState.wrong);
     if (!mounted) return;
     setState(() => piece.wrong = false);
-    // Round stays active; the letter remains available, per spec.
   }
 
   // ═════════════════════════════════════════════════════════════════════
@@ -379,7 +413,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
       await ForestProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
 
-      _showGoodJob();
+      await _saveDataAndShowGoodJob();
       return;
     }
 
@@ -391,6 +425,28 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   // GOOD JOB
   // ═════════════════════════════════════════════════════════════════════
 
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_letter_treehouse',
+        activityName: 'Letter Treehouse',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (!mounted) return;
+    _showGoodJob();
+  }
+
   void _showGoodJob() {
     showDialog(
       context: context,
@@ -401,12 +457,13 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          
+
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => AlphabetForestFinaleGame(level: widget.level + 1),
+                builder: (_) =>
+                    AlphabetForestFinaleGame(level: widget.level + 1),
               ),
             );
           },
@@ -430,12 +487,9 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // DISPOSE
-  // ═════════════════════════════════════════════════════════════════════
-
   @override
   void dispose() {
+    disposeAiCamera();
     _tofiFloatCtrl.dispose();
     _targetBounceCtrl.dispose();
     _instructionCtrl.dispose();
@@ -448,10 +502,6 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     super.dispose();
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // BUILD
-  // ═════════════════════════════════════════════════════════════════════
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -463,15 +513,18 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
             if (!_introPlaying) buildTofi(context),
             if (_draggedPiece != null) _buildDragGhost(),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
     );
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ═════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
@@ -480,7 +533,11 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
       children: [
         Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         Positioned(top: 25, left: 25, child: ForestXButton()),
-        Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -491,7 +548,10 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
                   offset: Offset(
                     0,
                     Tween<double>(begin: -6, end: 6).evaluate(
-                      CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
+                      CurvedAnimation(
+                        parent: _tofiFloatCtrl,
+                        curve: Curves.easeInOut,
+                      ),
                     ),
                   ),
                   child: child,
@@ -499,24 +559,18 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
                 child: Image.asset(
                   _dogImage,
                   height: screenH * 0.72,
-                  errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 80)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐶', style: TextStyle(fontSize: 80)),
                 ),
               ),
               const SizedBox(width: 120),
-              Image.asset(
-                _treeHouseBrokenImage,
-                height: screenH * 0.72,
-              ),
+              Image.asset(_treeHouseBrokenImage, height: screenH * 0.72),
             ],
           ),
         ),
       ],
     );
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // GAME CONTENT
-  // ═════════════════════════════════════════════════════════════════════
 
   Widget _buildGameContent() {
     return Stack(
@@ -535,17 +589,18 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
           child: Stack(
             children: [
               const Positioned(top: 25, left: 25, child: ForestXButton()),
-              Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+              Positioned(
+                top: 25,
+                right: 20,
+                child: ForestLevelBadge(level: widget.level),
+              ),
 
               Padding(
                 padding: const EdgeInsets.only(top: 95, bottom: 60),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Empty space on the left reserved for Tofi's reaction overlay.
                     const Expanded(flex: 3, child: SizedBox.shrink()),
-
-                    // Letter choices, stacked top to bottom.
                     Expanded(
                       flex: 3,
                       child: Padding(
@@ -553,13 +608,13 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
                         child: _buildLetterPiecesArea(),
                       ),
                     ),
-
-                    // RIGHT SIDE — treehouse, now also the drop target.
                     Expanded(
                       flex: 7,
                       child: LayoutBuilder(
-                        builder: (context, inner) =>
-                            _buildTreehouseArea(inner.maxWidth, inner.maxHeight),
+                        builder: (context, inner) => _buildTreehouseArea(
+                          inner.maxWidth,
+                          inner.maxHeight,
+                        ),
                       ),
                     ),
                   ],
@@ -578,10 +633,6 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
       },
     );
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // LETTER PIECES
-  // ═════════════════════════════════════════════════════════════════════
 
   Widget _buildLetterPiecesArea() {
     return ScaleTransition(
@@ -604,7 +655,6 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     const pieceHeight = size * 0.8;
 
     if (piece.consumed) {
-      // Already placed on the plank — leave an empty gap in the tray.
       return const SizedBox(width: pieceWidth, height: pieceHeight);
     }
 
@@ -635,9 +685,9 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
       height: pieceHeight,
       decoration: wrong
           ? BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red.shade400, width: 3),
-      )
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.red.shade400, width: 3),
+            )
           : null,
       child: Stack(
         alignment: Alignment.center,
@@ -660,7 +710,9 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
           _outlinedLetter(
             letter,
             fontSize: size * 0.42,
-            fillColor: wrong ? Colors.red.shade600 : ForestColorTheme.darkseagreen,
+            fillColor: wrong
+                ? Colors.red.shade600
+                : ForestColorTheme.darkseagreen,
           ),
         ],
       ),
@@ -672,12 +724,13 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     final globalPos = _dragGlobalPos;
     if (piece == null || globalPos == null) return const SizedBox.shrink();
 
-    final areaBox = _gameAreaKey.currentContext?.findRenderObject() as RenderBox?;
+    final areaBox =
+        _gameAreaKey.currentContext?.findRenderObject() as RenderBox?;
     final localPos = areaBox != null && areaBox.attached
         ? areaBox.globalToLocal(globalPos)
         : globalPos;
 
-    const ghostSize = 92.0; // slightly larger than the resting piece
+    const ghostSize = 92.0;
 
     return Positioned(
       left: localPos.dx - ghostSize / 2,
@@ -695,7 +748,8 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     return AnimatedBuilder(
       animation: _plankPulseCtrl,
       builder: (_, child) {
-        final scale = 1.0 + (sin(_plankPulseCtrl.value.clamp(0.0, 1.0) * pi) * 0.06);
+        final scale =
+            1.0 + (sin(_plankPulseCtrl.value.clamp(0.0, 1.0) * pi) * 0.06);
         return Transform.scale(scale: scale, child: child);
       },
       child: Container(
@@ -703,7 +757,8 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
         alignment: Alignment.topCenter,
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 500),
-          transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+          transitionBuilder: (child, anim) =>
+              FadeTransition(opacity: anim, child: child),
           child: Image.asset(
             _plankFilled ? _treeHouseImage : _treeHouseBrokenImage,
             key: ValueKey(_plankFilled),
@@ -725,7 +780,11 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     );
   }
 
-  Widget _outlinedLetter(String letter, {required double fontSize, required Color fillColor}) {
+  Widget _outlinedLetter(
+    String letter, {
+    required double fontSize,
+    required Color fillColor,
+  }) {
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -754,10 +813,6 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // PROGRESS
-  // ═════════════════════════════════════════════════════════════════════
-
   Widget _buildProgressDots() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -774,8 +829,8 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
             color: done
                 ? ForestColorTheme.mediumseagreen
                 : current
-                    ? ForestColorTheme.seagreen
-                    : ForestColorTheme.seagreen.withValues(alpha: 0.35),
+                ? ForestColorTheme.seagreen
+                : ForestColorTheme.seagreen.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(6),
           ),
         );

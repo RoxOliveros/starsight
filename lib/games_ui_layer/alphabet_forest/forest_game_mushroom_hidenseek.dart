@@ -2,6 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -14,16 +19,8 @@ import 'forest_audio_helper.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
-// ═════════════════════════════════════════════════════════════════════════
-// MODELS
-// ═════════════════════════════════════════════════════════════════════════
-
-/// One of the six mushrooms shown this round. [letter] keeps its exact
-/// case (e.g. 'M' vs 'm') since case is the whole point of the game.
-/// [pos] is re-shuffled every round; [revealed] flips to true the moment
-/// this is the correctly-tapped mushroom, popping its hidden animal out.
 class MushroomSpot {
-  final String letter; // exact case, e.g. 'M' or 'm'
+  final String letter;
   Offset pos;
   String animalAsset;
   bool revealed;
@@ -36,23 +33,13 @@ class MushroomSpot {
   });
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// GAME
-// ═════════════════════════════════════════════════════════════════════════
-
-/// "Find the Correct Mushroom" — six mushrooms are scattered across the
-/// forest floor, one for each of M/m/N/n/O/o. Every round the child is
-/// asked for a specific letter *and case* ("Tap uppercase M!"); tapping the
-/// matching mushroom pops it open to reveal a hidden animal as a reward.
-/// Wrong taps just shake and flash red so the child can try again — the
-/// round only advances once the correct mushroom is found. Reinforces
-/// uppercase ↔ lowercase recognition for M/N/O.
 class MushroomHideAndSeekGame extends StatefulWidget {
   final int level;
   const MushroomHideAndSeekGame({super.key, required this.level});
 
   @override
-  State<MushroomHideAndSeekGame> createState() => _MushroomHideAndSeekGameState();
+  State<MushroomHideAndSeekGame> createState() =>
+      _MushroomHideAndSeekGameState();
 }
 
 class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
@@ -60,37 +47,37 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
         TickerProviderStateMixin,
         GameLoadingMixin<MushroomHideAndSeekGame>,
         ForestAudioMixin<MushroomHideAndSeekGame>,
-        TofiReactionMixin<MushroomHideAndSeekGame> {
+        TofiReactionMixin<MushroomHideAndSeekGame>,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
-  static const String _mushroomAsset = 'assets/images/objects/forest/mushroom.png';
+  static const String _mushroomAsset =
+      'assets/images/objects/forest/mushroom.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
 
-  // Animals hiding behind the mushrooms. Only one asset exists today, but
-  // keeping this as a list means dropping in more art later is a one-line
-  // change — round setup already picks randomly from whatever's here.
   static const List<String> _animalAssets = [
     'assets/images/objects/forest/ladybug.png',
   ];
 
   static const String _audioBase = ForestAudioAssets.base;
-  static const String _audioIntro = '$_audioBase/mushroom_hide_n_seek_intro.wav';
-  static const String _audioInstruction = '$_audioBase/mushroom_hide_n_seek_intructions.wav';
+  static const String _audioIntro =
+      '$_audioBase/mushroom_hide_n_seek_intro.wav';
+  static const String _audioInstruction =
+      '$_audioBase/mushroom_hide_n_seek_intructions.wav';
   static const String _audioWin = '$_audioBase/mushroom_hide_n_seek_win.wav';
   static const String _audioBig = '$_audioBase/big.wav';
   static const String _audioSmall = '$_audioBase/small.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
-  // Exactly one uppercase and one lowercase mushroom per letter.
   static const List<String> _letters = ['M', 'm', 'N', 'n', 'O', 'o'];
   static const int _totalRounds = 5;
   static const List<String> _promptVerbs = ['Tap', 'Find'];
 
-  // Fixed slot positions the six mushrooms are shuffled across every round —
-  // a loose two-row, staggered arrangement rather than a rigid grid.
   static const List<Offset> _mushroomSlots = [
     Offset(0.24, 0.30),
     Offset(0.50, 0.20),
@@ -104,38 +91,48 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
   bool _introPlaying = true;
   int _currentRound = 0;
   int _solvedRounds = 0;
-  bool _roundLocked = false; // true right after a correct tap, until advance
+  bool _roundLocked = false;
 
-  late final List<MushroomSpot> _mushrooms; // 6 mushrooms, one per letter
-  late String _targetLetter; // exact-case target for this round
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  late final List<MushroomSpot> _mushrooms;
+  late String _targetLetter;
   late String _promptVerb;
-  int? _shakingIndex; // index of the mushroom currently shaking on a wrong tap
+  int? _shakingIndex;
 
-  // ── Animations ───────────────────────────────────────────────────────────
-  late AnimationController _tofiFloatCtrl; // dog idle float, intro only
-  late AnimationController _mushroomBounceCtrl; // shared idle bounce for mushrooms
+  late AnimationController _tofiFloatCtrl;
+  late AnimationController _mushroomBounceCtrl;
   late AnimationController _instructionCtrl;
   late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
-  late List<AnimationController> _bloomCtrls; // one elastic pop-open per mushroom
+  late List<AnimationController> _bloomCtrls;
   late List<Animation<double>> _bloomAnims;
-  late List<AnimationController> _flashCtrls; // one red-flash pulse per mushroom
+  late List<AnimationController> _flashCtrls;
   late List<Animation<double>> _flashAnims;
-  late AnimationController _shakeCtrl; // shared wrong-answer shake
+  late AnimationController _shakeCtrl;
   late Animation<double> _shake;
   late List<AnimationController> _bugWalkCtrls;
   late List<Animation<double>> _bugWalkAnims;
   late List<String> _roundLetters;
 
-  // ── Init ─────────────────────────────────────────────────────────────────
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _mushrooms = List.generate(
       _letters.length,
-          (i) => MushroomSpot(
+      (i) => MushroomSpot(
         letter: _letters[i],
         pos: _mushroomSlots[i],
         animalAsset: _animalAssets[0],
@@ -162,21 +159,26 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _bloomCtrls = List.generate(
       _letters.length,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 550),
       ),
@@ -187,7 +189,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
     _flashCtrls = List.generate(
       _letters.length,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 400),
       ),
@@ -195,10 +197,10 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     _flashAnims = _flashCtrls
         .map(
           (c) => TweenSequence([
-        TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 60),
-      ]).animate(CurvedAnimation(parent: c, curve: Curves.easeOut)),
-    )
+            TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 40),
+            TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 60),
+          ]).animate(CurvedAnimation(parent: c, curve: Curves.easeOut)),
+        )
         .toList();
 
     _shakeCtrl = AnimationController(
@@ -213,24 +215,20 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
     _bugWalkCtrls = List.generate(
       _letters.length,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 1600),
       ),
     );
 
     _bugWalkAnims = _bugWalkCtrls
-        .map((c) => CurvedAnimation(
-      parent: c,
-      curve: Curves.easeInOut,
-    ))
+        .map((c) => CurvedAnimation(parent: c, curve: Curves.easeInOut))
         .toList();
   }
 
-  // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -239,27 +237,26 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     if (mounted) await _announceRound();
   }
 
-  /// Plays the round instruction (round 1 only), then reads out this
-  /// round's target letter.
   Future<void> _announceRound() async {
     if (_currentRound == 0) {
-      await playVoice(_audioInstruction);
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
       if (!mounted) return;
     }
 
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
-    await playVoice(_targetIsUpper ? _audioBig : _audioSmall);
-    await playVoice(ForestAudioAssets.forLetter(_targetLetter.toUpperCase()));
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      _targetIsUpper ? _audioBig : _audioSmall,
+    );
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
+    );
   }
 
   bool get _targetIsUpper => _targetLetter == _targetLetter.toUpperCase();
-
-  String get _instructionText {
-    final caseWord = _targetIsUpper ? 'Big' : 'Small';
-    return '$_promptVerb $caseWord Letter $_targetLetter!';
-  }
 
   void _setupRound({bool playInstruction = true}) {
     _roundLocked = false;
@@ -267,14 +264,10 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
     final rng = Random();
 
-    // Only reset temporary effects (shake/flash).
     for (final ctrl in _flashCtrls) {
       ctrl.reset();
     }
     _shakeCtrl.reset();
-
-    // Keep mushroom positions and revealed state.
-    // (No more reshuffling.)
 
     _targetLetter = _roundLetters[_currentRound];
     _promptVerb = _promptVerbs[rng.nextInt(_promptVerbs.length)];
@@ -290,20 +283,23 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     setState(() {});
   }
 
-  // ── Tap handling ─────────────────────────────────────────────────────────
   Future<void> _onMushroomTapped(MushroomSpot mushroom, int index) async {
     if (_roundLocked || mushroom.revealed) return;
 
     final isMatch = mushroom.letter == _targetLetter;
 
     if (isMatch) {
+      _tapTracker.recordCorrectTap();
       _roundLocked = true;
       HapticFeedback.mediumImpact();
       setState(() => mushroom.revealed = true);
 
       _bloomCtrls[index].forward(from: 0);
       await _bugWalkCtrls[index].forward(from: 0);
-      await playVoice(ForestAudioAssets.forLetter(_targetLetter.toUpperCase()));
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
+      );
       if (!mounted) return;
 
       await showTofiReaction(TofiState.correct);
@@ -311,6 +307,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
       await _advanceRound();
     } else {
+      _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
       setState(() => _shakingIndex = index);
 
@@ -337,12 +334,34 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
       await ForestProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
 
-      _showGoodJob();
+      await _saveDataAndShowGoodJob();
       return;
     }
 
     _currentRound++;
     _setupRound();
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_mushroom_hidenseek',
+        activityName: 'Mushroom Hide and Seek',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (!mounted) return;
+    _showGoodJob();
   }
 
   void _showGoodJob() {
@@ -355,7 +374,6 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
@@ -383,6 +401,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _tofiFloatCtrl.dispose();
     _mushroomBounceCtrl.dispose();
     _instructionCtrl.dispose();
@@ -391,21 +410,17 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     for (final ctrl in _bloomCtrls) {
       ctrl.dispose();
     }
-
     for (final ctrl in _flashCtrls) {
       ctrl.dispose();
     }
-
     for (final ctrl in _bugWalkCtrls) {
       ctrl.dispose();
     }
 
     _shakeCtrl.dispose();
-
     super.dispose();
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -415,25 +430,31 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
             if (!_introPlaying) buildTofi(context),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
     );
   }
 
-  // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
 
     return Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(_bgImage, fit: BoxFit.cover),
-        ),
-
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         const Positioned(top: 25, left: 25, child: ForestXButton()),
-        Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -444,7 +465,10 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
                   offset: Offset(
                     0,
                     Tween<double>(begin: -6, end: 6).evaluate(
-                      CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
+                      CurvedAnimation(
+                        parent: _tofiFloatCtrl,
+                        curve: Curves.easeInOut,
+                      ),
                     ),
                   ),
                   child: child,
@@ -452,14 +476,16 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
                 child: Image.asset(
                   _dogImage,
                   height: screenH * 0.72,
-                  errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 80)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐶', style: TextStyle(fontSize: 80)),
                 ),
               ),
               const SizedBox(width: 60),
               Image.asset(
                 _mushroomAsset,
                 height: screenH * 0.4,
-                errorBuilder: (_, __, ___) => const Text('🍄', style: TextStyle(fontSize: 80)),
+                errorBuilder: (_, __, ___) =>
+                    const Text('🍄', style: TextStyle(fontSize: 80)),
               ),
             ],
           ),
@@ -468,13 +494,10 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     );
   }
 
-  // ── Main game layout ─────────────────────────────────────────────────────
   Widget _buildGameContent() {
     return Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(_bgImage, fit: BoxFit.cover),
-        ),
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         _buildGameUI(),
       ],
     );
@@ -488,8 +511,11 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
           child: Stack(
             children: [
               const Positioned(top: 25, left: 25, child: ForestXButton()),
-              Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-
+              Positioned(
+                top: 25,
+                right: 20,
+                child: ForestLevelBadge(level: widget.level),
+              ),
               Padding(
                 padding: const EdgeInsets.only(top: 90),
                 child: Column(
@@ -514,7 +540,6 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     );
   }
 
-  // ── Forest area ──────────────────────────────────────────────────────────
   Widget _buildForestArea(double w, double h) {
     return SizedBox(
       width: w,
@@ -522,7 +547,8 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          for (int i = 0; i < _mushrooms.length; i++) _buildMushroom(_mushrooms[i], i, w, h),
+          for (int i = 0; i < _mushrooms.length; i++)
+            _buildMushroom(_mushrooms[i], i, w, h),
         ],
       ),
     );
@@ -530,7 +556,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
   Widget _buildMushroom(MushroomSpot mushroom, int index, double w, double h) {
     final mushroomSize = (h * 0.26).clamp(90.0, 150.0);
-    final phase = index * 1.4; // stagger idle bounce per mushroom
+    final phase = index * 1.4;
 
     return Positioned(
       left: mushroom.pos.dx * w - mushroomSize / 2,
@@ -550,7 +576,9 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
             final bounceY = mushroom.revealed
                 ? 0.0
                 : 4 * sin((_mushroomBounceCtrl.value * 2 * pi) + phase);
-            final popScale = mushroom.revealed ? (1.0 + 0.22 * _bloomAnims[index].value) : 1.0;
+            final popScale = mushroom.revealed
+                ? (1.0 + 0.22 * _bloomAnims[index].value)
+                : 1.0;
             final shakeAngle = (_shakingIndex == index) ? _shake.value : 0.0;
 
             return Transform.translate(
@@ -565,7 +593,6 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              // Soft red pulse behind the mushroom on a wrong tap.
               AnimatedBuilder(
                 animation: _flashCtrls[index],
                 builder: (_, __) => Opacity(
@@ -580,17 +607,13 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
                   ),
                 ),
               ),
-
               Image.asset(
                 mushroom.revealed ? _mushroomAsset : _mushroomAsset,
                 width: mushroomSize,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Text(
-                  '🍄',
-                  style: TextStyle(fontSize: mushroomSize * 0.6),
-                ),
+                errorBuilder: (_, __, ___) =>
+                    Text('🍄', style: TextStyle(fontSize: mushroomSize * 0.6)),
               ),
-
               Positioned(
                 top: mushroomSize * 0.47,
                 child: _outlinedLetter(
@@ -599,8 +622,6 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
                   fillColor: ForestColorTheme.darkseagreen,
                 ),
               ),
-
-              // Hidden animal — pops up out of the cap once revealed.
               if (mushroom.revealed)
                 AnimatedBuilder(
                   animation: _bloomCtrls[index],
@@ -617,27 +638,16 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
                         double x = 0;
                         double y = 0;
 
-                        // Stage 1: crawl upward
                         if (walk < .3) {
                           final p = walk / .3;
                           y = -mushroomSize * .45 * p;
-                        }
-
-                        // Stage 2: move down to the ground
-                        else if (walk < .5) {
+                        } else if (walk < .5) {
                           final p = (walk - .3) / .2;
-                          y = -mushroomSize * .45 +
-                              (mushroomSize * .52 * p);
-                        }
-
-                        // Stage 3: walk right
-                        else {
+                          y = -mushroomSize * .45 + (mushroomSize * .52 * p);
+                        } else {
                           final p = (walk - .5) / .5;
-
                           x = mushroomSize * 1 * p;
-
-                          y = mushroomSize * .07 *
-                              sin(p * 10 * pi); // little walking bob
+                          y = mushroomSize * .07 * sin(p * 10 * pi);
                         }
 
                         return Transform.translate(
@@ -662,9 +672,11 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     );
   }
 
-  /// Letter rendered with a white outline behind a solid fill, so it reads
-  /// clearly against the mushroom cap underneath.
-  Widget _outlinedLetter(String letter, {required double fontSize, required Color fillColor}) {
+  Widget _outlinedLetter(
+    String letter, {
+    required double fontSize,
+    required Color fillColor,
+  }) {
     return Stack(
       children: [
         Text(
@@ -692,7 +704,6 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     );
   }
 
-  // ── Progress dots ────────────────────────────────────────────────────────
   Widget _buildProgressDots() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

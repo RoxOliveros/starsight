@@ -193,13 +193,19 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                       // 1. Await the returned nickname from ParentsAreaScreen
                       final selectedNickname = await navigator.push(
                         MaterialPageRoute(
-                          builder: (_) => const ParentsAreaScreen(),
+                          builder: (_) =>
+                              ParentsAreaScreen(activeNickname: widget.name),
                         ),
                       );
 
-                      // 2. If a nickname was returned, reload the Dashboard
+                      // 2. If a nickname was returned, persist it as the
+                      //    active child and reload the Dashboard
                       if (selectedNickname != null &&
                           selectedNickname is String) {
+                        await DatabaseService().setActiveChild(
+                          selectedNickname,
+                        );
+
                         navigator.pushReplacement(
                           MaterialPageRoute(
                             builder: (_) =>

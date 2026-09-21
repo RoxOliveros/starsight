@@ -25,6 +25,7 @@ import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetPopScreen extends StatefulWidget {
   final String letter;
@@ -60,25 +61,27 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   static const String _popInstructionWav =
       'audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
+    // child's calibration separate from everyone else's.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _generateBalls();
     _startGameLoop();
     _playInstructionThenLetter();
-    // onFirstFaceDetected = () {
-    //   _playInstructionThenLetterThenStart();
-    //   _startGameLoop();
-    // };
-    // if (isFaceDetected) {
-    //   onFirstFaceDetected?.call();
-    //   onFirstFaceDetected = null;
-    // }
   }
 
   void _generateBalls() {
@@ -216,31 +219,31 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   }
 
   Future<void> _playInstructionThenLetter() async {
-    try {
-      await _audioPlayer.play(AssetSource(_popInstructionWav));
-      await _audioPlayer.onPlayerComplete.first;
-    } catch (e) {
-      debugPrint("Instruction playback interrupted: $e");
-    }
-
+    // Tutorial audio: stops if the child leaves the frame and plays again
+    // from the start when they're back (or the card is dismissed).
+    await playVoiceRestartingOnFaceLoss(
+      _audioPlayer,
+      _popInstructionWav,
+      timeout: const Duration(seconds: 30),
+    );
     if (!mounted) return;
-
-    await _audioPlayer.play(
-      AssetSource(
-        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-      ),
+    await playVoiceRestartingOnFaceLoss(
+      _audioPlayer,
+      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
     );
   }
 
   Future<void> _saveDataAndShowApplause() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
     // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
     // 2. Save raw data silently
     try {
       await ForestDatabaseService.saveGameData(
-        gameId: 'letter_fall_${widget.letter.toLowerCase()}',
-        activityName: "Alphabet Fall (${widget.letter.toUpperCase()})",
+        gameId: 'letter_pop_${widget.letter.toLowerCase()}',
+        activityName: "Alphabet Pop (${widget.letter.toUpperCase()})",
         emotions: finalEmotions,
         totalTaps: _tapTracker.totalTaps,
         mistakes: _tapTracker.mistakeCount,
@@ -319,8 +322,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      const ForestMailDeliveryGame(level: 2),
+                  builder: (context) => const ForestMailDeliveryGame(level: 2),
                 ),
               );
             } else if (currentLetter == 'F') {
@@ -407,11 +409,12 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
           onRestart: () {
             Navigator.pop(context);
-            setState(() {
-              _correctCount = 0;
-              _generateBalls();
-              _startGameLoop();
-            });
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AlphabetPopScreen(letter: widget.letter),
+              ),
+            );
           },
 
           onBack: () {
@@ -567,15 +570,11 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
           ),
 
           // 2. The Lighting Prompt Card Overlay
-          if (hasCapturedFirstFrame && !isFaceDetected)
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
-                setState(() {
-                  isFaceDetected = true;
-                });
-                // Manually trigger the start if they tap X
-                onFirstFaceDetected?.call();
-                onFirstFaceDetected = null;
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate(); // don't leave the tutorial audio waiting
               },
             ),
         ],

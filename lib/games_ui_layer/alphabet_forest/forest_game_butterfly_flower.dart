@@ -2,6 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -25,7 +30,8 @@ class ButterflyFlowerGardenGame extends StatefulWidget {
   const ButterflyFlowerGardenGame({super.key, required this.level});
 
   @override
-  State<ButterflyFlowerGardenGame> createState() => _ButterflyFlowerGardenGameState();
+  State<ButterflyFlowerGardenGame> createState() =>
+      _ButterflyFlowerGardenGameState();
 }
 
 class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
@@ -33,19 +39,27 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
         TickerProviderStateMixin,
         GameLoadingMixin<ButterflyFlowerGardenGame>,
         ForestAudioMixin<ButterflyFlowerGardenGame>,
-        TofiReactionMixin<ButterflyFlowerGardenGame> {
+        TofiReactionMixin<ButterflyFlowerGardenGame>,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_garden.png';
-  static const String _butterflyImage = 'assets/images/objects/forest/butterfly.png';
-  static const String _flowerAsset = 'assets/images/objects/forest/flower_not_bloom.png';
-  static const String _flowerBloomAsset = 'assets/images/objects/forest/flower_bloom.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_forest_garden.png';
+  static const String _butterflyImage =
+      'assets/images/objects/forest/butterfly.png';
+  static const String _flowerAsset =
+      'assets/images/objects/forest/flower_not_bloom.png';
+  static const String _flowerBloomAsset =
+      'assets/images/objects/forest/flower_bloom.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/butterfly_garden_intro.wav';
-  static const String _audioInstruction = '$_audioBase/butterfly_garden_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/butterfly_garden_instruction.wav';
   static const String _audioWin = '$_audioBase/butterfly_garden_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -60,13 +74,16 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
 
   // ── State ────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
-  late List<String> _targets; // one target letter per round
+  late List<String> _targets;
   int _currentRound = 0;
   int _solvedRounds = 0;
-  late List<_FlowerSpot> _flowers; // this round's flower/letter layout
-  String? _bloomedLetter; // letter of the flower currently blooming (correct tap)
-  String? _wrongLetter; // letter of the flower currently shaking (wrong tap)
+  late List<_FlowerSpot> _flowers;
+  String? _bloomedLetter;
+  String? _wrongLetter;
   bool _resolving = false;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   Offset _butterflyPos = const Offset(0.12, 0.12);
   Offset _butterflyTarget = const Offset(0.12, 0.12);
@@ -88,6 +105,15 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
   void initState() {
     OrientationService.setLandscape();
     super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _targets = _buildTargets();
     _initAnimations();
     _setupRound(playInstruction: false);
@@ -124,17 +150,22 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _bloomCtrl = AnimationController(
       vsync: this,
@@ -151,6 +182,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
       TweenSequenceItem(tween: Tween(begin: -0.08, end: 0.08), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 0.08, end: 0.0), weight: 25),
     ]).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.easeInOut));
+
     _flyCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -158,10 +190,9 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     _flyAnimation = AlwaysStoppedAnimation(_butterflyPos);
   }
 
-  // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _instructionCtrl.forward(from: 0);
@@ -171,11 +202,14 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
 
   Future<void> _announceRound() async {
     if (_currentRound == 0) {
-      await playVoice(_audioInstruction);
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
     }
-    await playVoice(ForestAudioAssets.forLetter(_targets[_currentRound]));
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      ForestAudioAssets.forLetter(_targets[_currentRound]),
+    );
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -183,7 +217,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     final shuffled = [..._letters]..shuffle(rng);
     _flowers = List.generate(
       shuffled.length,
-          (i) => _FlowerSpot(letter: shuffled[i], pos: _slots[i % _slots.length]),
+      (i) => _FlowerSpot(letter: shuffled[i], pos: _slots[i % _slots.length]),
     );
     _bloomedLetter = null;
     _wrongLetter = null;
@@ -206,28 +240,20 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     setState(() {});
   }
 
-  // ── Flower interaction ───────────────────────────────────────────────────
   Future<void> _onFlowerTapped(_FlowerSpot flower) async {
     if (_resolving) return;
     final target = _targets[_currentRound];
 
     if (flower.letter == target) {
+      _tapTracker.recordCorrectTap();
       _resolving = true;
       HapticFeedback.mediumImpact();
-      _butterflyTarget = Offset(
-        flower.pos.dx - 0.05,
-        flower.pos.dy - 0.30,
-      );
+      _butterflyTarget = Offset(flower.pos.dx - 0.05, flower.pos.dy - 0.30);
 
       _flyAnimation = Tween<Offset>(
         begin: _butterflyPos,
         end: _butterflyTarget,
-      ).animate(
-        CurvedAnimation(
-          parent: _flyCtrl,
-          curve: Curves.easeInOut,
-        ),
-      );
+      ).animate(CurvedAnimation(parent: _flyCtrl, curve: Curves.easeInOut));
 
       await _flyCtrl.forward(from: 0);
 
@@ -242,6 +268,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
       if (!mounted) return;
       await _advanceRound();
     } else {
+      _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
       setState(() => _wrongLetter = flower.letter);
       _shakeCtrl.forward(from: 0);
@@ -256,32 +283,52 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
 
     if (_currentRound >= _totalRounds - 1) {
       await Future.delayed(const Duration(milliseconds: 700));
-
       if (!mounted) return;
 
       await playVoice(_audioWin);
-
       if (!mounted) return;
 
       await ForestProgressService.instance.markLevelComplete(widget.level);
-
       if (!mounted) return;
 
-      _showGoodJob();
+      await _saveDataAndShowGoodJob();
       return;
     }
 
     _currentRound++;
-
     _setupRound();
 
     await Future.delayed(const Duration(milliseconds: 200));
-
     if (mounted) {
-      playVoice(ForestAudioAssets.forLetter(_targets[_currentRound]));
+      playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_targets[_currentRound]),
+      );
     }
 
     setState(() {});
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_butterfly_flower',
+        activityName: 'Butterfly Flower Garden',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (!mounted) return;
+    _showGoodJob();
   }
 
   void _showGoodJob() {
@@ -294,29 +341,22 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-          
-
           onNext: () {
             Navigator.of(context).pop();
-
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
                 builder: (_) => AlphabetIntroScreen(letter: 'J'),
               ),
             );
           },
-
           onRestart: () {
             Navigator.of(context).pop();
-
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) =>
-                    ButterflyFlowerGardenGame(level: widget.level),
+                builder: (_) => ButterflyFlowerGardenGame(level: widget.level),
               ),
             );
           },
-
           onBack: () {
             Navigator.of(context).pop();
             Navigator.of(context).pop();
@@ -328,6 +368,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _butterflyFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -338,7 +379,6 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     super.dispose();
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -346,20 +386,21 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
         loadingScreen: LoadingScreen.alphabetForest(),
         gameBuilder: () => Stack(
           children: [
-            if (_introPlaying)
-              _buildIntroLayer()
-            else
-              _buildGameContent(),
-
-            if (!_introPlaying)
-              buildTofi(context),
+            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+            if (!_introPlaying) buildTofi(context),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
     );
   }
 
-  // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
 
@@ -371,19 +412,12 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
             fit: BoxFit.cover,
           ),
         ),
-
-        const Positioned(
-          top: 25,
-          left: 25,
-          child: ForestXButton(),
-        ),
-
+        const Positioned(top: 25, left: 25, child: ForestXButton()),
         Positioned(
           top: 25,
           right: 20,
           child: ForestLevelBadge(level: widget.level),
         ),
-
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -393,10 +427,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
                 builder: (_, child) => Transform.translate(
                   offset: Offset(
                     0,
-                    Tween<double>(
-                      begin: -6,
-                      end: 6,
-                    ).evaluate(
+                    Tween<double>(begin: -6, end: 6).evaluate(
                       CurvedAnimation(
                         parent: _tofiFloatCtrl,
                         curve: Curves.easeInOut,
@@ -410,13 +441,8 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
                   height: screenH * .72,
                 ),
               ),
-
               const SizedBox(width: 120),
-
-              Image.asset(
-                _butterflyImage,
-                height: screenH * .6,
-              ),
+              Image.asset(_butterflyImage, height: screenH * .6),
             ],
           ),
         ),
@@ -424,27 +450,16 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     );
   }
 
-  // ── Main game layout ─────────────────────────────────────────────────────
   Widget _buildGameContent() {
     return Stack(
       children: [
-        // Never changes
-        Positioned.fill(
-          child: Image.asset(
-            _bgImage,
-            fit: BoxFit.cover,
-          ),
-        ),
-
-        // Everything that changes
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         _buildGameUI(),
       ],
     );
   }
 
   Widget _buildGameUI() {
-    final target = _targets[_currentRound];
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
@@ -454,25 +469,17 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
           scale: _sceneEnter,
           child: Stack(
             children: [
-              const Positioned(
-                top: 25,
-                left: 25,
-                child: ForestXButton(),
-              ),
-
+              const Positioned(top: 25, left: 25, child: ForestXButton()),
               Positioned(
                 top: 25,
                 right: 20,
                 child: ForestLevelBadge(level: widget.level),
               ),
-
               Padding(
                 padding: const EdgeInsets.only(top: 90),
                 child: Column(
                   children: [
-                    Expanded(
-                      child: _buildGardenArea(w, h),
-                    ),
+                    Expanded(child: _buildGardenArea(w, h)),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: _buildProgressDots(),
@@ -487,28 +494,21 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     );
   }
 
-  // ── Garden ───────────────────────────────────────────────────────────────
   Widget _buildGardenArea(double w, double h) {
     return SizedBox(
       width: w,
       height: h,
       child: Stack(
         children: [
-
           ..._flowers.map((f) => _buildFlower(f, w, h)),
-
           AnimatedBuilder(
             animation: _flyCtrl,
             builder: (_, __) {
               final pos = _flyAnimation.value;
-
               return Positioned(
                 left: pos.dx * w - 35,
                 top: pos.dy * h - 35,
-                child: Image.asset(
-                  _butterflyImage,
-                  width: 110,
-                ),
+                child: Image.asset(_butterflyImage, width: 110),
               );
             },
           ),
@@ -551,12 +551,10 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
                   style: TextStyle(fontSize: flowerSize * 0.6),
                 ),
               ),
-
               Positioned(
-                bottom: flowerSize * 0.12, // move lower
+                bottom: flowerSize * 0.12,
                 child: Stack(
                   children: [
-                    // White outline
                     Text(
                       flower.letter,
                       style: TextStyle(
@@ -569,8 +567,6 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
                           ..color = Colors.white,
                       ),
                     ),
-
-                    // Actual letter
                     Text(
                       flower.letter,
                       style: TextStyle(
@@ -592,7 +588,6 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     );
   }
 
-  // ── Progress dots ────────────────────────────────────────────────────────
   Widget _buildProgressDots() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

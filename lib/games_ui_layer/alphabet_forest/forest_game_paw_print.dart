@@ -2,6 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -14,16 +19,12 @@ import 'forest_audio_helper.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
-// ═════════════════════════════════════════════════════════════════════════
-// MODELS
-// ═════════════════════════════════════════════════════════════════════════
-
 class _PawTrail {
   final String letter;
-  final List<Offset> pawPositions; // fractional, bottom-to-top order
-  final List<double> pawAngles; // slight per-paw rotation for a natural trail
-  final Offset letterPos; // fractional, where the big letter sits
-  final String animalAsset; // revealed once the trail is completed
+  final List<Offset> pawPositions;
+  final List<double> pawAngles;
+  final Offset letterPos;
+  final String animalAsset;
 
   const _PawTrail({
     required this.letter,
@@ -34,13 +35,6 @@ class _PawTrail {
   });
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// GAME
-// ═════════════════════════════════════════════════════════════════════════
-
-/// "Follow the Paw Prints" -- three paw trails lead to three letters (S, T,
-/// U); each round the child must tap the target trail's paws in order,
-/// start to finish, ignoring the two decoy trails.
 class FollowThePawPrintsGame extends StatefulWidget {
   final int level;
   const FollowThePawPrintsGame({super.key, required this.level});
@@ -50,15 +44,24 @@ class FollowThePawPrintsGame extends StatefulWidget {
 }
 
 class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
-    with TickerProviderStateMixin, GameLoadingMixin<FollowThePawPrintsGame>, ForestAudioMixin<FollowThePawPrintsGame>, TofiReactionMixin<FollowThePawPrintsGame> {
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin<FollowThePawPrintsGame>,
+        ForestAudioMixin<FollowThePawPrintsGame>,
+        TofiReactionMixin<FollowThePawPrintsGame>,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_grassland.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_forest_grassland.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _pawAsset = 'assets/images/objects/forest/paw_print.png';
-  static const String _sparkleAsset = 'assets/images/objects/forest/sparkle.png';
+  static const String _sparkleAsset =
+      'assets/images/objects/forest/sparkle.png';
   static const String _leafAsset = 'assets/images/objects/forest/leaf.png';
 
   static const String _audioBase = ForestAudioAssets.base;
@@ -83,38 +86,49 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
 
   // ── State ────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
-  late List<_PawTrail> _trails; // fixed layout: S, T, U trails, every round
+  late List<_PawTrail> _trails;
   int _currentRoundIndex = 0;
   int _solvedRounds = 0;
 
-  int _targetProgress = 0; // paws correctly tapped so far on the target trail
-  String? _wrongPawKey; // "$letter-$index" of the paw currently wiggling
-  String? _sparkleKey; // "$letter-$index" of the paw currently sparkling
+  int _targetProgress = 0;
+  String? _wrongPawKey;
+  String? _sparkleKey;
   bool _resolving = false;
   bool _showCelebration = false;
   _PawTrail? _celebratingTrail;
   bool _showAllAnimals = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   String get _targetLetter => _roundOrder[_currentRoundIndex];
 
-  late AnimationController _tofiFloatCtrl; // intro-only idle float
+  late AnimationController _tofiFloatCtrl;
   late AnimationController _instructionCtrl;
   late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
-  late AnimationController _pulseCtrl; // repeating -- the "tap me next" pulse
-  late AnimationController _shakeCtrl; // one-shot wrong-tap wiggle
+  late AnimationController _pulseCtrl;
+  late AnimationController _shakeCtrl;
   late Animation<double> _shake;
-  late AnimationController _letterPopCtrl; // one-shot letter enlarge on completion
-  late AnimationController _tofiWalkCtrl; // one-shot walk-along-the-trail
-  late AnimationController _animalWaveCtrl; // repeating wave once the animal appears
-  late AnimationController _ambientLeavesCtrl; // always-on slow background drift
+  late AnimationController _letterPopCtrl;
+  late AnimationController _tofiWalkCtrl;
+  late AnimationController _animalWaveCtrl;
+  late AnimationController _ambientLeavesCtrl;
 
-  // ── Init ─────────────────────────────────────────────────────────────────
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _trails = _buildTrails();
     _initAnimations();
     _setupRound(playInstruction: false);
@@ -129,14 +143,12 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
         count: 5,
         animalAsset: 'assets/images/objects/forest/squirrel.png',
       ),
-
       _buildSingleTrail(
         letter: 'T',
         centerX: 0.56,
         count: 3,
         animalAsset: 'assets/images/objects/forest/tiger.png',
       ),
-
       _buildSingleTrail(
         letter: 'U',
         centerX: 0.85,
@@ -159,7 +171,10 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
       final x = (centerX + (centerX < 0.5 ? curve : -curve)).clamp(0.08, 0.92);
       return Offset(x, y);
     });
-    final angles = List.generate(count, (i) => (i.isEven ? -0.18 : 0.18) + i * 0.015);
+    final angles = List.generate(
+      count,
+      (i) => (i.isEven ? -0.18 : 0.18) + i * 0.015,
+    );
 
     return _PawTrail(
       letter: letter,
@@ -180,17 +195,22 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _pulseCtrl = AnimationController(
       vsync: this,
@@ -228,16 +248,19 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     )..repeat();
   }
 
-  // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) await playVoice(_instructionAudioForLetter[_targetLetter]!);
+    if (mounted)
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        _instructionAudioForLetter[_targetLetter]!,
+      );
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -258,14 +281,17 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
 
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted) playVoice(_instructionAudioForLetter[_targetLetter]!);
+        if (mounted)
+          playVoiceRestartingOnFaceLoss(
+            audio.voicePlayer,
+            _instructionAudioForLetter[_targetLetter]!,
+          );
       });
     }
 
     setState(() {});
   }
 
-  // ── Paw interaction ──────────────────────────────────────────────────────
   Future<void> _onPawTapped(_PawTrail trail, int index) async {
     if (_resolving) return;
 
@@ -273,20 +299,21 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     final isNextExpected = isTargetTrail && index == _targetProgress;
 
     if (!isNextExpected) {
+      _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
-
       await showTofiReaction(TofiState.wrong);
 
       final key = '${trail.letter}-$index';
       setState(() => _wrongPawKey = key);
       _shakeCtrl.forward(from: 0);
-      playSfx(_audioTap); // fire-and-forget, gentle
+      playSfx(_audioTap);
       await Future.delayed(const Duration(milliseconds: 450));
       if (!mounted) return;
       setState(() => _wrongPawKey = null);
       return;
     }
 
+    _tapTracker.recordCorrectTap();
     HapticFeedback.selectionClick();
     final key = '${trail.letter}-$index';
     setState(() {
@@ -333,7 +360,10 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
 
     _animalWaveCtrl.repeat(reverse: true);
 
-    await playVoice(_letterAnimalAudio[trail.letter]!);
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      _letterAnimalAudio[trail.letter]!,
+    );
     if (!mounted) return;
 
     await Future.delayed(const Duration(milliseconds: 500));
@@ -352,35 +382,50 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     _solvedRounds++;
 
     if (_currentRoundIndex >= _roundOrder.length - 1) {
-      // Reveal all animals
       setState(() {
         _showAllAnimals = true;
       });
 
-      // Make them wave
       _animalWaveCtrl.repeat(reverse: true);
-
-      // Let the child enjoy seeing all animals
       await Future.delayed(const Duration(seconds: 2));
 
       if (!mounted) return;
-
       _animalWaveCtrl.stop();
 
       await playVoice(_audioWin);
-
       if (!mounted) return;
 
       await ForestProgressService.instance.markLevelComplete(widget.level);
-
       if (!mounted) return;
 
-      _showGoodJob();
+      await _saveDataAndShowGoodJob();
       return;
     }
 
     _currentRoundIndex++;
     _setupRound();
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_paw_prints',
+        activityName: 'Follow the Paw Prints',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (!mounted) return;
+    _showGoodJob();
   }
 
   void _showGoodJob() {
@@ -393,17 +438,20 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => AlphabetIntroScreen(letter: 'V')),
+              MaterialPageRoute(
+                builder: (_) => AlphabetIntroScreen(letter: 'V'),
+              ),
             );
           },
           onRestart: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => FollowThePawPrintsGame(level: widget.level)),
+              MaterialPageRoute(
+                builder: (_) => FollowThePawPrintsGame(level: widget.level),
+              ),
             );
           },
           onBack: () {
@@ -417,6 +465,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _tofiFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -429,7 +478,6 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     super.dispose();
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -439,13 +487,19 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
             if (!_introPlaying) buildTofi(context),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
     );
   }
 
-  // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
 
@@ -455,11 +509,16 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
           child: Image.asset(
             _bgImage,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(color: ForestColorTheme.lightgrayishgreen),
+            errorBuilder: (_, __, ___) =>
+                Container(color: ForestColorTheme.lightgrayishgreen),
           ),
         ),
         const Positioned(top: 25, left: 25, child: ForestXButton()),
-        Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(level: widget.level),
+        ),
         Center(
           child: AnimatedBuilder(
             animation: _tofiFloatCtrl,
@@ -467,7 +526,10 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
               offset: Offset(
                 0,
                 Tween<double>(begin: -6, end: 6).evaluate(
-                  CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
+                  CurvedAnimation(
+                    parent: _tofiFloatCtrl,
+                    curve: Curves.easeInOut,
+                  ),
                 ),
               ),
               child: child,
@@ -475,7 +537,8 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
             child: Image.asset(
               _dogImage,
               height: screenH * 0.72,
-              errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 90)),
+              errorBuilder: (_, __, ___) =>
+                  const Text('🐶', style: TextStyle(fontSize: 90)),
             ),
           ),
         ),
@@ -483,7 +546,6 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     );
   }
 
-  // ── Main game layout ─────────────────────────────────────────────────────
   Widget _buildGameContent() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -496,7 +558,8 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
               child: Image.asset(
                 _bgImage,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: ForestColorTheme.lightgrayishgreen),
+                errorBuilder: (_, __, ___) =>
+                    Container(color: ForestColorTheme.lightgrayishgreen),
               ),
             ),
             Positioned.fill(child: _buildAmbientLeaves(w, h)),
@@ -513,15 +576,19 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
       child: Stack(
         children: [
           const Positioned(top: 25, left: 25, child: ForestXButton()),
-          Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-
+          Positioned(
+            top: 25,
+            right: 20,
+            child: ForestLevelBadge(level: widget.level),
+          ),
           Padding(
             padding: const EdgeInsets.only(top: 90),
             child: Column(
               children: [
                 Expanded(
                   child: LayoutBuilder(
-                    builder: (context, inner) => _buildTrailsArea(inner.maxWidth, inner.maxHeight),
+                    builder: (context, inner) =>
+                        _buildTrailsArea(inner.maxWidth, inner.maxHeight),
                   ),
                 ),
                 Padding(
@@ -536,7 +603,6 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     );
   }
 
-  // ── Trails area ──────────────────────────────────────────────────────────
   Widget _buildTrailsArea(double w, double h) {
     return SizedBox(
       width: w,
@@ -545,7 +611,8 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
         children: [
           for (final trail in _trails) _buildTrailLetter(trail, w, h),
           for (final trail in _trails)
-            for (int i = 0; i < trail.pawPositions.length; i++) _buildPaw(trail, i, w, h),
+            for (int i = 0; i < trail.pawPositions.length; i++)
+              _buildPaw(trail, i, w, h),
           if (_sparkleKey != null) _buildSparkleForKey(_sparkleKey!, w, h),
           if (_showCelebration) _buildTofiWalkOverlay(w, h),
         ],
@@ -572,7 +639,9 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
         child: AnimatedBuilder(
           animation: Listenable.merge([_pulseCtrl, _shakeCtrl]),
           builder: (_, child) {
-            final pulseScale = isNext ? 1.0 + 0.12 * sin(_pulseCtrl.value * 2 * pi) : 1.0;
+            final pulseScale = isNext
+                ? 1.0 + 0.12 * sin(_pulseCtrl.value * 2 * pi)
+                : 1.0;
             final scale = completed ? 1.15 : pulseScale;
             final shakeAngle = wrong ? _shake.value : 0.0;
             return Transform.rotate(
@@ -583,19 +652,24 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
           child: Container(
             decoration: completed
                 ? BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: ForestColorTheme.mediumseagreen.withValues(alpha: 0.6),
-                  blurRadius: 16,
-                  spreadRadius: 4,
-                ),
-              ],
-            )
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: ForestColorTheme.mediumseagreen.withValues(
+                          alpha: 0.6,
+                        ),
+                        blurRadius: 16,
+                        spreadRadius: 4,
+                      ),
+                    ],
+                  )
                 : null,
             child: ColorFiltered(
               colorFilter: completed
-                  ? ColorFilter.mode(ForestColorTheme.mediumseagreen.withValues(alpha: 0.55), BlendMode.srcATop)
+                  ? ColorFilter.mode(
+                      ForestColorTheme.mediumseagreen.withValues(alpha: 0.55),
+                      BlendMode.srcATop,
+                    )
                   : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
               child: Image.asset(
                 _pawAsset,
@@ -606,7 +680,9 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
                   '🐾',
                   style: TextStyle(
                     fontSize: size * 0.8,
-                    color: completed ? ForestColorTheme.mediumseagreen : Colors.brown,
+                    color: completed
+                        ? ForestColorTheme.mediumseagreen
+                        : Colors.brown,
                   ),
                 ),
               ),
@@ -636,7 +712,8 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
                 child: Image.asset(
                   _sparkleAsset,
                   width: 50,
-                  errorBuilder: (_, __, ___) => const Text('✨', style: TextStyle(fontSize: 34)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('✨', style: TextStyle(fontSize: 34)),
                 ),
               ),
             ),
@@ -657,16 +734,18 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
       child: AnimatedBuilder(
         animation: _letterPopCtrl,
         builder: (_, child) {
-          final scale = isTarget ? 1.0 + 0.18 * Curves.elasticOut.transform(_letterPopCtrl.value) : 1.0;
+          final scale = isTarget
+              ? 1.0 + 0.18 * Curves.elasticOut.transform(_letterPopCtrl.value)
+              : 1.0;
           return Transform.scale(scale: scale, child: child);
         },
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             _outlinedLetter(
-                trail.letter,
-                fontSize: 60,
-                fillColor: ForestColorTheme.darkseagreen
+              trail.letter,
+              fontSize: 60,
+              fillColor: ForestColorTheme.darkseagreen,
             ),
             if (showAnimal) ...[
               const SizedBox(width: 8),
@@ -676,10 +755,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
                   angle: 0.15 * sin(_animalWaveCtrl.value * 2 * pi),
                   child: child,
                 ),
-                child: Image.asset(
-                  trail.animalAsset,
-                  height: 70,
-                ),
+                child: Image.asset(trail.animalAsset, height: 70),
               ),
             ],
           ],
@@ -714,7 +790,8 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
                   child: Image.asset(
                     _leafAsset,
                     width: 20,
-                    errorBuilder: (_, __, ___) => const Text('🍃', style: TextStyle(fontSize: 16)),
+                    errorBuilder: (_, __, ___) =>
+                        const Text('🍃', style: TextStyle(fontSize: 16)),
                   ),
                 ),
               );
@@ -725,7 +802,8 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
               child: Image.asset(
                 _dogImage,
                 height: size,
-                errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 60)),
+                errorBuilder: (_, __, ___) =>
+                    const Text('🐶', style: TextStyle(fontSize: 60)),
               ),
             ),
           ],
@@ -753,7 +831,8 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
                   child: Image.asset(
                     _leafAsset,
                     width: 18,
-                    errorBuilder: (_, __, ___) => const Text('🍃', style: TextStyle(fontSize: 14)),
+                    errorBuilder: (_, __, ___) =>
+                        const Text('🍃', style: TextStyle(fontSize: 14)),
                   ),
                 ),
               );
@@ -764,9 +843,11 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     );
   }
 
-  /// Letter with a white outline behind a solid fill, for legibility
-  /// against the forest background.
-  Widget _outlinedLetter(String letter, {required double fontSize, required Color fillColor}) {
+  Widget _outlinedLetter(
+    String letter, {
+    required double fontSize,
+    required Color fillColor,
+  }) {
     return Stack(
       children: [
         Text(
@@ -794,7 +875,6 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     );
   }
 
-  // ── Progress dots ────────────────────────────────────────────────────────
   Widget _buildProgressDots() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

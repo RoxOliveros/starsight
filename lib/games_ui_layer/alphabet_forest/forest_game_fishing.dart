@@ -1,8 +1,12 @@
 import 'dart:math';
-import 'package:StarSight/games_ui_layer/arctic_numberland/number_introduction_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -10,27 +14,18 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import 'alphabet_game_ui.dart';
-import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
 import 'forest_game_train.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
-// ═════════════════════════════════════════════════════════════════════════
-// MODELS
-// ═════════════════════════════════════════════════════════════════════════
-
-/// One fish swimming in the pond this round. [startX]/[startY] are the
-/// fractional center of its swim lane; it ping-pongs [swimRange] to either
-/// side of [startX] and bobs gently in place vertically. [caught]/[wrong]
-/// drive its catch and shake feedback.
 class _FishData {
   final String letter;
   final double startX;
   final double startY;
-  final double speed; // relative swim speed multiplier for this round
-  final bool swimsRight; // initial swim direction
-  final double swimRange; // fractional horizontal travel from startX
+  final double speed;
+  final bool swimsRight;
+  final double swimRange;
   bool caught;
   bool wrong;
   double? caughtX;
@@ -48,12 +43,10 @@ class _FishData {
   });
 }
 
-/// Per-round difficulty knobs: how many fish, how fast they swim, and how
-/// big they are. See the class doc for the full 5-round curve.
 class _RoundConfig {
   final int fishCount;
-  final int swimDurationMs; // lower = faster ping-pong swim cycle
-  final double sizeFactor; // fraction of pond height
+  final int swimDurationMs;
+  final double sizeFactor;
 
   const _RoundConfig({
     required this.fishCount,
@@ -62,28 +55,40 @@ class _RoundConfig {
   });
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// GAME
-// ═════════════════════════════════════════════════════════════════════════
-
-/// "Alphabet Fishing" — Tofi is fishing in a forest pond. Several fish, each
-/// carrying a letter, swim back and forth; the child taps the one fish that
-/// carries the target letter Tofi called out. Five rounds ramp up fish
-/// count and swim speed.
 class AlphabetFishingGame extends StatefulWidget {
   final int level;
-
-  /// Letters this level draws its target + distractors from. Defaults to
-  /// the full alphabet; pass a narrower pool if you want the game scoped
-  /// to specific letters.
   final List<String> letterPool;
 
   const AlphabetFishingGame({
     super.key,
     required this.level,
     this.letterPool = const [
-      'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-      'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+      'A',
+      'B',
+      'C',
+      'D',
+      'E',
+      'F',
+      'G',
+      'H',
+      'I',
+      'J',
+      'K',
+      'L',
+      'M',
+      'N',
+      'O',
+      'P',
+      'Q',
+      'R',
+      'S',
+      'T',
+      'U',
+      'V',
+      'W',
+      'X',
+      'Y',
+      'Z',
     ],
   });
 
@@ -96,19 +101,24 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
         TickerProviderStateMixin,
         GameLoadingMixin<AlphabetFishingGame>,
         ForestAudioMixin<AlphabetFishingGame>,
-        TofiReactionMixin<AlphabetFishingGame> {
+        TofiReactionMixin<AlphabetFishingGame>,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   // ═════════════════════════════════════════════════════════════════════
   // ASSETS
   // ═════════════════════════════════════════════════════════════════════
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_river.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_forest_river.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _rodImage = 'assets/images/objects/forest/rod.png';
   static const String _fishImage = 'assets/images/objects/forest/fish.png';
-  static const String _rodFishImage = 'assets/images/objects/forest/rod_fish.png';
+  static const String _rodFishImage =
+      'assets/images/objects/forest/rod_fish.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _sfxBase = ForestAudioAssets.sfxBase;
@@ -142,22 +152,24 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   int _currentRound = 0;
   int _solvedRounds = 0;
   String _targetLetter = 'A';
-  bool _interactionLocked = false; // true right after a correct catch
+  bool _interactionLocked = false;
 
   late List<_FishData> _fish;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // ── Animations ───────────────────────────────────────────────────────────
-  late AnimationController _tofiFloatCtrl; // dog idle float, intro only
-  late AnimationController _bobCtrl; // shared vertical-bob + bubble clock
+  late AnimationController _tofiFloatCtrl;
+  late AnimationController _bobCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
 
-  late List<AnimationController> _swimCtrls; // one horizontal ping-pong per fish
-  late List<AnimationController> _shakeCtrls; // one wrong-answer shake per fish
+  late List<AnimationController> _swimCtrls;
+  late List<AnimationController> _shakeCtrls;
   late List<Animation<double>> _shakeAnims;
-  late List<AnimationController> _catchCtrls; // one catch/splash per fish
+  late List<AnimationController> _catchCtrls;
 
   // ── Draggable fishing rod ────────────────────────────────────────────────
   Offset _rodPosition = Offset.zero;
@@ -167,20 +179,23 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
   double _pondW = 0;
   double _pondH = 0;
-  static const double _pondTopOffset = 190; // matches the Padding below
+  static const double _pondTopOffset = 190;
 
-  /// The actual hook/catch point is near the lower-right corner
-  /// of the rod PNG.
   Offset _rodHookPoint = Offset.zero;
-
-  // ═════════════════════════════════════════════════════════════════════
-  // INITIALIZATION
-  // ═════════════════════════════════════════════════════════════════════
 
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     _setupRound(isFirstRound: true);
     finishLoading(_startIntroFlow);
@@ -201,26 +216,30 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _swimCtrls = List.generate(
       _maxFish,
-      (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 2000)),
+      (_) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 2000),
+      ),
     );
 
     _shakeCtrls = List.generate(
       _maxFish,
-      (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 400)),
+      (_) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 400),
+      ),
     );
     _shakeAnims = _shakeCtrls
         .map(
@@ -234,37 +253,33 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
     _catchCtrls = List.generate(
       _maxFish,
-      (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 650)),
+      (_) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 650),
+      ),
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // INTRO FLOW
-  // ═════════════════════════════════════════════════════════════════════
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
-    // Per the audio-timing rule: the full instruction (prefix + letter) is
-    // only ever auto-played here, once, at the very start of round 1.
     await _announceInstruction();
   }
 
   Future<void> _announceInstruction() async {
-    await playVoice(_audioCatch);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioCatch);
     if (!mounted) return;
-    await playVoice(ForestAudioAssets.forLetter(_targetLetter));
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      ForestAudioAssets.forLetter(_targetLetter),
+    );
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // ROUND SETUP
-  // ═════════════════════════════════════════════════════════════════════
 
   void _setupRound({bool isFirstRound = false}) {
     _interactionLocked = false;
@@ -281,29 +296,24 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     _rodInitialized = false;
 
     if (isFirstRound) {
-      _sceneEnterCtrl.forward(from: 0);   // ← only pop-in on round 1
+      _sceneEnterCtrl.forward(from: 0);
     }
 
     setState(() {});
 
     if (!isFirstRound) {
-      _announceInstruction();             // ← play "Catch the letter ___!" each new round
+      _announceInstruction();
     }
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // FISH GENERATION
-  // ═════════════════════════════════════════════════════════════════════
 
   void _generateFish() {
     final config = _roundConfigs[_currentRound];
     final rng = Random();
 
-    // Exactly one target, unique distractors — never the target letter,
-    // never repeated among themselves.
     _targetLetter = widget.letterPool[rng.nextInt(widget.letterPool.length)];
-    final distractorPool = widget.letterPool.where((l) => l != _targetLetter).toList()
-      ..shuffle(rng);
+    final distractorPool =
+        widget.letterPool.where((l) => l != _targetLetter).toList()
+          ..shuffle(rng);
     final distractorCount = min(config.fishCount - 1, distractorPool.length);
     final distractors = distractorPool.take(distractorCount).toList();
 
@@ -323,7 +333,9 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     });
 
     for (int i = 0; i < _fish.length; i++) {
-      final baseMs = (_roundConfigs[_currentRound].swimDurationMs / _fish[i].speed).round();
+      final baseMs =
+          (_roundConfigs[_currentRound].swimDurationMs / _fish[i].speed)
+              .round();
       _swimCtrls[i]
         ..duration = Duration(milliseconds: baseMs)
         ..repeat(reverse: true);
@@ -341,7 +353,9 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
           0.30 + rng.nextDouble() * 0.52,
           0.20 + rng.nextDouble() * 0.68,
         );
-        final farEnough = lanes.every((l) => (l - candidate).distance >= minDist);
+        final farEnough = lanes.every(
+          (l) => (l - candidate).distance >= minDist,
+        );
         if (farEnough) break;
       }
       lanes.add(candidate);
@@ -349,15 +363,12 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     return lanes;
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // CORRECT ANSWER
-  // ═════════════════════════════════════════════════════════════════════
-
   Future<void> _handleCorrectAnswer(_FishData fish, int index) async {
-    _interactionLocked = true; // block further taps immediately
+    _tapTracker.recordCorrectTap();
+    _interactionLocked = true;
     HapticFeedback.mediumImpact();
 
-    _swimCtrls[index].stop(); // freeze it before the catch animation
+    _swimCtrls[index].stop();
     setState(() => fish.caught = true);
 
     playSfx(_sfxCatch);
@@ -373,11 +384,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     await _advanceRound();
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // WRONG ANSWER
-  // ═════════════════════════════════════════════════════════════════════
-
   Future<void> _handleWrongAnswer(_FishData fish, int index) async {
+    _tapTracker.recordMistake();
     HapticFeedback.heavyImpact();
     setState(() => fish.wrong = true);
     _shakeCtrls[index].forward(from: 0);
@@ -386,10 +394,6 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     if (!mounted) return;
     setState(() => fish.wrong = false);
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // ROUND PROGRESSION
-  // ═════════════════════════════════════════════════════════════════════
 
   Future<void> _advanceRound() async {
     await Future.delayed(const Duration(milliseconds: 400));
@@ -402,7 +406,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
       await ForestProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
 
-      _showGoodJob();
+      await _saveDataAndShowGoodJob();
       return;
     }
 
@@ -410,9 +414,27 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     _setupRound();
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // GOOD JOB
-  // ═════════════════════════════════════════════════════════════════════
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_alphabet_fishing',
+        activityName: 'Alphabet Fishing',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (!mounted) return;
+    _showGoodJob();
+  }
 
   void _showGoodJob() {
     showDialog(
@@ -424,13 +446,10 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => AlphabetTrainGame(level: 23),
-              ),
+              MaterialPageRoute(builder: (_) => AlphabetTrainGame(level: 23)),
             );
           },
           onRestart: () {
@@ -455,34 +474,28 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
   void _initializeRod(double w, double h) {
     if (_rodInitialized) return;
-
     _rodSize = min(h * 0.58, 260.0);
-
-    _rodPosition = Offset(
-      w - _rodSize * 1.3,
-      -_rodSize * 1,
-    );
-
+    _rodPosition = Offset(w - _rodSize * 1.3, -_rodSize * 1);
     _rodInitialized = true;
-
     _updateRodHookPoint();
   }
 
   void _updateRodHookPoint() {
-    _rodHookPoint = _rodPosition + Offset(
-      _rodSize * 0.05,
-      _rodSize * 0.91,
-    );
+    _rodHookPoint = _rodPosition + Offset(_rodSize * 0.05, _rodSize * 0.91);
   }
 
   void _moveRod(Offset delta, double w, double h) {
     if (_interactionLocked) return;
 
-    final newX = (_rodPosition.dx + delta.dx)
-        .clamp(-_rodSize * 0.85, w - _rodSize * 0.15);
+    final newX = (_rodPosition.dx + delta.dx).clamp(
+      -_rodSize * 0.85,
+      w - _rodSize * 0.15,
+    );
 
-    final newY = (_rodPosition.dy + delta.dy)
-        .clamp(-_rodSize * 0.85, h - _rodSize * 0.15);
+    final newY = (_rodPosition.dy + delta.dy).clamp(
+      -_rodSize * 0.85,
+      h - _rodSize * 0.15,
+    );
 
     setState(() {
       _rodPosition = Offset(newX, newY);
@@ -497,62 +510,28 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
     for (int i = 0; i < _fish.length; i++) {
       final fish = _fish[i];
-
       if (fish.caught) continue;
 
       final config = _roundConfigs[_currentRound];
-
-      final fishSize =
-      (h * config.sizeFactor).clamp(56.0, 130.0).toDouble();
-
+      final fishSize = (h * config.sizeFactor).clamp(56.0, 130.0).toDouble();
       final direction = fish.swimsRight ? 1.0 : -1.0;
+      final swimT = Curves.easeInOut.transform(_swimCtrls[i].value);
+      final swimOffset = (swimT * 2 - 1) * fish.swimRange * direction;
+      final bobY = sin((_bobCtrl.value * 2 * pi) + fish.startX * 6.28) * 0.02;
+      final fishX = (fish.startX + swimOffset) * w - fishSize / 2;
+      final fishY = (fish.startY + bobY) * h - fishSize / 2;
+      final fishRect = Rect.fromLTWH(fishX, fishY, fishSize, fishSize * 0.7);
 
-      final swimT =
-      Curves.easeInOut.transform(_swimCtrls[i].value);
-
-      final swimOffset =
-          (swimT * 2 - 1) *
-              fish.swimRange *
-              direction;
-
-      final bobY =
-          sin(
-            (_bobCtrl.value * 2 * pi) +
-                fish.startX * 6.28,
-          ) *
-              0.02;
-
-      final fishX =
-          (fish.startX + swimOffset) * w -
-              fishSize / 2;
-
-      final fishY =
-          (fish.startY + bobY) * h -
-              fishSize / 2;
-
-      final fishRect = Rect.fromLTWH(
-        fishX,
-        fishY,
-        fishSize,
-        fishSize * 0.7,
-      );
-
-      // The hook must actually be over the fish.
-// The hook must actually be over the fish.
       if (fishRect.contains(_rodHookPoint)) {
         fish.caughtX = fishX;
         fish.caughtY = fishY;
-
         _handleRodCatch(fish, i);
         return;
       }
     }
   }
 
-  Future<void> _handleRodCatch(
-      _FishData fish,
-      int index,
-      ) async {
+  Future<void> _handleRodCatch(_FishData fish, int index) async {
     if (_interactionLocked || fish.caught) return;
 
     if (fish.letter == _targetLetter) {
@@ -562,12 +541,9 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     }
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // DISPOSE
-  // ═════════════════════════════════════════════════════════════════════
-
   @override
   void dispose() {
+    disposeAiCamera();
     _tofiFloatCtrl.dispose();
     _bobCtrl.dispose();
     _instructionCtrl.dispose();
@@ -584,10 +560,6 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     super.dispose();
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // BUILD
-  // ═════════════════════════════════════════════════════════════════════
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -597,6 +569,13 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
             if (!_introPlaying) buildTofi(context),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
@@ -610,7 +589,11 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
       children: [
         Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         const Positioned(top: 25, left: 25, child: ForestXButton()),
-        Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -621,7 +604,10 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
                   offset: Offset(
                     0,
                     Tween<double>(begin: -6, end: 6).evaluate(
-                      CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
+                      CurvedAnimation(
+                        parent: _tofiFloatCtrl,
+                        curve: Curves.easeInOut,
+                      ),
                     ),
                   ),
                   child: child,
@@ -629,14 +615,12 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
                 child: Image.asset(
                   _dogImage,
                   height: screenH * 0.60,
-                  errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 80)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐶', style: TextStyle(fontSize: 80)),
                 ),
               ),
               const SizedBox(width: 120),
-              Image.asset(
-                _rodFishImage,
-                height: screenH * 0.60,
-              ),
+              Image.asset(_rodFishImage, height: screenH * 0.60),
             ],
           ),
         ),
@@ -656,7 +640,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   Widget _buildGameUI() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const progressDotsHeight = 26.0; // dot height + vertical padding
+        const progressDotsHeight = 26.0;
         _pondW = constraints.maxWidth;
         _pondH = (constraints.maxHeight - _pondTopOffset - progressDotsHeight)
             .clamp(0.0, double.infinity);
@@ -667,15 +651,17 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
             clipBehavior: Clip.none,
             children: [
               const Positioned(top: 25, left: 25, child: ForestXButton()),
-              Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+              Positioned(
+                top: 25,
+                right: 20,
+                child: ForestLevelBadge(level: widget.level),
+              ),
 
               Padding(
                 padding: const EdgeInsets.only(top: 190),
                 child: Column(
                   children: [
-                    Expanded(
-                      child: _buildPond(_pondW, _pondH), // no inner LayoutBuilder
-                    ),
+                    Expanded(child: _buildPond(_pondW, _pondH)),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: _buildProgressDots(),
@@ -683,7 +669,6 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
                   ],
                 ),
               ),
-
               _buildDraggableRod(_pondW, _pondH),
             ],
           ),
@@ -692,10 +677,6 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // POND
-  // ═════════════════════════════════════════════════════════════════════
-
   Widget _buildPond(double w, double h) {
     return SizedBox(
       width: w,
@@ -703,12 +684,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Slow-rising bubbles
           for (int i = 0; i < 4; i++) _buildBubble(i, w, h),
-
-          // Fish
-          for (int i = 0; i < _fish.length; i++)
-            _buildFish(_fish[i], i, w, h),
+          for (int i = 0; i < _fish.length; i++) _buildFish(_fish[i], i, w, h),
         ],
       ),
     );
@@ -719,13 +696,18 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
     return Positioned(
       left: _rodPosition.dx,
-      top: _rodPosition.dy + _pondTopOffset, // shift into outer Stack's coords
+      top: _rodPosition.dy + _pondTopOffset,
       width: _rodSize,
       height: _rodSize,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onPanUpdate: (details) => _moveRod(details.delta, w, h),
-        child: Image.asset(_rodImage, width: _rodSize, height: _rodSize, fit: BoxFit.contain),
+        child: Image.asset(
+          _rodImage,
+          width: _rodSize,
+          height: _rodSize,
+          fit: BoxFit.contain,
+        ),
       ),
     );
   }
@@ -746,7 +728,10 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
             child: Container(
               width: 8,
               height: 8,
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+              ),
             ),
           ),
         );
@@ -754,37 +739,15 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // FISH
-  // ═════════════════════════════════════════════════════════════════════
-
-  Widget _buildFish(
-      _FishData fish,
-      int index,
-      double w,
-      double h,
-      ) {
+  Widget _buildFish(_FishData fish, int index, double w, double h) {
     if (fish.caught) {
-      return _buildCatchAnimation(
-        fish,
-        index,
-        w,
-        h,
-      );
+      return _buildCatchAnimation(fish, index, w, h);
     }
 
     final config = _roundConfigs[_currentRound];
-
-    final size =
-    (h * config.sizeFactor)
-        .clamp(56.0, 130.0)
-        .toDouble();
-
-    final direction =
-    fish.swimsRight ? 1.0 : -1.0;
-
-    final phase =
-        fish.startX * 6.28;
+    final size = (h * config.sizeFactor).clamp(56.0, 130.0).toDouble();
+    final direction = fish.swimsRight ? 1.0 : -1.0;
+    final phase = fish.startX * 6.28;
 
     return AnimatedBuilder(
       animation: Listenable.merge([
@@ -793,69 +756,42 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
         _shakeCtrls[index],
       ]),
       builder: (_, child) {
-        final swimT =
-        Curves.easeInOut.transform(
-          _swimCtrls[index].value,
-        );
-
-        final swimOffset =
-            (swimT * 2 - 1) *
-                fish.swimRange *
-                direction;
-
-        final bobY =
-            sin(
-              (_bobCtrl.value * 2 * pi) +
-                  phase,
-            ) *
-                0.02;
-
-        final angle =
-        fish.wrong
-            ? _shakeAnims[index].value
-            : 0.0;
-
-        final fishX =
-            (fish.startX + swimOffset) * w -
-                size / 2;
-
-        final fishY =
-            (fish.startY + bobY) * h -
-                size / 2;
+        final swimT = Curves.easeInOut.transform(_swimCtrls[index].value);
+        final swimOffset = (swimT * 2 - 1) * fish.swimRange * direction;
+        final bobY = sin((_bobCtrl.value * 2 * pi) + phase) * 0.02;
+        final angle = fish.wrong ? _shakeAnims[index].value : 0.0;
+        final fishX = (fish.startX + swimOffset) * w - size / 2;
+        final fishY = (fish.startY + bobY) * h - size / 2;
 
         return Positioned(
           left: fishX,
           top: fishY,
           width: size,
           height: size,
-          child: Transform.rotate(
-            angle: angle,
-            child: child,
-          ),
+          child: Transform.rotate(angle: angle, child: child),
         );
       },
-        child: _fishVisual(
-          fish.letter,
-          size,
-          wrong: fish.wrong,
-          flip: fish.swimsRight ? 1.0 : -1.0,
-        )
+      child: _fishVisual(
+        fish.letter,
+        size,
+        wrong: fish.wrong,
+        flip: fish.swimsRight ? 1.0 : -1.0,
+      ),
     );
   }
 
   Widget _fishVisual(
-      String letter,
-      double size, {
-        required bool wrong,
-        required double flip,
-      }) {
+    String letter,
+    double size, {
+    required bool wrong,
+    required double flip,
+  }) {
     return SizedBox(
       width: size,
       height: size * 0.7,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // ONLY the fish image is flipped.
           Transform(
             alignment: Alignment.center,
             transform: Matrix4.identity()..scale(flip, 1.0),
@@ -873,8 +809,6 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
               },
             ),
           ),
-
-          // Letter stays NORMAL and readable.
           _outlinedLetter(
             letter,
             fontSize: size * 0.32,
@@ -887,45 +821,24 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     );
   }
 
-  Widget _buildCatchAnimation(
-      _FishData fish,
-      int index,
-      double w,
-      double h,
-      ) {
+  Widget _buildCatchAnimation(_FishData fish, int index, double w, double h) {
     final config = _roundConfigs[_currentRound];
-
-    final fishSize =
-    (h * config.sizeFactor)
-        .clamp(56.0, 130.0)
-        .toDouble();
+    final fishSize = (h * config.sizeFactor).clamp(56.0, 130.0).toDouble();
 
     return AnimatedBuilder(
       animation: _catchCtrls[index],
       builder: (_, __) {
         final t = _catchCtrls[index].value;
-
-        final progress =
-        Curves.easeOutBack.transform(
-          t.clamp(0.0, 1.0),
-        );
-
-        final fishX =
-            fish.caughtX ??
-                (fish.startX * w - fishSize / 2);
-
-        final fishY =
-            fish.caughtY ??
-                (fish.startY * h - fishSize / 2);
+        final progress = Curves.easeOutBack.transform(t.clamp(0.0, 1.0));
+        final fishX = fish.caughtX ?? (fish.startX * w - fishSize / 2);
+        final fishY = fish.caughtY ?? (fish.startY * h - fishSize / 2);
 
         return Stack(
           clipBehavior: Clip.none,
           children: [
-            // Fish being pulled upward
             Positioned(
               left: fishX,
-              top: fishY -
-                  progress * fishSize * 0.35,
+              top: fishY - progress * fishSize * 0.35,
               width: fishSize,
               height: fishSize,
               child: Transform.scale(
@@ -935,36 +848,21 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
                   fishSize,
                   wrong: false,
                   flip: fish.swimsRight ? 1.0 : -1.0,
-                )
+                ),
               ),
             ),
-
-            // Splash
             for (int i = 0; i < 5; i++)
               Positioned(
-                left:
-                fishX + fishSize / 2,
-                top:
-                fishY + fishSize / 2,
+                left: fishX + fishSize / 2,
+                top: fishY + fishSize / 2,
                 child: Opacity(
                   opacity: 1.0 - t,
                   child: Transform.translate(
                     offset: Offset(
-                      cos(i * 2 * pi / 5) *
-                          fishSize *
-                          0.7 *
-                          t,
-                      sin(i * 2 * pi / 5) *
-                          fishSize *
-                          0.4 *
-                          t,
+                      cos(i * 2 * pi / 5) * fishSize * 0.7 * t,
+                      sin(i * 2 * pi / 5) * fishSize * 0.4 * t,
                     ),
-                    child: const Text(
-                      '💧',
-                      style: TextStyle(
-                        fontSize: 18,
-                      ),
-                    ),
+                    child: const Text('💧', style: TextStyle(fontSize: 18)),
                   ),
                 ),
               ),
@@ -974,9 +872,11 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     );
   }
 
-  /// Letter rendered with a white outline behind a solid fill, so it reads
-  /// clearly against the fish/pond artwork underneath.
-  Widget _outlinedLetter(String letter, {required double fontSize, required Color fillColor}) {
+  Widget _outlinedLetter(
+    String letter, {
+    required double fontSize,
+    required Color fillColor,
+  }) {
     return Stack(
       children: [
         Text(
@@ -1004,10 +904,6 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // PROGRESS
-  // ═════════════════════════════════════════════════════════════════════
-
   Widget _buildProgressDots() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -1024,8 +920,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
             color: done
                 ? ForestColorTheme.mediumseagreen
                 : current
-                    ? ForestColorTheme.seagreen
-                    : ForestColorTheme.seagreen.withValues(alpha: 0.35),
+                ? ForestColorTheme.seagreen
+                : ForestColorTheme.seagreen.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(6),
           ),
         );

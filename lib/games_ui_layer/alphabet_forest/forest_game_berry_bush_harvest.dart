@@ -2,6 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -14,35 +19,14 @@ import 'forest_audio_helper.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
-// ═════════════════════════════════════════════════════════════════════════
-// MODELS
-// ═════════════════════════════════════════════════════════════════════════
-
-/// One of the six berry bushes. Position is fixed for the entire game —
-/// unlike the mushroom games, bushes never move, so once a bush is
-/// harvested the child can simply remember it's done.
 class BerryBush {
-  final String letter; // exact case, e.g. 'P' or 'p'
+  final String letter;
   final Offset pos;
   bool harvested;
 
-  BerryBush({
-    required this.letter,
-    required this.pos,
-    this.harvested = false,
-  });
+  BerryBush({required this.letter, required this.pos, this.harvested = false});
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// GAME
-// ═════════════════════════════════════════════════════════════════════════
-
-/// "Berry Bush Harvest" — six berry bushes sit in a forest clearing, one for
-/// each of P/p/Q/q/R/r. Every round asks for one letter and case; tapping
-/// the matching bush shakes it, drops its berries into the basket below,
-/// and leaves it bare for the rest of the game. Every letter is used
-/// exactly once across the 6 rounds, so bush positions never need to
-/// reshuffle — the forest itself gradually empties into a full basket.
 class BerryBushHarvestGame extends StatefulWidget {
   final int level;
   const BerryBushHarvestGame({super.key, required this.level});
@@ -52,22 +36,35 @@ class BerryBushHarvestGame extends StatefulWidget {
 }
 
 class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
-    with TickerProviderStateMixin, GameLoadingMixin<BerryBushHarvestGame>, ForestAudioMixin<BerryBushHarvestGame>, TofiReactionMixin<BerryBushHarvestGame> {
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin<BerryBushHarvestGame>,
+        ForestAudioMixin<BerryBushHarvestGame>,
+        TofiReactionMixin<BerryBushHarvestGame>,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
-  static const String _bushFullAsset = 'assets/images/objects/forest/berry_bush_full.png';
-  static const String _bushEmptyAsset = 'assets/images/objects/forest/berry_bush_empty.png';
+  static const String _bushFullAsset =
+      'assets/images/objects/forest/berry_bush_full.png';
+  static const String _bushEmptyAsset =
+      'assets/images/objects/forest/berry_bush_empty.png';
   static const String _basketAsset = 'assets/images/objects/puzzle/basket.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static String _basketBerryAsset(int count) => 'assets/images/objects/forest/berries_state$count.png';
+  static String _basketBerryAsset(int count) =>
+      'assets/images/objects/forest/berries_state$count.png';
 
   static const String _audioBase = ForestAudioAssets.base;
-  static const String _audioIntro = 'assets/audio/alphabet_forest/berry_bush_intro.wav';
-  static const String _audioInstruction = '$_audioBase/berry_bush_instruction.wav';
-  static const String _audioHarvestChime = '$_audioBase/berry_harvest_chime.wav';
+  static const String _audioIntro =
+      'assets/audio/alphabet_forest/berry_bush_intro.wav';
+  static const String _audioInstruction =
+      '$_audioBase/berry_bush_instruction.wav';
+  static const String _audioHarvestChime =
+      '$_audioBase/berry_harvest_chime.wav';
   static const String _audioWin = '$_audioBase/berry_bush_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -75,7 +72,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
   static const List<String> _promptVerbs = ['Harvest', 'Find', 'Tap'];
   static const Color _berryColor = Color(0xFF4A7CFF);
 
-  // Fixed bush slots — two staggered rows, never reshuffled.
   static const List<Offset> _bushSlots = [
     Offset(0.24, 0.26),
     Offset(0.50, 0.18),
@@ -89,42 +85,52 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
 
   // ── State ────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
-  late final List<BerryBush> _bushes; // 6 bushes, fixed positions
-  late List<String> _roundOrder; // the 6 letters, shuffled once per game
+  late final List<BerryBush> _bushes;
+  late List<String> _roundOrder;
   int _currentRoundIndex = 0;
   int _harvestedCount = 0;
   bool _roundLocked = false;
   late String _promptVerb;
 
-  int? _shakingWrongIndex; // bush currently doing the "wrong tap" shake
-  int? _harvestingIndex; // bush whose berries are currently mid-fall
+  int? _shakingWrongIndex;
+  int? _harvestingIndex;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   String get _targetLetter => _roundOrder[_currentRoundIndex];
 
   // ── Animations ───────────────────────────────────────────────────────────
-  late AnimationController _tofiFloatCtrl; // dog idle float, intro only
-  late AnimationController _swayCtrl; // shared idle sway for un-harvested bushes
+  late AnimationController _tofiFloatCtrl;
+  late AnimationController _swayCtrl;
   late AnimationController _instructionCtrl;
   late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
-  late List<AnimationController> _harvestShakeCtrls; // quick "berries loosen" shake
+  late List<AnimationController> _harvestShakeCtrls;
   late List<Animation<double>> _harvestShakeAnims;
-  late List<AnimationController> _flashCtrls; // red flash per bush, wrong tap
+  late List<AnimationController> _flashCtrls;
   late List<Animation<double>> _flashAnims;
-  late AnimationController _wrongShakeCtrl; // shared left-right wrong shake
+  late AnimationController _wrongShakeCtrl;
   late Animation<double> _wrongShake;
-  late AnimationController _berryFallCtrl; // berries arcing into the basket
+  late AnimationController _berryFallCtrl;
 
-  // ── Init ─────────────────────────────────────────────────────────────────
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
 
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _bushes = List.generate(
       _letters.length,
-          (i) => BerryBush(letter: _letters[i], pos: _bushSlots[i]),
+      (i) => BerryBush(letter: _letters[i], pos: _bushSlots[i]),
     );
 
     final random = Random();
@@ -151,21 +157,26 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _harvestShakeCtrls = List.generate(
       _letters.length,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 300),
       ),
@@ -173,16 +184,19 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     _harvestShakeAnims = _harvestShakeCtrls
         .map(
           (c) => TweenSequence([
-        TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.05), weight: 25),
-        TweenSequenceItem(tween: Tween(begin: -0.05, end: 0.05), weight: 50),
-        TweenSequenceItem(tween: Tween(begin: 0.05, end: 0.0), weight: 25),
-      ]).animate(CurvedAnimation(parent: c, curve: Curves.easeOut)),
-    )
+            TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.05), weight: 25),
+            TweenSequenceItem(
+              tween: Tween(begin: -0.05, end: 0.05),
+              weight: 50,
+            ),
+            TweenSequenceItem(tween: Tween(begin: 0.05, end: 0.0), weight: 25),
+          ]).animate(CurvedAnimation(parent: c, curve: Curves.easeOut)),
+        )
         .toList();
 
     _flashCtrls = List.generate(
       _letters.length,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 400),
       ),
@@ -190,21 +204,24 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     _flashAnims = _flashCtrls
         .map(
           (c) => TweenSequence([
-        TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 60),
-      ]).animate(CurvedAnimation(parent: c, curve: Curves.easeOut)),
-    )
+            TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 40),
+            TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 60),
+          ]).animate(CurvedAnimation(parent: c, curve: Curves.easeOut)),
+        )
         .toList();
 
     _wrongShakeCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _wrongShake = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.1), weight: 25),
-      TweenSequenceItem(tween: Tween(begin: -0.1, end: 0.1), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 0.1, end: 0.0), weight: 25),
-    ]).animate(CurvedAnimation(parent: _wrongShakeCtrl, curve: Curves.easeInOut));
+    _wrongShake =
+        TweenSequence([
+          TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.1), weight: 25),
+          TweenSequenceItem(tween: Tween(begin: -0.1, end: 0.1), weight: 50),
+          TweenSequenceItem(tween: Tween(begin: 0.1, end: 0.0), weight: 25),
+        ]).animate(
+          CurvedAnimation(parent: _wrongShakeCtrl, curve: Curves.easeInOut),
+        );
 
     _berryFallCtrl = AnimationController(
       vsync: this,
@@ -212,10 +229,9 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     );
   }
 
-  // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -224,18 +240,19 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     if (mounted) await _announceRound();
   }
 
-  /// Plays the round instruction (round 1 only), then reads out this
-  /// round's target letter.
   Future<void> _announceRound() async {
     if (_currentRoundIndex == 0) {
-      await playVoice(_audioInstruction);
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
       if (!mounted) return;
     }
 
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
-    await playVoice(ForestAudioAssets.forLetter(_targetLetter.toUpperCase()));
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
+    );
   }
 
   bool get _targetIsUpper => _targetLetter == _targetLetter.toUpperCase();
@@ -261,13 +278,13 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     setState(() {});
   }
 
-  // ── Tap handling ─────────────────────────────────────────────────────────
   Future<void> _onBushTapped(BerryBush bush, int index) async {
     if (_roundLocked || bush.harvested) return;
 
     final isMatch = bush.letter == _targetLetter;
 
     if (isMatch) {
+      _tapTracker.recordCorrectTap();
       _roundLocked = true;
       HapticFeedback.mediumImpact();
 
@@ -279,8 +296,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
       _harvestShakeCtrls[index].forward(from: 0);
       playVoice(_audioHarvestChime);
 
-      // Berries arc from the bush down into the basket; the pile grows
-      // once they land.
       _berryFallCtrl.forward(from: 0).whenComplete(() {
         if (!mounted) return;
         setState(() {
@@ -289,7 +304,10 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
         });
       });
 
-      await playVoice(ForestAudioAssets.forLetter(_targetLetter.toUpperCase()));
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
+      );
       if (!mounted) return;
 
       await showTofiReaction(TofiState.correct);
@@ -297,6 +315,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
 
       await _advanceRound();
     } else {
+      _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
       setState(() => _shakingWrongIndex = index);
 
@@ -321,12 +340,34 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
       await ForestProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
 
-      _showGoodJob();
+      await _saveDataAndShowGoodJob();
       return;
     }
 
     _currentRoundIndex++;
     _loadTarget();
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_berry_bush_harvest',
+        activityName: 'Berry Bush Harvest',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (!mounted) return;
+    _showGoodJob();
   }
 
   void _showGoodJob() {
@@ -339,7 +380,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          
+
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
@@ -367,6 +408,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _tofiFloatCtrl.dispose();
     _swayCtrl.dispose();
     _instructionCtrl.dispose();
@@ -382,7 +424,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     super.dispose();
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -392,24 +433,32 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
             if (!_introPlaying) buildTofi(context),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
     );
   }
 
-  // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
 
     return Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(_bgImage, fit: BoxFit.cover),
-        ),
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
         const Positioned(top: 25, left: 25, child: ForestXButton()),
-        Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(level: widget.level),
+        ),
 
         Center(
           child: Row(
@@ -421,7 +470,10 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
                   offset: Offset(
                     0,
                     Tween<double>(begin: -6, end: 6).evaluate(
-                      CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
+                      CurvedAnimation(
+                        parent: _tofiFloatCtrl,
+                        curve: Curves.easeInOut,
+                      ),
                     ),
                   ),
                   child: child,
@@ -429,14 +481,16 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
                 child: Image.asset(
                   _dogImage,
                   height: screenH * 0.72,
-                  errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 80)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐶', style: TextStyle(fontSize: 80)),
                 ),
               ),
               const SizedBox(width: 120),
               Image.asset(
                 _bushFullAsset,
                 height: screenH * 0.55,
-                errorBuilder: (_, __, ___) => const Text('🫐', style: TextStyle(fontSize: 80)),
+                errorBuilder: (_, __, ___) =>
+                    const Text('🫐', style: TextStyle(fontSize: 80)),
               ),
             ],
           ),
@@ -445,13 +499,10 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     );
   }
 
-  // ── Main game layout ─────────────────────────────────────────────────────
   Widget _buildGameContent() {
     return Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(_bgImage, fit: BoxFit.cover),
-        ),
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         _buildGameUI(),
       ],
     );
@@ -465,7 +516,11 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
           child: Stack(
             children: [
               const Positioned(top: 25, left: 25, child: ForestXButton()),
-              Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+              Positioned(
+                top: 25,
+                right: 20,
+                child: ForestLevelBadge(level: widget.level),
+              ),
 
               Padding(
                 padding: const EdgeInsets.only(top: 90),
@@ -491,7 +546,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     );
   }
 
-  // ── Forest area ──────────────────────────────────────────────────────────
   Widget _buildForestArea(double w, double h) {
     return SizedBox(
       width: w,
@@ -499,7 +553,8 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          for (int i = 0; i < _bushes.length; i++) _buildBush(_bushes[i], i, w, h),
+          for (int i = 0; i < _bushes.length; i++)
+            _buildBush(_bushes[i], i, w, h),
           _buildBasket(w, h),
           _buildFallingBerries(w, h),
         ],
@@ -509,7 +564,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
 
   Widget _buildBush(BerryBush bush, int index, double w, double h) {
     final bushSize = (h * 0.3).clamp(100.0, 165.0);
-    final phase = index * 1.3; // stagger idle sway per bush
+    final phase = index * 1.3;
 
     return Positioned(
       left: bush.pos.dx * w - bushSize / 2,
@@ -529,8 +584,12 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
             final swayAngle = bush.harvested
                 ? 0.0
                 : 0.035 * sin((_swayCtrl.value * 2 * pi) + phase);
-            final harvestAngle = _harvestingIndex == index ? _harvestShakeAnims[index].value : 0.0;
-            final wrongAngle = _shakingWrongIndex == index ? _wrongShake.value : 0.0;
+            final harvestAngle = _harvestingIndex == index
+                ? _harvestShakeAnims[index].value
+                : 0.0;
+            final wrongAngle = _shakingWrongIndex == index
+                ? _wrongShake.value
+                : 0.0;
 
             return Transform.rotate(
               angle: swayAngle + harvestAngle + wrongAngle,
@@ -540,7 +599,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Soft red pulse behind the bush on a wrong tap.
               AnimatedBuilder(
                 animation: _flashCtrls[index],
                 builder: (_, __) => Opacity(
@@ -598,10 +656,9 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
             _basketAsset,
             width: basketW,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Text('🧺', style: TextStyle(fontSize: 64)),
+            errorBuilder: (_, __, ___) =>
+                const Text('🧺', style: TextStyle(fontSize: 64)),
           ),
-
-          // Growing pile of harvested berries.
           if (_harvestedCount > 0)
             Positioned(
               bottom: basketH * 0.1,
@@ -616,8 +673,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     );
   }
 
-  /// Berries arcing from whichever bush was just harvested down into the
-  /// basket, with a little bounce right as they land.
   Widget _buildFallingBerries(double w, double h) {
     if (_harvestingIndex == null) return const SizedBox.shrink();
 
@@ -662,9 +717,11 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
 
   double _lerp(double a, double b, double t) => a + (b - a) * t;
 
-  /// Letter rendered with a white outline behind a solid fill, so it reads
-  /// clearly against the bush artwork underneath.
-  Widget _outlinedLetter(String letter, {required double fontSize, required Color fillColor}) {
+  Widget _outlinedLetter(
+    String letter, {
+    required double fontSize,
+    required Color fillColor,
+  }) {
     return Stack(
       children: [
         Text(
@@ -692,7 +749,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     );
   }
 
-  // ── Progress dots ────────────────────────────────────────────────────────
   Widget _buildProgressDots() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
