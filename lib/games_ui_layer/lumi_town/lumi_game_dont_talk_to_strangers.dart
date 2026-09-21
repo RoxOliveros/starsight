@@ -43,6 +43,7 @@ const String _littleBearNoAudio = '${_audioBase}stranger_little_bear_no.wav';
 const String _teacherWooWarningAudio = '${_audioBase}stranger_teacher_woo_warning.wav';
 const String _safetyLessonAudio = '${_audioBase}stranger_lesson.wav';
 const String _winAudio = '${_audioBase}stranger_win.wav';
+const String _bubblePopAudio = 'assets/audio/sound_effects/bubble_pop.wav';
 
 // ============================================================================
 // MODEL
@@ -140,6 +141,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _wolfPlayer = AudioPlayer();
   final AudioPlayer _teacherWooPlayer = AudioPlayer();
+  final AudioPlayer _sfxPlayer = AudioPlayer();
 
   // --- Game state -------------------------------------------------------
   late List<StrangerInteraction> _interactions;
@@ -238,6 +240,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
     _completePlayer.dispose();
     _wolfPlayer.dispose();
     _teacherWooPlayer.dispose();
+    _sfxPlayer.dispose();
     super.dispose();
   }
 
@@ -286,6 +289,17 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
     } finally {
       await sub.cancel();
     }
+  }
+
+  Future<void> _playBubblePop() async {
+    try {
+      await _sfxPlayer.stop();
+      await _sfxPlayer.play(
+        AssetSource(
+          _bubblePopAudio.replaceFirst('assets/', ''),
+        ),
+      );
+    } catch (_) {}
   }
 
   // --- Character entrance ---------------------------------------------------
@@ -341,6 +355,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
   Future<void> _onFamiliarTalk() async {
     if (_onWolf || !_inputEnabled || _busy || !mounted) return;
 
+    _playBubblePop();
+
     setState(() {
       _busy = true;
       _inputEnabled = false;
@@ -355,6 +371,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
 
   Future<void> _onFamiliarCancel() async {
     if (_onWolf || !_inputEnabled || _busy || !mounted) return;
+
+    _playBubblePop();
 
     setState(() {
       _busy = true;
@@ -394,12 +412,11 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
     setState(() {
       _busy = true;
       _inputEnabled = false;
+      _wolfVisualState = WolfVisualState.shocked;
     });
 
     await _playAndWait(_narrationPlayer, _littleBearNoAudio);
     if (!mounted) return;
-
-    setState(() => _wolfVisualState = WolfVisualState.shocked);
 
     await _finishWolfSequence();
   }
@@ -447,7 +464,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
   Future<void> _finishWolfSequence() async {
     if (!mounted) return;
 
-    // Wolf turns around and leaves.
+    // Wolf flips and leaves.
     setState(() {
       _phase = _GamePhase.wolfLeaving;
       _characterVisible = false;
@@ -458,41 +475,40 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
     );
     if (!mounted) return;
 
-    setState(() {
-      _phase = _GamePhase.safetyLesson;
-      _teacherWooVisible = true;
-    });
+    if (_wolfTalkBranch) {
+      setState(() {
+        _phase = _GamePhase.safetyLesson;
+      });
 
-    await _playAndWait(
-      _narrationPlayer,
-      _safetyLessonAudio,
-    );
-    if (!mounted) return;
+      await _playAndWait(
+        _narrationPlayer,
+        _safetyLessonAudio,
+      );
+      if (!mounted) return;
 
-    // Lesson finished — Teacher Woo can now leave.
-    setState(() {
-      _teacherWooVisible = false;
-    });
+      setState(() => _teacherWooVisible = false);
 
-    await Future<void>.delayed(
-      const Duration(milliseconds: 600),
-    );
-    if (!mounted) return;
+      await _completeGame(playWinAudio: false);
+      return;
+    }
 
+    // Both branches go to the centered Tr. Woo win scene.
     await _completeGame();
   }
 
   // --- Completion / restart -------------------------------------------------
 
-  Future<void> _completeGame() async {
+  Future<void> _completeGame({bool playWinAudio = true}) async {
     if (!mounted) return;
 
     setState(() => _phase = _GamePhase.complete);
 
     TownProgressService.instance.markLevelComplete(widget.level);
 
-    await _playAndWait(_completePlayer, _winAudio);
-    if (!mounted) return;
+    if (playWinAudio) {
+      await _playAndWait(_completePlayer, _winAudio);
+      if (!mounted) return;
+    }
 
     setState(() {
       _gameComplete = true;
@@ -573,6 +589,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
                   if (_phase == _GamePhase.complete && !_gameComplete)
                     Positioned(
                       bottom: 0,
+                      left: 0,
+                      right: 0,
                       child: Center(
                         child: Image.asset(
                           _trWooSmileImage,
