@@ -55,7 +55,7 @@ class ForestDatabaseService {
       );
 
       // Only start a new cycle IF the forest is 100% complete (24 games) AND they replay a game
-      if (totalGamesInCycle >= 23 && gameAlreadyPlayed) {
+      if (totalGamesInCycle >= 25 && gameAlreadyPlayed) {
         currentCycle++;
         await trackerRef.set({
           'currentCycle': currentCycle,
