@@ -1,7 +1,13 @@
+// forest_game_stick_letter_builder.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -14,13 +20,6 @@ import 'forest_audio_helper.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
-// ═════════════════════════════════════════════════════════════════════════
-// MODELS
-// ═════════════════════════════════════════════════════════════════════════
-
-/// One stroke of a letter, defined by its endpoints in fractional
-/// coordinates (0..1) within the letter build zone. [isLong] just controls
-/// which stick asset (short/long) is used to render it.
 class StrokeSpec {
   final Offset start;
   final Offset end;
@@ -28,7 +27,6 @@ class StrokeSpec {
   const StrokeSpec(this.start, this.end);
 }
 
-/// A single letter's worth of strokes plus its decorative outline asset.
 class LetterRoundSpec {
   final String letter;
   final String outlineAsset;
@@ -41,16 +39,13 @@ class LetterRoundSpec {
   });
 }
 
-/// A physical stick the child drags. [strokeStart]/[strokeEnd] are the
-/// fractional coords of the letter stroke this stick completes; [pileX] and
-/// [pileAngle] describe where/how it sits before being picked up.
 class StickPiece {
   final int index;
   final Offset strokeStart;
   final Offset strokeEnd;
   final double pileAngle;
   bool placed;
-  Offset? dragPixelPos; // absolute px position within the build area while dragging
+  Offset? dragPixelPos;
 
   StickPiece({
     required this.index,
@@ -62,23 +57,12 @@ class StickPiece {
   });
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// GUIDE PAINTER
-// ═════════════════════════════════════════════════════════════════════════
-
-/// Draws a faint dashed guide for every stroke of the current letter, using
-/// the exact same coordinates sticks snap to — so the guide can never drift
-/// out of sync with the actual drop targets.
 class _LetterGuidePainter extends CustomPainter {
   final List<StrokeSpec> strokes;
   final double scale;
   final Offset offset;
 
-  _LetterGuidePainter(
-      this.strokes,
-      this.scale,
-      this.offset,
-      );
+  _LetterGuidePainter(this.strokes, this.scale, this.offset);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -106,15 +90,19 @@ class _LetterGuidePainter extends CustomPainter {
 
       const guideShrink = 1;
 
-      final p1 = map(Offset(
-        mid.dx + (stroke.start.dx - mid.dx) * guideShrink,
-        mid.dy + (stroke.start.dy - mid.dy) * guideShrink,
-      ));
+      final p1 = map(
+        Offset(
+          mid.dx + (stroke.start.dx - mid.dx) * guideShrink,
+          mid.dy + (stroke.start.dy - mid.dy) * guideShrink,
+        ),
+      );
 
-      final p2 = map(Offset(
-        mid.dx + (stroke.end.dx - mid.dx) * guideShrink,
-        mid.dy + (stroke.end.dy - mid.dy) * guideShrink,
-      ));
+      final p2 = map(
+        Offset(
+          mid.dx + (stroke.end.dx - mid.dx) * guideShrink,
+          mid.dy + (stroke.end.dy - mid.dy) * guideShrink,
+        ),
+      );
 
       _drawDashedLine(canvas, p1, p2, paint);
     }
@@ -140,47 +128,47 @@ class _LetterGuidePainter extends CustomPainter {
   bool shouldRepaint(covariant _LetterGuidePainter oldDelegate) => true;
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// GAME
-// ═════════════════════════════════════════════════════════════════════════
-
-/// "Fallen Stick Letter Builder" — wind-blown sticks lie scattered in a
-/// forest clearing. The child drags each one onto its matching stroke to
-/// build V, W, then X, one letter at a time.
 class FallenStickLetterBuilderGame extends StatefulWidget {
   final int level;
   const FallenStickLetterBuilderGame({super.key, required this.level});
 
   @override
-  State<FallenStickLetterBuilderGame> createState() => _FallenStickLetterBuilderGameState();
+  State<FallenStickLetterBuilderGame> createState() =>
+      _FallenStickLetterBuilderGameState();
 }
 
-class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderGame>
+class _FallenStickLetterBuilderGameState
+    extends State<FallenStickLetterBuilderGame>
     with
         TickerProviderStateMixin,
         GameLoadingMixin<FallenStickLetterBuilderGame>,
         ForestAudioMixin<FallenStickLetterBuilderGame>,
-        TofiReactionMixin<FallenStickLetterBuilderGame> {
+        TofiReactionMixin<FallenStickLetterBuilderGame>,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _stickLongAsset = 'assets/images/objects/forest/stick_long.png';
+  static const String _stickLongAsset =
+      'assets/images/objects/forest/stick_long.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/fallen_stick_intro.wav';
-  static const String _audioInstruction = '$_audioBase/fallen_stick_instructions.wav';
+  static const String _audioInstruction =
+      '$_audioBase/fallen_stick_instructions.wav';
   static const String _audioWin = '$_audioBase/fallen_stick_win.wav';
 
   static const int _maxSticks = 4;
   static const double _letterZoneFraction = 0.68;
   static const double _pileXFraction = 0.90;
-  static const double _traceScale = 0.72; // smaller letter
-  static const Offset _traceOffset = Offset(0.0, 0.2); // optional move up/down
+  static const double _traceScale = 0.72;
+  static const Offset _traceOffset = Offset(0.0, 0.2);
 
-  // ── Letters V, W, X, each defined by their strokes ──────────────────────
+  // ── Letters V, W, X ──────────────────────
   static const List<LetterRoundSpec> _rounds = [
     LetterRoundSpec(
       letter: 'V',
@@ -217,26 +205,37 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
   int? _draggingIndex;
   late List<StickPiece> _sticks;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _tofiFloatCtrl;
   late AnimationController _instructionCtrl;
   late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
-  late List<AnimationController> _popCtrls; // pop/bounce when a stick snaps in
+  late List<AnimationController> _popCtrls;
   late List<Animation<double>> _popAnims;
-  late List<AnimationController> _sparkleCtrls; // sparkle flash on correct placement
+  late List<AnimationController> _sparkleCtrls;
   late List<Animation<double>> _sparkleAnims;
-  late AnimationController _glowCtrl; // whole-letter glow on completion
+  late AnimationController _glowCtrl;
   late Animation<double> _glow;
-  late AnimationController _leafCtrl; // leaf burst on completion
-  late AnimationController _birdCtrl; // birds flying across on completion
+  late AnimationController _leafCtrl;
+  late AnimationController _birdCtrl;
 
-  // ── Init ─────────────────────────────────────────────────────────────────
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     _setupRoundData();
     finishLoading(_startIntroFlow);
@@ -252,21 +251,29 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _popCtrls = List.generate(
       _maxSticks,
-          (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 550)),
+      (_) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 550),
+      ),
     );
     _popAnims = _popCtrls
         .map((c) => CurvedAnimation(parent: c, curve: Curves.elasticOut))
@@ -274,15 +281,18 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
 
     _sparkleCtrls = List.generate(
       _maxSticks,
-          (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 600)),
+      (_) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 600),
+      ),
     );
     _sparkleAnims = _sparkleCtrls
         .map(
           (c) => TweenSequence([
-        TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 70),
-      ]).animate(CurvedAnimation(parent: c, curve: Curves.easeOut)),
-    )
+            TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 30),
+            TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 70),
+          ]).animate(CurvedAnimation(parent: c, curve: Curves.easeOut)),
+        )
         .toList();
 
     _glowCtrl = AnimationController(
@@ -321,10 +331,9 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
     });
   }
 
-  // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -335,24 +344,26 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
 
   Future<void> _announceRound() async {
     if (_currentRoundIndex == 0) {
-      await playVoice(_audioInstruction);
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
       if (!mounted) return;
     }
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
-    await playVoice(ForestAudioAssets.forLetter(_rounds[_currentRoundIndex].letter));
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      ForestAudioAssets.forLetter(_rounds[_currentRoundIndex].letter),
+    );
   }
 
-  String get _instructionText => 'Build Letter ${_rounds[_currentRoundIndex].letter}!';
+  String get _instructionText =>
+      'Build Letter ${_rounds[_currentRoundIndex].letter}!';
 
-  // ── Geometry helpers (letterH is already h * _letterZoneFraction) ───────
   Offset _targetCenterPx(StickPiece s, double w, double letterH) {
     final cx = w / 2;
     final cy = letterH / 2;
 
     double mapX(double x) =>
         cx + ((x - 0.5) * _traceScale + _traceOffset.dx) * w;
-
     double mapY(double y) =>
         cy + ((y - 0.5) * _traceScale + _traceOffset.dy) * letterH;
 
@@ -376,21 +387,18 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
 
   Offset _pileCenterPx(StickPiece s, double w, double h) {
     const baseY = 120.0;
-
     final offsets = [
       const Offset(0, 0),
       const Offset(-12, 18),
       const Offset(8, -15),
       const Offset(-6, 34),
     ];
-
     return Offset(
       w * _pileXFraction + offsets[s.index].dx,
       baseY + offsets[s.index].dy,
     );
   }
 
-  // ── Drag handling ────────────────────────────────────────────────────────
   void _onStickDropped(StickPiece stick, double w, double h) {
     if (_draggingIndex != stick.index) return;
     final letterH = h * _letterZoneFraction;
@@ -401,6 +409,7 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
     final dist = (dropPos - target).distance;
 
     if (dist <= threshold) {
+      _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       setState(() {
         stick.placed = true;
@@ -411,9 +420,10 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
       _sparkleCtrls[stick.index].forward(from: 0);
       _checkRoundComplete();
     } else {
+      _tapTracker.recordMistake();
       HapticFeedback.selectionClick();
       setState(() {
-        stick.dragPixelPos = null; // AnimatedPositioned eases it back to the pile
+        stick.dragPixelPos = null;
         _draggingIndex = null;
       });
     }
@@ -424,7 +434,10 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
     Future.delayed(const Duration(milliseconds: 500), () async {
       if (!mounted) return;
       final letter = _rounds[_currentRoundIndex].letter;
-      await playVoice(ForestAudioAssets.forLetter(letter));
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(letter),
+      );
       if (!mounted) return;
       await _celebrateLetter();
       if (!mounted) return;
@@ -448,7 +461,7 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
       if (!mounted) return;
       await ForestProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
-      _showGoodJob();
+      await _saveDataAndShowGoodJob();
       return;
     }
 
@@ -462,6 +475,28 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
     await _announceRound();
   }
 
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_stick_letter_builder',
+        activityName: 'Fallen Stick Letter Builder',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (!mounted) return;
+    _showGoodJob();
+  }
+
   void _showGoodJob() {
     showDialog(
       context: context,
@@ -472,7 +507,6 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
@@ -485,7 +519,8 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => FallenStickLetterBuilderGame(level: widget.level),
+                builder: (_) =>
+                    FallenStickLetterBuilderGame(level: widget.level),
               ),
             );
           },
@@ -500,25 +535,22 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
 
   @override
   void dispose() {
+    disposeAiCamera();
     _tofiFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
-
     for (final ctrl in _popCtrls) {
       ctrl.dispose();
     }
     for (final ctrl in _sparkleCtrls) {
       ctrl.dispose();
     }
-
     _glowCtrl.dispose();
     _leafCtrl.dispose();
     _birdCtrl.dispose();
-
     super.dispose();
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -528,23 +560,31 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
             if (!_introPlaying) buildTofi(context),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
     );
   }
 
-  // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
 
     return Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(_bgImage, fit: BoxFit.cover),
-        ),
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         const Positioned(top: 25, left: 25, child: ForestXButton()),
-        Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -555,7 +595,10 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
                   offset: Offset(
                     0,
                     Tween<double>(begin: -6, end: 6).evaluate(
-                      CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
+                      CurvedAnimation(
+                        parent: _tofiFloatCtrl,
+                        curve: Curves.easeInOut,
+                      ),
                     ),
                   ),
                   child: child,
@@ -563,7 +606,8 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
                 child: Image.asset(
                   _dogImage,
                   height: screenH * 0.72,
-                  errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 80)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐶', style: TextStyle(fontSize: 80)),
                 ),
               ),
               const SizedBox(width: 60),
@@ -572,7 +616,8 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
                 child: Image.asset(
                   _stickLongAsset,
                   height: screenH * 0.1,
-                  errorBuilder: (_, __, ___) => const Text('🪵', style: TextStyle(fontSize: 80)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🪵', style: TextStyle(fontSize: 80)),
                 ),
               ),
             ],
@@ -582,13 +627,10 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
     );
   }
 
-  // ── Main game layout ─────────────────────────────────────────────────────
   Widget _buildGameContent() {
     return Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(_bgImage, fit: BoxFit.cover),
-        ),
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         _buildGameUI(),
       ],
     );
@@ -602,8 +644,11 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
           child: Stack(
             children: [
               const Positioned(top: 25, left: 25, child: ForestXButton()),
-              Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-
+              Positioned(
+                top: 25,
+                right: 20,
+                child: ForestLevelBadge(level: widget.level),
+              ),
               Padding(
                 padding: const EdgeInsets.only(top: 90),
                 child: Column(
@@ -628,17 +673,17 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
     );
   }
 
-  // ── Build area (letter guide + pile + sticks) ────────────────────────────
   Widget _buildBuildArea(double w, double h) {
     final letterH = h * _letterZoneFraction;
     final letterCenter = Offset(w / 2, letterH / 2);
     final spec = _rounds[_currentRoundIndex];
 
-    final orderedSticks = [..._sticks]..sort((a, b) {
-      if (a.index == _draggingIndex) return 1;
-      if (b.index == _draggingIndex) return -1;
-      return 0;
-    });
+    final orderedSticks = [..._sticks]
+      ..sort((a, b) {
+        if (a.index == _draggingIndex) return 1;
+        if (b.index == _draggingIndex) return -1;
+        return 0;
+      });
 
     return SizedBox(
       width: w,
@@ -695,8 +740,12 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          ForestColorTheme.mediumseagreen.withValues(alpha: 0.55),
-                          ForestColorTheme.mediumseagreen.withValues(alpha: 0.0),
+                          ForestColorTheme.mediumseagreen.withValues(
+                            alpha: 0.55,
+                          ),
+                          ForestColorTheme.mediumseagreen.withValues(
+                            alpha: 0.0,
+                          ),
                         ],
                       ),
                     ),
@@ -724,13 +773,9 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
         ? (stick.dragPixelPos ?? pileCenter)
         : (stick.placed ? targetCenter : pileCenter);
 
-    final angle = (isDragging || stick.placed) ? angleBase : angleBase + stick.pileAngle;
-
-    // The hit box needs to be big enough to contain the stick at ANY
-    // rotation angle, not just length x thickness. A rotated segment's
-    // bounding box never exceeds a square of side ~length centered on the
-    // same point. Without this, the painted stick pokes outside its thin
-    // unrotated hit box at real angles, and grabbing near the tip misses.
+    final angle = (isDragging || stick.placed)
+        ? angleBase
+        : angleBase + stick.pileAngle;
     final hitBoxSize = length + thickness;
 
     return AnimatedPositioned(
@@ -746,15 +791,16 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
         onPanStart: stick.placed
             ? null
             : (_) {
-          setState(() {
-            _draggingIndex = stick.index;
-            stick.dragPixelPos = pileCenter;
-          });
-        },
+                setState(() {
+                  _draggingIndex = stick.index;
+                  stick.dragPixelPos = pileCenter;
+                });
+              },
         onPanUpdate: (details) {
           if (_draggingIndex != stick.index) return;
           setState(() {
-            stick.dragPixelPos = (stick.dragPixelPos ?? pileCenter) + details.delta;
+            stick.dragPixelPos =
+                (stick.dragPixelPos ?? pileCenter) + details.delta;
           });
         },
         onPanEnd: (_) => _onStickDropped(stick, w, h),
@@ -764,7 +810,9 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
             child: AnimatedBuilder(
               animation: _popCtrls[stick.index],
               builder: (_, child) {
-                final pop = stick.placed ? (1.0 + 0.15 * _popAnims[stick.index].value) : 1.0;
+                final pop = stick.placed
+                    ? (1.0 + 0.15 * _popAnims[stick.index].value)
+                    : 1.0;
                 return Transform.scale(scale: pop, child: child);
               },
               child: SizedBox(
@@ -803,16 +851,12 @@ class _FallenStickLetterBuilderGameState extends State<FallenStickLetterBuilderG
         decoration: BoxDecoration(
           color: const Color(0xFF8B5E34),
           borderRadius: BorderRadius.circular(thickness / 2),
-          border: Border.all(
-            color: const Color(0xFF6B4423),
-            width: 1.5,
-          ),
+          border: Border.all(color: const Color(0xFF6B4423), width: 1.5),
         ),
       ),
     );
   }
 
-  // ── Progress dots ────────────────────────────────────────────────────────
   Widget _buildProgressDots() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

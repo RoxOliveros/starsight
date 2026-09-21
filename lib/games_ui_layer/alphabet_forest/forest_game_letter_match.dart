@@ -2,6 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -14,25 +19,17 @@ import 'forest_audio_helper.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
-// ═════════════════════════════════════════════════════════════════════════
-// MODELS
-// ═════════════════════════════════════════════════════════════════════════
-
 class FlowerTarget {
-  final String letter; // uppercase, e.g. 'J'
-  final Offset pos; // fractional position within the garden area
+  final String letter;
+  final Offset pos;
   bool matched;
 
-  FlowerTarget({
-    required this.letter,
-    required this.pos,
-    this.matched = false,
-  });
+  FlowerTarget({required this.letter, required this.pos, this.matched = false});
 }
 
 class ButterflyOption {
-  final String letter; // lowercase, e.g. 'j'
-  final Offset pos; // fractional resting position within the garden area
+  final String letter;
+  final Offset pos;
   bool matched;
 
   ButterflyOption({
@@ -42,20 +39,13 @@ class ButterflyOption {
   });
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// GAME
-// ═════════════════════════════════════════════════════════════════════════
-
-/// "Butterfly Letter Match" — three flowers each show an uppercase letter;
-/// three butterflies each carry a lowercase letter. The child drags each
-/// butterfly onto the flower it matches. Reinforces uppercase ↔ lowercase
-/// recognition for J/K/L. Not a letter-introduction game.
 class ButterflyLetterMatchGame extends StatefulWidget {
   final int level;
   const ButterflyLetterMatchGame({super.key, required this.level});
 
   @override
-  State<ButterflyLetterMatchGame> createState() => _ButterflyLetterMatchGameState();
+  State<ButterflyLetterMatchGame> createState() =>
+      _ButterflyLetterMatchGameState();
 }
 
 class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
@@ -63,20 +53,29 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
         TickerProviderStateMixin,
         GameLoadingMixin<ButterflyLetterMatchGame>,
         ForestAudioMixin<ButterflyLetterMatchGame>,
-        TofiReactionMixin<ButterflyLetterMatchGame> {
+        TofiReactionMixin<ButterflyLetterMatchGame>,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_garden.png';
-  static const String _butterflyImage = 'assets/images/objects/forest/butterfly.png';
-  static const String _flowerAsset = 'assets/images/objects/forest/flower_not_bloom.png';
-  static const String _flowerBloomAsset = 'assets/images/objects/forest/flower_bloom.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_forest_garden.png';
+  static const String _butterflyImage =
+      'assets/images/objects/forest/butterfly.png';
+  static const String _flowerAsset =
+      'assets/images/objects/forest/flower_not_bloom.png';
+  static const String _flowerBloomAsset =
+      'assets/images/objects/forest/flower_bloom.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
 
   static const String _audioBase = ForestAudioAssets.base;
-  static const String _audioIntro = '$_audioBase/butterfly_letter_match_intro.wav';
-  static const String _audioInstruction = '$_audioBase/butterfly_letter_match_instruction.wav';
+  static const String _audioIntro =
+      '$_audioBase/butterfly_letter_match_intro.wav';
+  static const String _audioInstruction =
+      '$_audioBase/butterfly_letter_match_instruction.wav';
   static const String _audioWin = '$_audioBase/butterfly_letter_match_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -89,7 +88,6 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     Offset(0.70, 0.64),
   ];
 
-  // Pool of bottom slots the butterflies are shuffled across each round.
   static const List<Offset> _butterflySlots = [
     Offset(0.25, 0.15),
     Offset(0.5, 0.15),
@@ -102,33 +100,42 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
   bool _roundCompleted = false;
   int _currentRound = 0;
   int _solvedRounds = 0;
-  int _matchedCount = 0; // matches landed so far *this* round
+  int _matchedCount = 0;
 
-  late final List<FlowerTarget> _flowers; // 3 flowers, fixed for the game
-  late List<ButterflyOption> _butterflies; // this round's 3 butterflies
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
-  String? _wrongButterfly; // lowercase letter of the butterfly currently shaking
+  late final List<FlowerTarget> _flowers;
+  late List<ButterflyOption> _butterflies;
+  String? _wrongButterfly;
 
-  // ── Animations ───────────────────────────────────────────────────────────
-  late AnimationController _tofiFloatCtrl; // dog idle float, intro only
-  late AnimationController _butterflyFloatCtrl; // shared idle float for resting butterflies
+  late AnimationController _tofiFloatCtrl;
+  late AnimationController _butterflyFloatCtrl;
   late AnimationController _instructionCtrl;
   late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
-  late List<AnimationController> _bloomCtrls; // one bloom-pop per flower
+  late List<AnimationController> _bloomCtrls;
   late List<Animation<double>> _bloomAnims;
-  late AnimationController _shakeCtrl; // wrong-answer butterfly shake
+  late AnimationController _shakeCtrl;
   late Animation<double> _shake;
 
-  // ── Init ─────────────────────────────────────────────────────────────────
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _flowers = List.generate(
       _letters.length,
-          (i) => FlowerTarget(letter: _letters[i], pos: _flowerSlots[i]),
+      (i) => FlowerTarget(letter: _letters[i], pos: _flowerSlots[i]),
     );
     _initAnimations();
     _setupRound(playInstruction: false);
@@ -150,21 +157,26 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _bloomCtrls = List.generate(
       _letters.length,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 500),
       ),
@@ -184,10 +196,9 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     ]).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.easeInOut));
   }
 
-  // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -196,11 +207,9 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     if (mounted) await _announceRound();
   }
 
-  /// Plays the round instruction (round 1 only) then reads out each of the
-  /// three target letters in turn.
   Future<void> _announceRound() async {
     if (_currentRound == 0) {
-      await playVoice(_audioInstruction);
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
     }
@@ -209,8 +218,8 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
   void _setupRound({bool playInstruction = true}) {
     _isFinishingRound = false;
     _roundCompleted = false;
-
     _matchedCount = 0;
+
     for (final flower in _flowers) {
       flower.matched = false;
     }
@@ -223,14 +232,13 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
 
     _butterflies = List.generate(
       _letters.length,
-          (i) => ButterflyOption(
+      (i) => ButterflyOption(
         letter: _letters[i].toLowerCase(),
         pos: shuffledSlots[i],
       ),
     );
 
     _wrongButterfly = null;
-
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
@@ -243,14 +251,18 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     setState(() {});
   }
 
-  // ── Drag-and-drop matching ──────────────────────────────────────────────
-  Future<void> _onButterflyDropped(ButterflyOption butterfly, FlowerTarget flower) async {
+  Future<void> _onButterflyDropped(
+    ButterflyOption butterfly,
+    FlowerTarget flower,
+  ) async {
     if (_roundCompleted) return;
     if (butterfly.matched || flower.matched) return;
 
-    final isMatch = butterfly.letter.toUpperCase() == flower.letter.toUpperCase();
+    final isMatch =
+        butterfly.letter.toUpperCase() == flower.letter.toUpperCase();
 
     if (isMatch) {
+      _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       setState(() {
         butterfly.matched = true;
@@ -259,8 +271,10 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
       });
 
       _bloomCtrls[_flowers.indexOf(flower)].forward(from: 0);
-
-      await playVoice(ForestAudioAssets.forLetter(flower.letter));
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(flower.letter),
+      );
 
       await showTofiReaction(TofiState.correct);
       if (!mounted) return;
@@ -270,6 +284,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
         await _advanceRound();
       }
     } else {
+      _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
       setState(() => _wrongButterfly = butterfly.letter);
       _shakeCtrl.forward(from: 0);
@@ -287,14 +302,12 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
 
     if (_solvedRounds >= _totalRounds) {
       await playVoice(_audioWin);
-
       if (!mounted) return;
 
       await ForestProgressService.instance.markLevelComplete(widget.level);
-
       if (!mounted) return;
 
-      _showGoodJob();
+      await _saveDataAndShowGoodJob();
       return;
     }
 
@@ -302,6 +315,28 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     _setupRound();
 
     _isFinishingRound = false;
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_butterfly_match',
+        activityName: 'Butterfly Letter Match',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (!mounted) return;
+    _showGoodJob();
   }
 
   void _showGoodJob() {
@@ -314,7 +349,6 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
@@ -342,6 +376,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _tofiFloatCtrl.dispose();
     _butterflyFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -353,7 +388,6 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     super.dispose();
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -363,25 +397,31 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
             if (!_introPlaying) buildTofi(context),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
     );
   }
 
-  // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
 
     return Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(_bgImage, fit: BoxFit.cover),
-        ),
-
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         const Positioned(top: 25, left: 25, child: ForestXButton()),
-        Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -392,7 +432,10 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
                   offset: Offset(
                     0,
                     Tween<double>(begin: -6, end: 6).evaluate(
-                      CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
+                      CurvedAnimation(
+                        parent: _tofiFloatCtrl,
+                        curve: Curves.easeInOut,
+                      ),
                     ),
                   ),
                   child: child,
@@ -400,18 +443,21 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
                 child: Image.asset(
                   _dogImage,
                   height: screenH * 0.72,
-                  errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 80)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐶', style: TextStyle(fontSize: 80)),
                 ),
               ),
               Image.asset(
                 _butterflyImage,
                 height: screenH * 0.4,
-                errorBuilder: (_, __, ___) => const Text('🦋', style: TextStyle(fontSize: 80)),
+                errorBuilder: (_, __, ___) =>
+                    const Text('🦋', style: TextStyle(fontSize: 80)),
               ),
               Image.asset(
                 _flowerBloomAsset,
                 height: screenH * 0.4,
-                errorBuilder: (_, __, ___) => const Text('🦋', style: TextStyle(fontSize: 80)),
+                errorBuilder: (_, __, ___) =>
+                    const Text('🌸', style: TextStyle(fontSize: 80)),
               ),
             ],
           ),
@@ -420,13 +466,10 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     );
   }
 
-  // ── Main game layout ─────────────────────────────────────────────────────
   Widget _buildGameContent() {
     return Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(_bgImage, fit: BoxFit.cover),
-        ),
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         _buildGameUI(),
       ],
     );
@@ -440,8 +483,11 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
           child: Stack(
             children: [
               const Positioned(top: 25, left: 25, child: ForestXButton()),
-              Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-
+              Positioned(
+                top: 25,
+                right: 20,
+                child: ForestLevelBadge(level: widget.level),
+              ),
               Padding(
                 padding: const EdgeInsets.only(top: 90),
                 child: Column(
@@ -466,15 +512,16 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     );
   }
 
-  // ── Garden ───────────────────────────────────────────────────────────────
   Widget _buildGardenArea(double w, double h) {
     return SizedBox(
       width: w,
       height: h,
       child: Stack(
         children: [
-          for (int i = 0; i < _flowers.length; i++) _buildFlower(_flowers[i], i, w, h),
-          for (final butterfly in _butterflies) _buildButterfly(butterfly, w, h),
+          for (int i = 0; i < _flowers.length; i++)
+            _buildFlower(_flowers[i], i, w, h),
+          for (final butterfly in _butterflies)
+            _buildButterfly(butterfly, w, h),
         ],
       ),
     );
@@ -497,7 +544,10 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
           return AnimatedBuilder(
             animation: _bloomCtrls[index],
             builder: (_, child) {
-              final scale = (flower.matched ? (1.0 + 0.25 * _bloomAnims[index].value) : 1.0) *
+              final scale =
+                  (flower.matched
+                      ? (1.0 + 0.25 * _bloomAnims[index].value)
+                      : 1.0) *
                   (isHovering ? 1.06 : 1.0);
               return Transform.scale(scale: scale, child: child);
             },
@@ -532,13 +582,11 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
   Widget _buildButterfly(ButterflyOption butterfly, double w, double h) {
     final size = (h * 0.35);
     final wrong = _wrongButterfly == butterfly.letter;
-    final phase = butterfly.pos.dx * 6.28; // stagger idle float per butterfly
+    final phase = butterfly.pos.dx * 6.28;
 
-    // Once matched, the butterfly stays pinned on its flower and is no
-    // longer draggable.
     if (butterfly.matched) {
       final flower = _flowers.firstWhere(
-            (f) => f.letter.toLowerCase() == butterfly.letter,
+        (f) => f.letter.toLowerCase() == butterfly.letter,
       );
       final pinnedSize = size * 1.1;
       return Positioned(
@@ -546,11 +594,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
         bottom: flower.pos.dy * h - pinnedSize / 2 + h * 0.01,
         width: pinnedSize,
         height: pinnedSize,
-        child: _butterflyVisual(
-          butterfly.letter,
-          pinnedSize,
-          wrong: false,
-        ),
+        child: _butterflyVisual(butterfly.letter, pinnedSize, wrong: false),
       );
     }
 
@@ -593,23 +637,28 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
           _butterflyImage,
           width: size,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Text('🦋', style: TextStyle(fontSize: size * 0.6)),
+          errorBuilder: (_, __, ___) =>
+              Text('🦋', style: TextStyle(fontSize: size * 0.6)),
         ),
         Positioned(
           bottom: size * 0.14,
           child: _outlinedLetter(
             letter,
             fontSize: size * 0.26,
-            fillColor: wrong ? Colors.red.shade400 : ForestColorTheme.darkseagreen,
+            fillColor: wrong
+                ? Colors.red.shade400
+                : ForestColorTheme.darkseagreen,
           ),
         ),
       ],
     );
   }
 
-  /// Letter rendered with a white outline behind a solid fill, so it reads
-  /// clearly against any flower/butterfly artwork underneath.
-  Widget _outlinedLetter(String letter, {required double fontSize, required Color fillColor}) {
+  Widget _outlinedLetter(
+    String letter, {
+    required double fontSize,
+    required Color fillColor,
+  }) {
     return Stack(
       children: [
         Text(
@@ -637,7 +686,6 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     );
   }
 
-  // ── Progress dots ────────────────────────────────────────────────────────
   Widget _buildProgressDots() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

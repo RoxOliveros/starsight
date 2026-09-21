@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
+import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
@@ -50,6 +52,11 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   StreamSubscription<int>? _progressSub;
   final DateTime _loadStart = DateTime.now();
 
+  // Remembered for the whole app session (per account), not per screen: the
+  // forest games call pushReplacement(ForestLevelScreen()) when leaving, which
+  // builds a brand-new instance of this screen every time.
+  static String? _calibratedSessionId;
+
   @override
   void initState() {
     super.initState();
@@ -59,8 +66,8 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
 
   void _listenToProgress() {
     _progressSub = ForestProgressService.instance.streamUnlockedLevel().listen((
-        level,
-        ) async {
+      level,
+    ) async {
       if (!mounted) return;
 
       final elapsed = DateTime.now().difference(_loadStart);
@@ -86,6 +93,25 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   }
 
   Future<void> _openLevel(Widget screen) async {
+    // Calibrate the camera once, before the first level of the session.
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    if (_calibratedSessionId != uid) {
+      _calibratedSessionId = uid;
+      await Navigator.push(
+        context,
+
+        PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              CalibrationScreen(
+                childSessionId: uid,
+                onCalibrationDone: () => Navigator.pop(context),
+              ),
+        ),
+      );
+      if (!mounted) return;
+    }
+
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
@@ -105,10 +131,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
     Widget buildSlot(int index) {
       if (index >= levels.length) {
         // Empty slot so positioning stays consistent.
-        return SizedBox(
-          width: tileSize,
-          height: tileSize,
-        );
+        return SizedBox(width: tileSize, height: tileSize);
       }
 
       return _LevelTile(
@@ -122,24 +145,14 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
     return [
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          buildSlot(0),
-          buildSlot(1),
-          buildSlot(2),
-          buildSlot(3),
-        ],
+        children: [buildSlot(0), buildSlot(1), buildSlot(2), buildSlot(3)],
       ),
 
       const SizedBox(height: 16),
 
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          buildSlot(4),
-          buildSlot(5),
-          buildSlot(6),
-          buildSlot(7),
-        ],
+        children: [buildSlot(4), buildSlot(5), buildSlot(6), buildSlot(7)],
       ),
     ];
   }
@@ -147,9 +160,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoadingProgress) {
-      return Scaffold(
-        body: LoadingScreen.alphabetForest(),
-      );
+      return Scaffold(body: LoadingScreen.alphabetForest());
     }
 
     return Scaffold(
@@ -328,75 +339,75 @@ class _LevelTile extends StatelessWidget {
 
   Widget? _screenForLevel() {
     switch (level) {
-        // abc intro
+      // abc intro
       case 1:
         return const AlphabetIntroScreen(letter: 'A');
 
-        // abc games
+      // abc games
       case 2:
         return const ForestMailDeliveryGame(level: 2);
 
-        // def intro
+      // def intro
       case 3:
         return const AlphabetIntroScreen(letter: 'D');
 
-        // def games
+      // def games
       case 4:
         return AcornBasketGame(level: 4);
 
-        // ghi intro
+      // ghi intro
       case 5:
         return const AlphabetIntroScreen(letter: 'G');
 
-        // ghi games
+      // ghi games
       case 6:
         return const ButterflyFlowerGardenGame(level: 6);
 
-        // jkl intro
+      // jkl intro
       case 7:
         return const AlphabetIntroScreen(letter: 'J');
 
-        // jkl games
+      // jkl games
       case 8:
         return const ButterflyLetterMatchGame(level: 8);
 
-        // mno intro
+      // mno intro
       case 9:
         return const AlphabetIntroScreen(letter: 'M');
 
-        // mno games
+      // mno games
       case 10:
         return const MushroomHideAndSeekGame(level: 10);
 
-        // pqr intro
+      // pqr intro
       case 11:
         return const AlphabetIntroScreen(letter: 'P');
 
-        // pqr games
+      // pqr games
       case 12:
         return const BerryBushHarvestGame(level: 12);
 
-        // stu intro
+      // stu intro
       case 13:
         return const AlphabetIntroScreen(letter: 'S');
 
-        // stu games
+      // stu games
       case 14:
         return const FollowThePawPrintsGame(level: 14);
 
-        // vwx intro
+      // vwx intro
       case 15:
         return const AlphabetIntroScreen(letter: 'V');
 
-        // vwx games
+      // vwx games
       case 16:
         return const FallenStickLetterBuilderGame(level: 16);
 
-        // yz intro
+      // yz intro
       case 17:
         return const AlphabetIntroScreen(letter: 'Y');
 
-        // yz games
+      // yz games
       case 18:
         return const YakZebraRaceGame(level: 18);
 

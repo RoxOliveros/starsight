@@ -16,6 +16,7 @@ import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AcornBasketGame extends StatefulWidget {
   final int level;
@@ -88,13 +89,23 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
   final List<String> _basketAcorns = [];
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
 
+    // child's calibration separate from everyone else's.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera(); // <-- Start the camera
     _tapTracker.startSession(); // <-- Start the timer
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _basketPulseController = AnimationController(
       vsync: this,
@@ -134,25 +145,20 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
     _basketAcorns.clear();
 
-    finishLoading(() {
-      if (isFaceDetected) {
-        onFirstFaceDetected?.call();
-        onFirstFaceDetected = null;
-      }
-    });
     _loadRound();
 
-    _startIntroFlow();
-
-    // onFirstFaceDetected = () {
-    //   _startIntroFlow();
-    // };
+    // Starts once loading is done (not behind the loading screen) and never
+    // waits for a face.
+    finishLoading(_startIntroFlow);
   }
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
 
-    await playVoice('assets/audio/alphabet_forest/acorn_intro.wav');
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      'assets/audio/alphabet_forest/acorn_intro.wav',
+    );
 
     if (!mounted) return;
 
@@ -165,13 +171,19 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
     if (!mounted) return;
 
-    await playVoice('assets/audio/alphabet_forest/acorn_instruction.wav');
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      'assets/audio/alphabet_forest/acorn_instruction.wav',
+    );
 
     if (!mounted) return;
 
     await Future.delayed(const Duration(milliseconds: 150));
 
-    playVoice(ForestAudioAssets.forLetter(_targetLetter));
+    playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      ForestAudioAssets.forLetter(_targetLetter),
+    );
   }
 
   String _pickLetterForLane() {
@@ -287,7 +299,10 @@ class _AcornBasketGameState extends State<AcornBasketGame>
           await Future.delayed(const Duration(milliseconds: 200));
 
           if (mounted) {
-            playVoice(ForestAudioAssets.forLetter(_targetLetter));
+            playVoiceRestartingOnFaceLoss(
+              audio.voicePlayer,
+              ForestAudioAssets.forLetter(_targetLetter),
+            );
           }
         });
       }
@@ -324,6 +339,8 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
     // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
@@ -391,15 +408,11 @@ class _AcornBasketGameState extends State<AcornBasketGame>
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
 
-            if (hasCapturedFirstFrame && !isFaceDetected)
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {
-                  setState(() {
-                    isFaceDetected = true;
-                  });
-                  // Manually trigger the start if they tap X
-                  onFirstFaceDetected?.call();
-                  onFirstFaceDetected = null;
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate(); // don't leave the tutorial audio waiting
                 },
               ),
           ],

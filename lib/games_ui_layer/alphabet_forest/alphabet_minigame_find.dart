@@ -25,6 +25,7 @@ import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetFindScreen extends StatefulWidget {
   final String letter;
@@ -66,13 +67,25 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   bool _isPlayingJarSequence = false;
 
+  // The lighting card is dismissible and only appears after the face is
+  // lost. It never delays the game start.
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
+    // child's calibration separate from everyone else's.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
     _wiggleCtrl = AnimationController(
       // ADD
       vsync: this,
@@ -87,14 +100,6 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     _loadRound();
 
     _playInstructionThenVaseSounds();
-
-    // onFirstFaceDetected = () {
-    //   _playInstructionThenVaseSounds();
-    // };
-    // if (isFaceDetected) {
-    //   onFirstFaceDetected?.call();
-    //   onFirstFaceDetected = null;
-    // }
   }
 
   void _loadRound() {
@@ -145,14 +150,13 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   }
 
   Future<void> _playInstructionThenVaseSounds() async {
-    try {
-      await _player.play(AssetSource(_findInstructionWav));
-      await _player.onPlayerComplete.first;
-    } catch (e) {
-      // Catch the StateError if the player is disposed early
-      debugPrint("Instruction playback interrupted: $e");
-    }
-
+    // Tutorial audio: stops if the child leaves the frame and plays again
+    // from the start when they're back (or the card is dismissed).
+    await playVoiceRestartingOnFaceLoss(
+      _player,
+      _findInstructionWav,
+      timeout: const Duration(seconds: 30),
+    );
     if (!mounted) return;
     await _playVaseSounds();
   }
@@ -186,24 +190,12 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   Future<void> _playLetterSound(String letter) async {
     final String lower = letter.toLowerCase();
-    StreamSubscription? sub; // ADD
-    try {
-      final completer = Completer<void>(); // ADD
-      sub = _promptPlayer.onPlayerComplete.listen((_) {
-        // ADD
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _promptPlayer.play(
-        AssetSource('audio/alphabet_forest/sound_effects/sound_$lower.wav'),
-      );
-      await completer.future.timeout(
-        const Duration(seconds: 5),
-      ); // ADD — actually waits for playback to finish
-    } catch (e) {
-      debugPrint("Error playing sound for $lower: $e");
-    } finally {
-      await sub?.cancel(); // ADD
-    }
+    // Same face-aware playback: each vase sound replays if the child looked away.
+    await playVoiceRestartingOnFaceLoss(
+      _promptPlayer,
+      'audio/alphabet_forest/sound_effects/sound_$lower.wav',
+      timeout: const Duration(seconds: 5),
+    );
   }
 
   Future<void> _onVaseTapped(int index) async {
@@ -269,14 +261,16 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   }
 
   Future<void> _saveDataAndShowApplause() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
     // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
     // 2. Save raw data silently
     try {
       await ForestDatabaseService.saveGameData(
-        gameId: 'letter_fall_${widget.letter.toLowerCase()}',
-        activityName: "Alphabet Fall (${widget.letter.toUpperCase()})",
+        gameId: 'letter_find_${widget.letter.toLowerCase()}',
+        activityName: "Alphabet Find (${widget.letter.toUpperCase()})",
         emotions: finalEmotions,
         totalTaps: _tapTracker.totalTaps,
         mistakes: _tapTracker.mistakeCount,
@@ -354,8 +348,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      const ForestMailDeliveryGame(level: 2),
+                  builder: (context) => const ForestMailDeliveryGame(level: 2),
                 ),
               );
             } else if (currentLetter == 'F') {
@@ -424,10 +417,12 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
           },
           onRestart: () {
             Navigator.pop(context);
-            setState(() {
-              _completedRounds = 0;
-              _loadRound();
-            });
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AlphabetFindScreen(letter: widget.letter),
+              ),
+            );
           },
           onBack: () {
             Navigator.pop(context);
@@ -549,15 +544,11 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
             ),
           ),
 
-          if (hasCapturedFirstFrame && !isFaceDetected)
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
-                setState(() {
-                  isFaceDetected = true;
-                });
-                // Manually trigger the start if they tap X
-                onFirstFaceDetected?.call();
-                onFirstFaceDetected = null;
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate(); // don't leave the tutorial audio waiting
               },
             ),
         ],

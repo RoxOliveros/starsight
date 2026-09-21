@@ -2,6 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -9,21 +14,19 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import 'alphabet_game_ui.dart';
-import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
 import 'forest_game_fishing.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
-
 class Firefly {
   final String letter;
   final bool isTarget;
-  final Offset anchor; // fractional position within the play area
+  final Offset anchor;
   final double ampX;
   final double ampY;
   final double phase;
-  bool popped; // true once correctly tapped and bursting/gone
+  bool popped;
 
   Firefly({
     required this.letter,
@@ -36,12 +39,10 @@ class Firefly {
   });
 }
 
-/// Per-round difficulty knobs: how many fireflies, how fast they float,
-/// and how big they are. See the class doc for the full 5-round curve.
 class _RoundConfig {
   final int fireflyCount;
-  final int moveDurationMs; // lower = faster float cycle
-  final double sizeFactor; // fraction of play-area height
+  final int moveDurationMs;
+  final double sizeFactor;
 
   const _RoundConfig({
     required this.fireflyCount,
@@ -50,21 +51,40 @@ class _RoundConfig {
   });
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// GAME
-// ═════════════════════════════════════════════════════════════════════════
-
 class LetterFirefliesGame extends StatefulWidget {
   final int level;
-
   final List<String> letterPool;
 
   const LetterFirefliesGame({
     super.key,
     required this.level,
     this.letterPool = const [
-      'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-      'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+      'A',
+      'B',
+      'C',
+      'D',
+      'E',
+      'F',
+      'G',
+      'H',
+      'I',
+      'J',
+      'K',
+      'L',
+      'M',
+      'N',
+      'O',
+      'P',
+      'Q',
+      'R',
+      'S',
+      'T',
+      'U',
+      'V',
+      'W',
+      'X',
+      'Y',
+      'Z',
     ],
   });
 
@@ -77,19 +97,23 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
         TickerProviderStateMixin,
         GameLoadingMixin<LetterFirefliesGame>,
         ForestAudioMixin<LetterFirefliesGame>,
-        TofiReactionMixin<LetterFirefliesGame> {
+        TofiReactionMixin<LetterFirefliesGame>,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _fireflyImage = 'assets/images/objects/forest/firefly.png';
+  static const String _fireflyImage =
+      'assets/images/objects/forest/firefly.png';
 
   static const String _audioBase = ForestAudioAssets.base;
-
   static const String _audioIntro = '$_audioBase/letter_fireflies_intro.wav';
-  static const String _audioFindPrefix = '$_audioBase/letter_fireflies_find_prefix.wav';
+  static const String _audioFindPrefix =
+      '$_audioBase/letter_fireflies_find_prefix.wav';
   static const String _audioWin = '$_audioBase/letter_fireflies_win.wav';
 
   // ── Round structure ──────────────────────────────────────────────────────
@@ -112,34 +136,40 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   String _targetLetter = 'A';
 
   late List<Firefly> _fireflies;
-  int? _wrongFireflyIndex; // index currently shaking
-  bool _interactionLocked = false; // true right after a correct tap
+  int? _wrongFireflyIndex;
+  bool _interactionLocked = false;
   bool _roundCelebrating = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // ── Animations ───────────────────────────────────────────────────────────
-  late AnimationController _tofiFloatCtrl; // dog idle float, intro only
-  late AnimationController _floatCtrl; // shared drifting/bobbing clock for all fireflies
-  late AnimationController _targetPulseCtrl; // target-letter glow pulse
+  late AnimationController _tofiFloatCtrl;
+  late AnimationController _floatCtrl;
+  late AnimationController _targetPulseCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
 
-  // Fixed-size pools reused across rounds by index (max firefly count is 6).
   static const int _maxFireflies = 6;
   late List<AnimationController> _shakeCtrls;
   late List<Animation<double>> _shakeAnims;
   late List<AnimationController> _burstCtrls;
-  late AnimationController _roundCompleteCtrl; // remaining-fireflies glow/wiggle
-
-  // ═════════════════════════════════════════════════════════════════════
-  // INITIALIZATION
-  // ═════════════════════════════════════════════════════════════════════
+  late AnimationController _roundCompleteCtrl;
 
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     _setupRound(playInstruction: false);
     finishLoading(_startIntroFlow);
@@ -165,17 +195,15 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _shakeCtrls = List.generate(
       _maxFireflies,
@@ -208,13 +236,9 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // AUDIO
-  // ═════════════════════════════════════════════════════════════════════
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -224,23 +248,22 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   }
 
   Future<void> _announceTarget() async {
-    await playVoice(_audioFindPrefix);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioFindPrefix);
     if (!mounted) return;
-    await playVoice(ForestAudioAssets.forLetter(_targetLetter));
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      ForestAudioAssets.forLetter(_targetLetter),
+    );
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // ROUND SETUP
-  // ═════════════════════════════════════════════════════════════════════
 
   void _setupRound({bool playInstruction = true}) {
     final config = _roundConfigs[_currentRound];
     final rng = Random();
 
-    // Pick a target, then unique distractors from the rest of the pool.
     _targetLetter = widget.letterPool[rng.nextInt(widget.letterPool.length)];
-    final distractorPool = widget.letterPool.where((l) => l != _targetLetter).toList()
-      ..shuffle(rng);
+    final distractorPool =
+        widget.letterPool.where((l) => l != _targetLetter).toList()
+          ..shuffle(rng);
     final distractorCount = min(config.fireflyCount - 1, distractorPool.length);
     final distractors = distractorPool.take(distractorCount).toList();
 
@@ -270,7 +293,6 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     }
     _roundCompleteCtrl.reset();
 
-    // Re-tune the shared float clock's speed for this round's difficulty.
     _floatCtrl
       ..duration = Duration(milliseconds: config.moveDurationMs)
       ..repeat();
@@ -290,11 +312,8 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   List<Offset> _generateAnchors(int count, Random rng) {
     final anchors = <Offset>[];
 
-    // Keep fireflies away from the edges.
-    // Increase minX if you want them farther from the left.
     const double minX = 0.30;
     const double maxX = 0.88;
-
     const double minY = 0.12;
     const double maxY = 0.82;
 
@@ -310,7 +329,7 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
         );
 
         final farEnough = anchors.every(
-              (a) => (a - candidate).distance >= minDist,
+          (a) => (a - candidate).distance >= minDist,
         );
 
         if (farEnough) {
@@ -324,10 +343,6 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     return anchors;
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // GAMEPLAY
-  // ═════════════════════════════════════════════════════════════════════
-
   Future<void> _handleFireflyTap(Firefly firefly, int index) async {
     if (_interactionLocked || firefly.popped || _roundCelebrating) return;
 
@@ -339,7 +354,8 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   }
 
   Future<void> _handleCorrectAnswer(Firefly firefly, int index) async {
-    _interactionLocked = true; // block further taps immediately
+    _tapTracker.recordCorrectTap();
+    _interactionLocked = true;
     HapticFeedback.mediumImpact();
 
     setState(() => firefly.popped = true);
@@ -356,6 +372,7 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   }
 
   Future<void> _handleWrongAnswer(Firefly firefly, int index) async {
+    _tapTracker.recordMistake();
     HapticFeedback.heavyImpact();
     setState(() => _wrongFireflyIndex = index);
     _shakeCtrls[index].forward(from: 0);
@@ -365,16 +382,10 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     setState(() => _wrongFireflyIndex = null);
   }
 
-  /// The remaining (non-target) fireflies give a friendly glow/wiggle
-  /// together before the scene clears for the next round.
   Future<void> _celebrateRoundComplete() async {
     setState(() => _roundCelebrating = true);
     await _roundCompleteCtrl.forward(from: 0);
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // PROGRESSION
-  // ═════════════════════════════════════════════════════════════════════
 
   Future<void> _advanceRound() async {
     await Future.delayed(const Duration(milliseconds: 400));
@@ -387,12 +398,34 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
       await ForestProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
 
-      _showGoodJob();
+      await _saveDataAndShowGoodJob();
       return;
     }
 
     _currentRound++;
     _setupRound();
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_letter_fireflies',
+        activityName: 'Letter Fireflies',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (!mounted) return;
+    _showGoodJob();
   }
 
   void _showGoodJob() {
@@ -405,13 +438,11 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          
+
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => AlphabetFishingGame(level: 22),
-              ),
+              MaterialPageRoute(builder: (_) => AlphabetFishingGame(level: 22)),
             );
           },
           onRestart: () {
@@ -434,12 +465,9 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // DISPOSE
-  // ═════════════════════════════════════════════════════════════════════
-
   @override
   void dispose() {
+    disposeAiCamera();
     _tofiFloatCtrl.dispose();
     _floatCtrl.dispose();
     _targetPulseCtrl.dispose();
@@ -455,10 +483,6 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     super.dispose();
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // UI
-  // ═════════════════════════════════════════════════════════════════════
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -468,13 +492,19 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
             if (!_introPlaying) buildTofi(context),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
     );
   }
 
-  // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
 
@@ -483,16 +513,23 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
         Positioned.fill(
           child: Stack(
             children: [
-              Image.asset(_bgImage, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
-              // Subtle night tint so the forest reads as evening without
-              // needing a whole new background art asset.
+              Image.asset(
+                _bgImage,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
               Container(color: Colors.indigo.withValues(alpha: 0.18)),
             ],
           ),
         ),
 
         const Positioned(top: 25, left: 25, child: ForestXButton()),
-        Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(level: widget.level),
+        ),
 
         Center(
           child: Row(
@@ -504,7 +541,10 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
                   offset: Offset(
                     0,
                     Tween<double>(begin: -6, end: 6).evaluate(
-                      CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
+                      CurvedAnimation(
+                        parent: _tofiFloatCtrl,
+                        curve: Curves.easeInOut,
+                      ),
                     ),
                   ),
                   child: child,
@@ -512,7 +552,8 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
                 child: Image.asset(
                   _dogImage,
                   height: screenH * 0.72,
-                  errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 80)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐶', style: TextStyle(fontSize: 80)),
                 ),
               ),
               const SizedBox(width: 120),
@@ -524,14 +565,18 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     );
   }
 
-  // ── Main game layout ─────────────────────────────────────────────────────
   Widget _buildGameContent() {
     return Stack(
       children: [
         Positioned.fill(
           child: Stack(
             children: [
-              Image.asset(_bgImage, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+              Image.asset(
+                _bgImage,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
               Container(color: Colors.indigo.withValues(alpha: 0.18)),
             ],
           ),
@@ -549,7 +594,11 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
           child: Stack(
             children: [
               const Positioned(top: 25, left: 25, child: ForestXButton()),
-              Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+              Positioned(
+                top: 25,
+                right: 20,
+                child: ForestLevelBadge(level: widget.level),
+              ),
 
               Padding(
                 padding: const EdgeInsets.only(top: 95),
@@ -581,26 +630,20 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
       height: h,
       child: Stack(
         children: [
-          for (int i = 0; i < _fireflies.length; i++) _buildFirefly(_fireflies[i], i, w, h),
+          for (int i = 0; i < _fireflies.length; i++)
+            _buildFirefly(_fireflies[i], i, w, h),
         ],
       ),
     );
   }
 
-  Widget _buildFirefly(
-      Firefly firefly,
-      int index,
-      double w,
-      double h,
-      ) {
+  Widget _buildFirefly(Firefly firefly, int index, double w, double h) {
     if (firefly.popped) {
       return _buildBurst(firefly, index, w, h);
     }
 
     final config = _roundConfigs[_currentRound];
-
     final size = h * config.sizeFactor;
-
     final isWrong = _wrongFireflyIndex == index;
 
     return AnimatedBuilder(
@@ -612,45 +655,22 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
       builder: (_, child) {
         final t = _floatCtrl.value * 2 * pi;
 
-        // Controlled movement
-        final floatX =
-            sin(t + firefly.phase) * firefly.ampX * w;
-
-        final floatY =
-            cos(t * 1.3 + firefly.phase) * firefly.ampY * h;
-
+        final floatX = sin(t + firefly.phase) * firefly.ampX * w;
+        final floatY = cos(t * 1.3 + firefly.phase) * firefly.ampY * h;
         final celebrateBounce = _roundCelebrating
             ? sin(_roundCompleteCtrl.value * pi * 4) * 4
             : 0.0;
-
-        final angle =
-        isWrong ? _shakeAnims[index].value : 0.0;
-
+        final angle = isWrong ? _shakeAnims[index].value : 0.0;
         final glowBoost = _roundCelebrating
             ? 0.5 + (0.5 * _roundCompleteCtrl.value)
             : 1.0;
 
-        // Calculate position
-        final rawLeft =
-            firefly.anchor.dx * w -
-                size / 2 +
-                floatX;
-
+        final rawLeft = firefly.anchor.dx * w - size / 2 + floatX;
         final rawTop =
-            firefly.anchor.dy * h -
-                size / 2 +
-                floatY +
-                celebrateBounce;
+            firefly.anchor.dy * h - size / 2 + floatY + celebrateBounce;
 
-        final safeLeft = rawLeft.clamp(
-          0.0,
-          w - size,
-        ).toDouble();
-
-        final safeTop = rawTop.clamp(
-          0.0,
-          h - size,
-        ).toDouble();
+        final safeLeft = rawLeft.clamp(0.0, w - size).toDouble();
+        final safeTop = rawTop.clamp(0.0, h - size).toDouble();
 
         return Positioned(
           left: safeLeft,
@@ -659,31 +679,21 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
           height: size,
           child: Transform.rotate(
             angle: angle,
-            child: Opacity(
-              opacity: glowBoost,
-              child: child,
-            ),
+            child: Opacity(opacity: glowBoost, child: child),
           ),
         );
       },
-
       child: GestureDetector(
-        onTap: () => _handleFireflyTap(
-          firefly,
-          index,
-        ),
-        child: _fireflyVisual(
-          firefly.letter,
-          size,
-          wrong: isWrong,
-        ),
+        onTap: () => _handleFireflyTap(firefly, index),
+        child: _fireflyVisual(firefly.letter, size, wrong: isWrong),
       ),
     );
   }
 
   Widget _fireflyVisual(String letter, double size, {required bool wrong}) {
-    final letterColor =
-    wrong ? Colors.red.shade400 : ForestColorTheme.darkseagreen;
+    final letterColor = wrong
+        ? Colors.red.shade400
+        : ForestColorTheme.darkseagreen;
 
     return SizedBox(
       width: size,
@@ -691,7 +701,6 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Firefly image
           Positioned.fill(
             child: Image.asset(
               _fireflyImage,
@@ -699,8 +708,6 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
               errorBuilder: (_, __, ___) => const SizedBox(),
             ),
           ),
-
-          // Letter placed on the bulb at the lower-right
           Positioned(
             right: size * 0.16,
             bottom: size * 0.08,
@@ -710,8 +717,6 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
               fillColor: letterColor,
             ),
           ),
-
-          // Optional red glow when the wrong firefly is tapped
           if (wrong)
             Positioned.fill(
               child: Container(
@@ -732,8 +737,6 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     );
   }
 
-  /// Scale-up → glow → burst → fade, played once when a firefly is
-  /// correctly tapped, then it's gone.
   Widget _buildBurst(Firefly firefly, int index, double w, double h) {
     final config = _roundConfigs[_currentRound];
     final size = (h * config.sizeFactor).clamp(48.0, 110.0);
@@ -742,7 +745,6 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
       animation: _burstCtrls[index],
       builder: (_, __) {
         final t = _burstCtrls[index].value;
-        // 0 → 0.3 scale up, 0.3 → 1.0 burst outward + fade.
         final growT = (t / 0.3).clamp(0.0, 1.0);
         final burstT = ((t - 0.3) / 0.7).clamp(0.0, 1.0);
         final coreScale = 1.0 + Curves.easeOut.transform(growT) * 0.4;
@@ -769,7 +771,11 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
                   ),
                 Transform.scale(
                   scale: coreScale,
-                  child: _fireflyVisual(firefly.letter, size * 0.8, wrong: false),
+                  child: _fireflyVisual(
+                    firefly.letter,
+                    size * 0.8,
+                    wrong: false,
+                  ),
                 ),
               ],
             ),
@@ -779,9 +785,11 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     );
   }
 
-  /// Letter rendered with a white outline behind a solid fill, so it reads
-  /// clearly against the glow underneath.
-  Widget _outlinedLetter(String letter, {required double fontSize, required Color fillColor}) {
+  Widget _outlinedLetter(
+    String letter, {
+    required double fontSize,
+    required Color fillColor,
+  }) {
     return Stack(
       children: [
         Text(
@@ -809,7 +817,6 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     );
   }
 
-  // ── Progress dots ────────────────────────────────────────────────────────
   Widget _buildProgressDots() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -826,8 +833,8 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
             color: done
                 ? ForestColorTheme.mediumseagreen
                 : current
-                    ? ForestColorTheme.seagreen
-                    : ForestColorTheme.seagreen.withValues(alpha: 0.35),
+                ? ForestColorTheme.seagreen
+                : ForestColorTheme.seagreen.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(6),
           ),
         );

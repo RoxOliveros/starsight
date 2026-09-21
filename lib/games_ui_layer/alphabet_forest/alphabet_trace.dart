@@ -17,6 +17,7 @@ import 'alphabet_minigame_fall.dart';
 import 'alphabet_minigame_find.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class TraceLevel {
   final String letterName;
@@ -76,12 +77,23 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     return _miniGameQueue[_miniGameIndex++];
   }
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    // child's calibration separate from everyone else's.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera(); // <-- Start the camera
     _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
     if (_miniGameQueue.isEmpty) {
       _miniGameQueue = List.generate(5, (i) => i);
       _miniGameQueue.shuffle(_random);
@@ -94,13 +106,17 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   }
 
   Future<void> _playInstructionThenLetter() async {
-    await _player.play(AssetSource(_traceInstructionWav));
-    await _player.onPlayerComplete.first;
+    // Tutorial audio: stops if the child leaves the frame and plays again
+    // from the start when they're back (or the card is dismissed).
+    await playVoiceRestartingOnFaceLoss(
+      _player,
+      _traceInstructionWav,
+      timeout: const Duration(seconds: 30),
+    );
     if (!mounted) return;
-    await _player.play(
-      AssetSource(
-        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-      ),
+    await playVoiceRestartingOnFaceLoss(
+      _player,
+      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
     );
   }
 
@@ -1059,6 +1075,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     }
 
     // --- 1. STOP CAMERA AND SAVE DATA ---
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
     try {
@@ -1169,12 +1187,11 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
           ),
 
           // 2. The Lighting Prompt Card (Valid here because it's inside the outer Stack's children list)
-          if (hasCapturedFirstFrame && !isFaceDetected)
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
-                setState(() {
-                  isFaceDetected = true;
-                });
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate(); // don't leave the tutorial audio waiting
               },
             ),
         ],
