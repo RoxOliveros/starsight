@@ -23,6 +23,7 @@ import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetHuntScreen extends StatefulWidget {
   final String letter;
@@ -51,15 +52,28 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
-  static const String _huntInstructionWav = 'audio/alphabet_forest/alphabet_minigame_hunt_instruction.wav';
+  static const String _huntInstructionWav =
+      'audio/alphabet_forest/alphabet_minigame_hunt_instruction.wav';
+
+  // The lighting card is dismissible and only appears after the face is
+  // lost. It never delays the game start.
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
+    // child's calibration separate from everyone else's.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     // 1. Figure out which 3-letter group we are hunting in
     _letterPool = _getPoolForLetter(widget.letter);
@@ -218,23 +232,30 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   }
 
   Future<void> _playInstructionThenLetter() async {
-    await _audioPlayer.play(AssetSource(_huntInstructionWav));
-    await _audioPlayer.onPlayerComplete.first;
+    // Tutorial audio: stops if the child leaves the frame and plays again from the start when they return.
+    await playVoiceRestartingOnFaceLoss(
+      _audioPlayer,
+      _huntInstructionWav,
+      timeout: const Duration(seconds: 30),
+    );
     if (!mounted) return;
-    await _audioPlayer.play(AssetSource(
+    await playVoiceRestartingOnFaceLoss(
+      _audioPlayer,
       'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-    ));
+    );
   }
 
   Future<void> _saveDataAndShowApplause() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
     // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
     // 2. Save raw data silently (No loading screen!)
     try {
       await ForestDatabaseService.saveGameData(
-        gameId: 'letter_fall_${widget.letter.toLowerCase()}',
-        activityName: "Alphabet Fall (${widget.letter.toUpperCase()})",
+        gameId: 'letter_hunt_${widget.letter.toLowerCase()}',
+        activityName: "Alphabet Hunt (${widget.letter.toUpperCase()})",
         emotions: finalEmotions,
         totalTaps: _tapTracker.totalTaps,
         mistakes: _tapTracker.mistakeCount,
@@ -315,8 +336,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      const ForestMailDeliveryGame(level: 2),
+                  builder: (context) => const ForestMailDeliveryGame(level: 2),
                 ),
               );
             } else if (currentLetter == 'F') {
@@ -403,10 +423,12 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
           },
           onRestart: () {
             Navigator.pop(context);
-            setState(() {
-              _correctCount = 0;
-              _generateHuntField();
-            });
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AlphabetHuntScreen(letter: widget.letter),
+              ),
+            );
           },
           onBack: () {
             Navigator.pop(context); // Close the prompt
@@ -561,12 +583,11 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
           ),
 
           // 2. The Lighting Prompt Card Overlay
-          if (hasCapturedFirstFrame && !isFaceDetected)
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
-                setState(() {
-                  isFaceDetected = true;
-                });
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate(); // don't leave the tutorial audio waiting
               },
             ),
         ],

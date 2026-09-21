@@ -2,6 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -13,10 +18,6 @@ import 'alphabet_game_ui.dart';
 import 'forest_audio_helper.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-
-// ═════════════════════════════════════════════════════════════════════════
-// MODELS
-// ═════════════════════════════════════════════════════════════════════════
 
 enum AlphabetFinaleChallenge {
   recognition,
@@ -44,10 +45,6 @@ class _FinaleQuestion {
   });
 }
 
-// ═════════════════════════════════════════════════════════════════════════
-// GAME
-// ═════════════════════════════════════════════════════════════════════════
-
 class AlphabetForestFinaleGame extends StatefulWidget {
   final int level;
   const AlphabetForestFinaleGame({super.key, required this.level});
@@ -58,10 +55,16 @@ class AlphabetForestFinaleGame extends StatefulWidget {
 }
 
 class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
-    with TickerProviderStateMixin, GameLoadingMixin<AlphabetForestFinaleGame>, ForestAudioMixin<AlphabetForestFinaleGame>, TofiReactionMixin<AlphabetForestFinaleGame> {
-
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin<AlphabetForestFinaleGame>,
+        ForestAudioMixin<AlphabetForestFinaleGame>,
+        TofiReactionMixin<AlphabetForestFinaleGame>,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
@@ -70,18 +73,26 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
   static const String _audioBase = ForestAudioAssets.base;
 
   static const String _audioIntro = '$_audioBase/forest_finale_intro.wav';
-  static const String _audioMainInstruction = '$_audioBase/forest_finale_instruction.wav';
-  static const String _audioRecognitionInstruction = '$_audioBase/forest_finale_recognition_instruction.wav';
-  static const String _audioCaseInstruction = '$_audioBase/forest_finale_case_instruction.wav';
-  static const String _audioMissingInstruction = '$_audioBase/forest_finale_missing_instruction.wav';
-  static const String _audioSoundInstruction = '$_audioBase/forest_finale_sound_instruction.wav';
-  static const String _audioOrderInstruction = '$_audioBase/forest_finale_order_instruction.wav';
+  static const String _audioMainInstruction =
+      '$_audioBase/forest_finale_instruction.wav';
+  static const String _audioRecognitionInstruction =
+      '$_audioBase/forest_finale_recognition_instruction.wav';
+  static const String _audioCaseInstruction =
+      '$_audioBase/forest_finale_case_instruction.wav';
+  static const String _audioMissingInstruction =
+      '$_audioBase/forest_finale_missing_instruction.wav';
+  static const String _audioSoundInstruction =
+      '$_audioBase/forest_finale_sound_instruction.wav';
+  static const String _audioOrderInstruction =
+      '$_audioBase/forest_finale_order_instruction.wav';
   static const String _audioWin = '$_audioBase/forest_finale_win.wav';
 
   static const String _audioCorrect = '$_audioBase/alphabet_train_correct.wav';
-  static const String _audioRoundComplete = '$_audioBase/alphabet_train_round_complete.wav';
+  static const String _audioRoundComplete =
+      '$_audioBase/alphabet_train_round_complete.wav';
 
-  static String _letterAudioAsset(String letter) => 'assets/audio/alphabet_forest/sound_effects/sound_${letter.toLowerCase()}.wav';
+  static String _letterAudioAsset(String letter) =>
+      'assets/audio/alphabet_forest/sound_effects/sound_${letter.toLowerCase()}.wav';
 
   static const int _totalRounds = 5;
 
@@ -93,6 +104,9 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
   bool _celebrating = false;
   String? _shakingChoice;
   bool _showFlyingStars = false;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   final Random _rand = Random();
   final Set<String> _usedTargets = {};
@@ -111,11 +125,18 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
   late AnimationController _starGlowCtrl;
   late AnimationController _flyingStarsCtrl;
 
-  // ── INITIALIZATION ───────────────────────────────────────────────────────
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _initAnimations();
     _newGame();
@@ -137,23 +158,32 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _correctBounceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 550),
     );
-    _correctBounce = CurvedAnimation(parent: _correctBounceCtrl, curve: Curves.elasticOut);
+    _correctBounce = CurvedAnimation(
+      parent: _correctBounceCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _choiceShakeCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _choiceShake = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.09), weight: 25),
-      TweenSequenceItem(tween: Tween(begin: -0.09, end: 0.09), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 0.09, end: 0.0), weight: 25),
-    ]).animate(CurvedAnimation(parent: _choiceShakeCtrl, curve: Curves.easeInOut));
+    _choiceShake =
+        TweenSequence([
+          TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.09), weight: 25),
+          TweenSequenceItem(tween: Tween(begin: -0.09, end: 0.09), weight: 50),
+          TweenSequenceItem(tween: Tween(begin: 0.09, end: 0.0), weight: 25),
+        ]).animate(
+          CurvedAnimation(parent: _choiceShakeCtrl, curve: Curves.easeInOut),
+        );
 
     _starGlowCtrl = AnimationController(
       vsync: this,
@@ -165,9 +195,6 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     );
   }
 
-  // ── NEW GAME / REPLAY ────────────────────────────────────────────────────
-  // Called on initState AND every restart — regenerates challenge order and
-  // every question, so a replay is always a fresh randomized set.
   void _newGame() {
     _currentRoundIndex = 0;
     _litStars = 0;
@@ -187,10 +214,9 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     _question = _generateQuestion(_challengeOrder[0]);
   }
 
-  // ── INTRO FLOW ───────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -198,7 +224,10 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
-    await playVoice(_audioMainInstruction);
+    await playVoiceRestartingOnFaceLoss(
+      audio.voicePlayer,
+      _audioMainInstruction,
+    );
     if (!mounted) return;
 
     await _playChallengeInstruction(_challengeOrder[_currentRoundIndex]);
@@ -214,7 +243,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
       AlphabetFinaleChallenge.soundSound => _audioSoundInstruction,
       AlphabetFinaleChallenge.alphabetOrder => _audioOrderInstruction,
     };
-    await playVoice(asset);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, asset);
   }
 
   Future<void> _playSoundLetter() async {
@@ -223,12 +252,17 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     final currentType = _challengeOrder[_currentRoundIndex];
 
     if (currentType == AlphabetFinaleChallenge.soundSound) {
-      await playVoice(_letterAudioAsset(_question.correctAnswer));
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        _letterAudioAsset(_question.correctAnswer),
+      );
     }
   }
 
-  // ── QUESTION GENERATION ──────────────────────────────────────────────────
-  static final List<String> _az = List.generate(26, (i) => String.fromCharCode(65 + i));
+  static final List<String> _az = List.generate(
+    26,
+    (i) => String.fromCharCode(65 + i),
+  );
 
   String _randomLetterExcluding(Set<String> exclude) {
     String letter;
@@ -238,8 +272,6 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     return letter;
   }
 
-  /// Picks a letter not yet used as a target this run where possible, to
-  /// avoid unnecessary repeats within a playthrough.
   String _pickUnusedLetter() {
     final available = _az.where((l) => !_usedTargets.contains(l)).toList();
     final pool = available.isEmpty ? _az : available;
@@ -302,10 +334,13 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
   }
 
   _FinaleQuestion _generateMissingLetter() {
-    final length = 3 + _rand.nextInt(2); // 3 or 4
+    final length = 3 + _rand.nextInt(2);
     final maxStart = 26 - length;
     final startCode = _rand.nextInt(maxStart + 1);
-    final sequence = List.generate(length, (i) => String.fromCharCode(65 + startCode + i));
+    final sequence = List.generate(
+      length,
+      (i) => String.fromCharCode(65 + startCode + i),
+    );
     final missingIndex = _rand.nextInt(length);
     final correct = sequence[missingIndex];
     _usedTargets.add(correct);
@@ -353,7 +388,9 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     _usedTargets.add(correct);
 
     final displayCodes = codes.toList()..shuffle(_rand);
-    final displayLetters = displayCodes.map((c) => String.fromCharCode(65 + c)).toList();
+    final displayLetters = displayCodes
+        .map((c) => String.fromCharCode(65 + c))
+        .toList();
 
     return _FinaleQuestion(
       type: AlphabetFinaleChallenge.alphabetOrder,
@@ -362,7 +399,6 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     );
   }
 
-  // ── ANSWER HANDLING ───────────────────────────────────────────────────────
   Future<void> _handleTap(String letter) async {
     if (_roundLocked) return;
     if (letter == _question.correctAnswer) {
@@ -373,8 +409,9 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
   }
 
   Future<void> _handleCorrect() async {
-    if (_roundLocked) return; // guards against rapid double-taps
+    if (_roundLocked) return;
     _roundLocked = true;
+    _tapTracker.recordCorrectTap();
 
     HapticFeedback.mediumImpact();
     setState(() => _celebrating = true);
@@ -395,11 +432,11 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
       await playVoice(_audioWin);
       if (!mounted) return;
 
-      ForestProgressService.instance.markLevelComplete(widget.level);
+      await ForestProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
 
       setState(() => _showFlyingStars = false);
-      _showGoodJob();
+      await _saveDataAndShowGoodJob();
       return;
     }
 
@@ -415,6 +452,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
 
   Future<void> _handleWrong(String letter) async {
     if (_roundLocked) return;
+    _tapTracker.recordMistake();
 
     HapticFeedback.heavyImpact();
     setState(() => _shakingChoice = letter);
@@ -424,9 +462,6 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     if (!mounted) return;
 
     setState(() => _shakingChoice = null);
-    // Question is intentionally NOT regenerated — the same challenge stays
-    // until the child answers correctly, and the correct answer remains
-    // available among the choices.
   }
 
   void _setupRound() {
@@ -443,7 +478,28 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     setState(() {});
   }
 
-  // ── COMPLETION ────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_finale',
+        activityName: 'Alphabet Forest Finale',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (!mounted) return;
+    _showGoodJob();
+  }
+
   void _showGoodJob() {
     showDialog(
       context: context,
@@ -475,9 +531,9 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     );
   }
 
-  // ── DISPOSE ──────────────────────────────────────────────────────────────
   @override
   void dispose() {
+    disposeAiCamera();
     _tofiFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -488,7 +544,6 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     super.dispose();
   }
 
-  // ── BUILD ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -499,8 +554,20 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
             if (!_introPlaying) buildTofi(context),
             Positioned(top: 25, left: 25, child: ForestXButton()),
-            Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-            if (_showFlyingStars) Positioned.fill(child: IgnorePointer(child: _buildFlyingStars())),
+            Positioned(
+              top: 25,
+              right: 20,
+              child: ForestLevelBadge(level: widget.level),
+            ),
+            if (_showFlyingStars)
+              Positioned.fill(child: IgnorePointer(child: _buildFlyingStars())),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
@@ -520,7 +587,10 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
               offset: Offset(
                 0,
                 Tween<double>(begin: -6, end: 6).evaluate(
-                  CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
+                  CurvedAnimation(
+                    parent: _tofiFloatCtrl,
+                    curve: Curves.easeInOut,
+                  ),
                 ),
               ),
               child: child,
@@ -531,7 +601,8 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
                 Image.asset(
                   _dogImage,
                   height: screenH * 0.70,
-                  errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 80)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐶', style: TextStyle(fontSize: 80)),
                 ),
               ],
             ),
@@ -555,13 +626,9 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
       builder: (context, constraints) {
         return Stack(
           children: [
-            // Only the challenge content animates
             Positioned.fill(
               child: Padding(
-                padding: const EdgeInsets.only(
-                  top: 50,
-                  bottom: 50,
-                ),
+                padding: const EdgeInsets.only(top: 50, bottom: 50),
                 child: Center(
                   child: ScaleTransition(
                     scale: _sceneEnter,
@@ -582,8 +649,6 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
                 ),
               ),
             ),
-
-            // Star indicator stays still
             Positioned(
               left: 0,
               right: 0,
@@ -601,7 +666,6 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     );
   }
 
-  // ── CHALLENGE VISUALS ────────────────────────────────────────────────────
   Widget _buildChallengeVisual() {
     switch (_question.type) {
       case AlphabetFinaleChallenge.recognition:
@@ -624,16 +688,9 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: ForestColorTheme.seagreen,
-          width: 4,
-        ),
+        border: Border.all(color: ForestColorTheme.seagreen, width: 4),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 6,
-            offset: Offset(0, 3),
-          ),
+          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
         ],
       ),
       alignment: Alignment.center,
@@ -653,7 +710,10 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     return GestureDetector(
       onTap: _roundLocked
           ? null
-          : () => playVoice(_letterAudioAsset(_question.correctAnswer)),
+          : () => playVoiceRestartingOnFaceLoss(
+              audio.voicePlayer,
+              _letterAudioAsset(_question.correctAnswer),
+            ),
       child: Container(
         width: 140,
         height: 140,
@@ -662,14 +722,14 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: ForestColorTheme.seagreen, width: 4),
           boxShadow: const [
-            BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 6,
+              offset: Offset(0, 3),
+            ),
           ],
         ),
-        child: Center(
-          child: Image.asset(
-            _speakerImage
-          )
-        ),
+        child: Center(child: Image.asset(_speakerImage)),
       ),
     );
   }
@@ -737,7 +797,6 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     );
   }
 
-  // ── ANSWER CHOICES ───────────────────────────────────────────────────────
   Widget _buildAnswerRow(List<String> choices) {
     return Wrap(
       alignment: WrapAlignment.center,
@@ -764,7 +823,11 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: ForestColorTheme.seagreen, width: 3),
           boxShadow: const [
-            BoxShadow(color: Colors.black26, blurRadius: 5, offset: Offset(0, 3)),
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 5,
+              offset: Offset(0, 3),
+            ),
           ],
         ),
         alignment: Alignment.center,
@@ -789,7 +852,10 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
 
     return GestureDetector(
       onTap: _roundLocked ? null : () => _handleTap(letter),
-      child: Opacity(opacity: _roundLocked && letter != _question.correctAnswer ? 0.5 : 1.0, child: card),
+      child: Opacity(
+        opacity: _roundLocked && letter != _question.correctAnswer ? 0.5 : 1.0,
+        child: card,
+      ),
     );
   }
 
@@ -808,7 +874,11 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
                 final start = i * 0.12;
                 final progress = CurvedAnimation(
                   parent: _flyingStarsCtrl,
-                  curve: Interval(start, (start + 0.6).clamp(0.0, 1.0), curve: Curves.easeOut),
+                  curve: Interval(
+                    start,
+                    (start + 0.6).clamp(0.0, 1.0),
+                    curve: Curves.easeOut,
+                  ),
                 ).value;
 
                 final startX = w * (0.15 + 0.7 * (i / (starCount - 1)));
@@ -830,12 +900,8 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
                     child: Transform.rotate(
                       angle: rotation,
                       child: Transform.scale(
-                          scale: scale,
-                          child: Image.asset(
-                              _starImage,
-                              width: 48,
-                              height: 48
-                          )
+                        scale: scale,
+                        child: Image.asset(_starImage, width: 48, height: 48),
                       ),
                     ),
                   ),

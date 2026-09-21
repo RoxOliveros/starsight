@@ -23,6 +23,7 @@ import 'forest_game_stick_letter_builder.dart';
 import 'forest_game_yak_zebra_race.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PuzzlePiece {
   final int id; // 0=TL, 1=TR, 2=BL, 3=BR
@@ -59,13 +60,23 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   static const String _puzzleInstructionWav =
       'audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
+    // child's calibration separate from everyone else's.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera(); // <-- Start the camera
     _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     // Load the correct pieces and background before starting the game
     _loadLetter(widget.letter);
@@ -656,17 +667,23 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   }
 
   Future<void> _playInstructionThenLetter() async {
-    await _player.play(AssetSource(_puzzleInstructionWav));
-    await _player.onPlayerComplete.first;
+    // Tutorial audio: stops if the child leaves the frame and plays again
+    // from the start when they're back (or the card is dismissed).
+    await playVoiceRestartingOnFaceLoss(
+      _player,
+      _puzzleInstructionWav,
+      timeout: const Duration(seconds: 30),
+    );
     if (!mounted) return;
-    await _player.play(
-      AssetSource(
-        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-      ),
+    await playVoiceRestartingOnFaceLoss(
+      _player,
+      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
     );
   }
 
   Future<void> _saveDataAndShowSuccessDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
     // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
@@ -857,7 +874,12 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
           },
           onRestart: () {
             Navigator.pop(context);
-            _resetGame();
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AlphabetPuzzleScreen(letter: widget.letter),
+              ),
+            );
           },
 
           onBack: () {
@@ -1001,12 +1023,11 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
           ),
 
           // 2. The Lighting Prompt Card Overlay
-          if (hasCapturedFirstFrame && !isFaceDetected)
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
-                setState(() {
-                  isFaceDetected = true;
-                });
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate(); // don't leave the tutorial audio waiting
               },
             ),
         ],
@@ -1019,9 +1040,14 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     PuzzlePiece? placedPiece = _placedPieces[slotIndex];
 
     return DragTarget<PuzzlePiece>(
-      onWillAcceptWithDetails: (details) =>
-          details.data.id == slotIndex && !isFilled,
+      // Accept any drop so a wrong drop counts as exactly ONE mistake; the piece
+      // simply returns to the tray because it is never removed from it.
+      onWillAcceptWithDetails: (details) => true,
       onAcceptWithDetails: (details) {
+        if (isFilled || details.data.id != slotIndex) {
+          _tapTracker.recordMistake();
+          return;
+        }
         _tapTracker.recordCorrectTap();
         setState(() {
           _placedPieces[slotIndex] = details.data;
@@ -1031,15 +1057,15 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
         showTofiReaction(TofiState.correct);
 
         if (_placedPieces.length == 4) {
-          Future.delayed(const Duration(milliseconds: 400), _showSuccessDialog);
+          Future.delayed(
+            const Duration(milliseconds: 400),
+            _saveDataAndShowSuccessDialog,
+          );
         }
       },
-      onLeave: (details) {
-        // If a piece hovers over a slot but is rejected (wrong piece or full slot), count as a mistake
-        _tapTracker.recordMistake(); // <-- RECORD MISTAKE
-      },
       builder: (context, candidateData, rejectedData) {
-        bool isHovering = candidateData.isNotEmpty;
+        bool isHovering =
+            !isFilled && candidateData.any((p) => p?.id == slotIndex);
 
         return Container(
           decoration: BoxDecoration(
