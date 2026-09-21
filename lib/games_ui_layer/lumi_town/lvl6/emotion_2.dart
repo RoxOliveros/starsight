@@ -35,12 +35,12 @@ class _Emotion2State extends State<Emotion2> {
   ];
 
   // Tagalog
-  // static const String _audioStart = 'audio/lumi_town/level6/emotion_start.wav';
-  // static const String _audioTutorial = 'audio/lumi_town/level6/emotion_tutorial.wav';
+  static const String _audioStart = 'audio/lumi_town/level6/emotion_start.wav';
+  static const String _audioTutorial = 'audio/lumi_town/level6/emotion_tutorial.wav';
 
   // English
-  static const String _audioStart = 'audio/lumi_town/level6/emotion_start_eng.wav';
-  static const String _audioTutorial = 'audio/lumi_town/level6/emotion_tutorial_eng.wav';
+  // static const String _audioStart = 'audio/lumi_town/level6/emotion_start_eng.wav';
+  // static const String _audioTutorial = 'audio/lumi_town/level6/emotion_tutorial_eng.wav';
 
   @override
   void initState() {

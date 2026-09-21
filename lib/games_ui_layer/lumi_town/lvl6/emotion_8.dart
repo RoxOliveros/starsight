@@ -32,12 +32,12 @@ class _Emotion8ScreenState extends State<Emotion8Screen>
   bool _isSuccessAudioPlaying = false;
 
   // Tagalog
-  // static const String _audioP6 = 'audio/lumi_town/level6/emotion_p6.wav';
-  // static const String _audioP6Rc = 'audio/lumi_town/level6/emotion_p6_rc.wav';
+  static const String _audioP6 = 'audio/lumi_town/level6/emotion_p6.wav';
+  static const String _audioP6Rc = 'audio/lumi_town/level6/emotion_p6_rc.wav';
 
   // English
-  static const String _audioP6 = 'audio/lumi_town/level6/emotion_p6_eng.wav';
-  static const String _audioP6Rc = 'audio/lumi_town/level6/emotion_p6_rc_eng.wav';
+  // static const String _audioP6 = 'audio/lumi_town/level6/emotion_p6_eng.wav';
+  // static const String _audioP6Rc = 'audio/lumi_town/level6/emotion_p6_rc_eng.wav';
 
   @override
   void initState() {

@@ -64,14 +64,14 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
   static const String _audioBase = ForestAudioAssets.base;
   // Tagalog
-  // static const String _audioIntro = '$_audioBase/mail_intro.wav';
-  // static const String _audioInstruction = '$_audioBase/mail_instruction.wav';
-  // static const String _audioWin = '$_audioBase/mail_win.wav';
+  static const String _audioIntro = '$_audioBase/mail_intro.wav';
+  static const String _audioInstruction = '$_audioBase/mail_instruction.wav';
+  static const String _audioWin = '$_audioBase/mail_win.wav';
 
   // English
-  static const String _audioIntro = '$_audioBase/mail_intro_eng.wav';
-  static const String _audioInstruction = '$_audioBase/mail_instruction_eng.wav';
-  static const String _audioWin = '$_audioBase/mail_win_eng.wav';
+  // static const String _audioIntro = '$_audioBase/mail_intro_eng.wav';
+  // static const String _audioInstruction = '$_audioBase/mail_instruction_eng.wav';
+  // static const String _audioWin = '$_audioBase/mail_win_eng.wav';
 
   @override
   void initState() {

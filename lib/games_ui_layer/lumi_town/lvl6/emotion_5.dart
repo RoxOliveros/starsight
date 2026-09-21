@@ -31,13 +31,13 @@ class _Emotion5ScreenState extends State<Emotion5Screen>
   // NEW: Tracks if we are currently playing the success audio
   bool _isSuccessAudioPlaying = false;
 
-
-  // static const String _audioP3 = 'audio/lumi_town/level6/emotion_p3.wav';
-  // static const String _audioP3Rc = 'audio/lumi_town/level6/emotion_p3_rc.wav';
+  // Tagalog
+  static const String _audioP3 = 'audio/lumi_town/level6/emotion_p3.wav';
+  static const String _audioP3Rc = 'audio/lumi_town/level6/emotion_p3_rc.wav';
 
   // English
-  static const String _audioP3 = 'audio/lumi_town/level6/emotion_p3_eng.wav';
-  static const String _audioP3Rc = 'audio/lumi_town/level6/emotion_p3_rc_eng.wav';
+  // static const String _audioP3 = 'audio/lumi_town/level6/emotion_p3_eng.wav';
+  // static const String _audioP3Rc = 'audio/lumi_town/level6/emotion_p3_rc_eng.wav';
 
   @override
   void initState() {

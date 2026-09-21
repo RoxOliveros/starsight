@@ -18,7 +18,8 @@ const String _mamaBearImage = 'assets/images/characters/mom_bear.png';
 const String _mamaBearSmileImage = 'assets/images/characters/mom_bear_happy.png';
 const String _jackImage = 'assets/images/characters/jack_the_fox.png';
 const String _jackSmileImage = 'assets/images/characters/jack_happy.png';
-const String _teacherWooImage = 'assets/images/characters/tr.woo_the_owl.png';
+const String _trWooImage = 'assets/images/characters/tr.woo_the_owl.png';
+const String _trWooSmileImage = 'assets/images/characters/tr.woo_smiling.png';
 
 const String _smirkWolfImage = 'assets/images/characters/smirk_wolf.png';
 const String _wolfImage = 'assets/images/characters/wolf.png';
@@ -109,6 +110,7 @@ enum _GamePhase {
   characterLeaving,
   wolfApproaching,
   wolfTalking,
+  wolfRetreatingHalfway,
   teacherWooEntering,
   teacherWooSpeaking,
   wolfLeaving,
@@ -149,6 +151,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
   bool _characterVisible = false;
   bool _teacherWooVisible = false;
   bool _playgroundBgActive = false;
+  bool _wolfTalkBranch = false;
   WolfVisualState _wolfVisualState = WolfVisualState.approaching;
   _GamePhase _phase = _GamePhase.intro;
   final bool _isLoadingDelayDone = true;
@@ -159,13 +162,30 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
   bool get _onWolf => _current.isStranger;
   bool get _showPlaygroundBg => _playgroundBgActive && _phase != _GamePhase.characterLeaving;
 
+  double get _characterVisibleFraction {
+    if (!_characterVisible) return 0.0;
+    const heldPhases = {
+      _GamePhase.wolfRetreatingHalfway,
+      _GamePhase.teacherWooEntering,
+      _GamePhase.teacherWooSpeaking,
+    };
+    return heldPhases.contains(_phase) ? 0.9 : 1.0;
+  }
+
   String get _currentDisplayAsset {
     if (_onWolf) return _wolfAsset;
     return _phase == _GamePhase.conversation
         ? _current.smileAsset
         : _current.characterAsset;
   }
+  String get _teacherWooDisplayAsset {
+    return _phase == _GamePhase.safetyLesson
+        ? _trWooSmileImage
+        : _trWooImage;
+  }
   String get _littleBearDisplayAsset => _phase == _GamePhase.conversation ? _littleBearSmileImage : _littleBearImage;
+  double get _littleBearLeftFactor => _phase == _GamePhase.wolfRetreatingHalfway ? 0.25 : 0.40;
+  double get _littleBearVisibleFraction => _wolfTalkBranch ? 1.0 : _characterVisibleFraction;
 
   static const Duration _betweenCharactersDelay = Duration(milliseconds: 1500);
   static const double _wolfHeightFactor = 0.41;
@@ -288,18 +308,10 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
       await _playAndWait(_wolfPlayer, _current.enterAudio!);
       if (!mounted) return;
 
-      await Future<void>.delayed(const Duration(milliseconds: 700));
-      if (!mounted) return;
-
       setState(() {
-        _phase = _GamePhase.wolfTalking;
-        _wolfVisualState = WolfVisualState.talking;
+        _phase = _GamePhase.choosing;
+        _inputEnabled = true;
       });
-
-      await _playAndWait(_wolfPlayer, _wolfTalkAudio);
-      if (!mounted) return;
-
-      setState(() => _inputEnabled = true);
     } else {
       setState(() {
         _phase = _GamePhase.characterEntering;
@@ -398,6 +410,20 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
     setState(() {
       _busy = true;
       _inputEnabled = false;
+      _phase = _GamePhase.wolfTalking;
+      _wolfVisualState = WolfVisualState.talking;
+      _wolfTalkBranch = true;
+    });
+
+    await _playAndWait(_wolfPlayer, _wolfTalkAudio);
+    if (!mounted) return;
+
+    setState(() => _phase = _GamePhase.wolfRetreatingHalfway);
+
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    setState(() {
       _phase = _GamePhase.teacherWooEntering;
       _teacherWooVisible = true;
     });
@@ -405,7 +431,10 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
 
-    setState(() => _phase = _GamePhase.teacherWooSpeaking);
+    setState(() {
+      _phase = _GamePhase.teacherWooSpeaking;
+      _wolfVisualState = WolfVisualState.shocked;
+    });
 
     await _playAndWait(_teacherWooPlayer, _teacherWooWarningAudio);
     if (!mounted) return;
@@ -418,20 +447,36 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
   Future<void> _finishWolfSequence() async {
     if (!mounted) return;
 
+    // Wolf turns around and leaves.
     setState(() {
       _phase = _GamePhase.wolfLeaving;
       _characterVisible = false;
     });
 
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    await Future<void>.delayed(
+      const Duration(milliseconds: 600),
+    );
     if (!mounted) return;
 
     setState(() {
-      _teacherWooVisible = false;
       _phase = _GamePhase.safetyLesson;
+      _teacherWooVisible = true;
     });
 
-    await _playAndWait(_narrationPlayer, _safetyLessonAudio);
+    await _playAndWait(
+      _narrationPlayer,
+      _safetyLessonAudio,
+    );
+    if (!mounted) return;
+
+    // Lesson finished — Teacher Woo can now leave.
+    setState(() {
+      _teacherWooVisible = false;
+    });
+
+    await Future<void>.delayed(
+      const Duration(milliseconds: 600),
+    );
     if (!mounted) return;
 
     await _completeGame();
@@ -468,6 +513,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
       _characterVisible = false;
       _inputEnabled = false;
       _playgroundBgActive = true;
+      _wolfTalkBranch = false;
     });
 
     await _enterCurrentCharacter();
@@ -523,76 +569,108 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
               return Stack(
                 fit: StackFit.expand,
                 children: [
-                  // CURRENT CHARACTER
-                  _HoppingCharacter(
-                    visible: _characterVisible,
-                    fromLeft: true,
-                    onScreenX: width * 0.10,
-                    offScreenX: -width * 0.40,
-                    bottom: 5,
-                    height: width * (_onWolf ? _wolfHeightFactor : 0.35),
-                    hopHeight: height * 0.09,
-                    hops: 3,
-                    duration: const Duration(milliseconds: 1200),
-                    child: Image.asset(
-                      _currentDisplayAsset,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-
-                  // LITTLE BEAR
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 450),
-                    curve: Curves.linear,
-                    left: width * 0.40,
-                    bottom: _characterVisible ? 5 : -height * 0.05,
-                    width: width * 0.28,
-                    height: width * 0.33,
-                    child: AnimatedOpacity(
-                      opacity: _characterVisible ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 450),
-                      child: Image.asset(_littleBearDisplayAsset, fit: BoxFit.contain),
-                    ),
-                  ),
-
-                  // TEACHER WOO
-                  _HoppingCharacter(
-                    visible: _teacherWooVisible,
-                    fromLeft: false,
-                    onScreenX: width * 0.10,
-                    offScreenX: -width * 0.40,
-                    bottom: 0,
-                    height: width * 0.35,
-                    hopHeight: height * 0.08,
-                    hops: 2,
-                    duration: const Duration(milliseconds: 1200),
-                    child: Image.asset(_teacherWooImage, fit: BoxFit.contain),
-                  ),
-
-                  // TALK / CANCEL BUTTONS
-                  if (_inputEnabled && !_busy)
+                  // WIN SCENE
+                  if (_phase == _GamePhase.complete && !_gameComplete)
                     Positioned(
-                      top: 0,
                       bottom: 0,
-                      right: 100,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _ResponseButton(
-                            asset: _talkButton,
-                            onTap: _onWolf ? _onWolfTalk : _onFamiliarTalk,
-                          ),
-                          SizedBox(height: width * 0.03),
-                          _ResponseButton(
-                            asset: _cancelButton,
-                            onTap: _onWolf ? _onWolfCancel : _onFamiliarCancel,
-                          ),
-                        ],
+                      child: Center(
+                        child: Image.asset(
+                          _trWooSmileImage,
+                          width: width * 0.30,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
+
+                  // NORMAL GAME SCENE
+                  if (_phase != _GamePhase.complete) ...[
+                    // CURRENT CHARACTER
+                    _HoppingCharacter(
+                      visibleFraction: _characterVisibleFraction,
+                      fromLeft: true,
+                      onScreenX: width * 0.10,
+                      offScreenX: -width * 0.40,
+                      bottom: 5,
+                      height: width * (_onWolf ? _wolfHeightFactor : 0.35),
+                      hopHeight: height * 0.09,
+                      hops: 3,
+                      duration: const Duration(milliseconds: 1200),
+                      child: Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.identity()
+                          ..scale(
+                            _onWolf && _phase == _GamePhase.wolfLeaving
+                                ? -1.0
+                                : 1.0,
+                            1.0,
+                          ),
+                        child: Image.asset(
+                          _currentDisplayAsset,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+
+                    // LITTLE BEAR
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 450),
+                      curve: Curves.linear,
+                      left: width * _littleBearLeftFactor,
+                      bottom: 5,
+                      width: width * 0.28,
+                      height: width * 0.33,
+                      child: AnimatedOpacity(
+                        opacity: _littleBearVisibleFraction,
+                        duration: const Duration(milliseconds: 450),
+                        child: Image.asset(
+                          _littleBearDisplayAsset,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+
+                    // TEACHER WOO
+                    _HoppingCharacter(
+                      visibleFraction: _teacherWooVisible ? 1.0 : 0.0,
+                      fromLeft: false,
+                      onScreenX: width * 0.03,
+                      offScreenX: -width * 0.40,
+                      bottom: -10,
+                      height: width * 0.35,
+                      hopHeight: height * 0.08,
+                      hops: 2,
+                      duration: const Duration(milliseconds: 1200),
+                      child: Image.asset(
+                        _teacherWooDisplayAsset,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+
+                    // TALK / CANCEL BUTTONS
+                    if (_inputEnabled && !_busy)
+                      Positioned(
+                        top: 0,
+                        bottom: 0,
+                        right: 100,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _ResponseButton(
+                              asset: _talkButton,
+                              onTap: _onWolf ? _onWolfTalk : _onFamiliarTalk,
+                            ),
+                            SizedBox(height: width * 0.03),
+                            _ResponseButton(
+                              asset: _cancelButton,
+                              onTap: _onWolf ? _onWolfCancel : _onFamiliarCancel,
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ],
               );
-            },
+              },
           ),
 
           // Back button.
@@ -601,7 +679,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
           // Completion overlay.
           if (_gameComplete)
             GoodJobOverlay(
-              characterImage: _littleBearImage,
+              characterImage: _trWooImage,
               onNext: () async {
                 // TODO: point this at whatever Lumi Town level follows.
                 Navigator.of(context).pop();
@@ -641,10 +719,10 @@ class _ResponseButton extends StatelessWidget {
 // ============================================================================
 
 class _HoppingCharacter extends StatefulWidget {
-  final bool visible;
+  final double visibleFraction;
   final bool fromLeft;
-  final double onScreenX; // distance from the edge when fully on screen
-  final double offScreenX; // distance from the edge when hidden (negative)
+  final double onScreenX;
+  final double offScreenX;
   final double bottom;
   final double height;
   final double hopHeight;
@@ -653,7 +731,7 @@ class _HoppingCharacter extends StatefulWidget {
   final Widget child;
 
   const _HoppingCharacter({
-    required this.visible,
+    required this.visibleFraction,
     required this.fromLeft,
     required this.onScreenX,
     required this.offScreenX,
@@ -674,14 +752,14 @@ class _HoppingCharacterState extends State<_HoppingCharacter>
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: widget.duration,
-    value: widget.visible ? 1.0 : 0.0,
+    value: widget.visibleFraction,
   );
 
   @override
   void didUpdateWidget(covariant _HoppingCharacter oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.visible != oldWidget.visible) {
-      widget.visible ? _c.forward() : _c.reverse();
+    if (widget.visibleFraction != oldWidget.visibleFraction) {
+      _c.animateTo(widget.visibleFraction);
     }
   }
 

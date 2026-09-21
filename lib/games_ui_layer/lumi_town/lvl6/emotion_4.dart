@@ -31,12 +31,12 @@ class _Emotion4ScreenState extends State<Emotion4Screen>
   bool _isSuccessAudioPlaying = false;
 
 
-  // static const String _audioP2 = 'audio/lumi_town/level6/emotion_p2.wav';
-  // static const String _audioP2Rc = 'audio/lumi_town/level6/emotion_p2_rc.wav';
+  static const String _audioP2 = 'audio/lumi_town/level6/emotion_p2.wav';
+  static const String _audioP2Rc = 'audio/lumi_town/level6/emotion_p2_rc.wav';
 
   // English
-  static const String _audioP2 = 'audio/lumi_town/level6/emotion_p2_eng.wav';
-  static const String _audioP2Rc = 'audio/lumi_town/level6/emotion_p2_rc_eng.wav';
+  // static const String _audioP2 = 'audio/lumi_town/level6/emotion_p2_eng.wav';
+  // static const String _audioP2Rc = 'audio/lumi_town/level6/emotion_p2_rc_eng.wav';
 
   @override
   void initState() {

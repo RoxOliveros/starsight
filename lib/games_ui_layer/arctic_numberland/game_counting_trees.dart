@@ -44,8 +44,8 @@ class _Number1to5CountingTreesScreenState
   static const String _audioQuestion = 'assets/audio/arctic_numberland/level18/how_many.wav';
 
   // English
-  static const String _audioIntroEng = 'assets/audio/arctic_numberland/level18/intro_eng.wav';
-  static const String _audioQuestionEng = 'assets/audio/arctic_numberland/level18/how_many_eng.wav';
+  // static const String _audioIntroEng = 'assets/audio/arctic_numberland/level18/intro_eng.wav';
+  // static const String _audioQuestionEng = 'assets/audio/arctic_numberland/level18/how_many_eng.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -182,7 +182,7 @@ class _Number1to5CountingTreesScreenState
   // ── Flow ───────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playAudio(_audioIntroEng);
+    await _playAudio(_audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -217,7 +217,7 @@ class _Number1to5CountingTreesScreenState
     _instructionCtrl.forward(from: 0);
 
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) _playAudio(_audioQuestionEng);
+      if (mounted) _playAudio(_audioQuestion);
     });
 
     Future.delayed(const Duration(milliseconds: 150), () {

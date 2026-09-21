@@ -62,7 +62,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
   static const String _audioIntro = 'audio/discovery_lagoon/feed_the_animal_game_intro.wav';
 
   // English
-  static const String _audioIntroEng = 'audio/discovery_lagoon/feed_the_animal_game_intro_eng.wav';
+  // static const String _audioIntroEng = 'audio/discovery_lagoon/feed_the_animal_game_intro_eng.wav';
 
   static const String _audioCorrect = 'audio/sound_effects/shine.wav';
   static const String _audioWrong = 'audio/discovery_lagoon/kiki_tryagain.wav';
@@ -74,8 +74,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/characters/roxie_the_rabbit.png',
       animalHappyImagePath: 'assets/images/characters/roxie_try_again.png',
       correctFood: 'carrot2',
-      questionAudioPath: 'audio/discovery_lagoon/feed_animal_bunny_question_eng.wav',
-      correctAudioPath: 'audio/discovery_lagoon/feed_animal_bunny_correct_eng.wav',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_bunny_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_bunny_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'fries',
@@ -96,8 +96,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/objects/lagoon/cow.png',
       animalHappyImagePath: 'assets/images/objects/lagoon/cow.png',
       correctFood: 'lettuce',
-      questionAudioPath: 'audio/discovery_lagoon/feed_animal_cow_question_eng.wav',
-      correctAudioPath: 'audio/discovery_lagoon/feed_animal_cow_correct_eng.wav',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_cow_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_cow_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'lettuce',
@@ -118,8 +118,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/characters/doma_the_penguin.png',
       animalHappyImagePath: 'assets/images/characters/doma_smiling.png',
       correctFood: 'perfume_fish',
-      questionAudioPath: 'audio/discovery_lagoon/feed_animal_penguin_question_eng.wav',
-      correctAudioPath: 'audio/discovery_lagoon/feed_animal_penguin_correct_eng.wav',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_penguin_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_penguin_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'perfume_fish',
@@ -140,8 +140,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/characters/tofi_the_dog.png',
       animalHappyImagePath: 'assets/images/characters/tofi_smiling.png',
       correctFood: 'meat',
-      questionAudioPath: 'audio/discovery_lagoon/feed_animal_dog_question_eng.wav',
-      correctAudioPath: 'audio/discovery_lagoon/feed_animal_dog_correct_eng.wav',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_dog_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_dog_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'chocolate',
@@ -162,8 +162,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/characters/little_bear_uniform.png',
       animalHappyImagePath: 'assets/images/characters/little_bear_uniform.png',
       correctFood: 'honey',
-      questionAudioPath: 'audio/discovery_lagoon/feed_animal_bear_question_eng.wav',
-      correctAudioPath: 'audio/discovery_lagoon/feed_animal_bear_correct_eng.wav',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_bear_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_bear_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'broccoli',
@@ -184,8 +184,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/objects/lagoon/chicken.png',
       animalHappyImagePath: 'assets/images/objects/lagoon/chicken.png',
       correctFood: 'worm',
-      questionAudioPath: 'audio/discovery_lagoon/feed_animal_chicken_question_eng.wav',
-      correctAudioPath: 'audio/discovery_lagoon/feed_animal_chicken_correct_eng.wav',
+      questionAudioPath: 'audio/discovery_lagoon/feed_animal_chicken_question.wav',
+      correctAudioPath: 'audio/discovery_lagoon/feed_animal_chicken_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'pizza',
@@ -225,7 +225,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
 
     // Play the intro audio
     await _audioPlayer.play(
-      AssetSource(_audioIntroEng),
+      AssetSource(_audioIntro),
     );
 
     // Listen for the audio to finish, then transition to the game

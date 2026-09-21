@@ -63,9 +63,9 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   static const String _audioComplete = 'assets/audio/puzzle_glade/shadow_match_complete.wav';
 
   // English
-  static const String _audioIntroEng = 'assets/audio/puzzle_glade/shadow_match_intro_eng.wav';
-  static const String _audioInstructionsEng = 'assets/audio/puzzle_glade/shadow_match_instruction_eng.wav';
-  static const String _audioCompleteEng = 'assets/audio/puzzle_glade/shadow_match_complete_eng.wav';
+  // static const String _audioIntroEng = 'assets/audio/puzzle_glade/shadow_match_intro_eng.wav';
+  // static const String _audioInstructionsEng = 'assets/audio/puzzle_glade/shadow_match_instruction_eng.wav';
+  // static const String _audioCompleteEng = 'assets/audio/puzzle_glade/shadow_match_complete_eng.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -217,14 +217,14 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     _roxieSlideCtrl.forward();
 
     _speechBubbleCtrl.forward(from: 0);
-    await _playBgAudio(_audioIntroEng);
+    await _playBgAudio(_audioIntro);
 
     _speechBubbleCtrl.forward(from: 0);
 
     _gameEnterCtrl.forward();
     _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
-    await _playBgAudio(_audioInstructionsEng);
+    await _playBgAudio(_audioInstructions);
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -292,7 +292,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
           if (!completer.isCompleted) completer.complete();
         });
         await _completePlayer.play(
-          AssetSource(_audioCompleteEng.replaceFirst('assets/', '')),
+          AssetSource(_audioComplete.replaceFirst('assets/', '')),
         );
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();

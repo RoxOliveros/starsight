@@ -29,10 +29,10 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
   bool _showGoodJobOverlay = false; // Added state for the overlay
 
   // Tagalog
-  // static const String _audioEnding = 'audio/lumi_town/level6/emotion_ending.wav';
+  static const String _audioEnding = 'audio/lumi_town/level6/emotion_ending.wav';
 
   // English
-  static const String _audioEndingEng = 'audio/lumi_town/level6/emotion_ending_eng.wav';
+  // static const String _audioEndingEng = 'audio/lumi_town/level6/emotion_ending_eng.wav';
   @override
   void initState() {
     super.initState();
@@ -63,7 +63,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
     });
 
     await _audioPlayer.play(
-      AssetSource(_audioEndingEng),
+      AssetSource(_audioEnding),
     );
   }
 
