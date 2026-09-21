@@ -17,6 +17,7 @@ import '../../games_ui_layer/lumi_town/lumi_game_behavior.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_cleaning.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_diary.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_stoplight.dart';
+import '../../games_ui_layer/lumi_town/lumi_game_dont_talk_to_strangers.dart';
 import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl3/clean_bedroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl4_cooking/game_screen.dart';
@@ -320,9 +321,9 @@ class _LevelTile extends StatelessWidget {
         return BehaviorGameScreen(level: 16);
       case 17:
         return CleaningGameScreen(level: 17);
-
       case 18:
-        return null;
+        return DontTalkToStrangersGame(level: 18);
+
       case 19:
         return null;
       case 20:

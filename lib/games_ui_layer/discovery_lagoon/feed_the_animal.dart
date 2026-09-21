@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
 /// Defines a single round in the Feed the Animal game.
@@ -59,7 +58,12 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
   bool _readyForEntrance = false;
   bool _showIntro = true;
 
+  // Tagalog
   static const String _audioIntro = 'audio/discovery_lagoon/feed_the_animal_game_intro.wav';
+
+  // English
+  // static const String _audioIntroEng = 'audio/discovery_lagoon/feed_the_animal_game_intro_eng.wav';
+
   static const String _audioCorrect = 'audio/sound_effects/shine.wav';
   static const String _audioWrong = 'audio/discovery_lagoon/kiki_tryagain.wav';
 
