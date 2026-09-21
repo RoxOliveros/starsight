@@ -20,6 +20,12 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
   late Animation<double> _opacityAnimation;
   late AudioPlayer _audioPlayer;
 
+  // Tagalog
+  static const String _audioIntro = 'audio/lumi_town/level6/emotion_intro.wav';
+
+  // English
+  static const String _audioIntroEng = 'audio/lumi_town/level6/emotion_intro_eng.wav';
+
   @override
   void initState() {
     super.initState();
@@ -118,7 +124,7 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
 
     // Plays the audio indicating the stars are losing their light
     await _audioPlayer.play(
-      AssetSource('audio/lumi_town/level6/emotion_intro.wav'),
+      AssetSource(_audioIntroEng),
     );
   }
 

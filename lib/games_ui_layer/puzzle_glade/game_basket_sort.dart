@@ -408,7 +408,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
           await completer.future.timeout(const Duration(seconds: 10));
           await sub.cancel();
 
-          await PuzzleProgressService.instance.markLevelComplete(6);
+          await PuzzleProgressService.instance.markLevelComplete(widget.level);
           if (mounted) setState(() => _showWinDialog = true);
         } else {
           await _enterCtrl.reverse();

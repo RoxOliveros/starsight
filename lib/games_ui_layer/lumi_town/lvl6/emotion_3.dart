@@ -31,6 +31,14 @@ class _Emotion3ScreenState extends State<Emotion3Screen>
   //Tracks if we are currently playing the success audio
   bool _isSuccessAudioPlaying = false;
 
+  // Tagalog
+  // static const String _audioP1 = 'audio/lumi_town/level6/emotion_p1.wav';
+  // static const String _audioP1Rc = 'audio/lumi_town/level6/emotion_p1_rc.wav';
+
+  // English
+  static const String _audioP1 = 'audio/lumi_town/level6/emotion_p1_eng.wav';
+  static const String _audioP1Rc = 'audio/lumi_town/level6/emotion_p1_rc_eng.wav';
+
   @override
   void initState() {
     super.initState();
@@ -65,7 +73,7 @@ class _Emotion3ScreenState extends State<Emotion3Screen>
     });
 
     await _narratorPlayer.play(
-      AssetSource('audio/lumi_town/level6/emotion_p1.wav'),
+      AssetSource(_audioP1),
     );
   }
 
@@ -169,11 +177,7 @@ class _Emotion3ScreenState extends State<Emotion3Screen>
                           await _narratorPlayer.stop();
 
                           // Play the narrative success sound
-                          await _narratorPlayer.play(
-                            AssetSource(
-                              'audio/lumi_town/level6/emotion_p1_rc.wav',
-                            ),
-                          );
+                          await _narratorPlayer.play(AssetSource(_audioP1Rc));
 
                           // Show sparkles
                           setState(() => _showSparkles = true);

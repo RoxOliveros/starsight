@@ -57,9 +57,15 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
+  // Tagalog
   static const String _audioIntro = 'assets/audio/puzzle_glade/shadow_match_intro.wav';
   static const String _audioInstructions = 'assets/audio/puzzle_glade/shadow_match_instruction.wav';
   static const String _audioComplete = 'assets/audio/puzzle_glade/shadow_match_complete.wav';
+
+  // English
+  static const String _audioIntroEng = 'assets/audio/puzzle_glade/shadow_match_intro_eng.wav';
+  static const String _audioInstructionsEng = 'assets/audio/puzzle_glade/shadow_match_instruction_eng.wav';
+  static const String _audioCompleteEng = 'assets/audio/puzzle_glade/shadow_match_complete_eng.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -211,14 +217,14 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     _roxieSlideCtrl.forward();
 
     _speechBubbleCtrl.forward(from: 0);
-    await _playBgAudio(_audioIntro);
+    await _playBgAudio(_audioIntroEng);
 
     _speechBubbleCtrl.forward(from: 0);
 
     _gameEnterCtrl.forward();
     _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
-    await _playBgAudio(_audioInstructions);
+    await _playBgAudio(_audioInstructionsEng);
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -286,12 +292,12 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
           if (!completer.isCompleted) completer.complete();
         });
         await _completePlayer.play(
-          AssetSource(_audioComplete.replaceFirst('assets/', '')),
+          AssetSource(_audioCompleteEng.replaceFirst('assets/', '')),
         );
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
 
-        await PuzzleProgressService.instance.markLevelComplete(4);
+        PuzzleProgressService.instance.markLevelComplete(widget.level);
 
         if (mounted) setState(() => _showWinDialog = true);
       } else {

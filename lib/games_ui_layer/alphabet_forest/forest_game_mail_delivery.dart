@@ -28,12 +28,7 @@ class ForestMailDeliveryGame extends StatefulWidget {
 }
 
 class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
-    with
-        TickerProviderStateMixin,
-        GameLoadingMixin,
-        ForestAudioMixin,
-        TofiReactionMixin,
-        AiCameraMixin {
+    with TickerProviderStateMixin, GameLoadingMixin, ForestAudioMixin, TofiReactionMixin, AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => _player;
 
@@ -63,17 +58,20 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_forest_3houses.png';
-  static const String _envelopImage =
-      'assets/images/objects/forest/envelope.png';
-  static const String _mailboxImage =
-      'assets/images/objects/forest/mailbox.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_forest_3houses.png';
+  static const String _envelopImage = 'assets/images/objects/forest/envelope.png';
+  static const String _mailboxImage = 'assets/images/objects/forest/mailbox.png';
 
   static const String _audioBase = ForestAudioAssets.base;
-  static const String _audioIntro = '$_audioBase/mail_intro.wav';
-  static const String _audioInstruction = '$_audioBase/mail_instruction.wav';
-  static const String _audioWin = '$_audioBase/mail_win.wav';
+  // Tagalog
+  // static const String _audioIntro = '$_audioBase/mail_intro.wav';
+  // static const String _audioInstruction = '$_audioBase/mail_instruction.wav';
+  // static const String _audioWin = '$_audioBase/mail_win.wav';
+
+  // English
+  static const String _audioIntro = '$_audioBase/mail_intro_eng.wav';
+  static const String _audioInstruction = '$_audioBase/mail_instruction_eng.wav';
+  static const String _audioWin = '$_audioBase/mail_win_eng.wav';
 
   @override
   void initState() {
@@ -558,21 +556,42 @@ class _ParcelCard extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Image.asset(imagePath, fit: BoxFit.contain),
-          Text(
-            letter,
-            style: const TextStyle(
-              fontSize: 56,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF6B4226),
-              shadows: [
-                Shadow(
-                  color: Colors.white70,
-                  offset: Offset(1, 1),
-                  blurRadius: 2,
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.asset(imagePath, fit: BoxFit.contain),
+
+              // outline/stroke text
+              Text(
+                letter,
+                style: TextStyle(
+                  fontSize: 60,
+                  fontWeight: FontWeight.w900,
+                  foreground: Paint()
+                    ..style = PaintingStyle.stroke
+                    ..strokeWidth = 5
+                    ..color = Colors.white,
                 ),
-              ],
-            ),
-          ),
+              ),
+
+              // main fill text
+              Text(
+                letter,
+                style: const TextStyle(
+                  fontSize: 60,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF4A2E1F),
+                  shadows: [
+                    Shadow(
+                      color: Colors.black26,
+                      offset: Offset(2, 2),
+                      blurRadius: 3,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          )
         ],
       ),
     );
@@ -626,21 +645,40 @@ class _MailboxWidget extends StatelessWidget {
               ),
 
             Positioned(
-              top: 50,
-              child: Text(
-                letter,
-                style: const TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black45,
-                      offset: Offset(1, 2),
-                      blurRadius: 1,
+              top: 45,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // White outline
+                  Text(
+                    letter,
+                    style: TextStyle(
+                      fontSize: 52,
+                      fontWeight: FontWeight.w900,
+                      foreground: Paint()
+                        ..style = PaintingStyle.stroke
+                        ..strokeWidth = 5
+                        ..color = Colors.black,
                     ),
-                  ],
-                ),
+                  ),
+
+                  // Main letter
+                  Text(
+                    letter,
+                    style: const TextStyle(
+                      fontSize: 52,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black38,
+                          offset: Offset(2, 2),
+                          blurRadius: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

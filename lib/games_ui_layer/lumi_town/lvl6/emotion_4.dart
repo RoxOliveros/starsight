@@ -2,7 +2,6 @@ import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_5.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
@@ -30,6 +29,14 @@ class _Emotion4ScreenState extends State<Emotion4Screen>
   bool _showStars = false;
   // Tracks if we are currently playing the success audio
   bool _isSuccessAudioPlaying = false;
+
+
+  // static const String _audioP2 = 'audio/lumi_town/level6/emotion_p2.wav';
+  // static const String _audioP2Rc = 'audio/lumi_town/level6/emotion_p2_rc.wav';
+
+  // English
+  static const String _audioP2 = 'audio/lumi_town/level6/emotion_p2_eng.wav';
+  static const String _audioP2Rc = 'audio/lumi_town/level6/emotion_p2_rc_eng.wav';
 
   @override
   void initState() {
@@ -67,7 +74,7 @@ class _Emotion4ScreenState extends State<Emotion4Screen>
     // Play the audio (AssetSource automatically looks inside the 'assets/' folder)
     // IMPORTANT: Update this path if you placed the audio in a different folder!
     await _narratorPlayer.play(
-      AssetSource('audio/lumi_town/level6/emotion_p2.wav'),
+      AssetSource(_audioP2),
     );
   }
 
@@ -172,7 +179,7 @@ class _Emotion4ScreenState extends State<Emotion4Screen>
                           // Play the narrative success sound
                           await _narratorPlayer.play(
                             AssetSource(
-                              'audio/lumi_town/level6/emotion_p2_rc.wav',
+                              _audioP2Rc,
                             ),
                           );
 

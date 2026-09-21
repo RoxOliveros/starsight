@@ -33,19 +33,14 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   AudioPlayer get roxiePlayer => _player;
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/star_sort_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/star_sort_instruction.wav';
-  static const String _audioGameComplete =
-      'assets/audio/puzzle_glade/star_sort_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/star_sort_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/star_sort_instruction.wav';
+  static const String _audioGameComplete = 'assets/audio/puzzle_glade/star_sort_complete.wav';
 
-  static const String _audioCorrect =
-      'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
 
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
   static const String _jarImage = 'assets/images/objects/puzzle/jar_bnw.png';

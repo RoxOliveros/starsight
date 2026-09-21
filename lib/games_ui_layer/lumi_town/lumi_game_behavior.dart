@@ -10,10 +10,6 @@ import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_cleaning.dart';
 
-// ============================================================================
-// ASSET PATHS — replace if your exact filenames/folders differ
-// ============================================================================
-
 const String _classroomBg = 'assets/images/backgrounds/bg_lumi_classroom.png';
 const String _gameBg = 'assets/images/backgrounds/bg_table.png';
 const String _teacherWooImage = 'assets/images/characters/tr.woo_the_owl.png';

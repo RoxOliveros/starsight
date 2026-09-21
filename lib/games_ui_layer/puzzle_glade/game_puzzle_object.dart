@@ -348,7 +348,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
           await sub.cancel();
           if (!mounted) return;                        // <-- add
 
-          await PuzzleProgressService.instance.markLevelComplete(5);
+          await PuzzleProgressService.instance.markLevelComplete(widget.level);
 
           if (mounted) setState(() => _showWinDialog = true);
         } else {

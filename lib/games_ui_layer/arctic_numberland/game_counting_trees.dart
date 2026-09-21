@@ -29,12 +29,7 @@ class Number1to5CountingTreesScreen extends StatefulWidget {
 }
 
 class _Number1to5CountingTreesScreenState
-    extends State<Number1to5CountingTreesScreen>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin,
-        GameLoadingMixin,
-        AiCameraMixin<Number1to5CountingTreesScreen> {
+    extends State<Number1to5CountingTreesScreen> with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin<Number1to5CountingTreesScreen> {
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -44,8 +39,13 @@ class _Number1to5CountingTreesScreenState
   static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _treeAsset = 'assets/images/objects/arctic/snowy_tree.png';
 
+  // Tagalog
   static const String _audioIntro = 'assets/audio/arctic_numberland/level18/intro.wav';
   static const String _audioQuestion = 'assets/audio/arctic_numberland/level18/how_many.wav';
+
+  // English
+  static const String _audioIntroEng = 'assets/audio/arctic_numberland/level18/intro_eng.wav';
+  static const String _audioQuestionEng = 'assets/audio/arctic_numberland/level18/how_many_eng.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -182,7 +182,7 @@ class _Number1to5CountingTreesScreenState
   // ── Flow ───────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playAudio(_audioIntro);
+    await _playAudio(_audioIntroEng);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -217,7 +217,7 @@ class _Number1to5CountingTreesScreenState
     _instructionCtrl.forward(from: 0);
 
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) _playAudio(_audioQuestion);
+      if (mounted) _playAudio(_audioQuestionEng);
     });
 
     Future.delayed(const Duration(milliseconds: 150), () {

@@ -34,6 +34,14 @@ class _Emotion2State extends State<Emotion2> {
     'assets/images/objects/lumi/e6_wrong.png',
   ];
 
+  // Tagalog
+  // static const String _audioStart = 'audio/lumi_town/level6/emotion_start.wav';
+  // static const String _audioTutorial = 'audio/lumi_town/level6/emotion_tutorial.wav';
+
+  // English
+  static const String _audioStart = 'audio/lumi_town/level6/emotion_start_eng.wav';
+  static const String _audioTutorial = 'audio/lumi_town/level6/emotion_tutorial_eng.wav';
+
   @override
   void initState() {
     super.initState();
@@ -55,7 +63,7 @@ class _Emotion2State extends State<Emotion2> {
         // The first audio (tutorial) finished. Play the second one.
         isTutorialPlaying = false;
         await _audioPlayer.play(
-          AssetSource('audio/lumi_town/level6/emotion_start.wav'),
+          AssetSource(_audioStart),
         );
       } else {
         // The second audio (start) finished! Navigate to Emotion3!
@@ -69,7 +77,7 @@ class _Emotion2State extends State<Emotion2> {
 
     // 2. Start playing the tutorial audio immediately
     await _audioPlayer.play(
-      AssetSource('audio/lumi_town/level6/emotion_tutorial.wav'),
+      AssetSource(_audioTutorial),
     );
 
     // 3. Set a timer to show the carousel after 6 seconds
