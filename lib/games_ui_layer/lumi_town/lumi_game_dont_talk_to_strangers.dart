@@ -8,6 +8,7 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
 import '../tryagain_prompt.dart';
+import 'lumi_game_safe_or_not.dart';
 
 const String _playgroundBg = 'assets/images/backgrounds/bg_playground.png';
 const String _bearPlayingImage = 'assets/images/objects/lumi/playground_bear_playing.png';
@@ -757,7 +758,11 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
             GoodJobOverlay(
               characterImage: _trWooImage,
               onNext: () async {
-                Navigator.of(context).pop();
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => SafeOrNotGameScreen(level: widget.level + 1),
+                  ),
+                );
               },
               onRestart: _restartGame,
               onBack: _goBack,
