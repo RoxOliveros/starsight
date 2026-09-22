@@ -1,8 +1,13 @@
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/cold_hot_game.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart'; // Standard Flutter audio package
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
@@ -17,31 +22,26 @@ class AnimalLifecycleGame extends StatefulWidget {
   _AnimalLifecycleGameState createState() => _AnimalLifecycleGameState();
 }
 
-class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
-  // Initialize the audio player
+class _AnimalLifecycleGameState extends State<AnimalLifecycleGame>
+    with AiCameraMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
-  // Intro & End state
   bool showIntro = true;
-  bool showGoodJob = false; // Added state for the final overlay
+  bool showGoodJob = false;
   bool _disposed = false;
 
-  // ==========================================
-  // 🛠️ KIKI ADJUSTER
-  // Change these values to move Kiki manually.
-  // X: Negative (LEFT), Positive (RIGHT)
-  // Y: Negative (UP), Positive (DOWN)
-  // ==========================================
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   final double kikiHorizontalOffset = 0.0;
   final double kikiVerticalOffset = 40.0;
   final double kikiSizeFactor = 1.20;
 
-  // Track the current level (0 = First Seed, 1 = Strawberry, 2 = Mango)
   int currentLevelIndex = 0;
   bool isCorrect = false;
   late List<String> currentSequence;
 
-  // The correct sequences for all levels
   final List<List<String>> allCorrectSequences = [
     [
       'assets/images/objects/lagoon/b1_egg.png',
@@ -69,7 +69,6 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
     ],
   ];
 
-  // The initial shuffled sequences for all levels
   final List<List<String>> allInitialSequences = [
     [
       'assets/images/objects/lagoon/b2_caterpillar.png',
@@ -100,8 +99,17 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
   @override
   void initState() {
     super.initState();
-    currentSequence = List.from(allInitialSequences[currentLevelIndex]);
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
+    currentSequence = List.from(allInitialSequences[currentLevelIndex]);
     _playIntro();
   }
 
@@ -122,21 +130,19 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
   Future<void> _waitForAudioComplete() async {
     try {
       await _audioPlayer.onPlayerComplete.first;
-    } catch (_) {
-      // Stream closed (player disposed) before it ever completed — ignore.
-    }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _disposed = true;
+    disposeAiCamera();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
 
   void _onItemDropped(int oldIndex, int newIndex) {
-    // Prevent dragging if the current level is already solved or the game is finished
     if (isCorrect || showGoodJob) return;
 
     setState(() {
@@ -162,31 +168,53 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
     });
 
     if (isCorrect) {
-      // Play the success sound effect
+      _tapTracker.recordCorrectTap();
       _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
 
-      // Progress to the next level if there are more levels remaining
       if (currentLevelIndex < allCorrectSequences.length - 1) {
         Future.delayed(const Duration(seconds: 2), () {
-          // Prevent setting state if the widget was closed during the delay
           if (!mounted) return;
 
           setState(() {
             currentLevelIndex++;
             currentSequence = List.from(allInitialSequences[currentLevelIndex]);
-            isCorrect = false; // Reset UI for the new level
+            isCorrect = false;
           });
         });
       } else {
-        // Last level completed - show the Good Job Overlay
         Future.delayed(const Duration(seconds: 2), () {
           if (!mounted) return;
-
-          setState(() {
-            showGoodJob = true;
-          });
+          _saveDataAndShowGoodJob();
         });
       }
+    } else {
+      _tapTracker.recordMistake();
+    }
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_animal_lifecycle',
+        activityName: 'Animal Lifecycle',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+    await LagoonProgressService.instance.markLevelComplete(17);
+
+    if (mounted) {
+      setState(() {
+        showGoodJob = true;
+      });
     }
   }
 
@@ -195,7 +223,6 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image (Always visible)
           Positioned.fill(
             child: Image.asset(
               'assets/images/backgrounds/bg_rainbow_closeup2.png',
@@ -203,11 +230,13 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
             ),
           ),
 
-          // X Button and Level Badge
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
 
-          // Show Kiki during the intro, show the game board after
           if (showIntro)
             Center(
               child: Transform.translate(
@@ -222,15 +251,12 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
               ),
             )
           else
-            // Universal Responsive Game Area
             SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  // Determine max size based on height and width to prevent overflow
                   double maxByHeight = constraints.maxHeight * 0.45;
                   double maxByWidth = constraints.maxWidth / 5.5;
 
-                  // Pick the smaller one to guarantee it fits entirely
                   double universalCardSize = maxByHeight < maxByWidth
                       ? maxByHeight
                       : maxByWidth;
@@ -247,7 +273,6 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
                               return _buildArrow(universalCardSize);
                             }
                             int cardIndex = index ~/ 2;
-                            // Pass the exact card size down to prevent any squishing
                             return _buildDraggableSlot(
                               cardIndex,
                               universalCardSize,
@@ -261,33 +286,39 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
               ),
             ),
 
-          // ── Final Success Overlay ──
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
+
           if (showGoodJob)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-              
-              characterSizeFactor: 0.9,
-              onNext: () async {
-                // 1. Mark the current level as complete (Change the number for each game)
-                await LagoonProgressService.instance.markLevelComplete(17);
+              characterImage:
+                  'assets/images/characters/cat_holding_fishbone.png',
 
+              characterSizeFactor: 0.9,
+              onNext: () {
                 if (context.mounted) {
-                  // 2. Push directly to the next level's screen
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ColdHotGame(level: widget.level + 1),
+                      builder: (context) =>
+                          ColdHotGame(level: widget.level + 1),
                     ),
                   );
                 }
               },
               onRestart: () {
-                // Resets the game seamlessly to the first level
                 setState(() {
                   currentLevelIndex = 0;
                   currentSequence = List.from(allInitialSequences[0]);
                   isCorrect = false;
                   showGoodJob = false;
+                  _hasSavedResult = false;
+                  _tapTracker.startSession();
                 });
               },
               onBack: () => Navigator.of(context).pop(),
@@ -316,11 +347,10 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
 
   Widget _buildDraggableSlot(int index, double cardSize) {
     return DragTarget<int>(
-      onAccept: (draggedIndex) => _onItemDropped(draggedIndex, index),
+      onAcceptWithDetails: (details) => _onItemDropped(details.data, index),
       builder: (context, candidateData, rejectedData) {
         return Draggable<int>(
           data: index,
-          // Disable dragging if the sequence is solved or the game is finished
           maxSimultaneousDrags: isCorrect || showGoodJob ? 0 : 1,
           feedback: Material(
             color: Colors.transparent,
@@ -346,9 +376,7 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isCorrect
-                ? Colors.orange
-                : Colors.grey.shade500, // Changed to Orange!
+            color: isCorrect ? Colors.orange : Colors.grey.shade500,
             width: 5,
           ),
           color: Colors.white,

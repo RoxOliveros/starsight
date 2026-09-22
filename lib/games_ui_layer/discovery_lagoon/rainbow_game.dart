@@ -7,6 +7,11 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -20,17 +25,16 @@ class RainbowGameScreen extends StatefulWidget {
 }
 
 class _RainbowGameScreenState extends State<RainbowGameScreen>
-    with KikiReactionMixin {
+    with KikiReactionMixin, AiCameraMixin {
   late final AudioPlayer _audioPlayer;
+  final GameTapTracker _tapTracker = GameTapTracker();
 
-  // Track if intro/question narration is locking gameplay
   bool _isIntroPlaying = true;
-
-  // Track our UI level: Level 1 -> Level 8
   int _currentLevel = 1;
-
-  // Track when to show the Good Job celebration overlay!
   bool _showGoodJob = false;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   @override
   AudioPlayer get kikiPlayer => _audioPlayer;
@@ -39,22 +43,26 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
-
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _startLevel1Intro();
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
-
-  // ==========================================
-  // AUDIO MANAGEMENT HELPERS
-  // ==========================================
 
   Future<void> _playAudio(String assetPath) async {
     StreamSubscription? sub;
@@ -83,12 +91,10 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
     if (mounted) setState(() => _isIntroPlaying = false);
   }
 
-  // ==========================================
-  // LEVEL 1: RAINBOW TAP LOGIC
-  // ==========================================
   void _onRainbowTapped() async {
     if (_isIntroPlaying || kikiState != KikiState.normal) return;
 
+    _tapTracker.recordCorrectTap();
     await showKikiReaction(KikiState.correct);
 
     if (mounted) {
@@ -103,13 +109,11 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
     }
   }
 
-  // ==========================================
-  // LEVEL 2 THROUGH LEVEL 8: ITEM SELECTION LOGIC
-  // ==========================================
   void _onItemTapped(bool isCorrect) async {
     if (_isIntroPlaying || kikiState != KikiState.normal) return;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap();
       setState(() => kikiState = KikiState.correct);
 
       await _playAudio('assets/audio/sound_effects/shine.wav');
@@ -123,7 +127,6 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
       await Future.delayed(const Duration(milliseconds: 500));
       if (mounted) setState(() => kikiState = KikiState.normal);
 
-      // LEVEL 2 -> LEVEL 3
       if (_currentLevel == 2 && mounted) {
         setState(() {
           _currentLevel = 3;
@@ -131,83 +134,96 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
         });
         await _playAudio('assets/audio/discovery_lagoon/what_color2.wav');
         if (mounted) setState(() => _isIntroPlaying = false);
-      }
-      // LEVEL 3 -> LEVEL 4
-      else if (_currentLevel == 3 && mounted) {
+      } else if (_currentLevel == 3 && mounted) {
         setState(() {
           _currentLevel = 4;
           _isIntroPlaying = true;
         });
         await _playAudio('assets/audio/discovery_lagoon/what_color3.wav');
         if (mounted) setState(() => _isIntroPlaying = false);
-      }
-      // LEVEL 4 -> LEVEL 5
-      else if (_currentLevel == 4 && mounted) {
+      } else if (_currentLevel == 4 && mounted) {
         setState(() {
           _currentLevel = 5;
           _isIntroPlaying = true;
         });
         await _playAudio('assets/audio/discovery_lagoon/what_color4.wav');
         if (mounted) setState(() => _isIntroPlaying = false);
-      }
-      // LEVEL 5 -> LEVEL 6
-      else if (_currentLevel == 5 && mounted) {
+      } else if (_currentLevel == 5 && mounted) {
         setState(() {
           _currentLevel = 6;
           _isIntroPlaying = true;
         });
         await _playAudio('assets/audio/discovery_lagoon/what_color5.wav');
         if (mounted) setState(() => _isIntroPlaying = false);
-      }
-      // LEVEL 6 -> LEVEL 7
-      else if (_currentLevel == 6 && mounted) {
+      } else if (_currentLevel == 6 && mounted) {
         setState(() {
           _currentLevel = 7;
           _isIntroPlaying = true;
         });
         await _playAudio('assets/audio/discovery_lagoon/what_color6.wav');
         if (mounted) setState(() => _isIntroPlaying = false);
-      }
-      // LEVEL 7 -> LEVEL 8
-      else if (_currentLevel == 7 && mounted) {
+      } else if (_currentLevel == 7 && mounted) {
         setState(() {
           _currentLevel = 8;
           _isIntroPlaying = true;
         });
         await _playAudio('assets/audio/discovery_lagoon/what_part.wav');
         if (mounted) setState(() => _isIntroPlaying = false);
-      }
-      // LEVEL 8 COMPLETED -> SHOW GOOD JOB OVERLAY!
-      else if (_currentLevel == 8 && mounted) {
-        setState(() => _showGoodJob = true);
+      } else if (_currentLevel == 8 && mounted) {
+        await _saveDataAndShowGoodJob();
       }
     } else {
+      _tapTracker.recordMistake();
       showKikiReaction(KikiState.wrong);
     }
   }
 
-  // Helper logic for when the player taps the Skip button
   void _onSkipTapped() {
     if (_currentLevel < 8) {
       setState(() {
         _currentLevel++;
-        _isIntroPlaying = false; // Unlock gameplay instantly when skipped
+        _isIntroPlaying = false;
       });
     } else {
+      _saveDataAndShowGoodJob();
+    }
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_rainbow_game',
+        activityName: 'Rainbow Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving Rainbow Game metrics: $e");
+    }
+
+    await LagoonProgressService.instance.markLevelComplete(1);
+
+    if (mounted) {
       setState(() => _showGoodJob = true);
     }
   }
 
-  // Helper to restart game from Level 1
   void _restartGame() {
     setState(() {
       _currentLevel = 1;
       _showGoodJob = false;
+      _hasSavedResult = false;
+      _tapTracker.startSession();
     });
     _startLevel1Intro();
   }
 
-  // Overridden Kiki pose (Centered under lips in Level 8!)
   @override
   Widget buildKiki(BuildContext context) {
     final kikiWidget = SizedBox(
@@ -250,7 +266,6 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
 
           return Stack(
             children: [
-              // 1. Dynamic Background
               Positioned.fill(
                 child: Image.asset(switch (_currentLevel) {
                   1 => 'assets/images/backgrounds/bg_rainbow_lagoon.png',
@@ -264,7 +279,6 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
                 }, fit: BoxFit.cover),
               ),
 
-              // LEVEL 1 UI ELEMENTS
               if (_currentLevel == 1) ...[
                 if (kikiState == KikiState.correct)
                   Positioned(
@@ -277,7 +291,6 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
                       fit: BoxFit.contain,
                     ),
                   ),
-
                 Positioned(
                   left: width * 0.22,
                   top: height * 0.05,
@@ -290,7 +303,6 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
                 ),
               ],
 
-              // LEVEL 2 THROUGH 7 UI ELEMENTS
               if (_currentLevel >= 2 && _currentLevel <= 7) ...[
                 Positioned(
                   left: width * 0.38,
@@ -303,7 +315,6 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
                 ),
               ],
 
-              // LEVEL 8 UI ELEMENTS (CENTERED IN SKY!)
               if (_currentLevel == 8) ...[
                 Positioned(
                   left: width * 0.20,
@@ -332,17 +343,15 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
                 ),
               ],
 
-              // Kiki Character Layer
               buildKiki(context),
 
-              // ==========================================
-              // LAGOON THEME BUTTONS (TOP LEFT & RIGHT)
-              // ==========================================
-              // Back Button (Top Left)
               Positioned(top: 25, left: 25, child: const LagoonXButton()),
-              Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+              Positioned(
+                top: 25,
+                right: 25,
+                child: LagoonLevelBadge(level: widget.level),
+              ),
 
-              // Skip Button (Top Right) - Only shows during active levels!
               if (!_showGoodJob)
                 Positioned(
                   bottom: 25,
@@ -350,21 +359,27 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
                   child: LagoonSkipButton(onTap: _onSkipTapped),
                 ),
 
-              // ==========================================
-              // GOOD JOB OVERLAY (DISPLAYS WHEN LEVEL 8 FINISHES!)
-              // ==========================================
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
               if (_showGoodJob)
                 GoodJobOverlay(
-                  characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-                  
+                  characterImage:
+                      'assets/images/characters/cat_holding_fishbone.png',
                   characterSizeFactor: 0.9,
-                  onNext: () async {
-                    // Mark Level 1 as complete to unlock Level 2
-                    await LagoonProgressService.instance.markLevelComplete(1);
+                  onNext: () {
                     if (context.mounted) {
-                      // Jump to Level 2 (Perfume)
                       Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => PerfumeGame(level: widget.level + 1)),
+                        MaterialPageRoute(
+                          builder: (_) => PerfumeGame(level: widget.level + 1),
+                        ),
                       );
                     }
                   },
@@ -378,7 +393,6 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
     );
   }
 
-  // Helper method to keep build() clean for Levels 2 through 7!
   List<Widget> _buildLevelItems(double width, int level) {
     switch (level) {
       case 2:
@@ -494,14 +508,12 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
     }
   }
 
-  // Helper method to build rounded white item cards
   Widget _buildItemCard({
     required double width,
     required String imageAsset,
     required bool isCorrect,
   }) {
     final cardSize = width * 0.14;
-
     return GestureDetector(
       onTap: () => _onItemTapped(isCorrect),
       child: Container(

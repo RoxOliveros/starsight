@@ -25,6 +25,8 @@ import '../../games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
 import '../loading_screen.dart';
+import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 abstract class ColorTheme {
   static const Color wasteland = Color(0xFF5F5630);
@@ -307,6 +309,27 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
   }
 }
 
+String? _lagoonCalibratedSessionId;
+
+Future<void> _ensureLagoonCalibrated(BuildContext context) async {
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+  if (_lagoonCalibratedSessionId == uid) return;
+  _lagoonCalibratedSessionId = uid;
+
+  await Navigator.push(
+    context,
+
+    PageRouteBuilder(
+      opaque: false,
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          CalibrationScreen(
+            childSessionId: uid,
+            onCalibrationDone: () => Navigator.pop(context),
+          ),
+    ),
+  );
+}
+
 class _LevelTile extends StatelessWidget {
   final int level;
   final double size;
@@ -316,7 +339,9 @@ class _LevelTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        await _ensureLagoonCalibrated(context);
+        if (!context.mounted) return;
         switch (level) {
           case 1:
             Navigator.push(
@@ -329,13 +354,17 @@ class _LevelTile extends StatelessWidget {
           case 2:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const PerfumeGame(level: 2)),
+              MaterialPageRoute(
+                builder: (context) => const PerfumeGame(level: 2),
+              ),
             );
             break;
           case 3:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const ListeningGame(level: 3)),
+              MaterialPageRoute(
+                builder: (context) => const ListeningGame(level: 3),
+              ),
             );
             break;
           case 4:
@@ -373,25 +402,33 @@ class _LevelTile extends StatelessWidget {
           case 8:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const WeatherGame(level: 8)),
+              MaterialPageRoute(
+                builder: (context) => const WeatherGame(level: 8),
+              ),
             );
             break;
           case 9:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const ClothesGame(level: 9)),
+              MaterialPageRoute(
+                builder: (context) => const ClothesGame(level: 9),
+              ),
             );
             break;
           case 10:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const HabitantGame(level: 10)),
+              MaterialPageRoute(
+                builder: (context) => const HabitantGame(level: 10),
+              ),
             );
             break;
           case 11:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const SeedGame(level: 11)),
+              MaterialPageRoute(
+                builder: (context) => const SeedGame(level: 11),
+              ),
             );
             break;
           case 12:
@@ -405,7 +442,9 @@ class _LevelTile extends StatelessWidget {
           case 13:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => TreeGameScreen(level: 13)),
+              MaterialPageRoute(
+                builder: (context) => TreeGameScreen(level: 13),
+              ),
             );
             break;
           case 14:
@@ -433,7 +472,9 @@ class _LevelTile extends StatelessWidget {
           case 17:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => AnimalLifecycleGame(level: 17)),
+              MaterialPageRoute(
+                builder: (context) => AnimalLifecycleGame(level: 17),
+              ),
             );
             break;
           case 18:
@@ -453,7 +494,9 @@ class _LevelTile extends StatelessWidget {
           case 20:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => LivingNonLivingGame(level: 20)),
+              MaterialPageRoute(
+                builder: (context) => LivingNonLivingGame(level: 20),
+              ),
             );
             break;
         }

@@ -5,13 +5,16 @@ import 'package:StarSight/games_ui_layer/discovery_lagoon/catching_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
 
-// 1. Added 'goodJob' phase for the final victory screen!
 enum GamePhase {
   intro,
   listening,
@@ -31,14 +34,14 @@ class ListeningGame extends StatefulWidget {
   State<ListeningGame> createState() => _ListeningGameState();
 }
 
-class _ListeningGameState extends State<ListeningGame> {
+class _ListeningGameState extends State<ListeningGame> with AiCameraMixin {
   late final AudioPlayer _audioPlayer;
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   GamePhase _currentPhase = GamePhase.intro;
 
-  // Tracks which animal sound the player needs to listen for right now![cite: 7]
   String _targetAnimal = 'chicken';
 
-  // Master list of all available animals in the game[cite: 7]
   final List<Map<String, String>> _allAnimals = [
     {'id': 'chicken', 'image': 'assets/images/objects/lagoon/chicken.png'},
     {'id': 'frog', 'image': 'assets/images/objects/lagoon/frog.png'},
@@ -52,30 +55,35 @@ class _ListeningGameState extends State<ListeningGame> {
     {'id': 'dog', 'image': 'assets/images/characters/tofi_smiling.png'},
   ];
 
-  // Holds the 3 currently displayed choices for the active round[cite: 7]
   List<Map<String, String>> _currentChoices = [];
 
-  // Holds the 3 body part cards (Ear, Hand, Nose) for the final UI[cite: 7]
   final List<Map<String, String>> _bodyParts = [
     {'id': 'ear', 'image': 'assets/images/objects/lagoon/ear.png'},
     {'id': 'hand', 'image': 'assets/images/objects/lagoon/pointing_hand.png'},
     {'id': 'nose', 'image': 'assets/images/objects/lagoon/nose.png'},
   ];
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   @override
   void initState() {
     super.initState();
-    // 1. FORCE LANDSCAPE ORIENTATION[cite: 7]
     OrientationService.setLandscape();
-
-    // 2. ENABLE TRUE IMMERSIVE FULLSCREEN (Hides system status & navigation bars)[cite: 7]
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _audioPlayer = AudioPlayer();
     _playIntroAudio();
   }
 
-  /// Helper: Picks the target animal + 2 random wrong animals, then shuffles them![cite: 7]
   void _generateChoices() {
     final targetObj = _allAnimals.firstWhere((a) => a['id'] == _targetAnimal);
     final wrongChoices = _allAnimals
@@ -91,7 +99,6 @@ class _ListeningGameState extends State<ListeningGame> {
     });
   }
 
-  /// Plays the intro voiceover automatically when the screen loads.[cite: 7]
   Future<void> _playIntroAudio() async {
     try {
       await _audioPlayer.play(
@@ -108,7 +115,6 @@ class _ListeningGameState extends State<ListeningGame> {
     }
   }
 
-  /// Shows speaker.gif, plays target animal sound, then asks the follow-up question[cite: 7]
   Future<void> _startListeningPhase() async {
     _generateChoices();
 
@@ -156,7 +162,6 @@ class _ListeningGameState extends State<ListeningGame> {
     }
   }
 
-  /// Helper method to play Kiki's feedback audio[cite: 7]
   Future<void> _playKikiAudio(String assetPath) async {
     try {
       await _audioPlayer.stop();
@@ -166,11 +171,11 @@ class _ListeningGameState extends State<ListeningGame> {
     }
   }
 
-  /// Handles when the user taps on an animal[cite: 7]
   void _onAnimalTapped(String animalName) {
     if (_currentPhase != GamePhase.choosing) return;
 
     if (animalName == _targetAnimal) {
+      _tapTracker.recordCorrectTap();
       setState(() {
         _currentPhase = GamePhase.answered;
       });
@@ -195,13 +200,11 @@ class _ListeningGameState extends State<ListeningGame> {
                 setState(() => _targetAnimal = 'cow');
                 _startListeningPhase();
               } else {
-                // All 5 animal rounds complete! Show Kiki and play ending clip[cite: 7]
                 setState(() {
                   _currentPhase = GamePhase.completed;
                 });
                 _playKikiAudio('audio/discovery_lagoon/listening_ending1.wav');
 
-                // When ending clip finishes, transition to the Body Parts UI![cite: 7]
                 _audioPlayer.onPlayerComplete.first.then((_) {
                   if (mounted) {
                     setState(() {
@@ -218,46 +221,73 @@ class _ListeningGameState extends State<ListeningGame> {
         }
       });
     } else {
+      _tapTracker.recordMistake();
       _playKikiAudio('audio/discovery_lagoon/kiki_tryagain.wav');
     }
   }
 
-  /// Handles taps during the final Body Parts mini-game[cite: 7]
   void _onBodyPartTapped(String partId) {
     if (_currentPhase != GamePhase.bodyParts) return;
 
     if (partId == 'ear') {
+      _tapTracker.recordCorrectTap();
       _playKikiAudio('audio/sound_effects/shine.wav');
       _audioPlayer.onPlayerComplete.first.then((_) {
         if (mounted) {
           _playKikiAudio('audio/discovery_lagoon/listening_whatpart_rc.wav');
 
-          // 2. WHEN THIS FINISHES, SHOW THE GOOD JOB OVERLAY![cite: 7]
           _audioPlayer.onPlayerComplete.first.then((_) {
             if (mounted) {
-              setState(() {
-                _currentPhase = GamePhase.goodJob;
-              });
+              _saveDataAndShowGoodJob();
             }
           });
         }
       });
     } else {
+      _tapTracker.recordMistake();
       _playKikiAudio('audio/discovery_lagoon/kiki_tryagain.wav');
     }
   }
 
-  /// Helper to restart the whole game from the beginning!
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_listening_game',
+        activityName: 'Listening Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving Listening Game metrics: $e");
+    }
+    await LagoonProgressService.instance.markLevelComplete(3);
+
+    if (mounted) {
+      setState(() {
+        _currentPhase = GamePhase.goodJob;
+      });
+    }
+  }
+
   void _restartGame() {
     setState(() {
       _targetAnimal = 'chicken';
       _currentPhase = GamePhase.intro;
+      _hasSavedResult = false;
+      _tapTracker.startSession();
     });
     _playIntroAudio();
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -267,7 +297,6 @@ class _ListeningGameState extends State<ListeningGame> {
   @override
   Widget build(BuildContext context) {
     final double sh = MediaQuery.of(context).size.height;
-
     final double catHeight = sh * 1.0;
     final double catBottom = sh * -0.25;
 
@@ -275,17 +304,18 @@ class _ListeningGameState extends State<ListeningGame> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // A. BACKGROUND LAYER[cite: 7]
           Image.asset(
             'assets/images/backgrounds/bg_rainbow_lagoon.png',
             fit: BoxFit.cover,
           ),
 
-          // X Button and Level Badge
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
 
-          // B. FOREGROUND CHARACTER LAYER (Standard Kiki during intro & completed)[cite: 7]
           if (_currentPhase == GamePhase.intro ||
               _currentPhase == GamePhase.completed)
             Positioned(
@@ -301,7 +331,6 @@ class _ListeningGameState extends State<ListeningGame> {
               ),
             ),
 
-          // C. SPEAKER GIF LAYER[cite: 7]
           if (_currentPhase == GamePhase.listening)
             Center(
               child: Image.asset(
@@ -311,7 +340,6 @@ class _ListeningGameState extends State<ListeningGame> {
               ),
             ),
 
-          // D. ANIMAL CHOICES LAYER[cite: 7]
           if (_currentPhase == GamePhase.choosing ||
               _currentPhase == GamePhase.answered)
             Center(
@@ -330,10 +358,9 @@ class _ListeningGameState extends State<ListeningGame> {
               ),
             ),
 
-          // E. BODY PARTS CHALLENGE LAYER[cite: 7]
           if (_currentPhase == GamePhase.bodyParts) ...[
             Positioned(
-              bottom: sh * -0.35, // Pushed down so half body shows!
+              bottom: sh * -0.35,
               left: 0,
               right: 0,
               child: Center(
@@ -366,20 +393,25 @@ class _ListeningGameState extends State<ListeningGame> {
             ),
           ],
 
-          // F. GOOD JOB OVERLAY LAYER (Appears after winning!)
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
+
           if (_currentPhase == GamePhase.goodJob)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-              
+              characterImage:
+                  'assets/images/characters/cat_holding_fishbone.png',
               characterSizeFactor: 0.9,
-              onNext: () async {
-                // Mark Level 3 as complete to unlock Level 4
-                await LagoonProgressService.instance.markLevelComplete(3);
+              onNext: () {
                 if (context.mounted) {
-                  // Jump to Level 4 (Catching)
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (_) => CatchingGameScreen(level: widget.level + 1),
+                      builder: (_) =>
+                          CatchingGameScreen(level: widget.level + 1),
                     ),
                   );
                 }

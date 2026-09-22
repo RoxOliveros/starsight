@@ -1,9 +1,14 @@
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
@@ -17,8 +22,6 @@ class TreeGameScreen extends StatefulWidget {
   State<TreeGameScreen> createState() => _TreeGameScreenState();
 }
 
-/// A single piece: its asset, its own fixed size, where it belongs in the
-/// finished tree, and where it starts out scattered on screen.
 class _TreePart {
   final String id;
   final String asset;
@@ -41,25 +44,19 @@ class _TreePart {
   });
 }
 
-class _TreeGameScreenState extends State<TreeGameScreen> {
+class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
   static const String _fullTreeAsset =
       'assets/images/objects/lagoon/t5_tree.png';
 
   static const double _canvasWidth = 260;
   static const double _canvasHeight = 311;
 
-  // ==========================================
-  // MANUAL ADJUSTERS
-  // ==========================================
-
   static const double _kikiAlignX = -1.00;
   static const double _kikiAlignY = 1.70;
-  static const double _kikiHeight = 250.0;
+  static const double _kikiHeight = 230.0;
 
   static const double _trunkScatterX = -0.45;
   static const double _trunkScatterY = 0.55;
-
-  // ==========================================
 
   static const List<_TreePart> _parts = [
     _TreePart(
@@ -105,12 +102,14 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
   ];
 
   final Set<String> _placed = {};
-
   bool _showOverlay = false;
-
-  // NEW: State variables for the intro sequence
   bool _showIntro = true;
+
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   bool get isCompleted => _placed.length == _parts.length;
 
@@ -118,10 +117,18 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _playIntroAudio();
   }
 
-  /// Plays the intro audio and removes the intro overlay when finished
   Future<void> _playIntroAudio() async {
     _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted) {
@@ -131,7 +138,6 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
       }
     });
 
-    // NOTE: Make sure this path matches where you stored the audio file in your assets directory
     await _audioPlayer.play(
       AssetSource('audio/discovery_lagoon/tree_game_intro.wav'),
     );
@@ -139,9 +145,34 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_tree_game',
+        activityName: 'Tree Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+    await LagoonProgressService.instance.markLevelComplete(13);
+
+    if (mounted) {
+      setState(() => _showOverlay = true);
+    }
   }
 
   @override
@@ -156,10 +187,8 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
         ),
         child: Stack(
           children: [
-            // 1. The Tree (Either Building Phase or Completed)
             isCompleted ? _buildCompletedTree() : _buildGameArea(),
 
-            // 2. Kiki the Cat (Only shows when intro is NOT playing)
             if (!_showIntro)
               Align(
                 alignment: const Alignment(_kikiAlignX, _kikiAlignY),
@@ -169,18 +198,13 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
                 ),
               ),
 
-            // 3. The Delayed "Good Job" Overlay
             if (_showOverlay)
               GoodJobOverlay(
-                characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-                
+                characterImage:
+                    'assets/images/characters/cat_holding_fishbone.png',
                 characterSizeFactor: 0.9,
-                onNext: () async {
-                  // 1. Mark the current level as complete (Change the number for each game)
-                  await LagoonProgressService.instance.markLevelComplete(13);
-
+                onNext: () {
                   if (context.mounted) {
-                    // 2. Push directly to the next level's screen
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
@@ -191,33 +215,31 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
                   }
                 },
                 onRestart: () {
-                  // Reset game
                   setState(() {
                     _placed.clear();
                     _showOverlay = false;
+                    _hasSavedResult = false;
+                    _tapTracker.startSession();
                   });
                 },
                 onBack: () => Navigator.of(context).pop(),
               ),
 
-            // 4. The Intro Overlay (Placed last so it renders on top of everything)
             if (_showIntro)
               Container(
                 width: double.infinity,
                 height: double.infinity,
-                color: Colors.black.withValues(alpha: 0.75), // Dark gray opacity
+                color: Colors.black.withValues(alpha: 0.75),
                 child: Stack(
                   children: [
                     Positioned(
-                      bottom:
-                          -150, // Pushes Kiki down so only the top half shows
+                      bottom: -150,
                       left: 0,
                       right: 0,
                       child: Center(
                         child: Image.asset(
                           'assets/images/characters/kiki_the_cat.png',
-                          height:
-                              500, // Scaled up to make her prominent in the center
+                          height: 500,
                         ),
                       ),
                     ),
@@ -225,9 +247,20 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
                 ),
               ),
 
-            // X Button and Level Badge
             Positioned(top: 25, left: 25, child: const LagoonXButton()),
-            Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LagoonLevelBadge(level: widget.level),
+            ),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
@@ -249,7 +282,6 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
     return SafeArea(
       child: Stack(
         children: [
-          // Assembly area: fixed target rectangles for each piece.
           Center(
             child: SizedBox(
               width: _canvasWidth,
@@ -259,8 +291,6 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
               ),
             ),
           ),
-
-          // Scattered draggable pieces, each starting off in a corner
           for (final part in _parts)
             if (!_placed.contains(part.id))
               Align(
@@ -285,6 +315,11 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
   Widget _buildDraggable(_TreePart part) {
     return Draggable<String>(
       data: part.id,
+      onDragEnd: (details) {
+        if (!details.wasAccepted) {
+          _tapTracker.recordMistake();
+        }
+      },
       feedback: Material(color: Colors.transparent, child: _piece(part)),
       childWhenDragging: Opacity(opacity: 0.3, child: _piece(part)),
       child: _piece(part),
@@ -303,18 +338,16 @@ class _TreeGameScreenState extends State<TreeGameScreen> {
       child: DragTarget<String>(
         onWillAcceptWithDetails: (details) => details.data == part.id,
         onAcceptWithDetails: (details) {
+          _tapTracker.recordCorrectTap();
           setState(() {
             _placed.add(part.id);
 
-            // Check if game was just completed
             if (_placed.length == _parts.length) {
-              // Play shine audio sound effect
               _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
 
-              // Wait 2 seconds, then show the prompt
               Future.delayed(const Duration(seconds: 2), () {
                 if (mounted) {
-                  setState(() => _showOverlay = true);
+                  _saveDataAndShowGoodJob();
                 }
               });
             }

@@ -1,16 +1,20 @@
 import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
-// 1. Define a class to hold specific size and position for each character
 class CharacterConfig {
   final String imagePath;
   final double leftOffset;
@@ -35,7 +39,6 @@ class CharacterConfig {
   });
 }
 
-// 2. Define the level to accept the configurations
 class PickupLevel {
   final String parentImage;
   final CharacterConfig targetChild;
@@ -59,14 +62,14 @@ class PickupGame extends StatefulWidget {
   State<PickupGame> createState() => _PickupGameState();
 }
 
-class _PickupGameState extends State<PickupGame> {
+class _PickupGameState extends State<PickupGame> with AiCameraMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final math.Random _random = math.Random();
+  final GameTapTracker _tapTracker = GameTapTracker();
   int _currentLevelIndex = 0;
 
-  CharacterConfig? _shuffledTarget;
-  CharacterConfig? _shuffledWrong1;
-  CharacterConfig? _shuffledWrong2;
+  CharacterConfig? _assignedTarget;
+  CharacterConfig? _assignedWrong1;
+  CharacterConfig? _assignedWrong2;
 
   bool _isIntro = true;
   bool _forceEntrancePositions = true;
@@ -77,12 +80,12 @@ class _PickupGameState extends State<PickupGame> {
   bool _showSuccessUI = false;
   bool _disposed = false;
 
-  // 3. Configure your levels and character adjusters here!
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   late final List<PickupLevel> _levels = [
-    // --- LEVEL 1: Mom Bear ---
     PickupLevel(
       parentImage: 'assets/images/characters/mom_bear.png',
-      // Little Bear
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/little_bear_uniform.png',
         leftOffset: 0.36,
@@ -93,7 +96,6 @@ class _PickupGameState extends State<PickupGame> {
         endBottomOffset: -0.10,
         endHeight: 0.55,
       ),
-      // Jack the Fox
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/jack_the_fox.png',
         leftOffset: 0.48,
@@ -101,7 +103,6 @@ class _PickupGameState extends State<PickupGame> {
         bottomOffset: 0.31,
         startHeight: 0.36,
       ),
-      // Roxie the Bunny
       wrongChild2: CharacterConfig(
         imagePath: 'assets/images/characters/roxie_standing.png',
         leftOffset: 0.59,
@@ -110,11 +111,8 @@ class _PickupGameState extends State<PickupGame> {
         startHeight: 0.42,
       ),
     ),
-
-    // --- LEVEL 2: Dad Jack ---
     PickupLevel(
       parentImage: 'assets/images/characters/dad_jack.png',
-      // Jack the Fox (Target)
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/jack_the_fox.png',
         leftOffset: 0.36,
@@ -125,7 +123,6 @@ class _PickupGameState extends State<PickupGame> {
         endBottomOffset: -0.05,
         endHeight: 0.50,
       ),
-      // Roxie the Bunny
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/roxie_standing.png',
         leftOffset: 0.48,
@@ -133,7 +130,6 @@ class _PickupGameState extends State<PickupGame> {
         bottomOffset: 0.30,
         startHeight: 0.42,
       ),
-      // Chicken
       wrongChild2: CharacterConfig(
         imagePath: 'assets/images/characters/chicken.png',
         leftOffset: 0.62,
@@ -142,11 +138,8 @@ class _PickupGameState extends State<PickupGame> {
         startHeight: 0.34,
       ),
     ),
-
-    // --- LEVEL 3: Mom Roxie ---
     PickupLevel(
       parentImage: 'assets/images/characters/mom_roxie.png',
-      // Roxie the Bunny (Target)
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/roxie_standing.png',
         leftOffset: 0.35,
@@ -157,7 +150,6 @@ class _PickupGameState extends State<PickupGame> {
         endBottomOffset: -0.08,
         endHeight: 0.58,
       ),
-      // Chicken
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/chicken.png',
         leftOffset: 0.48,
@@ -165,7 +157,6 @@ class _PickupGameState extends State<PickupGame> {
         bottomOffset: 0.30,
         startHeight: 0.34,
       ),
-      // Doma the Penguin
       wrongChild2: CharacterConfig(
         imagePath: 'assets/images/characters/doma_the_penguin2.png',
         leftOffset: 0.59,
@@ -174,11 +165,8 @@ class _PickupGameState extends State<PickupGame> {
         startHeight: 0.38,
       ),
     ),
-
-    // --- LEVEL 4: Mom Chicken ---
     PickupLevel(
       parentImage: 'assets/images/characters/mom_chichken.png',
-      // Chicken (Target)
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/chicken.png',
         leftOffset: 0.35,
@@ -189,7 +177,6 @@ class _PickupGameState extends State<PickupGame> {
         endBottomOffset: -0.05,
         endHeight: 0.48,
       ),
-      // Doma the Penguin
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/doma_the_penguin2.png',
         leftOffset: 0.48,
@@ -197,7 +184,6 @@ class _PickupGameState extends State<PickupGame> {
         bottomOffset: 0.30,
         startHeight: 0.38,
       ),
-      // Pig
       wrongChild2: CharacterConfig(
         imagePath: 'assets/images/characters/pig_dressed.png',
         leftOffset: 0.62,
@@ -206,11 +192,8 @@ class _PickupGameState extends State<PickupGame> {
         startHeight: 0.36,
       ),
     ),
-
-    // --- LEVEL 5: Mom Doma ---
     PickupLevel(
       parentImage: 'assets/images/characters/mom_doma.png',
-      // Doma the Penguin (Target)
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/doma_the_penguin2.png',
         leftOffset: 0.35,
@@ -221,7 +204,6 @@ class _PickupGameState extends State<PickupGame> {
         endBottomOffset: -0.05,
         endHeight: 0.50,
       ),
-      // Pig
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/pig_dressed.png',
         leftOffset: 0.50,
@@ -229,7 +211,6 @@ class _PickupGameState extends State<PickupGame> {
         bottomOffset: 0.30,
         startHeight: 0.36,
       ),
-      // Snake
       wrongChild2: CharacterConfig(
         imagePath: 'assets/images/characters/snake.png',
         leftOffset: 0.62,
@@ -238,11 +219,8 @@ class _PickupGameState extends State<PickupGame> {
         startHeight: 0.34,
       ),
     ),
-
-    // --- LEVEL 6: Dad Pig ---
     PickupLevel(
       parentImage: 'assets/images/characters/dad_pig.png',
-      // Pig (Target)
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/pig_dressed.png',
         leftOffset: 0.42,
@@ -253,7 +231,6 @@ class _PickupGameState extends State<PickupGame> {
         endBottomOffset: -0.05,
         endHeight: 0.50,
       ),
-      // Snake
       wrongChild1: CharacterConfig(
         imagePath: 'assets/images/characters/snake.png',
         leftOffset: 0.56,
@@ -263,11 +240,8 @@ class _PickupGameState extends State<PickupGame> {
       ),
       wrongChild2: null,
     ),
-
-    // --- LEVEL 7: Dad Snake ---
     PickupLevel(
       parentImage: 'assets/images/characters/dad_snake.png',
-      // Snake (Target)
       targetChild: CharacterConfig(
         imagePath: 'assets/images/characters/snake.png',
         leftOffset: 0.48,
@@ -287,45 +261,26 @@ class _PickupGameState extends State<PickupGame> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-    _shuffleCurrentLevelPositions();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
+    _assignCurrentLevelPositions();
     _playIntroSequence();
   }
 
-  CharacterConfig _withPosition(CharacterConfig original, CharacterConfig positionSource) {
-    return CharacterConfig(
-      imagePath: original.imagePath,
-      leftOffset: positionSource.leftOffset,
-      entranceLeftOffset: positionSource.entranceLeftOffset,
-      bottomOffset: positionSource.bottomOffset,
-      startHeight: positionSource.startHeight,
-      endLeftOffset: original.endLeftOffset,
-      endBottomOffset: original.endBottomOffset,
-      endHeight: original.endHeight,
-    );
-  }
-
-  void _shuffleCurrentLevelPositions() {
+  void _assignCurrentLevelPositions() {
     final level = _levels[_currentLevelIndex];
-
-    final children = <CharacterConfig>[
-      level.targetChild,
-      if (level.wrongChild1 != null) level.wrongChild1!,
-      if (level.wrongChild2 != null) level.wrongChild2!,
-    ];
-
-    final positions = List<CharacterConfig>.from(children)..shuffle(_random);
-
-    _shuffledTarget = _withPosition(level.targetChild, positions[0]);
-    int i = 1;
-    _shuffledWrong1 = level.wrongChild1 != null
-        ? _withPosition(level.wrongChild1!, positions[i++])
-        : null;
-    _shuffledWrong2 = level.wrongChild2 != null
-        ? _withPosition(level.wrongChild2!, positions[i++])
-        : null;
+    _assignedTarget = level.targetChild;
+    _assignedWrong1 = level.wrongChild1;
+    _assignedWrong2 = level.wrongChild2;
   }
 
-  // Orchestrates the kids sliding and bouncing into view
   void _triggerEntranceAnimation() {
     setState(() {
       _forceEntrancePositions = true;
@@ -352,31 +307,25 @@ class _PickupGameState extends State<PickupGame> {
   Future<void> _waitForAudioComplete() async {
     try {
       await _audioPlayer.onPlayerComplete.first;
-    } catch (_) {
-      // Stream closed (player disposed) before it ever completed — ignore.
-    }
+    } catch (_) {}
   }
 
   Future<void> _playIntroSequence() async {
-    // 1. Wait for Kiki's walking entrance
     await Future.delayed(const Duration(milliseconds: 1800));
     if (_disposed) return;
 
-    // 2. Play the Schoolbell and wait for it to finish
     await _audioPlayer.play(
       AssetSource('audio/discovery_lagoon/pickup_game_schoolbell.wav'),
     );
     await _waitForAudioComplete();
     if (_disposed) return;
 
-    // 3. Play the Intro sequence and wait for it to finish
     await _audioPlayer.play(
       AssetSource('audio/discovery_lagoon/pickup_game_intro.wav'),
     );
     await _waitForAudioComplete();
     if (_disposed) return;
 
-    // 4. Hide intro and start the actual game entrance
     if (mounted) {
       setState(() {
         _isIntro = false;
@@ -392,7 +341,8 @@ class _PickupGameState extends State<PickupGame> {
 
   @override
   void dispose() {
-    _disposed = true; // set FIRST so any in-flight steps bail out
+    _disposed = true;
+    disposeAiCamera();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
@@ -407,6 +357,7 @@ class _PickupGameState extends State<PickupGame> {
       return;
     }
 
+    _tapTracker.recordCorrectTap();
     _playAudio('audio/sound_effects/shine.wav');
 
     setState(() {
@@ -428,22 +379,46 @@ class _PickupGameState extends State<PickupGame> {
       Future.delayed(const Duration(milliseconds: 1800), () {
         if (!mounted) return;
 
-        setState(() {
-          _isTargetMoving = false;
-          _isWalkingAway = false;
-        });
-
+        // ONLY reset the walking positions if there is another round left
         if (_currentLevelIndex < _levels.length - 1) {
+          setState(() {
+            _isTargetMoving = false;
+            _isWalkingAway = false;
+          });
           _currentLevelIndex++;
-          _shuffleCurrentLevelPositions();
+          _assignCurrentLevelPositions();
           _triggerEntranceAnimation();
         } else {
-          setState(() {
-            _showSuccessUI = true;
-          });
+          _saveDataAndShowGoodJob();
         }
       });
     });
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_pickup_game',
+        activityName: 'Pickup Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+    await LagoonProgressService.instance.markLevelComplete(15);
+
+    if (mounted) {
+      setState(() {
+        _showSuccessUI = true;
+      });
+    }
   }
 
   Widget _buildChildCharacter({
@@ -528,6 +503,7 @@ class _PickupGameState extends State<PickupGame> {
             if (isTarget) {
               _handleTargetTap();
             } else {
+              _tapTracker.recordMistake();
               _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
             }
           },
@@ -536,12 +512,12 @@ class _PickupGameState extends State<PickupGame> {
             decoration: BoxDecoration(
               boxShadow: (isTarget && _isGlowing)
                   ? [
-                BoxShadow(
-                  color: Colors.yellowAccent.withValues(alpha: 0.50),
-                  blurRadius: 100,
-                  spreadRadius: 5,
-                ),
-              ]
+                      BoxShadow(
+                        color: Colors.yellowAccent.withValues(alpha: 0.50),
+                        blurRadius: 100,
+                        spreadRadius: 5,
+                      ),
+                    ]
                   : [],
             ),
             child: Image.asset(config.imagePath),
@@ -559,7 +535,6 @@ class _PickupGameState extends State<PickupGame> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. Background Layer
           Positioned.fill(
             child: Image.asset(
               'assets/images/backgrounds/bg_school.png',
@@ -567,15 +542,17 @@ class _PickupGameState extends State<PickupGame> {
             ),
           ),
 
-          // X Button and Level Badge
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
 
-          // 2. Kiki The Cat Intro Overlay (Only shows if _isIntro is true)
           if (_isIntro)
             Positioned(
               bottom: -screenSize.height * 0.05,
-              left: screenSize.width * 0.15, // Exact same spot as the parents
+              left: screenSize.width * 0.15,
               height: screenSize.height * 0.65,
               child: _WalkingAnimalEntrance(
                 walkDuration: const Duration(milliseconds: 1800),
@@ -585,7 +562,6 @@ class _PickupGameState extends State<PickupGame> {
               ),
             ),
 
-          // 3. The Parent (Only shown after Intro is done)
           if (!_isIntro)
             AnimatedPositioned(
               duration: _isWalkingAway
@@ -617,43 +593,43 @@ class _PickupGameState extends State<PickupGame> {
               ),
             ),
 
-          // 4. Wrong Choice 1
-          if (!_isIntro && _shuffledWrong1 != null)
+          if (!_isIntro && _assignedWrong1 != null)
             _buildChildCharacter(
-              config: _shuffledWrong1!,
+              config: _assignedWrong1!,
               isTarget: false,
               screenSize: screenSize,
             ),
 
-          // 5. Wrong Choice 2
-          if (!_isIntro && _shuffledWrong2 != null)
+          if (!_isIntro && _assignedWrong2 != null)
             _buildChildCharacter(
-              config: _shuffledWrong2!,
+              config: _assignedWrong2!,
               isTarget: false,
               screenSize: screenSize,
             ),
 
-          // 6. Target Child
-          if (!_isIntro && _shuffledTarget != null)
+          if (!_isIntro && _assignedTarget != null)
             _buildChildCharacter(
-              config: _shuffledTarget!,
+              config: _assignedTarget!,
               isTarget: true,
               screenSize: screenSize,
             ),
 
-          // 7. Good Job Prompt Overlay
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
+
           if (_showSuccessUI)
             Positioned.fill(
               child: GoodJobOverlay(
-                characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-                
+                characterImage:
+                    'assets/images/characters/cat_holding_fishbone.png',
                 characterSizeFactor: 0.9,
-                onNext: () async {
-                  // 1. Mark the current level as complete (Change the number for each game)
-                  await LagoonProgressService.instance.markLevelComplete(15);
-
+                onNext: () {
                   if (context.mounted) {
-                    // 2. Push directly to the next level's screen
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
@@ -668,8 +644,12 @@ class _PickupGameState extends State<PickupGame> {
                     _currentLevelIndex = 0;
                     _showSuccessUI = false;
                     _isIntro = true;
+                    _hasSavedResult = false;
+                    _isTargetMoving = false;
+                    _isWalkingAway = false;
+                    _tapTracker.startSession();
                   });
-                  _shuffleCurrentLevelPositions();
+                  _assignCurrentLevelPositions();
                   _playIntroSequence();
                 },
                 onBack: () => Navigator.of(context).pop(),
@@ -680,8 +660,6 @@ class _PickupGameState extends State<PickupGame> {
     );
   }
 }
-
-// ── CUSTOM CONTINUOUS WALKING BOUNCE ──────────────────────────────────────────
 
 class _WalkingBounce extends StatefulWidget {
   final Widget child;
@@ -751,8 +729,6 @@ class _WalkingBounceState extends State<_WalkingBounce>
     );
   }
 }
-
-// ── CUSTOM WALKING ENTRANCE ──────────────────────────────────────────────────
 
 class _WalkingAnimalEntrance extends StatefulWidget {
   final Widget child;

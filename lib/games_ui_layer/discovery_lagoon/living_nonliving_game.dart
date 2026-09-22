@@ -1,17 +1,19 @@
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
-
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
 
-// --- Game Phase Enum ---
 enum GamePhase { intro1, playLiving, intro2, playNonLiving, finished }
 
-// --- Configuration Model ---
 class AssetConfig {
   final String imagePath;
   final String coloredImagePath;
@@ -63,20 +65,31 @@ class LivingNonLivingGame extends StatefulWidget {
   State<LivingNonLivingGame> createState() => _LivingNonLivingGameState();
 }
 
-class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
-  // --- STATE VARIABLES ---
+class _LivingNonLivingGameState extends State<LivingNonLivingGame>
+    with AiCameraMixin {
   final Set<AssetConfig> _tappedAssets = {};
   late List<AssetConfig> _gameItems;
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   GamePhase _phase = GamePhase.intro1;
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
-    // Grouping all clickable items into a list so we can easily count them for win conditions
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera(); //to start the camera and face detection
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _gameItems = [
       sun,
       cloud1,
@@ -101,11 +114,10 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     super.dispose();
   }
-
-  // --- AUDIO & PHASE LOGIC ---
 
   void _startPhase1() async {
     setState(() => _phase = GamePhase.intro1);
@@ -144,8 +156,33 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
       final totalNonLiving = _gameItems.where((a) => !a.isLiving).length;
 
       if (tappedNonLiving >= totalNonLiving) {
-        setState(() => _phase = GamePhase.finished);
+        _saveDataAndShowGoodJob();
       }
+    }
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_living_nonliving',
+        activityName: 'Living vs Non-Living',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    await LagoonProgressService.instance.markLevelComplete(20);
+
+    if (mounted) {
+      setState(() => _phase = GamePhase.finished);
     }
   }
 
@@ -153,7 +190,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
 
   final AssetConfig sun = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/sun_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/sun.png',
+    coloredImagePath: 'assets/images/objects/lagoon/sun_wb.png',
     topOffset: 0.10,
     rightOffset: 0.33,
     widthOffset: 0.12,
@@ -284,13 +321,12 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
   final AssetConfig kiki = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/kiki_nc.png',
     coloredImagePath: 'assets/images/characters/kiki_the_cat.png',
-    isLiving: true, // <--- CHANGED: Kiki is now a living target!
+    isLiving: true,
     bottomOffset: 0.05,
     rightOffset: 0.04,
     heightOffset: 0.6,
   );
 
-  // --- Widget Builder ---
   Widget _buildAsset(AssetConfig config, Size size) {
     bool isTapped = _tappedAssets.contains(config);
     String currentImagePath = isTapped
@@ -321,9 +357,16 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
         if (!config.isClickable) return;
         if (isTapped) return;
 
-        if (_phase == GamePhase.playLiving && !config.isLiving) return;
-        if (_phase == GamePhase.playNonLiving && config.isLiving) return;
+        if (_phase == GamePhase.playLiving && !config.isLiving) {
+          _tapTracker.recordMistake();
+          return;
+        }
+        if (_phase == GamePhase.playNonLiving && config.isLiving) {
+          _tapTracker.recordMistake();
+          return;
+        }
 
+        _tapTracker.recordCorrectTap();
         setState(() {
           _tappedAssets.add(config);
           _checkProgress();
@@ -360,13 +403,11 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
     final size = MediaQuery.of(context).size;
 
     bool isIntro = _phase == GamePhase.intro1 || _phase == GamePhase.intro2;
-    bool isFinished =
-        _phase == GamePhase.finished; // <--- ADDED: Track finished state
+    bool isFinished = _phase == GamePhase.finished;
 
     return Scaffold(
       body: Stack(
         children: [
-          // 1. The Main Game Board
           Container(
             width: size.width,
             height: size.height,
@@ -401,7 +442,6 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
             ),
           ),
 
-          // 2. The Intro Overlay (Only visible during audio phases)
           if (isIntro)
             Positioned.fill(
               child: GestureDetector(
@@ -433,21 +473,27 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
               ),
             ),
 
-          // 3. The Good Job Overlay (Visible only when finished)
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
+
           if (isFinished)
             Positioned.fill(
               child: GoodJobOverlay(
-                characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-                
+                characterImage:
+                    'assets/images/characters/cat_holding_fishbone.png',
+
                 characterSizeFactor: 0.9,
-                onNext: () async {
-                  // 1. Mark the current level as complete (Change the number for each game)
-                  await LagoonProgressService.instance.markLevelComplete(20);
-                },
+                onNext: () {},
                 onRestart: () {
-                  // This instantly resets everything to play again
                   setState(() {
                     _tappedAssets.clear();
+                    _hasSavedResult = false;
+                    _tapTracker.startSession();
                     _startPhase1();
                   });
                 },
@@ -455,9 +501,12 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame> {
               ),
             ),
 
-          // X Button and Level Badge
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
         ],
       ),
     );
