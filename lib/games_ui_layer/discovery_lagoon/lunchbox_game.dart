@@ -1,29 +1,26 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 
+import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
-// ==========================================
-// DATA MODELS
-// ==========================================
-
-/// Data Model for the freehand drawing
 class SauceStroke {
   final String sauceId;
   final List<Offset> points;
 
   SauceStroke({required this.sauceId, required this.points});
 }
-
-// ==========================================
-// INTRO SCREEN
-// ==========================================
 
 class LunchboxGameIntro extends StatefulWidget {
   final int level;
@@ -43,7 +40,6 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
     OrientationService.setLandscape();
     _playIntroAudio();
 
-    // Listen for the audio to finish playing, then automatically start the game
     _audioPlayer.onPlayerComplete.listen((event) {
       if (mounted) {
         _startGame();
@@ -52,7 +48,6 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
   }
 
   Future<void> _playIntroAudio() async {
-    // Plays the audio file from your assets folder
     await _audioPlayer.play(
       AssetSource('audio/discovery_lagoon/lunchboxgame_intro.wav'),
     );
@@ -67,10 +62,11 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
 
   void _startGame() {
     _audioPlayer.stop();
-    // Navigate to the main LunchboxGame screen
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => LunchboxGame(level: widget.level)),
+      MaterialPageRoute(
+        builder: (context) => LunchboxGame(level: widget.level),
+      ),
     );
   }
 
@@ -84,15 +80,12 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
 
           return Stack(
             children: [
-              // 1. Background (Rainbow Lagoon)
               Positioned.fill(
                 child: Image.asset(
                   'assets/images/backgrounds/bg_rainbow_closeup2.png',
                   fit: BoxFit.cover,
                 ),
               ),
-
-              // 2. Kiki (Left Side)
               Positioned(
                 bottom: -screenHeight * 0.15,
                 left: screenWidth * 0.02,
@@ -102,8 +95,6 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
                   fit: BoxFit.contain,
                 ),
               ),
-
-              // 3. Roxie (Right Side)
               Positioned(
                 bottom: -screenHeight * 0.15,
                 right: screenWidth * 0.02,
@@ -113,10 +104,12 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
                   fit: BoxFit.contain,
                 ),
               ),
-
-              // X Button and Level Badge
               Positioned(top: 25, left: 25, child: const LagoonXButton()),
-              Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+              Positioned(
+                top: 25,
+                right: 25,
+                child: LagoonLevelBadge(level: widget.level),
+              ),
             ],
           );
         },
@@ -124,10 +117,6 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
     );
   }
 }
-
-// ==========================================
-// UNHEALTHY ENDING SCREEN
-// ==========================================
 
 class LunchboxGameUnhealthyEnding extends StatefulWidget {
   final int level;
@@ -152,12 +141,10 @@ class _LunchboxGameUnhealthyEndingState
   }
 
   Future<void> _playEndingSequence() async {
-    // Play the wrong ending audio
     await _audioPlayer.play(
       AssetSource('audio/discovery_lagoon/lunchboxgame_wrong_ending.wav'),
     );
 
-    // After 4 seconds, change Roxie to sad and show the restart button
     Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
         setState(() {
@@ -178,7 +165,9 @@ class _LunchboxGameUnhealthyEndingState
     _audioPlayer.stop();
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => LunchboxGameIntro(level: widget.level)),
+      MaterialPageRoute(
+        builder: (context) => LunchboxGameIntro(level: widget.level),
+      ),
     );
   }
 
@@ -192,15 +181,12 @@ class _LunchboxGameUnhealthyEndingState
 
           return Stack(
             children: [
-              // 1. Background (Rainbow Lagoon)
               Positioned.fill(
                 child: Image.asset(
                   'assets/images/backgrounds/bg_rainbow_closeup2.png',
                   fit: BoxFit.cover,
                 ),
               ),
-
-              // 2. Kiki (Left Side)
               Positioned(
                 bottom: -screenHeight * 0.15,
                 left: screenWidth * 0.02,
@@ -210,15 +196,12 @@ class _LunchboxGameUnhealthyEndingState
                   fit: BoxFit.contain,
                 ),
               ),
-
-              // 3. Roxie holding the closed Lunchbox (Right Side)
               Positioned(
                 bottom: -screenHeight * 0.15,
                 right: screenWidth * 0.02,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Swap between standing and sad Roxie based on the 4-second timer
                     Image.asset(
                       _showSadRoxie
                           ? 'assets/images/characters/roxie_sad.png'
@@ -226,7 +209,6 @@ class _LunchboxGameUnhealthyEndingState
                       height: screenHeight * 1.00,
                       fit: BoxFit.contain,
                     ),
-                    // The lunchbox positioned in her left hand
                     Positioned(
                       bottom: screenHeight * 0.15,
                       left: screenWidth * 0.07,
@@ -239,8 +221,6 @@ class _LunchboxGameUnhealthyEndingState
                   ],
                 ),
               ),
-
-              // 4. Try Again / Restart Button (Pops up in center)
               if (_showSadRoxie)
                 Align(
                   alignment: Alignment.center,
@@ -274,10 +254,6 @@ class _LunchboxGameUnhealthyEndingState
   }
 }
 
-// ==========================================
-// HEALTHY ENDING SCREEN
-// ==========================================
-
 class LunchboxGameHealthyEnding extends StatefulWidget {
   final int level;
 
@@ -308,7 +284,6 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
   }
 
   Future<void> _playEndingSequence() async {
-    // Play the right ending audio
     await _audioPlayer.play(
       AssetSource('audio/discovery_lagoon/lunchboxgame_right_ending.wav'),
     );
@@ -325,7 +300,9 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
     _audioPlayer.stop();
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) =>  LunchboxGameIntro(level: widget.level)),
+      MaterialPageRoute(
+        builder: (context) => LunchboxGameIntro(level: widget.level),
+      ),
     );
   }
 
@@ -339,15 +316,12 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
 
           return Stack(
             children: [
-              // 1. Background (Rainbow Lagoon)
               Positioned.fill(
                 child: Image.asset(
                   'assets/images/backgrounds/bg_rainbow_closeup2.png',
                   fit: BoxFit.cover,
                 ),
               ),
-
-              // 2. Kiki Smiling (Left Side)
               Positioned(
                 bottom: -screenHeight * 0.15,
                 left: screenWidth * 0.02,
@@ -357,8 +331,6 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
                   fit: BoxFit.contain,
                 ),
               ),
-
-              // 3. Roxie Smiling/Happy (Right Side)
               Positioned(
                 bottom: -screenHeight * 0.15,
                 right: screenWidth * 0.02,
@@ -370,7 +342,6 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
                       height: screenHeight * 1.00,
                       fit: BoxFit.contain,
                     ),
-                    // The lunchbox positioned in her left hand (viewer's right)
                     Positioned(
                       bottom: screenHeight * 0.15,
                       left: screenWidth * 0.07,
@@ -383,24 +354,19 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
                   ],
                 ),
               ),
-
-              // 4. Good Job Overlay Triggered
               if (_showOverlay)
                 Positioned.fill(
                   child: GoodJobOverlay(
-                    characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-                    
+                    characterImage:
+                        'assets/images/characters/cat_holding_fishbone.png',
                     characterSizeFactor: 0.9,
-                    onNext: () async {
-                      // 1. Mark the current level as complete (Change the number for each game)
-                      await LagoonProgressService.instance.markLevelComplete(7);
-
+                    onNext: () {
                       if (context.mounted) {
-                        // 2. Push directly to the next level's screen
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => WeatherGame(level: widget.level + 1),
+                            builder: (context) =>
+                                WeatherGame(level: widget.level + 1),
                           ),
                         );
                       }
@@ -417,10 +383,6 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
   }
 }
 
-// ==========================================
-// MAIN GAME SCREEN
-// ==========================================
-
 class LunchboxGame extends StatefulWidget {
   final int level;
 
@@ -430,41 +392,64 @@ class LunchboxGame extends StatefulWidget {
   State<LunchboxGame> createState() => _LunchboxGameState();
 }
 
-class _LunchboxGameState extends State<LunchboxGame> {
-  // Track current progression stage
+class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
+  final GameTapTracker _tapTracker = GameTapTracker();
   int currentBatch = 1;
 
-  // Track which foods are in which compartments
   String? leftCompartmentFoodId;
   String? topRightCompartmentFoodId;
   String? bottomRightCompartmentFoodId;
 
-  // Batch 4: Freehand drawing variables
   String? activeSauceId;
   List<SauceStroke> sauceStrokes = [];
   SauceStroke? currentStroke;
 
-  // Batch 5: Dessert selection
   String? selectedDessertId;
-
-  // Batch 6: Drink selection
   String? selectedDrinkId;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     OrientationService.setLandscape();
     super.dispose();
   }
 
-  // Helper method to evaluate if the lunchbox is unhealthy
-  void _evaluateLunchbox() {
-    // List of everything considered unhealthy
+  Future<void> _evaluateLunchbox() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_lunchbox',
+        activityName: 'Lunchbox Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+    await LagoonProgressService.instance.markLevelComplete(7);
+
     final List<String> unhealthyItems = [
       'pizza',
       'fries',
@@ -477,43 +462,43 @@ class _LunchboxGameState extends State<LunchboxGame> {
       'chocomilk',
     ];
 
-    // Check if ANY of the selected items fall into the unhealthy list
     bool isUnhealthy = [
       leftCompartmentFoodId,
       topRightCompartmentFoodId,
       bottomRightCompartmentFoodId,
       selectedDessertId,
       selectedDrinkId,
-    ].any((item) => unhealthyItems.contains(item));
+    ].any((item) => item != null && unhealthyItems.contains(item));
 
-    if (isUnhealthy) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LunchboxGameUnhealthyEnding(level: widget.level),
-        ),
-      );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LunchboxGameHealthyEnding(level: widget.level),
-        ),
-      );
+    if (mounted) {
+      if (isUnhealthy) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                LunchboxGameUnhealthyEnding(level: widget.level),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                LunchboxGameHealthyEnding(level: widget.level),
+          ),
+        );
+      }
     }
   }
 
-  // Helper method to get the correct image asset based on the ID
   String getFoodAsset(String id) {
     switch (id) {
-      // Batch 1
       case 'pizza':
         return 'assets/images/objects/lagoon/pizza_colored.png';
       case 'rice':
         return 'assets/images/objects/lagoon/rice.png';
       case 'fries':
         return 'assets/images/objects/lagoon/fries.png';
-      // Batch 2
       case 'drumstick':
         return 'assets/images/objects/lagoon/drumstick.png';
       case 'chips':
@@ -522,14 +507,12 @@ class _LunchboxGameState extends State<LunchboxGame> {
         return 'assets/images/objects/lagoon/cooked_fish.png';
       case 'cookie':
         return 'assets/images/objects/lagoon/cookie.png';
-      // Batch 3
       case 'lettuce':
         return 'assets/images/objects/lagoon/lettuce.png';
       case 'broccoli':
         return 'assets/images/objects/lagoon/broccoli.png';
       case 'bacon':
         return 'assets/images/objects/lagoon/bacon.png';
-      // Batch 5 (Desserts)
       case 'chocolate':
         return 'assets/images/objects/lagoon/chocolate.png';
       case 'banana':
@@ -538,7 +521,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
         return 'assets/images/objects/lagoon/strawberry.png';
       case 'orange':
         return 'assets/images/objects/lagoon/orange.png';
-      // Batch 6 (Drinks)
       case 'coffee':
         return 'assets/images/objects/lagoon/coffee.png';
       case 'water':
@@ -552,7 +534,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
     }
   }
 
-  // Helper method to get the correct sauce bottle asset
   String getSauceAsset(String id) {
     switch (id) {
       case 'ketchup':
@@ -566,7 +547,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
     }
   }
 
-  // Helper to build the 3-broccoli group
   Widget _buildBroccoliGroup(double size) {
     double childSize = size * 0.65;
     return SizedBox(
@@ -597,7 +577,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
     );
   }
 
-  // Helper method to render the dropped food with its correct rotation
   Widget _buildDroppedFood(String id, double size) {
     double finalSize = size;
     if (id == 'cookie') {
@@ -616,20 +595,19 @@ class _LunchboxGameState extends State<LunchboxGame> {
       img = Transform.rotate(angle: -1.57, child: img);
     } else if (id == 'fries') {
       img = Transform.rotate(angle: -0.20, child: img);
-    }
-    else if (id == 'drumstick') {
+    } else if (id == 'drumstick') {
       img = Transform.rotate(angle: -0.3, child: img);
     }
     return img;
   }
 
-  // Helper to build the selectable dessert items for Batch 5
   Widget _buildDessertOption(String id, Alignment alignment, double size) {
     final isSelected = selectedDessertId == id;
     return Align(
       alignment: alignment,
       child: GestureDetector(
         onTap: () {
+          _tapTracker.recordCorrectTap();
           setState(() => selectedDessertId = id);
           Future.delayed(const Duration(milliseconds: 600), () {
             if (mounted) setState(() => currentBatch = 6);
@@ -658,16 +636,14 @@ class _LunchboxGameState extends State<LunchboxGame> {
     );
   }
 
-  // Helper to build the selectable drink items for Batch 6
   Widget _buildDrinkOption(String id, Alignment alignment, double size) {
     final isSelected = selectedDrinkId == id;
     return Align(
       alignment: alignment,
       child: GestureDetector(
         onTap: () {
+          _tapTracker.recordCorrectTap();
           setState(() => selectedDrinkId = id);
-
-          // Tiny delay so the user sees the glow animation before evaluating
           Future.delayed(const Duration(milliseconds: 600), () {
             if (mounted) {
               _evaluateLunchbox();
@@ -708,7 +684,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
 
           return Stack(
             children: [
-              // 1. Background Table
               Positioned.fill(
                 child: Image.asset(
                   'assets/images/backgrounds/bg_table.png',
@@ -716,7 +691,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
                 ),
               ),
 
-              // 2. Center Lunchbox with Multiple Drop Zones & Canvas Overlay
               if (currentBatch < 5)
                 Align(
                   alignment: Alignment.center,
@@ -754,7 +728,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
                             width: screenWidth * 0.45,
                             fit: BoxFit.contain,
                           ),
-                          // --- DROP ZONE 1: Left Compartment ---
                           Positioned.fill(
                             child: Align(
                               alignment: Alignment.centerLeft,
@@ -782,6 +755,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
                                         ),
                                     onAccept: (data) {
                                       if (currentBatch == 1) {
+                                        _tapTracker.recordCorrectTap();
                                         setState(() {
                                           leftCompartmentFoodId = data;
                                           currentBatch = 2;
@@ -793,7 +767,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
                               ),
                             ),
                           ),
-                          // --- DROP ZONE 2: Top Right Compartment ---
                           Positioned.fill(
                             child: Align(
                               alignment: Alignment.topRight,
@@ -823,6 +796,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
                                         ),
                                     onAccept: (data) {
                                       if (currentBatch == 2) {
+                                        _tapTracker.recordCorrectTap();
                                         setState(() {
                                           topRightCompartmentFoodId = data;
                                           currentBatch = 3;
@@ -834,7 +808,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
                               ),
                             ),
                           ),
-                          // --- DROP ZONE 3: Bottom Right Compartment ---
                           Positioned.fill(
                             child: Align(
                               alignment: Alignment.bottomRight,
@@ -865,6 +838,7 @@ class _LunchboxGameState extends State<LunchboxGame> {
                                         ),
                                     onAccept: (data) {
                                       if (currentBatch == 3) {
+                                        _tapTracker.recordCorrectTap();
                                         setState(() {
                                           bottomRightCompartmentFoodId = data;
                                           currentBatch = 4;
@@ -876,13 +850,14 @@ class _LunchboxGameState extends State<LunchboxGame> {
                               ),
                             ),
                           ),
-                          // --- THE CANVAS OVERLAY FOR SAUCE ---
                           if (currentBatch == 4)
                             Positioned.fill(
                               child: ClipPath(
                                 clipper: _LunchboxCanvasClipper(),
                                 child: CustomPaint(
-                                  painter: FreehandSaucePainter(strokes: sauceStrokes),
+                                  painter: FreehandSaucePainter(
+                                    strokes: sauceStrokes,
+                                  ),
                                 ),
                               ),
                             ),
@@ -892,7 +867,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
                   ),
                 ),
 
-              // --- BATCH 1 FOODS ---
               if (currentBatch == 1) ...[
                 Align(
                   alignment: const Alignment(-0.9, 0.0),
@@ -924,7 +898,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
                 ),
               ],
 
-              // --- BATCH 2 FOODS ---
               if (currentBatch == 2) ...[
                 Align(
                   alignment: const Alignment(-0.85, -0.3),
@@ -972,7 +945,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
                 ),
               ],
 
-              // --- BATCH 3 FOODS ---
               if (currentBatch == 3) ...[
                 Align(
                   alignment: const Alignment(-0.85, -0.3),
@@ -1018,7 +990,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
                 ),
               ],
 
-              // --- BATCH 4: SELECTABLE SAUCE BOTTLES & "DONE" BUTTON ---
               if (currentBatch == 4) ...[
                 Align(
                   alignment: const Alignment(0.62, 0.05),
@@ -1027,7 +998,10 @@ class _LunchboxGameState extends State<LunchboxGame> {
                     assetPath: getSauceAsset('ketchup'),
                     size: plateSize * 0.8,
                     isActive: activeSauceId == 'ketchup',
-                    onTap: () => setState(() => activeSauceId = 'ketchup'),
+                    onTap: () {
+                      _tapTracker.recordCorrectTap();
+                      setState(() => activeSauceId = 'ketchup');
+                    },
                   ),
                 ),
                 Align(
@@ -1037,7 +1011,10 @@ class _LunchboxGameState extends State<LunchboxGame> {
                     assetPath: getSauceAsset('mustard'),
                     size: plateSize * 0.8,
                     isActive: activeSauceId == 'mustard',
-                    onTap: () => setState(() => activeSauceId = 'mustard'),
+                    onTap: () {
+                      _tapTracker.recordCorrectTap();
+                      setState(() => activeSauceId = 'mustard');
+                    },
                   ),
                 ),
                 Align(
@@ -1047,7 +1024,10 @@ class _LunchboxGameState extends State<LunchboxGame> {
                     assetPath: getSauceAsset('mayo'),
                     size: plateSize * 0.8,
                     isActive: activeSauceId == 'mayo',
-                    onTap: () => setState(() => activeSauceId = 'mayo'),
+                    onTap: () {
+                      _tapTracker.recordCorrectTap();
+                      setState(() => activeSauceId = 'mayo');
+                    },
                   ),
                 ),
                 Positioned(
@@ -1075,7 +1055,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
                 ),
               ],
 
-              // --- BATCH 5: FINAL DESSERT SELECTION ---
               if (currentBatch == 5) ...[
                 _buildDessertOption(
                   'chocolate',
@@ -1109,7 +1088,6 @@ class _LunchboxGameState extends State<LunchboxGame> {
                 ),
               ],
 
-              // --- BATCH 6: FINAL DRINK SELECTION ---
               if (currentBatch == 6) ...[
                 _buildDrinkOption(
                   'coffee',
@@ -1133,9 +1111,22 @@ class _LunchboxGameState extends State<LunchboxGame> {
                 ),
               ],
 
-              // X Button and Level Badge
               Positioned(top: 25, left: 25, child: const LagoonXButton()),
-              Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+              Positioned(
+                top: 25,
+                right: 25,
+                child: LagoonLevelBadge(level: widget.level),
+              ),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
             ],
           );
         },
@@ -1153,30 +1144,22 @@ class _LunchboxCanvasClipper extends CustomClipper<Path> {
 
   @override
   Path getClip(Size size) {
-    return Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromLTRB(
-          left,
-          top,
-          size.width - right,
-          size.height - bottom,
-        ),
+    return Path()..addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTRB(left, top, size.width - right, size.height - bottom),
         Radius.circular(cornerRadius),
-      ));
+      ),
+    );
   }
 
   @override
   bool shouldReclip(covariant _LunchboxCanvasClipper oldClipper) =>
       oldClipper.left != left ||
-          oldClipper.top != top ||
-          oldClipper.right != right ||
-          oldClipper.bottom != bottom ||
-          oldClipper.cornerRadius != cornerRadius;
+      oldClipper.top != top ||
+      oldClipper.right != right ||
+      oldClipper.bottom != bottom ||
+      oldClipper.cornerRadius != cornerRadius;
 }
-
-// ==========================================
-// SHARED WIDGETS
-// ==========================================
 
 class PlateWithFood extends StatelessWidget {
   final String foodAsset;

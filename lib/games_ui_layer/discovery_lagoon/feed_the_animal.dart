@@ -1,17 +1,23 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/lunchbox_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:audioplayers/audioplayers.dart';
+
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
-/// Defines a single round in the Feed the Animal game.
 class AnimalLevel {
   final String animalName;
   final String animalImagePath;
@@ -48,10 +54,12 @@ class FeedTheAnimalGame extends StatefulWidget {
   State<FeedTheAnimalGame> createState() => _FeedTheAnimalGameState();
 }
 
-class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
+class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
+    with AiCameraMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _voicePlayer = AudioPlayer();
   StreamSubscription? _audioSub;
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   int _currentLevelIndex = 0;
   bool _isHappy = false;
@@ -59,18 +67,22 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
   bool _readyForEntrance = false;
   bool _showIntro = true;
 
-  static const String _audioIntro = 'audio/discovery_lagoon/feed_the_animal_game_intro.wav';
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  static const String _audioIntro =
+      'audio/discovery_lagoon/feed_the_animal_game_intro.wav';
   static const String _audioCorrect = 'audio/sound_effects/shine.wav';
   static const String _audioWrong = 'audio/discovery_lagoon/kiki_tryagain.wav';
 
-  // Define the sequence based on the new idea
   late final List<AnimalLevel> _levels = [
     AnimalLevel(
       animalName: 'Rabbit',
       animalImagePath: 'assets/images/characters/roxie_the_rabbit.png',
       animalHappyImagePath: 'assets/images/characters/roxie_try_again.png',
       correctFood: 'carrot2',
-      questionAudioPath: 'audio/discovery_lagoon/feed_animal_bunny_question.wav',
+      questionAudioPath:
+          'audio/discovery_lagoon/feed_animal_bunny_question.wav',
       correctAudioPath: 'audio/discovery_lagoon/feed_animal_bunny_correct.wav',
       tableFoods: [
         FoodOption(
@@ -114,8 +126,10 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/characters/doma_the_penguin.png',
       animalHappyImagePath: 'assets/images/characters/doma_smiling.png',
       correctFood: 'perfume_fish',
-      questionAudioPath: 'audio/discovery_lagoon/feed_animal_penguin_question.wav',
-      correctAudioPath: 'audio/discovery_lagoon/feed_animal_penguin_correct.wav',
+      questionAudioPath:
+          'audio/discovery_lagoon/feed_animal_penguin_question.wav',
+      correctAudioPath:
+          'audio/discovery_lagoon/feed_animal_penguin_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'perfume_fish',
@@ -180,8 +194,10 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       animalImagePath: 'assets/images/objects/lagoon/chicken.png',
       animalHappyImagePath: 'assets/images/objects/lagoon/chicken.png',
       correctFood: 'worm',
-      questionAudioPath: 'audio/discovery_lagoon/feed_animal_chicken_question.wav',
-      correctAudioPath: 'audio/discovery_lagoon/feed_animal_chicken_correct.wav',
+      questionAudioPath:
+          'audio/discovery_lagoon/feed_animal_chicken_question.wav',
+      correctAudioPath:
+          'audio/discovery_lagoon/feed_animal_chicken_correct.wav',
       tableFoods: [
         FoodOption(
           id: 'pizza',
@@ -203,11 +219,21 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _playIntroSequence();
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioSub?.cancel();
     _audioPlayer.dispose();
     _voicePlayer.dispose();
@@ -219,12 +245,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       _showIntro = true;
     });
 
-    // Play the intro audio
-    await _audioPlayer.play(
-      AssetSource(_audioIntro),
-    );
+    await _audioPlayer.play(AssetSource(_audioIntro));
 
-    // Listen for the audio to finish, then transition to the game
     _audioSub = _audioPlayer.onPlayerComplete.listen((_) {
       _audioSub?.cancel();
       if (mounted) {
@@ -232,7 +254,6 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
           _showIntro = false;
         });
 
-        // Small delay before the first character walks in
         Future.delayed(const Duration(milliseconds: 200), () {
           if (mounted) {
             setState(() => _readyForEntrance = true);
@@ -256,6 +277,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
     final currentLevel = _levels[_currentLevelIndex];
 
     if (foodId == currentLevel.correctFood) {
+      _tapTracker.recordCorrectTap();
       setState(() {
         _isHappy = true;
       });
@@ -267,12 +289,9 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
 
         await _voicePlayer.play(AssetSource(currentLevel.correctAudioPath));
 
-        // Wait for the voice line to actually finish playing
         try {
           await _voicePlayer.onPlayerComplete.first;
-        } catch (_) {
-          // Player disposed mid-wait — ignore
-        }
+        } catch (_) {}
 
         if (!mounted) return;
 
@@ -290,20 +309,42 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
             }
           });
         } else {
-          setState(() {
-            _readyForEntrance = false;
-            _showSuccessUI = true;
-          });
+          await _saveDataAndShowGoodJob();
         }
       });
     } else {
-      _audioPlayer.play(
-        AssetSource(_audioWrong),
-      );
+      _tapTracker.recordMistake();
+      _audioPlayer.play(AssetSource(_audioWrong));
     }
   }
 
-  // ── Builds the Intro Screen with Kiki and the Basket ───────────
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_feed_the_animal',
+        activityName: 'Feed the Animal',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+    await LagoonProgressService.instance.markLevelComplete(6);
+
+    if (mounted) {
+      setState(() {
+        _readyForEntrance = false;
+        _showSuccessUI = true;
+      });
+    }
+  }
+
   Widget _buildIntroScreen(double sw, double sh) {
     final double animalHeight = sh * 0.95;
 
@@ -311,18 +352,14 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background
           Image.asset(
             'assets/images/backgrounds/bg_rainbow_lagoon.png',
             fit: BoxFit.cover,
             errorBuilder: (ctx, err, st) =>
                 Container(color: const Color(0xFF90D060)),
           ),
-
-          // Kiki + Basket animated together in the center
-          // Kiki + Basket anchored to the bottom and pushed down
           Positioned(
-            bottom: -sh * 0.23, // Adjust this number to move her up or down!
+            bottom: -sh * 0.23,
             left: 0,
             right: 0,
             child:
@@ -336,7 +373,6 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
                           fit: BoxFit.contain,
                         ),
                         Positioned(
-                          // Positioning the basket over Kiki's belly/hands
                           bottom: animalHeight * 0.10,
                           child: Image.asset(
                             'assets/images/objects/lagoon/basket.png',
@@ -354,10 +390,12 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
                       curve: Curves.easeInOut,
                     ),
           ),
-
-          // X Button and Level Badge
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
         ],
       ),
     );
@@ -368,12 +406,10 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
     final double sw = MediaQuery.of(context).size.width;
     final double sh = MediaQuery.of(context).size.height;
 
-    // ── Show Intro Sequence ────────────────────────────────────────────────
     if (_showIntro) {
       return _buildIntroScreen(sw, sh);
     }
 
-    // Layout constants
     final double tableBottom = -sh * 0.60;
     final double foodBaseOffset = sh * 0.055;
     const double animalBottom = 0.0;
@@ -385,15 +421,12 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── 1. Background ──────────────────────────────────────────────
           Image.asset(
             'assets/images/backgrounds/bg_rainbow_lagoon.png',
             fit: BoxFit.cover,
             errorBuilder: (ctx, err, st) =>
                 Container(color: const Color(0xFF90D060)),
           ),
-
-          // ── 2. The Animal (Drag Target) ────────────────────────────────
           Positioned(
             bottom: animalBottom,
             left: 0,
@@ -404,11 +437,9 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
                 _handleFoodAccepted(details.data);
               },
               builder: (context, candidateData, rejectedData) {
-                // Only build the animal if it is ready to enter
                 if (!_readyForEntrance) return const SizedBox.shrink();
 
                 return Center(
-                  // The custom walk-in animation wrapper
                   child: _WalkingAnimalEntrance(
                     key: ValueKey('entrance_${currentLevel.animalName}'),
                     bounceHeightPx: animalHeight * 0.045,
@@ -430,7 +461,6 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
                                   color: Colors.grey,
                                 ),
                               )
-                              // The constant idle bounce animation (happens after walking)
                               .animate(onPlay: (c) => c.repeat(reverse: true))
                               .moveY(
                                 begin: 0,
@@ -446,8 +476,6 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
               },
             ),
           ),
-
-          // ── 3. The Table ───────────────────────────────────────────────
           Positioned(
             bottom: tableBottom,
             left: 0,
@@ -464,8 +492,6 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
               ),
             ),
           ),
-
-          // ── 4. The Plates & Food Options ───────────────────────────────
           Positioned(
             bottom: foodBaseOffset,
             left: 0,
@@ -504,7 +530,6 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
                     alignment: Alignment.center,
                     clipBehavior: Clip.none,
                     children: [
-                      // Bottom layer: Static Plate
                       Align(
                         alignment: Alignment.bottomCenter,
                         child: Image.asset(
@@ -521,11 +546,9 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
                           ),
                         ),
                       ),
-                      // Top layer: Draggable Food
                       Align(
                         alignment: Alignment.bottomCenter,
                         child: Padding(
-                          // Reduced the padding significantly so it sits exactly on the plate
                           padding: EdgeInsets.only(bottom: plateWidth * 0.04),
                           child: _isHappy
                               ? Opacity(opacity: 0.5, child: foodWidget)
@@ -552,26 +575,29 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
               }).toList(),
             ).animate().fadeIn(duration: 500.ms),
           ),
-
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
 
-          // ── 6. End Game UI (GoodJobOverlay) ───────────────────────────
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
+
           if (_showSuccessUI)
             Positioned.fill(
               child: GoodJobOverlay(
-                characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-                
+                characterImage:
+                    'assets/images/characters/cat_holding_fishbone.png',
                 characterSizeFactor: 0.9,
-                onNext: () async {
-                  // 1. Mark the current level as complete (Change the number for each game)
-                  await LagoonProgressService.instance.markLevelComplete(6);
-
+                onNext: () {
                   if (context.mounted) {
-                    // 2. Push directly to the next level's screen
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => LunchboxGameIntro(level: widget.level + 1),
+                        builder: (context) =>
+                            LunchboxGameIntro(level: widget.level + 1),
                       ),
                     );
                   }
@@ -581,9 +607,10 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
                     _currentLevelIndex = 0;
                     _isHappy = false;
                     _showSuccessUI = false;
-                    _showIntro = false; // Skip the intro on restart
+                    _showIntro = false;
+                    _hasSavedResult = false;
+                    _tapTracker.startSession();
                   });
-                  // Trigger the first walk-in again upon restart
                   Future.delayed(const Duration(milliseconds: 200), () {
                     if (mounted) setState(() => _readyForEntrance = true);
                   });
@@ -597,10 +624,6 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame> {
   }
 }
 
-// ── CUSTOM WALKING ENTRANCE ──────────────────────────────────────────────────
-
-/// Reusable walk-in entrance mimicking the math from CharacterEntrance
-/// without needing plate/glass parameters.
 class _WalkingAnimalEntrance extends StatefulWidget {
   final Widget child;
   final double bounceHeightPx;
@@ -641,7 +664,7 @@ class _WalkingAnimalEntranceState extends State<_WalkingAnimalEntrance>
   @override
   Widget build(BuildContext context) {
     final double sw = MediaQuery.of(context).size.width;
-    final double startX = sw; // Always slide in from the right
+    final double startX = sw;
 
     final int stepCount =
         (widget.walkDuration.inMilliseconds /
@@ -653,12 +676,8 @@ class _WalkingAnimalEntranceState extends State<_WalkingAnimalEntrance>
       animation: _controller,
       builder: (context, child) {
         final double t = _controller.value;
-
-        // Horizontal slide
         final double easedT = Curves.easeOutCubic.transform(t);
         final double dx = startX * (1 - easedT);
-
-        // Footstep bounce
         final double bounce = t < 1.0
             ? (math.sin(t * stepCount * math.pi)).abs() * widget.bounceHeightPx
             : 0.0;

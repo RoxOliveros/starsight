@@ -1,10 +1,16 @@
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/seed_game.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'dart:async';
+
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
@@ -30,12 +36,16 @@ class HabitantGame extends StatefulWidget {
   State<HabitantGame> createState() => _HabitantGameState();
 }
 
-class _HabitantGameState extends State<HabitantGame> {
+class _HabitantGameState extends State<HabitantGame> with AiCameraMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   StreamSubscription? _audioSubscription;
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   bool _showIntro = true;
-  bool _isGameWon = false; // Tracks if the player has won
+  bool _isGameWon = false;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   Map<String, String> currentPlacements = {
     'arctic': 'dog',
@@ -88,7 +98,6 @@ class _HabitantGameState extends State<HabitantGame> {
     ),
   };
 
-  // Adjusters for the Intro Cat
   final CharacterAdjustment introCatAdjustment = const CharacterAdjustment(
     size: 400.0,
     offsetX: 0.0,
@@ -101,6 +110,15 @@ class _HabitantGameState extends State<HabitantGame> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _playIntro();
   }
 
@@ -120,6 +138,7 @@ class _HabitantGameState extends State<HabitantGame> {
 
   @override
   void dispose() {
+    disposeAiCamera();
     OrientationService.setLandscape();
     _audioSubscription?.cancel();
     _audioPlayer.dispose();
@@ -139,7 +158,6 @@ class _HabitantGameState extends State<HabitantGame> {
     return sadImages[characterId]!;
   }
 
-  /// Checks if every character is currently in their correct habitat
   void _checkForWin() {
     bool allCorrect = true;
     currentPlacements.forEach((zoneId, characterId) {
@@ -149,6 +167,30 @@ class _HabitantGameState extends State<HabitantGame> {
     });
 
     if (allCorrect) {
+      _saveDataAndShowGoodJob();
+    }
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_habitant_game',
+        activityName: 'Habitant Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+    await LagoonProgressService.instance.markLevelComplete(10);
+
+    if (mounted) {
       setState(() {
         _isGameWon = true;
       });
@@ -160,7 +202,6 @@ class _HabitantGameState extends State<HabitantGame> {
     return Scaffold(
       body: Stack(
         children: [
-          // --- THE MAIN GAME ---
           Column(
             children: [
               Expanded(
@@ -189,7 +230,6 @@ class _HabitantGameState extends State<HabitantGame> {
             ],
           ),
 
-          // --- THE INTRO OVERLAY ---
           if (_showIntro)
             Container(
               color: Colors.black.withValues(alpha: 0.8),
@@ -213,32 +253,41 @@ class _HabitantGameState extends State<HabitantGame> {
               ),
             ),
 
-          // X Button and Level Badge
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
 
-          // --- THE GOOD JOB OVERLAY ---
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
+
           if (_isGameWon)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-              
+              characterImage:
+                  'assets/images/characters/cat_holding_fishbone.png',
               characterSizeFactor: 0.9,
-              onNext: () async {
-                // 1. Mark the current level as complete (Change the number for each game)
-                await LagoonProgressService.instance.markLevelComplete(10);
-
+              onNext: () {
                 if (context.mounted) {
-                  // 2. Push directly to the next level's screen
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => SeedGame(level: widget.level)),
+                    MaterialPageRoute(
+                      builder: (context) => SeedGame(level: widget.level + 1),
+                    ),
                   );
                 }
               },
               onRestart: () {
                 setState(() {
                   _isGameWon = false;
-                  // Reset animals to their incorrect starting positions
+                  _hasSavedResult = false;
+                  _tapTracker.startSession();
                   currentPlacements = {
                     'arctic': 'dog',
                     'town': 'frog',
@@ -273,8 +322,9 @@ class _HabitantGameState extends State<HabitantGame> {
     );
 
     return DragTarget<String>(
-      onWillAccept: (sourceZoneId) => sourceZoneId != zoneId,
-      onAccept: (sourceZoneId) {
+      onWillAcceptWithDetails: (details) => details.data != zoneId,
+      onAcceptWithDetails: (details) {
+        String sourceZoneId = details.data;
         setState(() {
           String movingCharacter = currentPlacements[sourceZoneId]!;
           String displacedCharacter = currentPlacements[zoneId]!;
@@ -283,9 +333,14 @@ class _HabitantGameState extends State<HabitantGame> {
           currentPlacements[sourceZoneId] = displacedCharacter;
 
           bool isCorrect = correctHabitats[movingCharacter] == zoneId;
-          _playSound(isCorrect);
 
-          // Check if the game is won after this move
+          if (isCorrect) {
+            _tapTracker.recordCorrectTap();
+          } else {
+            _tapTracker.recordMistake();
+          }
+
+          _playSound(isCorrect);
           _checkForWin();
         });
       },

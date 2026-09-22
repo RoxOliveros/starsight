@@ -1,22 +1,26 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/audio_helper.dart';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/pickup_game.dart';
-import 'package:flutter/material.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../audio_helper.dart';
 import '../goodjob_prompt.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../star_round_indicator.dart';
-import 'audio_helper.dart';
 import 'intro_phase.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
-/// A scene (image) the child must match to the correct [seasonId].
 class SeasonScene {
   final String imagePath;
   final String seasonId;
@@ -34,10 +38,15 @@ class SeasonSceneTapScreen extends StatefulWidget {
 }
 
 class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
-    with TickerProviderStateMixin, LagoonIntroMixin, KikiReactionMixin {
+    with
+        TickerProviderStateMixin,
+        LagoonIntroMixin,
+        KikiReactionMixin,
+        AiCameraMixin {
   final AudioPlayer _introPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   late final AudioHelper _audioHelper = AudioHelper(
     shouldResumeOnForeground: () => _screenPhase == LagoonScreenPhase.game,
@@ -51,9 +60,11 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_rainbow_lagoon.png';
 
-  static const String _audioIntro = 'assets/audio/discovery_lagoon/season_tap_intro.wav';
+  static const String _audioIntro =
+      'assets/audio/discovery_lagoon/season_tap_intro.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
 
   static const Map<String, String> _seasonNames = {
@@ -98,6 +109,9 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
   bool _showFeedback = false;
   bool _showWinDialog = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   late AnimationController _bounceCtrl;
   late Animation<double> _bounceAnim;
   late AnimationController _shakeCtrl;
@@ -107,6 +121,15 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     initLagoonIntro();
 
     _audioHelper.playBackgroundMusic();
@@ -141,6 +164,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioHelper.stopBackgroundMusic();
     _audioHelper.dispose();
 
@@ -169,13 +193,17 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     });
 
     if (correct) {
+      _tapTracker.recordCorrectTap();
       _bounceCtrl.forward(from: 0);
       showKikiReaction(KikiState.correct);
       LagoonAudio.instance.play(_seasonAudioKeys[scene.seasonId]!);
     } else {
+      _tapTracker.recordMistake();
       _shakeCtrl.forward(from: 0);
-      await _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
-      Future.delayed(Duration(seconds: 1));
+      await _sfxPlayer.play(
+        AssetSource(_audioWrong.replaceFirst('assets/', '')),
+      );
+      Future.delayed(const Duration(seconds: 1));
       showKikiReaction(KikiState.wrong);
     }
 
@@ -185,8 +213,8 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     if (correct) {
       if (_isLastRound) {
         setState(() => _starsLit = _rounds.length);
-        await LagoonProgressService.instance.markLevelComplete(widget.level);
-        setState(() => _showWinDialog = true);
+
+        await _saveDataAndShowGoodJob();
       } else {
         setState(() {
           _currentRound++;
@@ -197,11 +225,33 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
         });
       }
     } else {
-      // Let them try again on the same scene
       setState(() {
         _selectedSeasonId = null;
         _showFeedback = false;
       });
+    }
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_season_scene_tap',
+        activityName: 'Season Scene Tap',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
     }
   }
 
@@ -214,6 +264,8 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
       _isCorrect = false;
       _showFeedback = false;
       _showWinDialog = false;
+      _hasSavedResult = false;
+      _tapTracker.startSession();
     });
   }
 
@@ -222,19 +274,27 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Image.asset(
-              _bgImage,
-              fit: BoxFit.cover,
-            ),
-          ),
-           _screenPhase == LagoonScreenPhase.intro
-                ? _buildIntroContent()
-                : _buildGameContent(),
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+          _screenPhase == LagoonScreenPhase.intro
+              ? _buildIntroContent()
+              : _buildGameContent(),
           if (_screenPhase == LagoonScreenPhase.game) buildKiki(context),
-          // X Button and Level Badge
+
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
+
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
+
           if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         ],
       ),
@@ -243,9 +303,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
 
   Widget _buildIntroContent() {
     return Stack(
-      children: [
-        Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
-      ],
+      children: [Positioned.fill(top: 48, child: buildLagoonIntroCharacter())],
     );
   }
 
@@ -259,7 +317,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
           children: [
             Expanded(
               child: Padding(
-                padding: EdgeInsets.only(
+                padding: const EdgeInsets.only(
                   top: 80,
                   left: 50,
                   right: 50,
@@ -303,8 +361,6 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     );
   }
 
-  // ── Scene card ────────────────────────────────────────────────────────────
-
   Widget _buildSceneCard(SeasonScene scene) {
     return Container(
       width: double.infinity,
@@ -345,14 +401,11 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     );
   }
 
-  // ── Choice button ─────────────────────────────────────────────────────────
-
   Widget _buildChoiceButton(String seasonId, SeasonScene scene) {
     final isSelected = _selectedSeasonId == seasonId;
     final showAsCorrect = _showFeedback && isSelected && _isCorrect;
     final showAsWrong = _showFeedback && isSelected && !_isCorrect;
 
-    // Map seasonId to its image path
     final Map<String, String> seasonImages = {
       'spring': 'assets/images/objects/lagoon/spring_icon.png',
       'summer': 'assets/images/objects/lagoon/summer_icon.png',
@@ -381,14 +434,13 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
                 ),
               ),
             ),
-            // Feedback overlay
             if (showAsCorrect || showAsWrong)
               Container(
                 color:
-                (showAsCorrect
-                    ? LagoonColorTheme.sagegreen
-                    : const Color(0xFFE05A5A))
-                    .withValues(alpha: 0.45),
+                    (showAsCorrect
+                            ? LagoonColorTheme.sagegreen
+                            : const Color(0xFFE05A5A))
+                        .withValues(alpha: 0.45),
               ),
           ],
         ),
@@ -411,21 +463,18 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     return GestureDetector(onTap: () => _onChoiceTap(seasonId), child: button);
   }
 
-  // ── Win overlay ───────────────────────────────────────────────────────────
-
   Widget _buildGoodJobOverlay() {
     LagoonProgressService.instance.markLevelComplete(widget.level);
     return GoodJobOverlay(
       characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-      
       characterSizeFactor: 0.9,
       onNext: () async {
-
         if (context.mounted) {
-          // 2. Push directly to the next level's screen
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => PickupGame(level: widget.level + 1)),
+            MaterialPageRoute(
+              builder: (context) => PickupGame(level: widget.level + 1),
+            ),
           );
         }
       },

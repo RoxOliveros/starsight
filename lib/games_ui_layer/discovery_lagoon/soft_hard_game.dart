@@ -1,9 +1,14 @@
 import 'dart:math';
-import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/feed_the_animal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/feed_the_animal.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../goodjob_prompt.dart';
@@ -27,11 +32,11 @@ class SoftHardGameScreen extends StatefulWidget {
 }
 
 class _SoftHardGameScreenState extends State<SoftHardGameScreen>
-    with TickerProviderStateMixin, KikiReactionMixin {
+    with TickerProviderStateMixin, KikiReactionMixin, AiCameraMixin {
   late final AudioPlayer _audioPlayer;
   final Random _random = Random();
-
   final AudioPlayer _kikiPlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   @override
   AudioPlayer get kikiPlayer => _kikiPlayer;
@@ -39,51 +44,63 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   bool _isIntroPlaying = true;
   bool _hasPlayedInstruction = false;
 
-  // List of all items to sort
   late List<SortableItem> _remainingItems;
   SortableItem? _currentItem;
 
-  // NEW: Lists to hold items that have been correctly sorted so they stay visible on screen!
   final List<SortableItem> _sortedSoftItems = [];
   final List<SortableItem> _sortedHardItems = [];
 
-  // Track dragging position
   Offset _dragOffset = Offset.zero;
   bool _isDragging = false;
 
-  // Track if game is won
   bool _isGameWon = false;
   bool _showVictoryOverlay = false;
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
-  static const String _softCloudImage = 'assets/images/objects/lagoon/soft_cloud.png';
-  static const String _hardRockImage = 'assets/images/objects/lagoon/hard_rock.png';
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_rainbow_lagoon.png';
+  static const String _softCloudImage =
+      'assets/images/objects/lagoon/soft_cloud.png';
+  static const String _hardRockImage =
+      'assets/images/objects/lagoon/hard_rock.png';
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
-  static const String _goodJobImage = 'assets/images/characters/cat_holding_fishbone.png';
+  static const String _goodJobImage =
+      'assets/images/characters/cat_holding_fishbone.png';
 
   static const String _pillowImage = 'assets/images/objects/lagoon/pillow.png';
-  static const String _cushionImage = 'assets/images/objects/lagoon/cushion.png';
+  static const String _cushionImage =
+      'assets/images/objects/lagoon/cushion.png';
   static const String _towelImage = 'assets/images/objects/lagoon/towel.png';
-  static const String _teddybearImage = 'assets/images/objects/lagoon/teddybear.png';
+  static const String _teddybearImage =
+      'assets/images/objects/lagoon/teddybear.png';
   static const String _yarnImage = 'assets/images/objects/lagoon/yarn_wb.png';
   static const String _yoyoImage = 'assets/images/objects/lagoon/yoyo_wb.png';
   static const String _planeImage = 'assets/images/objects/lagoon/plane_wb.png';
   static const String _trainImage = 'assets/images/objects/lagoon/train_wb.png';
 
-  static const String _introAudio = 'audio/discovery_lagoon/soft&hard_intro&tutorial.wav';
-  static const String _instructionAudio = 'audio/discovery_lagoon/soft&hard_instruction.wav';
+  static const String _introAudio =
+      'audio/discovery_lagoon/soft&hard_intro&tutorial.wav';
+  static const String _instructionAudio =
+      'audio/discovery_lagoon/soft&hard_instruction.wav';
   static const String _wrongAudio = 'audio/sound_effects/bubble_pop.wav';
-
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    _audioPlayer = AudioPlayer();
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
 
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
+    _audioPlayer = AudioPlayer();
     _audioPlayer.onPlayerComplete.listen((event) {
       if (!mounted) return;
 
@@ -98,7 +115,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
     });
 
     _initGame();
-    _playIntro(); // Start the intro sequence
+    _playIntro();
   }
 
   Future<void> _playIntro() async {
@@ -135,11 +152,8 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
       SortableItem(imagePath: _trainImage, isSoft: false),
     ];
 
-    // Clear old sorted arrays when restarting!
     _sortedSoftItems.clear();
     _sortedHardItems.clear();
-
-    // Shuffle so the order is randomized each game!
     _remainingItems.shuffle(_random);
     _loadNextItem();
   }
@@ -162,11 +176,32 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   void _triggerVictoryOverlay() {
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted && _isGameWon) {
-        setState(() {
-          _showVictoryOverlay = true;
-        });
+        _saveDataAndShowGoodJob();
       }
     });
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_soft_hard',
+        activityName: 'Soft & Hard Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (mounted) {
+      setState(() => _showVictoryOverlay = true);
+    }
   }
 
   Future<void> _playSound(String assetPath) async {
@@ -189,20 +224,22 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
     final bool droppedOnLeft = droppedX < screenWidth * 0.45;
     final bool droppedOnRight = droppedX > screenWidth * 0.55;
 
-    // Check if sorted correctly!
     if (_currentItem!.isSoft && droppedOnLeft) {
+      _tapTracker.recordCorrectTap();
       showKikiReaction(KikiState.correct);
       setState(() {
         _sortedSoftItems.add(_currentItem!);
       });
       _loadNextItem();
     } else if (!_currentItem!.isSoft && droppedOnRight) {
+      _tapTracker.recordCorrectTap();
       showKikiReaction(KikiState.correct);
       setState(() {
         _sortedHardItems.add(_currentItem!);
       });
       _loadNextItem();
     } else if (droppedOnLeft || droppedOnRight) {
+      _tapTracker.recordMistake();
       await _playSound(_wrongAudio);
       showKikiReaction(KikiState.wrong);
       setState(() {
@@ -217,6 +254,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
     OrientationService.setLandscape();
@@ -228,16 +266,14 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   Widget build(BuildContext context) {
     final double sw = MediaQuery.of(context).size.width;
     final double sh = MediaQuery.of(context).size.height;
-    final double itemSize = sh * 0.38; // Universal responsive item size!
+    final double itemSize = sh * 0.38;
 
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // A. BACKGROUND LAYER
           Image.asset(_bgImage, fit: BoxFit.cover),
 
-          // SOFT cloud badge (upper-left-center)
           Positioned(
             top: sh * 0.03,
             left: sw * 0.5 - (sw * 0.34),
@@ -248,7 +284,6 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
             ),
           ),
 
-          // HARD rock badge (upper-right-center)
           Positioned(
             top: sh * 0.03,
             right: sw * 0.5 - (sw * 0.34),
@@ -259,7 +294,6 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
             ),
           ),
 
-          // Dashed vertical separator line down the middle
           Positioned(
             top: 0,
             bottom: 0,
@@ -273,7 +307,6 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
             ),
           ),
 
-          // C. SORTED SOFT ITEMS LAYER (Displays correctly sorted items on the Left!)
           Positioned(
             left: sw * 0.03,
             top: sh * 0.32,
@@ -289,8 +322,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
                   duration: const Duration(milliseconds: 300),
                   child: Image.asset(
                     item.imagePath,
-                    width:
-                        sh * 0.28, // Sized cleanly to fit 4 items on the side
+                    width: sh * 0.28,
                     height: sh * 0.28,
                     fit: BoxFit.contain,
                   ),
@@ -299,7 +331,6 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
             ),
           ),
 
-          // D. SORTED HARD ITEMS LAYER (Displays correctly sorted items on the Right!)
           Positioned(
             right: sw * 0.03,
             top: sh * 0.32,
@@ -315,8 +346,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
                   duration: const Duration(milliseconds: 300),
                   child: Image.asset(
                     item.imagePath,
-                    width:
-                        sh * 0.28, // Sized cleanly to fit 4 items on the side
+                    width: sh * 0.28,
                     height: sh * 0.28,
                     fit: BoxFit.contain,
                   ),
@@ -325,7 +355,6 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
             ),
           ),
 
-          // E. DRAGGABLE ITEM LAYER (Spawns on the center line!)
           if (_currentItem != null)
             Positioned(
               left: (sw / 2) - (itemSize / 2) + _dragOffset.dx,
@@ -339,9 +368,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
                 },
                 onPanEnd: (details) => _onPanEnd(details, sw),
                 child: AnimatedScale(
-                  scale: _isDragging
-                      ? 1.15
-                      : 1.0, // Scales up slightly when dragged!
+                  scale: _isDragging ? 1.15 : 1.0,
                   duration: const Duration(milliseconds: 150),
                   child: Image.asset(
                     _currentItem!.imagePath,
@@ -356,33 +383,47 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
           if (_isIntroPlaying)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withValues(alpha: 0.5,),
+                color: Colors.black.withValues(alpha: 0.5),
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: FractionalTranslation(
                     translation: const Offset(0.0, 0.2),
-                    child: Image.asset(_kikiImage, height: sh * 1, fit: BoxFit.contain),
+                    child: Image.asset(
+                      _kikiImage,
+                      height: sh * 1,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
               ),
             ),
 
-          // X Button and Level Badge
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
 
-          // F. GOOD JOB VICTORY OVERLAY (Appears once all 8 items are sorted!)
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
+
           if (_showVictoryOverlay)
             GoodJobOverlay(
               characterImage: _goodJobImage,
               characterSizeFactor: 0.9,
               onNext: () async {
                 if (context.mounted) {
-                  // 2. Push directly to the next level's screen
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => FeedTheAnimalGame(level: widget.level + 1),
+                      builder: (context) =>
+                          FeedTheAnimalGame(level: widget.level + 1),
                     ),
                   );
                 }
@@ -391,6 +432,8 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
                 setState(() {
                   _isGameWon = false;
                   _showVictoryOverlay = false;
+                  _hasSavedResult = false;
+                  _tapTracker.startSession();
                   _initGame();
                 });
               },
@@ -406,10 +449,7 @@ class _DashedLinePainter extends CustomPainter {
   final double topPadding;
   final double bottomPadding;
 
-  _DashedLinePainter({
-    this.topPadding = 0,
-    this.bottomPadding = 0,
-  });
+  _DashedLinePainter({this.topPadding = 0, this.bottomPadding = 0});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -435,5 +475,5 @@ class _DashedLinePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _DashedLinePainter oldDelegate) =>
       oldDelegate.topPadding != topPadding ||
-          oldDelegate.bottomPadding != bottomPadding;
+      oldDelegate.bottomPadding != bottomPadding;
 }

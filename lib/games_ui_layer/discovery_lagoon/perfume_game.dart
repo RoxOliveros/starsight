@@ -4,6 +4,11 @@ import 'package:StarSight/games_ui_layer/discovery_lagoon/listening_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
@@ -18,8 +23,9 @@ class PerfumeGame extends StatefulWidget {
   State<PerfumeGame> createState() => _PerfumeGameState();
 }
 
-class _PerfumeGameState extends State<PerfumeGame> {
+class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   int _currentStage = 1;
   bool _showOptions = false;
@@ -44,8 +50,8 @@ class _PerfumeGameState extends State<PerfumeGame> {
   bool _showKikiCheering = false;
 
   bool _showGoodJob = false;
-
-  // NEW: guards against acting on a disposed player / stream
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
   bool _disposed = false;
 
   bool get _allIngredientsInBowl =>
@@ -55,17 +61,22 @@ class _PerfumeGameState extends State<PerfumeGame> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _startAudioSequence();
   }
 
-  /// NEW: waits for the current sound to finish without throwing
-  /// "Bad state: No element" if the player is disposed mid-wait.
   Future<void> _waitForAudioComplete() async {
     try {
       await _audioPlayer.onPlayerComplete.first;
-    } catch (_) {
-      // Stream closed (player disposed) before it ever completed — ignore.
-    }
+    } catch (_) {}
   }
 
   Future<void> _startAudioSequence() async {
@@ -103,6 +114,7 @@ class _PerfumeGameState extends State<PerfumeGame> {
   Future<void> _handleCorrectPick() async {
     if (!_canTap || _actionTaken) return;
     _actionTaken = true;
+    _tapTracker.recordCorrectTap();
 
     setState(() {
       _showOptions = false;
@@ -131,13 +143,9 @@ class _PerfumeGameState extends State<PerfumeGame> {
     if (_currentStage == 1 && mounted) {
       _transitionToStage2();
     } else if (_currentStage == 2 && mounted) {
-      _transitionToStage3
-        (
-      );
+      _transitionToStage3();
     } else if (_currentStage == 3 && mounted) {
-      _transitionToStage4
-        (
-      );
+      _transitionToStage4();
     } else if (_currentStage == 4 && mounted) {
       _transitionToStage5();
     }
@@ -193,6 +201,7 @@ class _PerfumeGameState extends State<PerfumeGame> {
   }
 
   void _handleIngredientDropped(String id) {
+    _tapTracker.recordCorrectTap();
     setState(() {
       switch (id) {
         case 'flower':
@@ -217,6 +226,7 @@ class _PerfumeGameState extends State<PerfumeGame> {
 
   Future<void> _handleMixerDropped() async {
     if (!_canMix || _isMixing) return;
+    _tapTracker.recordCorrectTap();
 
     setState(() {
       _isMixing = true;
@@ -276,6 +286,7 @@ class _PerfumeGameState extends State<PerfumeGame> {
 
   Future<void> _handleCorrectNosePick() async {
     if (!_canTap || _actionTaken) return;
+    _tapTracker.recordCorrectTap();
 
     setState(() {
       _actionTaken = true;
@@ -293,14 +304,13 @@ class _PerfumeGameState extends State<PerfumeGame> {
     if (_disposed) return;
 
     if (mounted) {
-      setState(() {
-        _showGoodJob = true;
-      });
+      await _saveDataAndShowGoodJob();
     }
   }
 
   Future<void> _handleWrongPick() async {
     if (!_canTap || _actionTaken) return;
+    _tapTracker.recordMistake();
 
     setState(() {
       _canTap = false;
@@ -317,9 +327,36 @@ class _PerfumeGameState extends State<PerfumeGame> {
     });
   }
 
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_perfume_game',
+        activityName: 'Perfume Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving Perfume Game metrics: $e");
+    }
+    await LagoonProgressService.instance.markLevelComplete(2);
+
+    if (mounted) {
+      setState(() {
+        _showGoodJob = true;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _disposed = true;
+    disposeAiCamera();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -344,7 +381,6 @@ class _PerfumeGameState extends State<PerfumeGame> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── 1. Background
           Image.asset(
             'assets/images/backgrounds/bg_rainbow_lagoon.png',
             fit: BoxFit.cover,
@@ -359,7 +395,6 @@ class _PerfumeGameState extends State<PerfumeGame> {
             ),
           ),
 
-          // ── 2. Cat Character (Behind table)
           Positioned(
             bottom: catBottom,
             left: 0,
@@ -404,7 +439,6 @@ class _PerfumeGameState extends State<PerfumeGame> {
             ),
           ),
 
-          // ── 3. Table Foreground
           Positioned(
             bottom: tableBottom,
             left: 0,
@@ -418,7 +452,6 @@ class _PerfumeGameState extends State<PerfumeGame> {
             ),
           ),
 
-          // ── 4. Mortar / Bowl
           if (_currentStage < 7)
             Positioned(
               bottom: bowlBottom,
@@ -508,7 +541,6 @@ class _PerfumeGameState extends State<PerfumeGame> {
                       ),
             ),
 
-          // ── 4c. Finished Perfume
           if (_showPerfume && _currentStage == 7)
             Positioned(
               bottom: bowlBottom,
@@ -534,7 +566,6 @@ class _PerfumeGameState extends State<PerfumeGame> {
                       ),
             ),
 
-          // ── 5. Pestle / Mixer
           if (_currentStage < 7 && !_isMixing)
             Positioned(
               bottom: mixerBottom,
@@ -550,7 +581,6 @@ class _PerfumeGameState extends State<PerfumeGame> {
                   ),
             ),
 
-          // ── 6. Table Ingredients
           if (_hasHoney && !_honeyInBowl && _currentStage < 7)
             Positioned(
               bottom: bowlBottom * 0.75,
@@ -625,7 +655,6 @@ class _PerfumeGameState extends State<PerfumeGame> {
                       .scale(curve: Curves.easeOutBack),
             ),
 
-          // ── 7. Option Cards
           if (_showOptions && _currentStage == 1) ...[
             Positioned(
               top: cardTop,
@@ -786,7 +815,6 @@ class _PerfumeGameState extends State<PerfumeGame> {
                       .scale(curve: Curves.easeOutBack),
             ),
           ] else if (_showOptions && _currentStage == 8) ...[
-            // Stage 8: Eye, Mouth, Nose Finale!
             Positioned(
               bottom: sh * 0.15,
               left: 0,
@@ -799,8 +827,7 @@ class _PerfumeGameState extends State<PerfumeGame> {
                         child: _buildOptionCard(
                           context: context,
                           size: cardSize * 0.8,
-                          borderColor:
-                              Colors.transparent, // Clean borderless look
+                          borderColor: Colors.transparent,
                           placeholderPath:
                               'assets/images/objects/lagoon/white_placeholder.png',
                           itemPath: 'assets/images/objects/lagoon/eye.png',
@@ -845,27 +872,39 @@ class _PerfumeGameState extends State<PerfumeGame> {
           ],
 
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
 
-          // ── 12. Good Job Overlay
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
+
           if (_showGoodJob)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-              
+              characterImage:
+                  'assets/images/characters/cat_holding_fishbone.png',
               characterSizeFactor: 0.9,
-              onNext: () async {
-                // Mark Level 2 as complete to unlock Level 3
-                await LagoonProgressService.instance.markLevelComplete(2);
+              onNext: () {
                 if (context.mounted) {
-                  // Jump to Level 3 (Listening)
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => ListeningGame(level: widget.level + 1)),
+                    MaterialPageRoute(
+                      builder: (_) => ListeningGame(level: widget.level + 1),
+                    ),
                   );
                 }
               },
               onRestart: () {
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => PerfumeGame(level: widget.level)),
+                  MaterialPageRoute(
+                    builder: (_) => PerfumeGame(level: widget.level),
+                  ),
                 );
               },
               onBack: () => Navigator.of(context).pop(),
