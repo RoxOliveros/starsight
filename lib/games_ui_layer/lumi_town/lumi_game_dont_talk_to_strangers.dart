@@ -7,6 +7,7 @@ import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
+import '../tryagain_prompt.dart';
 
 const String _playgroundBg = 'assets/images/backgrounds/bg_playground.png';
 const String _bearPlayingImage = 'assets/images/objects/lumi/playground_bear_playing.png';
@@ -154,10 +155,17 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
   bool _teacherWooVisible = false;
   bool _playgroundBgActive = false;
   bool _wolfTalkBranch = false;
+  bool _showDemoButtons = false;
+  bool _glowTalkButton = false;
+  bool _glowCancelButton = false;
+  Timer? _talkGlowTimer;
+  Timer? _cancelGlowTimer;
+  Timer? _cancelGlowOffTimer;
   WolfVisualState _wolfVisualState = WolfVisualState.approaching;
   _GamePhase _phase = _GamePhase.intro;
   final bool _isLoadingDelayDone = true;
   bool _gameComplete = false;
+  bool _showTryAgain = false;
 
   StrangerInteraction get _current => _interactions[_currentIndex];
 
@@ -236,6 +244,9 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
 
   @override
   void dispose() {
+    _talkGlowTimer?.cancel();
+    _cancelGlowTimer?.cancel();
+    _cancelGlowOffTimer?.cancel();
     _narrationPlayer.dispose();
     _completePlayer.dispose();
     _wolfPlayer.dispose();
@@ -257,13 +268,42 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
     await _playAndWait(_narrationPlayer, _introAudio);
     if (!mounted) return;
 
-    setState(() => _phase = _GamePhase.instruction);
+    setState(() {
+      _phase = _GamePhase.instruction;
+      _showDemoButtons = true;
+      _glowTalkButton = false;
+      _glowCancelButton = false;
+    });
+
+    _talkGlowTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted) return;
+      setState(() => _glowTalkButton = true);
+    });
+    _cancelGlowTimer = Timer(const Duration(seconds: 8), () {
+      if (!mounted) return;
+      setState(() {
+        _glowTalkButton = false;
+        _glowCancelButton = true;
+      });
+
+      _cancelGlowOffTimer = Timer(const Duration(milliseconds: 2000), () {
+        if (!mounted) return;
+        setState(() => _glowCancelButton = false);
+      });
+    });
 
     await _playAndWait(_narrationPlayer, _instructionAudio);
     if (!mounted) return;
 
+    _talkGlowTimer?.cancel();
+    _cancelGlowTimer?.cancel();
+    _cancelGlowOffTimer?.cancel();
+
     setState(() {
       _playgroundBgActive = true;
+      _showDemoButtons = false;
+      _glowTalkButton = false;
+      _glowCancelButton = false;
     });
 
     await Future<void>.delayed(const Duration(milliseconds: 600));
@@ -318,6 +358,10 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
       await Future<void>.delayed(const Duration(milliseconds: 50));
       if (!mounted) return;
       setState(() => _characterVisible = true);
+
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
+      setState(() => _wolfVisualState = WolfVisualState.talking);
 
       await _playAndWait(_wolfPlayer, _current.enterAudio!);
       if (!mounted) return;
@@ -486,9 +530,11 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
       );
       if (!mounted) return;
 
-      setState(() => _teacherWooVisible = false);
-
-      await _completeGame(playWinAudio: false);
+      setState(() {
+        _teacherWooVisible = false;
+        _phase = _GamePhase.complete;
+        _showTryAgain = true;
+      });
       return;
     }
 
@@ -524,6 +570,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
       _currentIndex = 0;
       _busy = false;
       _gameComplete = false;
+      _showTryAgain = false;
       _teacherWooVisible = false;
       _wolfVisualState = WolfVisualState.approaching;
       _characterVisible = false;
@@ -586,8 +633,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
                 fit: StackFit.expand,
                 children: [
                   // WIN SCENE
-                  if (_phase == _GamePhase.complete && !_gameComplete)
-                    Positioned(
+                  if (_phase == _GamePhase.complete && !_gameComplete && !_showTryAgain)                    Positioned(
                       bottom: 0,
                       left: 0,
                       right: 0,
@@ -616,10 +662,10 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
                       child: Transform(
                         alignment: Alignment.center,
                         transform: Matrix4.identity()
-                          ..scale(
-                            _onWolf && _phase == _GamePhase.wolfLeaving
-                                ? -1.0
-                                : 1.0,
+                          ..scaleByDouble(
+                            _onWolf && _phase == _GamePhase.wolfLeaving ? -1.0 : 1.0,
+                            1.0,
+                            1.0,
                             1.0,
                           ),
                         child: Image.asset(
@@ -665,7 +711,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
                     ),
 
                     // TALK / CANCEL BUTTONS
-                    if (_inputEnabled && !_busy)
+                    if ((_inputEnabled && !_busy) || _showDemoButtons)
                       Positioned(
                         top: 0,
                         bottom: 0,
@@ -675,12 +721,18 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
                           children: [
                             _ResponseButton(
                               asset: _talkButton,
-                              onTap: _onWolf ? _onWolfTalk : _onFamiliarTalk,
+                              glow: _glowTalkButton,
+                              onTap: _showDemoButtons
+                                  ? null
+                                  : (_onWolf ? _onWolfTalk : _onFamiliarTalk),
                             ),
                             SizedBox(height: width * 0.03),
                             _ResponseButton(
                               asset: _cancelButton,
-                              onTap: _onWolf ? _onWolfCancel : _onFamiliarCancel,
+                              glow: _glowCancelButton,
+                              onTap: _showDemoButtons
+                                  ? null
+                                  : (_onWolf ? _onWolfCancel : _onFamiliarCancel),
                             ),
                           ],
                         ),
@@ -695,11 +747,16 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
           Positioned(top: 25, left: 25, child: LumiXButton()),
 
           // Completion overlay.
-          if (_gameComplete)
+          if (_showTryAgain)
+            TryJobOverlay(
+              characterImage: _trWooImage,
+              onRestart: _restartGame,
+              onBack: _goBack,
+            )
+          else if (_gameComplete)
             GoodJobOverlay(
               characterImage: _trWooImage,
               onNext: () async {
-                // TODO: point this at whatever Lumi Town level follows.
                 Navigator.of(context).pop();
               },
               onRestart: _restartGame,
@@ -718,15 +775,31 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame> {
 
 class _ResponseButton extends StatelessWidget {
   final String asset;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool glow;
 
-  const _ResponseButton({required this.asset, required this.onTap});
+  const _ResponseButton({required this.asset, required this.onTap, this.glow = false});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Image.asset(asset, width: 110, height: 110, fit: BoxFit.contain),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: glow
+              ? [
+            BoxShadow(
+              color: Colors.yellowAccent.withValues(alpha: 0.9),
+              blurRadius: 24,
+              spreadRadius: 6,
+            ),
+          ]
+              : [],
+        ),
+        child: Image.asset(asset, width: 110, height: 110, fit: BoxFit.contain),
+      ),
     );
   }
 }
