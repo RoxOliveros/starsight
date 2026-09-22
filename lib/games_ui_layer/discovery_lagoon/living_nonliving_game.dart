@@ -83,7 +83,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
     OrientationService.setLandscape();
 
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-    startAiCamera();
+    startAiCamera(); //to start the camera and face detection
     _tapTracker.startSession();
 
     onFaceDetectionChanged = (detected) {
