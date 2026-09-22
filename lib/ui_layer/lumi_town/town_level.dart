@@ -16,6 +16,7 @@ import '../../games_ui_layer/lumi_town/1/wakeup1.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_behavior.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_cleaning.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_diary.dart';
+import '../../games_ui_layer/lumi_town/lumi_game_safe_or_not.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_stoplight.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_dont_talk_to_strangers.dart';
 import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
@@ -323,9 +324,9 @@ class _LevelTile extends StatelessWidget {
         return CleaningGameScreen(level: 17);
       case 18:
         return DontTalkToStrangersGame(level: 18);
-
       case 19:
-        return null;
+        return SafeOrNotGameScreen(level: 19);
+
       case 20:
         return null;
       // TODO: @Tin add game nav
