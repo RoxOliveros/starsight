@@ -29,31 +29,22 @@ class AdditionRescueBridgeGame extends StatefulWidget {
 }
 
 class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin<AdditionRescueBridgeGame>,
-        GameLoadingMixin<AdditionRescueBridgeGame>,
-        AiCameraMixin<AdditionRescueBridgeGame> {
+    with TickerProviderStateMixin, DomaReactionMixin<AdditionRescueBridgeGame>, GameLoadingMixin<AdditionRescueBridgeGame>, AiCameraMixin<AdditionRescueBridgeGame> {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _iceAssetBase = 'assets/images/objects/arctic/ice_';
   static const String _iceAsset = 'assets/images/objects/arctic/ice_1.png';
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_arctic_river.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _babyFoxAsset =
-      'assets/images/characters/baby_arctic_fox.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_river.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _babyFoxAsset = 'assets/images/characters/baby_arctic_fox.png';
   static const String _beamAsset = 'assets/images/objects/arctic/beam.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/rescue_bridge_intro.wav';
-  static const String _audioInstructionPrompt =
-      '$_audioBase/rescue_bridge_instruction.wav';
-  static const String _audioWeightAddRemove =
-      'assets/audio/sound_effects/clack.wav';
+  static const String _audioInstructionPrompt = '$_audioBase/rescue_bridge_instruction.wav';
+  static const String _audioWeightAddRemove = 'assets/audio/sound_effects/clack.wav';
   static const String _audioWin = '$_audioBase/rescue_bridge_win.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
@@ -255,7 +246,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   List<int> _buildWeightPool(int addendA, int addendB, int target) {
     final rng = Random();
     final pool = <int>[addendA, addendB, target];
-    while (pool.length < 6) {
+    while (pool.length < 3) {
       pool.add(rng.nextInt(5) + 1);
     }
     pool.shuffle(rng);
@@ -495,7 +486,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           padding: const EdgeInsets.only(top: 5),
           child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
         ),
-        if (!_introPlaying) buildDoma(context),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
@@ -631,7 +621,10 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                         flex: 5,
                         child: ScaleTransition(
                           scale: _sceneEnter,
-                          child: _buildScaleScene(w, h),
+                          child: LayoutBuilder(
+                            builder: (context, sceneConstraints) =>
+                                _buildScaleScene(sceneConstraints.maxWidth, h),
+                          ),
                         ),
                       ),
                       Expanded(
@@ -666,7 +659,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   Widget _buildPupCrossing(double w, double h) {
     if (!_pupCrossing) return const SizedBox.shrink();
 
-    final pupSize = (h * 0.13).clamp(32.0, 52.0);
+    final pupSize = (h * 0.18);
     final start = _crossingStart ?? Offset(w * (1.5 / 11), h * 0.42);
     final end = _crossingEnd ?? Offset(w * (9.5 / 11), h * 0.42);
     final mid = _crossingMid != null
@@ -705,7 +698,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
   // ── Ice floe with waiting pups ───────────────────────────────────────────
   Widget _buildIceFloe(double h) {
-    final baseSize = (h * 0.13).clamp(32.0, 52.0);
+    final baseSize = (h * 0.18);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -746,8 +739,11 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   Widget _buildScaleScene(double w, double h) {
     if (!_showEquation) return const SizedBox.shrink();
 
-    final panSize = (h * 0.3).clamp(70.0, 120.0);
-    final beamWidth = (w * 0.9).clamp(230.0, 370.0);
+    final rawPanSize = (h * 0.36);
+    final maxPanSizeForWidth = w / 4.4;
+    final panSize = rawPanSize < maxPanSizeForWidth ? rawPanSize : maxPanSizeForWidth;
+    const double beamLengthFactor = 1.3;
+    final beamWidth = ((w - panSize) * beamLengthFactor).clamp(150.0, w - 8);
     final balanced = _currentTotal == _target;
 
     return Center(
@@ -1038,7 +1034,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
   // ── Weight tray ───────────────────────────────────────────────────────────
   Widget _buildWeightTray(double h) {
-    final chipSize = (h * 0.16).clamp(46.0, 72.0);
+    final chipSize = (h * 0.15);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -1071,7 +1067,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
   // ── Safe camp (rescued pups) ─────────────────────────────────────────────
   Widget _buildSafeCamp(double h) {
-    final pupSize = (h * 0.1).clamp(24.0, 40.0);
+    final pupSize = (h * 0.14);
 
     return Column(
       key: _campAnchorKey, // ← add

@@ -15,7 +15,6 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
 class AnimalLevel {

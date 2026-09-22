@@ -31,6 +31,14 @@ class _Emotion5ScreenState extends State<Emotion5Screen>
   // NEW: Tracks if we are currently playing the success audio
   bool _isSuccessAudioPlaying = false;
 
+  // Tagalog
+  static const String _audioP3 = 'audio/lumi_town/level6/emotion_p3.wav';
+  static const String _audioP3Rc = 'audio/lumi_town/level6/emotion_p3_rc.wav';
+
+  // English
+  // static const String _audioP3 = 'audio/lumi_town/level6/emotion_p3_eng.wav';
+  // static const String _audioP3Rc = 'audio/lumi_town/level6/emotion_p3_rc_eng.wav';
+
   @override
   void initState() {
     super.initState();
@@ -67,7 +75,7 @@ class _Emotion5ScreenState extends State<Emotion5Screen>
     // Play the audio (AssetSource automatically looks inside the 'assets/' folder)
     // IMPORTANT: Update this path if you placed the audio in a different folder!
     await _narratorPlayer.play(
-      AssetSource('audio/lumi_town/level6/emotion_p3.wav'),
+      AssetSource(_audioP3),
     );
   }
 
@@ -172,7 +180,7 @@ class _Emotion5ScreenState extends State<Emotion5Screen>
                           // Play the narrative success sound
                           await _narratorPlayer.play(
                             AssetSource(
-                              'audio/lumi_town/level6/emotion_p3_rc.wav',
+                              _audioP3Rc,
                             ),
                           );
 

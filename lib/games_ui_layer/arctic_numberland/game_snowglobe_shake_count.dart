@@ -41,29 +41,20 @@ class SnowglobeShakeGame extends StatefulWidget {
 }
 
 class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin<SnowglobeShakeGame>,
-        GameLoadingMixin<SnowglobeShakeGame>,
-        ArcticAudioMixin<SnowglobeShakeGame>,
-        AiCameraMixin<SnowglobeShakeGame> {
+    with TickerProviderStateMixin, DomaReactionMixin<SnowglobeShakeGame>, GameLoadingMixin<SnowglobeShakeGame>, ArcticAudioMixin<SnowglobeShakeGame>, AiCameraMixin<SnowglobeShakeGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _snowglobeEmptyAsset =
-      'assets/images/objects/arctic/empty_snowglobe.png';
-  static const String _snowballAsset =
-      'assets/images/objects/arctic/snowball.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _snowglobeEmptyAsset = 'assets/images/objects/arctic/empty_snowglobe.png';
+  static const String _snowballAsset = 'assets/images/objects/arctic/snowball.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/snowglobe_shake_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/snowglobe_shake_instuction.wav';
+  static const String _audioInstruction = '$_audioBase/snowglobe_shake_instuction.wav';
 
   static const List<Alignment> _ballPositions = [
     Alignment(-0.28, -0.55),
@@ -104,11 +95,12 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _wiggleCtrl;
   late Animation<double> _wiggle;
+
+  final GlobalKey _globeDropKey = GlobalKey();
 
   @override
   void initState() {
@@ -165,6 +157,13 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     });
   }
 
+  bool _droppedOnGlobe(Offset globalOffset) {
+    final box = _globeDropKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return false;
+    final rect = box.localToGlobal(Offset.zero) & box.size;
+    return rect.contains(globalOffset);
+  }
+
   void _initAnimations() {
     _domaFloatCtrl = AnimationController(
       vsync: this,
@@ -175,13 +174,6 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -549,7 +541,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   Widget _buildGlobeDropTarget(double size) {
     return DragTarget<_TagOption>(
       onWillAcceptWithDetails: (details) =>
-          !_resolving &&
+      !_resolving &&
           details.data.number == _rounds[_currentRound].targetNumber,
       onAcceptWithDetails: (details) =>
           _onCorrectTagDroppedOnGlobe(details.data),
@@ -558,7 +550,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
         return AnimatedScale(
           scale: hovering ? 1.06 : 1.0,
           duration: const Duration(milliseconds: 150),
-          child: _globeVisual(size),
+          child: Container(key: _globeDropKey, child: _globeVisual(size)),
         );
       },
     );
@@ -623,7 +615,9 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
       ),
       childWhenDragging: Opacity(opacity: 0.3, child: _tagVisual(tag, size)),
       onDragStarted: () => HapticFeedback.selectionClick(),
-      onDraggableCanceled: (_, __) async {
+      onDraggableCanceled: (_, offset) async {
+        if (!_droppedOnGlobe(offset)) return;
+
         _tapTracker.recordMistake();
 
         HapticFeedback.heavyImpact();
