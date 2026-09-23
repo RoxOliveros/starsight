@@ -87,6 +87,7 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_night.png';
   static const String _starBnwImage = 'assets/images/objects/arctic/star_bnw.png';
   static const String _starImage = 'assets/images/objects/arctic/star.png';
+  static const String _speakerImage = 'assets/images/icons/speaker.png';
 
   static const String _audioIntro = 'assets/audio/arctic_numberland/arctic_festival_intro.wav';
   static const String _audioMainInstruction = 'assets/audio/arctic_numberland/arctic_festival_instruction.wav';
@@ -747,11 +748,7 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
           border: Border.all(color: ArcticColorTheme.slateblue, width: 4),
         ),
         child: Center(
-          child: Icon(
-            Icons.volume_up_rounded,
-            size: 64,
-            color: ArcticColorTheme.slateblue,
-          ),
+          child: Image.asset(_speakerImage)
         ),
       ),
     );
