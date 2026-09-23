@@ -3,10 +3,9 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'arctic_game_ui.dart';
-import 'package:StarSight/business_layer/game_tap_tracker.dart'; // <-- ADDED
+import 'package:StarSight/business_layer/game_tap_tracker.dart'; 
 
-const String kDefaultTracingSuccessAudio =
-    'assets/audio/arctic_numberland/mahusay.wav';
+const String kDefaultTracingSuccessAudio = 'assets/audio/arctic_numberland/mahusay.wav';
 
 const String _kCaneAsset = 'assets/images/objects/arctic/candy_cane.png';
 
@@ -136,7 +135,7 @@ class NumberTracingWidget extends StatefulWidget {
   final VoidCallback onComplete;
   final String successAudio;
   final int level;
-  final GameTapTracker tapTracker; // <-- ADDED
+  final GameTapTracker tapTracker; 
 
   const NumberTracingWidget({
     super.key,
@@ -144,7 +143,7 @@ class NumberTracingWidget extends StatefulWidget {
     required this.player,
     required this.onComplete,
     required this.level,
-    required this.tapTracker, // <-- ADDED
+    required this.tapTracker, 
     this.successAudio = kDefaultTracingSuccessAudio,
   });
 
@@ -166,7 +165,6 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
   @override
   Widget build(BuildContext context) {
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
       onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
       child: LayoutBuilder(
         builder: (context, constraints) =>
@@ -362,8 +360,9 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 
   void _onPanUpdate(DragUpdateDetails details, double traceW) {
     if (_tracingComplete) return;
-    if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length)
+    if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length) {
       return;
+    }
 
     final dragPos = details.localPosition;
     final threshold = traceW * 0.14;
@@ -394,7 +393,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
   Future<void> _accept() async {
     if (_tracingComplete) return;
 
-    widget.tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TRACING
+    widget.tapTracker.recordCorrectTap();
 
     setState(() {
       _tracingComplete = true;
@@ -405,7 +404,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         AssetSource(widget.successAudio.replaceFirst('assets/', '')),
       );
     } catch (_) {}
-    await Future.delayed(const Duration(milliseconds: 800));
+    await Future.delayed(const Duration(milliseconds: 1500));
     if (mounted) widget.onComplete();
   }
 
