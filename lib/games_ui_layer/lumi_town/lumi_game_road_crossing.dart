@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/ui_layer/loading_screen.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
@@ -22,7 +21,9 @@ const String _greenRoxieWalk = 'assets/animations/lumi_town/crossing_greenlight_
 const String _thumbsUp = 'assets/images/buttons/thumbs_up.png';
 const String _thumbsDown = 'assets/images/buttons/thumbs_down.png';
 const String _trWooImage = 'assets/images/characters/tr.woo_the_owl.png';
+const String _trWooSmileImage = 'assets/images/characters/tr.woo_smiling.png';
 const String _roxieImage = 'assets/images/characters/roxie_the_rabbit.png';
+const String _roxieSmileImage = 'assets/images/characters/roxie_happy.png';
 
 // Audio
 const String _audioIntro = 'assets/audio/lumi_town/crossing_game_intro.wav';
@@ -92,6 +93,7 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
   bool _showTryAgain = false;
 
   // Completion
+  bool _playingWin = false;
   bool _gameComplete = false;
 
   @override
@@ -180,7 +182,7 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
   }
 
   Future<void> _waitForWebp() async {
-    await Future.delayed(const Duration(milliseconds: 2000));
+    await Future.delayed(const Duration(milliseconds: 3000));
   }
 
   // ------------------------------------------------------------
@@ -295,12 +297,15 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
 
       if (!mounted) return;
 
+      // AFTER
       await _playAndWait(
         _narrationPlayer,
         _audioGreenLightCorrect,
       );
 
       if (!mounted) return;
+
+      setState(() => _playingWin = true);
 
       await _playAndWait(
         _completePlayer,
@@ -309,7 +314,7 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
 
       if (!mounted) return;
 
-      TownProgressService.instance.markLevelComplete(widget.level);
+      setState(() => _playingWin = false);
 
       setState(() {
         _phase = _Phase.completed;
@@ -388,6 +393,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       !_isProcessing;
 
   String get _backgroundAsset {
+    if (_playingWin || _gameComplete) return _bgGreenLight;
+
     switch (_phase) {
       case _Phase.intro:
         return _carPassingBy;
@@ -407,14 +414,17 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       case _Phase.round2Wrong:
         return _carPassingBy;
       case _Phase.completed:
-        return _greenRoxieWalk;
+        return _bgGreenLight;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return LoadingScreen.lumiTown();
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: LoadingScreen.lumiTown(),
+      );
     }
 
     return Scaffold(
@@ -427,16 +437,38 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Scene background / animation
               Positioned.fill(
-                child: Image.asset(
-                  _backgroundAsset,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.center,
+                child: RepaintBoundary(
+                  child: Image.asset(
+                    _backgroundAsset,
+                    key: ValueKey(_backgroundAsset),
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                  ),
                 ),
               ),
 
-              if (_backgroundAsset == _bgRedLight || _backgroundAsset == _bgGreenLight)
+              if (_playingWin || _gameComplete)
+                  Positioned(
+                  top: 75,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: SizedBox(
+                      height: h * 0.5,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Image.asset(_roxieSmileImage, fit: BoxFit.contain),
+                          const SizedBox(width: 16),
+                          Image.asset(_trWooSmileImage, fit: BoxFit.contain),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else if (_backgroundAsset == _bgRedLight || _backgroundAsset == _bgGreenLight)
                 Positioned(
                   top: 75,
                   left: 0,
@@ -515,14 +547,6 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
               if (_gameComplete)
                 GoodJobOverlay(
                   characterImage: _trWooImage,
-                  onNext: () async {
-                    // TODO: @Tin
-                    // Navigator.of(context).pushReplacement(
-                    //   MaterialPageRoute(
-                    //     builder: (_) => (level: widget.level + 1),
-                    //   ),
-                    // );
-                  },
                   onRestart: _onRestart,
                   onBack: _goBack,
                 ),
