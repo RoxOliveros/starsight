@@ -715,7 +715,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
         debugPrint("Database Error saving Arctic metrics: $e");
       }
 
-      await ArcticProgressService.instance.markLevelComplete(widget.level);
+      ArcticProgressService.instance.markLevelComplete(widget.level);
 
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -1005,7 +1005,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                   }
                 },
                 level: widget.level,
-                tapTracker: _tapTracker, // <-- ADDED TRACKER
+                tapTracker: _tapTracker, 
               )
             else ...[
               Positioned(
@@ -1014,7 +1014,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                 child: _NumberCard(
                   number: _config.number,
                   word: _config.numberWord,
-                  size: h * 0.3,
+                  size: h * 0.25,
                 ),
               ),
               kNumberMiniGames[_miniGameIndex!](
@@ -1024,7 +1024,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                 player: _player,
                 onComplete: _completeLevel,
                 level: widget.level,
-                tapTracker: _tapTracker, // <-- ADDED TRACKER
+                tapTracker: _tapTracker, 
               ),
             ],
           ],

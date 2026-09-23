@@ -3,9 +3,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
-import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'arctic_game_ui.dart';
-import 'package:StarSight/business_layer/game_tap_tracker.dart'; // <-- ADDED
+import 'package:StarSight/business_layer/game_tap_tracker.dart'; 
 
 class PenguinSnowflakesMiniGame extends StatefulWidget {
   final int number;
@@ -13,7 +12,7 @@ class PenguinSnowflakesMiniGame extends StatefulWidget {
   final VoidCallback onComplete;
   final int level;
   final String instructionAudio;
-  final GameTapTracker tapTracker; // <-- ADDED
+  final GameTapTracker tapTracker; 
 
   const PenguinSnowflakesMiniGame({
     super.key,
@@ -22,7 +21,7 @@ class PenguinSnowflakesMiniGame extends StatefulWidget {
     required this.onComplete,
     this.instructionAudio = '',
     required this.level,
-    required this.tapTracker, // <-- ADDED
+    required this.tapTracker,
   });
 
   @override
@@ -140,14 +139,15 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   }
 
   Future<void> _handleDelivery(int id) async {
-    if (_roundWon) return;
+    if (_roundWon || _delivered >= widget.number) return;
 
-    widget.tapTracker.recordCorrectTap(); // <-- TRACK CORRECT DELIVERY
+    widget.tapTracker.recordCorrectTap();
 
     if (!mounted) return;
     setState(() {
       _flakes.removeWhere((f) => f.id == id);
       _delivered++;
+      if (_delivered >= widget.number) _roundWon = true;
     });
 
     try {
@@ -194,7 +194,6 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   @override
   Widget build(BuildContext context) {
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
       onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -275,7 +274,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   }
 
   Widget _buildPenguinTarget(double h) {
-    final penguinH = (h * 0.34).clamp(120.0, 220.0);
+    final penguinH = (h * 0.50);
 
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) {
