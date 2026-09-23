@@ -62,16 +62,16 @@ class _DashboardScreenState extends State<DashboardScreen>
   // Activity/island cards
   final List<_ActivityCard> _activities = const [
     _ActivityCard(
-      title: 'Alphabet Forest',
-      subtitle: '...',
-      isActive: true,
-      imagePath: 'assets/animations/forest.json',
-    ),
-    _ActivityCard(
       title: 'Lumi Town',
       subtitle: '...',
       isActive: false,
       imagePath: 'assets/animations/town.json',
+    ),
+    _ActivityCard(
+      title: 'Alphabet Forest',
+      subtitle: '...',
+      isActive: true,
+      imagePath: 'assets/animations/forest.json',
     ),
     _ActivityCard(
       title: 'Artic Numberland',
