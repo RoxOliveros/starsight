@@ -132,6 +132,7 @@ flutter:
     - assets/gifs/
     - assets/animations/
     - assets/animations/characters/
+    - assets/animations/lumi_town/
     - assets/images/objects/forest/
     - assets/gifs/bodyparts/
     - assets/images/characters/
