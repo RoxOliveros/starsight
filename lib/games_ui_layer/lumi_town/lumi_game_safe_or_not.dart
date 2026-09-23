@@ -9,6 +9,7 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../ui_layer/lumi_town/lumi_theme.dart';
 import '../goodjob_prompt.dart';
+import 'lumi_game_road_crossing.dart';
 
 // ============================================================================
 // ASSETS
@@ -420,12 +421,11 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
             GoodJobOverlay(
               characterImage: _trWooImage,
               onNext: () async {
-                // TODO: point this at whatever Lumi Town level follows.
-                // Navigator.of(context).pushReplacement(
-                //   MaterialPageRoute(
-                //     builder: (_) => (level: widget.level + 1),
-                //   ),
-                // );
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => CrossingGameScreen(level: widget.level + 1),
+                  ),
+                );
               },
               onRestart: _restartGame,
               onBack: _goBack,

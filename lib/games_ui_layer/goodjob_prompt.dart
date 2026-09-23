@@ -4,7 +4,7 @@ import '../ui_layer/app_dialog.dart';
 
 class GoodJobOverlay extends StatefulWidget {
   final String characterImage;
-  final VoidCallback onNext;
+  final VoidCallback? onNext;
   final VoidCallback onRestart;
   final VoidCallback onBack;
   final double characterSizeFactor;
@@ -12,7 +12,7 @@ class GoodJobOverlay extends StatefulWidget {
   const GoodJobOverlay({
     super.key,
     required this.characterImage,
-    required this.onNext,
+    this.onNext,
     required this.onRestart,
     required this.onBack,
     this.characterSizeFactor = 1.0,
@@ -189,16 +189,17 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
                 ),
 
                 // ── Next button — bottom right ────────────────────────
-                Positioned(
-                  bottom: bottomMargin,
-                  right: edgeMargin,
-                  child: _ImageButton(
-                    imagePath: 'assets/images/buttons/next.png',
-                    onTap: widget.onNext,
-                    size: actionButtonSize,
-                    tooltip: 'Next Level',
+                if (widget.onNext != null)
+                  Positioned(
+                    bottom: bottomMargin,
+                    right: edgeMargin,
+                    child: _ImageButton(
+                      imagePath: 'assets/images/buttons/next.png',
+                      onTap: widget.onNext!,
+                      size: actionButtonSize,
+                      tooltip: 'Next Level',
+                    ),
                   ),
-                ),
 
                 // ── X (Back) button — top left ────────────────────────
                 Positioned(
