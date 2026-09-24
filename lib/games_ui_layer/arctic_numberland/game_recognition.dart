@@ -448,7 +448,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
           context,
           MaterialPageRoute(
             builder: (_) =>
-                Number012CountingObjectsScreen(level: widget.level + 1),
+                Number12CountingObjectsScreen(level: widget.level + 1),
           ),
         );
       },

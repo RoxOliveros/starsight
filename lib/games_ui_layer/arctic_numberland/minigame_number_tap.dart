@@ -151,7 +151,7 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
     if (slot.tapped || _roundWon) return;
 
     if (slot.isTarget) {
-      widget.tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
+      widget.tapTracker.recordCorrectTap();
       setState(() {
         slot.tapped = true;
         _tappedTargets++;
@@ -162,10 +162,6 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
         try {
           await _playAndWait(_sfxPlayer, 'audio/sound_effects/bubble_pop.wav');
           if (!mounted) return;
-          await _playAndWait(
-            _sfxPlayer,
-            'audio/arctic_numberland/$_tappedTargets.wav',
-          );
         } catch (_) {}
       } catch (_) {}
       if (!mounted) return;
@@ -177,11 +173,11 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
           );
           await widget.player.onPlayerComplete.first;
         } catch (_) {}
-        await Future.delayed(const Duration(milliseconds: 400));
+        await Future.delayed(const Duration(milliseconds: 1000));
         if (mounted) widget.onComplete();
       }
     } else {
-      widget.tapTracker.recordMistake(); // <-- TRACK MISTAKE
+      widget.tapTracker.recordMistake();
       setState(() => _wrongSlotId = slot.id);
       await Future.delayed(const Duration(milliseconds: 900));
       if (mounted) setState(() => _wrongSlotId = null);

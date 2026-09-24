@@ -834,7 +834,7 @@ class _CountingTreesScreenState
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => Number1to5FillIglooScreen(level: widget.level + 1),
+            builder: (_) => BuildIglooScreen(level: widget.level + 1),
           ),
         );
       },

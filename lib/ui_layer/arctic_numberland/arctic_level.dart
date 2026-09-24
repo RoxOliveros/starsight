@@ -333,7 +333,7 @@ class _LevelTile extends StatelessWidget {
       case 2:
         return const Number012RecognitionScreen(level: 2);
       case 3:
-        return const Number012CountingObjectsScreen(level: 3);
+        return const Number12CountingObjectsScreen(level: 3);
       case 4:
         return const Number012TapCountScreen(level: 4);
 
@@ -354,7 +354,7 @@ class _LevelTile extends StatelessWidget {
       case 9:
         return const CountingTreesScreen(level: 9);
       case 10:
-        return const Number1to5FillIglooScreen(level: 10);
+        return const BuildIglooScreen(level: 10);
       case 11:
         return const Number1to5MatchSnowglobesScreen(level: 11);
 

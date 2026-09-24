@@ -79,7 +79,7 @@ final List<NumberMiniGameBuilder> kNumberMiniGames = [
     player: player,
     onComplete: onComplete,
     level: level,
-    tapTracker: tapTracker, // <-- PASSED DOWN
+    tapTracker: tapTracker,
   ),
 
   ({
@@ -94,9 +94,8 @@ final List<NumberMiniGameBuilder> kNumberMiniGames = [
     number: number,
     player: player,
     onComplete: onComplete,
-    instructionAudio: objects.instructionAudio,
     level: level,
-    tapTracker: tapTracker, // <-- PASSED DOWN
+    tapTracker: tapTracker,
   ),
 
   ({
@@ -706,7 +705,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       List<String> finalEmotions = stopAiCamera();
 
       try {
-        await ArcticDatabaseService.saveGameData(
+        ArcticDatabaseService.saveGameData(
           gameId: 'arctic_numberland_${widget.level}',
           mistakes: _tapTracker.mistakeCount,
           emotions: finalEmotions,
@@ -1008,15 +1007,17 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                 tapTracker: _tapTracker, 
               )
             else ...[
-              Positioned(
-                left: w * 0.08,
-                top: h * 0.5 - (h * 0.30) / 2,
-                child: _NumberCard(
-                  number: _config.number,
-                  word: _config.numberWord,
-                  size: h * 0.25,
+              if (_miniGameIndex != 1)
+                Positioned(
+                  left: w * 0.08,
+                  top: h * 0.5 - (h * 0.30) / 2,
+                  child: _NumberCard(
+                    number: _config.number,
+                    word: _config.numberWord,
+                    size: h * 0.25,
+                  ),
                 ),
-              ),
+
               kNumberMiniGames[_miniGameIndex!](
                 number: _config.number,
                 numberWord: _config.numberWord,
@@ -1024,7 +1025,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                 player: _player,
                 onComplete: _completeLevel,
                 level: widget.level,
-                tapTracker: _tapTracker, 
+                tapTracker: _tapTracker,
               ),
             ],
           ],
