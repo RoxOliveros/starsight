@@ -29,22 +29,31 @@ class SubtractionCompareGame extends StatefulWidget {
 }
 
 class _SubtractionCompareGameState extends State<SubtractionCompareGame>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin<SubtractionCompareGame> {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _candyCanePlainAsset = 'assets/images/objects/arctic/candy_cane_plain.png';
-  static const String _candyCaneAsset = 'assets/images/objects/arctic/candy_cane.png';
+  static const String _domaImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _candyCanePlainAsset =
+      'assets/images/objects/arctic/candy_cane_plain.png';
+  static const String _candyCaneAsset =
+      'assets/images/objects/arctic/candy_cane.png';
   static const String _ribbonAsset = 'assets/images/objects/arctic/ribbon.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/treat_compare_intro.wav';
-  static const String _audioInstruction = '$_audioBase/treat_compare_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/treat_compare_instruction.wav';
   static const String _audioQuestion = '$_audioBase/treat_compare_question.wav';
-  static const String _audioTreatPlaceRemove = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioTreatPlaceRemove =
+      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioWin = '$_audioBase/mahusay.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
@@ -72,7 +81,8 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   bool _showChoices = false;
   bool _instructionPlayed = false;
   bool _canInteract = false;
-  bool get _readyForConfirm => !_resolvingRound && _trayUsed.every((used) => used);
+  bool get _readyForConfirm =>
+      !_resolvingRound && _trayUsed.every((used) => used);
 
   late List<List<int>> _roundPool;
   late int _biggerCount;
@@ -82,9 +92,6 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   late List<bool> _trayUsed;
   late List<int> _choices;
   int? _tappedChoiceIndex;
-
-  bool get _readyForConfirm =>
-      !_resolvingRound && _trayUsed.every((used) => used);
 
   // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -97,15 +104,14 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     _hasSavedResult = true;
 
     final finalEmotions = stopAiCamera();
-    try {
-      ArcticDatabaseService.saveGameData(
-        gameId: 'arctic_numberland_${widget.level}',
-        mistakes: _tapTracker.mistakeCount,
-        emotions: finalEmotions,
-      );
-    } catch (e) {
-      debugPrint('Database Error saving Arctic metrics: $e');
-    }
+
+    ArcticDatabaseService.saveGameData(
+      gameId: 'arctic_numberland_${widget.level}',
+      mistakes: _tapTracker.mistakeCount,
+      emotions: finalEmotions,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
   }
 
   // ── Audio ────────────────────────────────────────────────────────────────
@@ -201,21 +207,18 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     if (!_instructionPlayed) {
       _canInteract = false;
 
-      Future.delayed(
-        const Duration(milliseconds: 500),
-            () async {
-          if (!mounted) return;
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        if (!mounted) return;
 
-          await _playVoice(_audioInstruction);
+        await _playVoice(_audioInstruction);
 
-          if (!mounted) return;
+        if (!mounted) return;
 
-          setState(() {
-            _instructionPlayed = true;
-            _canInteract = true;
-          });
-        },
-      );
+        setState(() {
+          _instructionPlayed = true;
+          _canInteract = true;
+        });
+      });
     } else {
       _canInteract = true;
     }
@@ -236,10 +239,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   }
 
   // ── Drag handlers ────────────────────────────────────────────────────────
-  Future<void> _onCupDropped(
-      int slotIndex,
-      int trayIndex,
-      ) async {
+  Future<void> _onCupDropped(int slotIndex, int trayIndex) async {
     if (!_canInteract ||
         _resolvingRound ||
         _pairedSlot[slotIndex] != null ||
@@ -256,9 +256,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     });
 
     if (_trayUsed.every((used) => used)) {
-      await Future.delayed(
-        const Duration(milliseconds: 700),
-      );
+      await Future.delayed(const Duration(milliseconds: 700));
 
       if (!mounted) return;
 
@@ -279,9 +277,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   }
 
   void _onCupRemoved(int slotIndex) {
-    if (!_canInteract ||
-        _resolvingRound ||
-        _pairedSlot[slotIndex] == null) {
+    if (!_canInteract || _resolvingRound || _pairedSlot[slotIndex] == null) {
       return;
     }
 
@@ -298,9 +294,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
   // ── Confirmation tap ─────────────────────────────────────────────────────
   Future<void> _onChoiceTap(int index) async {
-    if (!_readyForConfirm ||
-        !_canTapChoices ||
-        _tappedChoiceIndex != null) {
+    if (!_readyForConfirm || !_canTapChoices || _tappedChoiceIndex != null) {
       return;
     }
     setState(() => _tappedChoiceIndex = index);
@@ -548,12 +542,10 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                             duration: const Duration(milliseconds: 250),
                             child: _showChoices
                                 ? _buildChoicesRow(
-                              h,
-                              key: const ValueKey('confirm'),
-                            )
-                                : const SizedBox(
-                              key: ValueKey('empty'),
-                            ),
+                                    h,
+                                    key: const ValueKey('confirm'),
+                                  )
+                                : const SizedBox(key: ValueKey('empty')),
                           ),
                         ),
                       ],
@@ -598,9 +590,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                         children: [
                           // Plain candy cane becomes completed candy cane
                           GestureDetector(
-                            onTap: isMerged
-                                ? () => _onCupRemoved(i)
-                                : null,
+                            onTap: isMerged ? () => _onCupRemoved(i) : null,
                             child: AnimatedSwitcher(
                               duration: const Duration(milliseconds: 250),
                               child: Image.asset(
@@ -612,9 +602,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                                 fit: BoxFit.contain,
                                 errorBuilder: (_, __, ___) => Text(
                                   '🍬',
-                                  style: TextStyle(
-                                    fontSize: caneSize * 0.7,
-                                  ),
+                                  style: TextStyle(fontSize: caneSize * 0.7),
                                 ),
                               ),
                             ),
@@ -640,54 +628,35 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
   Widget _buildCupSlot(int slotIndex, double size) {
     final isFilled = _pairedSlot[slotIndex] != null;
-    final isLeftover =
-        _readyForConfirm && !isFilled;
+    final isLeftover = _readyForConfirm && !isFilled;
 
     // Keep the same space so the layout does not move.
     if (isFilled) {
-      return SizedBox(
-        width: size,
-        height: size,
-      );
+      return SizedBox(width: size, height: size);
     }
 
     Widget slot = DragTarget<int>(
       onWillAcceptWithDetails: (details) =>
-      _canInteract &&
+          _canInteract &&
           !_resolvingRound &&
           _pairedSlot[slotIndex] == null &&
           !_trayUsed[details.data],
 
-      onAcceptWithDetails: (details) =>
-          _onCupDropped(
-            slotIndex,
-            details.data,
-          ),
+      onAcceptWithDetails: (details) => _onCupDropped(slotIndex, details.data),
 
-      builder: (
-          context,
-          candidateData,
-          rejectedData,
-          ) {
-        final highlight =
-            candidateData.isNotEmpty;
+      builder: (context, candidateData, rejectedData) {
+        final highlight = candidateData.isNotEmpty;
 
         return Container(
           width: size,
           height: size,
           decoration: BoxDecoration(
             color: highlight
-                ? ArcticColorTheme.pictonblue
-                .withValues(alpha: 0.25)
-                : Colors.grey.withValues(
-              alpha: 0.35,
-            ),
-            borderRadius:
-            BorderRadius.circular(14),
+                ? ArcticColorTheme.pictonblue.withValues(alpha: 0.25)
+                : Colors.grey.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: highlight
-                  ? ArcticColorTheme.pictonblue
-                  : Colors.white,
+              color: highlight ? ArcticColorTheme.pictonblue : Colors.white,
               width: 2,
             ),
           ),
@@ -696,10 +665,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     );
 
     if (isLeftover) {
-      slot = ScaleTransition(
-        scale: _leftoverPulse,
-        child: slot,
-      );
+      slot = ScaleTransition(scale: _leftoverPulse, child: slot);
     }
 
     return slot;
@@ -726,16 +692,9 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
         return Draggable<int>(
           data: i,
-          maxSimultaneousDrags:
-          _canInteract && !_resolvingRound ? 1 : 0,
-          feedback: Material(
-            color: Colors.transparent,
-            child: cup,
-          ),
-          childWhenDragging: Opacity(
-            opacity: 0.25,
-            child: cup,
-          ),
+          maxSimultaneousDrags: _canInteract && !_resolvingRound ? 1 : 0,
+          feedback: Material(color: Colors.transparent, child: cup),
+          childWhenDragging: Opacity(opacity: 0.25, child: cup),
           child: cup,
         );
       }),
