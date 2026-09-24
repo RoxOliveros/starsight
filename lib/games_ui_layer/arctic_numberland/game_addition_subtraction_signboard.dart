@@ -14,6 +14,11 @@ import 'arctic_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 enum _RoundType { addition, subtraction }
 
@@ -59,8 +64,10 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/signboard_intro.wav';
-  static const String _audioRoundPromptAdd = '$_audioBase/signboard_add_instruction.wav';
-  static const String _audioRoundPromptSub = '$_audioBase/signboard_sub_instruction.wav';
+  static const String _audioRoundPromptAdd =
+      '$_audioBase/signboard_add_instruction.wav';
+  static const String _audioRoundPromptSub =
+      '$_audioBase/signboard_sub_instruction.wav';
   static const String _audioBury = 'assets/audio/sound_effects/erase.wav';
   static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioWin = '$_audioBase/signboard_win.wav';
@@ -115,6 +122,28 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   late AnimationController _snapPulseCtrl;
   late Animation<double> _snapPulse;
 
+  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  /// Stops the camera and saves mistakes + emotions once per playthrough.
+  Future<void> _saveGameResult() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = stopAiCamera();
+    try {
+      await ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint('Database Error saving Arctic metrics: $e');
+    }
+  }
+
   @override
   void initState() {
     OrientationService.setLandscape();
@@ -122,6 +151,15 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     _roundPool = List.of(_specPool, growable: true)..shuffle();
     _initAnimations();
     _setupRound();
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     finishLoading(_startIntroFlow);
   }
 
@@ -140,7 +178,10 @@ class _SignboardMathGameState extends State<SignboardMathGame>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _snapPulseCtrl = AnimationController(
       vsync: this,
@@ -279,6 +320,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     final isCorrect = _choices[choiceIndex] == _target;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap();
       setState(() => _resolvingRound = true);
       HapticFeedback.mediumImpact();
       await _playSfxAndWait(_audioBubblePop);
@@ -294,6 +336,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
       if (_currentRound + 1 >= _totalRounds) {
         await _playVoice(_audioWin);
+        _saveGameResult();
         ArcticProgressService.instance.markLevelComplete(widget.level);
         if (!mounted) return;
         setState(() => _showWinDialog = true);
@@ -302,6 +345,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
         _setupRound();
       }
     } else {
+      _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
       setState(() => _placementWrong = true);
       await Future.delayed(const Duration(milliseconds: 350));
@@ -333,7 +377,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   }
 
   void _playSfx(String asset) {
-    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((e) {
+    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
+      e,
+    ) {
       debugPrint('SFX audio error ($asset): $e');
     });
   }
@@ -356,6 +402,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _voicePlayer.dispose();
     _sfxPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -368,24 +415,54 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
+    // Only reacts to a *confirmed* camera result, so it never flashes just
+    // because the screen mounted. Reappears if the face is lost again.
+    final needsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
-            _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    return Listener(
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () {
+            final gameContent = Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: const Color(0xFFDCEFFA)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: _introPlaying
+                      ? _buildIntroLayer()
+                      : _buildGameContent(),
+                ),
+                if (!_introPlaying) buildDoma(context),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
+              ],
+            );
+            return needsLightingPrompt
+                ? Stack(
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(
+                        child: LightingPromptCard(
+                          onClose: () {
+                            setState(() => _hideLightingCard = true);
+                            releaseFaceGate(); // don't leave audio stuck
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : gameContent;
+          },
         ),
       ),
     );
@@ -397,7 +474,11 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 25, child: ArcticXButton()),
-        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -410,7 +491,10 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                     offset: Offset(
                       0,
                       Tween<double>(begin: -6, end: 6).evaluate(
-                        CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                        CurvedAnimation(
+                          parent: _domaFloatCtrl,
+                          curve: Curves.easeInOut,
+                        ),
                       ),
                     ),
                     child: child,
@@ -419,7 +503,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                     _domaImage,
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                    errorBuilder: (_, __, ___) =>
+                        const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
               ),
@@ -432,7 +517,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                       _signboardAsset,
                       height: screenH * 0.75,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text('🪧', style: TextStyle(fontSize: 70)),
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🪧', style: TextStyle(fontSize: 70)),
                     ),
                   ],
                 ),
@@ -458,8 +544,13 @@ class _SignboardMathGameState extends State<SignboardMathGame>
               child: Stack(
                 alignment: Alignment.topCenter,
                 children: [
-                  Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
-                  Align(alignment: Alignment.centerRight, child: ArcticLevelBadge(level: widget.level),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ArcticXButton(),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ArcticLevelBadge(level: widget.level),
                   ),
                 ],
               ),
@@ -624,7 +715,11 @@ class _SignboardMathGameState extends State<SignboardMathGame>
           asset,
           height: itemSize,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Icon(Icons.star, size: itemSize, color: ArcticColorTheme.pictonblue),
+          errorBuilder: (_, __, ___) => Icon(
+            Icons.star,
+            size: itemSize,
+            color: ArcticColorTheme.pictonblue,
+          ),
         );
       }),
     );
@@ -667,11 +762,18 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                             _subItemAsset,
                             height: itemSize,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
-                                Icon(Icons.circle, size: itemSize, color: ArcticColorTheme.pictonblue),
+                            errorBuilder: (_, __, ___) => Icon(
+                              Icons.circle,
+                              size: itemSize,
+                              color: ArcticColorTheme.pictonblue,
+                            ),
                           ),
                           if (isBuried)
-                            Icon(Icons.ac_unit, size: itemSize * 0.9, color: Colors.white.withValues(alpha: 0.85)),
+                            Icon(
+                              Icons.ac_unit,
+                              size: itemSize * 0.9,
+                              color: Colors.white.withValues(alpha: 0.85),
+                            ),
                         ],
                       ),
                     ),
@@ -704,8 +806,14 @@ class _SignboardMathGameState extends State<SignboardMathGame>
             height: slotSize * 1.3,
             child: Center(
               child: ScaleTransition(
-                scale: !_placementWrong ? _snapPulse : const AlwaysStoppedAnimation(1.0),
-                child: _tagChoices(_choices[_placedChoiceIndex!], slotSize, wrong: _placementWrong),
+                scale: !_placementWrong
+                    ? _snapPulse
+                    : const AlwaysStoppedAnimation(1.0),
+                child: _tagChoices(
+                  _choices[_placedChoiceIndex!],
+                  slotSize,
+                  wrong: _placementWrong,
+                ),
               ),
             ),
           );
@@ -720,7 +828,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                 : Colors.white.withValues(alpha: 0.4),
             shape: BoxShape.circle,
             border: Border.all(
-              color: highlight ? ArcticColorTheme.pictonblue : ArcticColorTheme.slateblue.withValues(alpha: 0.5),
+              color: highlight
+                  ? ArcticColorTheme.pictonblue
+                  : ArcticColorTheme.slateblue.withValues(alpha: 0.5),
               width: 3,
             ),
           ),
@@ -728,7 +838,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
           child: Icon(
             Icons.help_outline,
             size: slotSize * 0.6,
-            color: ArcticColorTheme.cotton.withValues(alpha: highlight ? 0.9 : 0.4),
+            color: ArcticColorTheme.cotton.withValues(
+              alpha: highlight ? 0.9 : 0.4,
+            ),
           ),
         );
       },
@@ -780,7 +892,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
               width: size,
               height: size,
               decoration: BoxDecoration(
-                color: wrong ? Colors.red.shade300 : ArcticColorTheme.pictonblue,
+                color: wrong
+                    ? Colors.red.shade300
+                    : ArcticColorTheme.pictonblue,
                 borderRadius: BorderRadius.circular(size * 0.22),
               ),
             ),
@@ -842,14 +956,14 @@ class _SignboardMathGameState extends State<SignboardMathGame>
         );
       },
       onRestart: () {
-        setState(() {
-          _showWinDialog = false;
-          _currentRound = 0;
-          _solvedCount = 0;
-          _roundPool = List.of(_specPool, growable: true)..shuffle();
-          _setupRound();
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SignboardMathGame(level: widget.level),
+          ),
+        );
       },
+      //
       onBack: () {
         Navigator.pop(context);
       },

@@ -13,6 +13,11 @@ import 'arctic_game_ui.dart';
 import 'game_decorate_snowy_tree.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 enum _ShapeKind { circle, square, triangle, star }
 
@@ -38,7 +43,7 @@ class _RoundSpec {
 class SledShapeSortGame extends StatefulWidget {
   final int level;
 
-  const SledShapeSortGame({super.key,required this.level});
+  const SledShapeSortGame({super.key, required this.level});
 
   @override
   State<SledShapeSortGame> createState() => _SledShapeSortGameState();
@@ -49,28 +54,46 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         TickerProviderStateMixin,
         DomaReactionMixin<SledShapeSortGame>,
         GameLoadingMixin<SledShapeSortGame>,
-        ArcticAudioMixin<SledShapeSortGame> {
+        ArcticAudioMixin<SledShapeSortGame>,
+        AiCameraMixin<SledShapeSortGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
   static const String _objBase = 'assets/images/objects/arctic';
   static const String _sledAsset = '$_objBase/sled.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/sled_shape_sort_intro.wav';
-  static const String _audioInstruction = '$_audioBase/sled_shape_sort_instuction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/sled_shape_sort_instuction.wav';
   static const String _audioWin = '$_audioBase/sled_shape_sort_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
   // Ramp: 2 shapes -> 3 shapes -> 4 shapes, item count growing 3 -> 6.
   static final List<_RoundSpec> _rounds = [
     _RoundSpec([
-      _ShapeItem(id: 'orn_blue', asset: '$_objBase/ornament_blue.png', emoji: '🔵', shape: _ShapeKind.circle),
-      _ShapeItem(id: 'pkg_1', asset: '$_objBase/package_1.png', emoji: '📦', shape: _ShapeKind.square),
-      _ShapeItem(id: 'snowball_1', asset: '$_objBase/snowball.png', emoji: '⚪', shape: _ShapeKind.circle),
+      _ShapeItem(
+        id: 'orn_blue',
+        asset: '$_objBase/ornament_blue.png',
+        emoji: '🔵',
+        shape: _ShapeKind.circle,
+      ),
+      _ShapeItem(
+        id: 'pkg_1',
+        asset: '$_objBase/package_1.png',
+        emoji: '📦',
+        shape: _ShapeKind.square,
+      ),
+      _ShapeItem(
+        id: 'snowball_1',
+        asset: '$_objBase/snowball.png',
+        emoji: '⚪',
+        shape: _ShapeKind.circle,
+      ),
     ]),
     _RoundSpec([
       _ShapeItem(id: 'orn_green', asset: '$_objBase/ornament_green.png', emoji: '🟢', shape: _ShapeKind.circle),
@@ -79,11 +102,36 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       _ShapeItem(id: 'pkg_2', asset: '$_objBase/package_1.png', emoji: '📦', shape: _ShapeKind.square),
     ]),
     _RoundSpec([
-      _ShapeItem(id: 'orn_purple', asset: '$_objBase/ornament_purple.png', emoji: '🟣', shape: _ShapeKind.circle),
-      _ShapeItem(id: 'iceberg_1', asset: '$_objBase/iceberg.png', emoji: '🏔️', shape: _ShapeKind.triangle),
-      _ShapeItem(id: 'star_1', asset: 'assets/images/objects/puzzle/star.png', emoji: '⭐', shape: _ShapeKind.star),
-      _ShapeItem(id: 'snowball_2', asset: '$_objBase/snowball.png', emoji: '⚪', shape: _ShapeKind.circle),
-      _ShapeItem(id: 'pkg_3', asset: '$_objBase/package_1.png', emoji: '📦', shape: _ShapeKind.square),
+      _ShapeItem(
+        id: 'orn_purple',
+        asset: '$_objBase/ornament_purple.png',
+        emoji: '🟣',
+        shape: _ShapeKind.circle,
+      ),
+      _ShapeItem(
+        id: 'iceberg_1',
+        asset: '$_objBase/iceberg.png',
+        emoji: '🏔️',
+        shape: _ShapeKind.triangle,
+      ),
+      _ShapeItem(
+        id: 'star_1',
+        asset: 'assets/images/objects/puzzle/star.png',
+        emoji: '⭐',
+        shape: _ShapeKind.star,
+      ),
+      _ShapeItem(
+        id: 'snowball_2',
+        asset: '$_objBase/snowball.png',
+        emoji: '⚪',
+        shape: _ShapeKind.circle,
+      ),
+      _ShapeItem(
+        id: 'pkg_3',
+        asset: '$_objBase/package_1.png',
+        emoji: '📦',
+        shape: _ShapeKind.square,
+      ),
     ]),
     _RoundSpec([
       _ShapeItem(id: 'orn_red', asset: '$_objBase/ornament_red.png', emoji: '🔴', shape: _ShapeKind.circle),
@@ -94,12 +142,42 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       _ShapeItem(id: 'ice_2', asset: '$_objBase/ice.png', emoji: '🧊', shape: _ShapeKind.square),
     ]),
     _RoundSpec([
-      _ShapeItem(id: 'icecream_1', asset: '$_objBase/icecream.png', emoji: '🍦', shape: _ShapeKind.triangle),
-      _ShapeItem(id: 'snowglobe_1', asset: '$_objBase/snowglobe.png', emoji: '🔮', shape: _ShapeKind.circle),
-      _ShapeItem(id: 'signboard_1', asset: '$_objBase/snowy_signboard_big.png', emoji: '🪧', shape: _ShapeKind.square),
-      _ShapeItem(id: 'pkg_4', asset: '$_objBase/package_1.png', emoji: '📦', shape: _ShapeKind.square),
-      _ShapeItem(id: 'tree_3', asset: '$_objBase/snowy_tree.png', emoji: '🌲', shape: _ShapeKind.triangle),
-      _ShapeItem(id: 'star_3', asset: 'assets/images/objects/puzzle/star.png', emoji: '⭐', shape: _ShapeKind.star),
+      _ShapeItem(
+        id: 'icecream_1',
+        asset: '$_objBase/icecream.png',
+        emoji: '🍦',
+        shape: _ShapeKind.triangle,
+      ),
+      _ShapeItem(
+        id: 'snowglobe_1',
+        asset: '$_objBase/snowglobe.png',
+        emoji: '🔮',
+        shape: _ShapeKind.circle,
+      ),
+      _ShapeItem(
+        id: 'signboard_1',
+        asset: '$_objBase/snowy_signboard_big.png',
+        emoji: '🪧',
+        shape: _ShapeKind.square,
+      ),
+      _ShapeItem(
+        id: 'pkg_4',
+        asset: '$_objBase/package_1.png',
+        emoji: '📦',
+        shape: _ShapeKind.square,
+      ),
+      _ShapeItem(
+        id: 'tree_3',
+        asset: '$_objBase/snowy_tree.png',
+        emoji: '🌲',
+        shape: _ShapeKind.triangle,
+      ),
+      _ShapeItem(
+        id: 'star_3',
+        asset: 'assets/images/objects/puzzle/star.png',
+        emoji: '⭐',
+        shape: _ShapeKind.star,
+      ),
     ]),
   ];
 
@@ -123,12 +201,43 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
 
+  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  /// Stops the camera and saves mistakes + emotions once per playthrough.
+  Future<void> _saveGameResult() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = stopAiCamera();
+    try {
+      await ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint('Database Error saving Arctic metrics: $e');
+    }
+  }
+
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
     _initAnimations();
     _setupRound(playInstruction: false);
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     finishLoading(_startIntroFlow);
   }
 
@@ -142,27 +251,33 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
   }
 
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) playVoice(_audioInstruction);
+    if (mounted)
+      playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -176,7 +291,8 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
 
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) playVoice(_audioInstruction);
+        if (mounted)
+          playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
       });
     }
 
@@ -188,6 +304,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     if (_placedIds.contains(item.id)) return;
 
     if (item.shape == sledShape) {
+      _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       setState(() => _placedIds.add(item.id));
       await playSfx('$_audioBase/pop.wav');
@@ -198,6 +315,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         await _onRoundComplete();
       }
     } else {
+      _tapTracker.recordMistake();
       await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       HapticFeedback.heavyImpact();
@@ -213,6 +331,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
 
     if (_currentRound + 1 >= _totalRounds) {
       await playVoice(_audioWin);
+      await _saveGameResult();
       await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -224,6 +343,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -233,25 +353,54 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    // Only reacts to a *confirmed* camera result, so it never flashes just
+    // because the screen mounted. Reappears if the face is lost again.
+    final needsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    return Listener(
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () {
+            final gameContent = Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: const Color(0xFFDCEFFA)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: _introPlaying
+                      ? _buildIntroLayer()
+                      : _buildGameContent(),
+                ),
+                if (!_introPlaying) buildDoma(context),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
+              ],
+            );
+            return needsLightingPrompt
+                ? Stack(
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(
+                        child: LightingPromptCard(
+                          onClose: () {
+                            setState(() => _hideLightingCard = true);
+                            releaseFaceGate(); // don't leave audio stuck
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : gameContent;
+          },
         ),
       ),
     );
@@ -265,7 +414,11 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 25, child: ArcticXButton()),
-        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: AnimatedBuilder(
             animation: _domaFloatCtrl,
@@ -273,7 +426,10 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
               offset: Offset(
                 0,
                 Tween<double>(begin: -6, end: 6).evaluate(
-                  CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                  CurvedAnimation(
+                    parent: _domaFloatCtrl,
+                    curve: Curves.easeInOut,
+                  ),
                 ),
               ),
               child: child,
@@ -286,7 +442,8 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                   _characterImage,
                   height: screenH * 0.7,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐧', style: TextStyle(fontSize: 70)),
                 ),
                 const Spacer(),
                 Column(
@@ -296,7 +453,8 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                       _sledAsset,
                       height: screenH * 0.55,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text('🛷', style: TextStyle(fontSize: 70)),
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🛷', style: TextStyle(fontSize: 70)),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -340,7 +498,6 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         ),
       ],
     );
-
   }
 
   // ── Main game layout ─────────────────────────────────────────────────────
@@ -358,7 +515,10 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                 child: Stack(
                   alignment: Alignment.topCenter,
                   children: [
-                    Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: ArcticXButton(),
+                    ),
                     Align(
                       alignment: Alignment.centerRight,
                       child: ArcticLevelBadge(level: widget.level),
@@ -368,7 +528,9 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
               ),
               Expanded(child: _buildStagingArea(h)),
               Padding(
-                padding: EdgeInsets.only(left: MediaQuery.of(context).size.height * 0.40),
+                padding: EdgeInsets.only(
+                  left: MediaQuery.of(context).size.height * 0.40,
+                ),
                 child: Transform.translate(
                   offset: Offset(0, -h * 0.05),
                   child: _buildSledRow(h * 0.32),
@@ -395,7 +557,9 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         spacing: 18,
         runSpacing: 14,
         alignment: WrapAlignment.center,
-        children: visible.map((item) => _buildDraggableItem(item, size)).toList(),
+        children: visible
+            .map((item) => _buildDraggableItem(item, size))
+            .toList(),
       ),
     );
   }
@@ -407,22 +571,33 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     return Draggable<_ShapeItem>(
       key: ValueKey(item.id),
       data: item,
-      feedback: Material(color: Colors.transparent, child: _itemVisual(item, size * 1.15)),
+      feedback: Material(
+        color: Colors.transparent,
+        child: _itemVisual(item, size * 1.15),
+      ),
       childWhenDragging: Opacity(opacity: 0.25, child: tile),
       onDragStarted: () => HapticFeedback.selectionClick(),
       child: tile,
     );
   }
 
-  Widget _itemVisual(_ShapeItem item, double size, {bool wrong = false, bool bare = false}) { // CHANGED — added bare param
-    if (bare) {                                             // ADD — plain image, no container decoration
+  Widget _itemVisual(
+    _ShapeItem item,
+    double size, {
+    bool wrong = false,
+    bool bare = false,
+  }) {
+    // CHANGED — added bare param
+    if (bare) {
+      // ADD — plain image, no container decoration
       return SizedBox(
         width: size,
         height: size,
         child: Image.asset(
           item.asset,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Text(item.emoji, style: TextStyle(fontSize: size * 0.5)),
+          errorBuilder: (_, __, ___) =>
+              Text(item.emoji, style: TextStyle(fontSize: size * 0.5)),
         ),
       );
     }
@@ -434,15 +609,23 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.9),
         shape: BoxShape.circle,
-        border: Border.all(color: wrong ? Colors.red : Colors.white, width: wrong ? 4 : 3),
+        border: Border.all(
+          color: wrong ? Colors.red : Colors.white,
+          width: wrong ? 4 : 3,
+        ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 3)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       child: Image.asset(
         item.asset,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => Text(item.emoji, style: TextStyle(fontSize: size * 0.5)),
+        errorBuilder: (_, __, ___) =>
+            Text(item.emoji, style: TextStyle(fontSize: size * 0.5)),
       ),
     );
   }
@@ -453,7 +636,9 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       height: slotSize,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: _binsForRound.map((shape) => _buildSled(shape, slotSize)).toList(),
+        children: _binsForRound
+            .map((shape) => _buildSled(shape, slotSize))
+            .toList(),
       ),
     );
   }
@@ -463,11 +648,13 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         .where((i) => i.shape == shape && _placedIds.contains(i.id))
         .toList();
 
-    final sledWidth = slotSize * 1.3;      // ADD — matches reference's sledWidth naming/proportion
-    final sledHeight = slotSize;           // ADD
+    final sledWidth =
+        slotSize * 1.3; // ADD — matches reference's sledWidth naming/proportion
+    final sledHeight = slotSize; // ADD
 
     return DragTarget<_ShapeItem>(
-      onWillAcceptWithDetails: (details) => !_placedIds.contains(details.data.id),
+      onWillAcceptWithDetails: (details) =>
+          !_placedIds.contains(details.data.id),
       onAcceptWithDetails: (details) => _onItemDropped(details.data, shape),
       builder: (context, candidateData, rejectedData) {
         final hovering = candidateData.isNotEmpty;
@@ -481,14 +668,18 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
             width: sledWidth,
             height: sledHeight,
             child: Stack(
-              alignment: Alignment.bottomCenter,          // CHANGED — matches reference's outer Stack alignment
+              alignment: Alignment
+                  .bottomCenter, // CHANGED — matches reference's outer Stack alignment
               clipBehavior: Clip.none,
               children: [
-                Image.asset(                                // CHANGED — sledWidth-based sizing like the reference's Image.asset(_sledAsset, width: sledWidth, ...)
+                Image.asset(
+                  // CHANGED — sledWidth-based sizing like the reference's Image.asset(_sledAsset, width: sledWidth, ...)
                   _sledAsset,
                   width: sledWidth,
                   fit: BoxFit.contain,
-                  color: mismatchHover ? Colors.red.withValues(alpha: 0.35) : null,
+                  color: mismatchHover
+                      ? Colors.red.withValues(alpha: 0.35)
+                      : null,
                   colorBlendMode: mismatchHover ? BlendMode.srcATop : null,
                   errorBuilder: (_, __, ___) => Container(
                     height: 40,
@@ -500,7 +691,8 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                   ),
                 ),
                 //items
-                Positioned(                                 // CHANGED — bottom/left/right like reference's cargo Positioned
+                Positioned(
+                  // CHANGED — bottom/left/right like reference's cargo Positioned
                   bottom: sledHeight * 0.54,
                   left: sledHeight * 0.16,
                   right: 0,
@@ -509,7 +701,10 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                     runSpacing: 4,
                     alignment: WrapAlignment.center,
                     children: loadedItems
-                        .map((item) => _itemVisual(item, slotSize * 0.32, bare: true))
+                        .map(
+                          (item) =>
+                              _itemVisual(item, slotSize * 0.32, bare: true),
+                        )
                         .toList(),
                   ),
                 ),
@@ -531,7 +726,11 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                         width: 3,
                       ),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6, offset: const Offset(0, 3)),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
                       ],
                     ),
                     child: CustomPaint(
@@ -587,13 +786,14 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         );
       },
       onRestart: () {
-        setState(() {
-          _showWinDialog = false;
-          _currentRound = 0;
-          _solvedRounds = 0;
-          _setupRound();
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SledShapeSortGame(level: widget.level),
+          ),
+        );
       },
+
       onBack: () {
         Navigator.pop(context);
       },

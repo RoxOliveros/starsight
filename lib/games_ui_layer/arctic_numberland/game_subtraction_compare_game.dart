@@ -13,6 +13,11 @@ import 'game_addition_subtraction_signboard.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class SubtractionCompareGame extends StatefulWidget {
   final int level;
@@ -78,6 +83,31 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   late List<int> _choices;
   int? _tappedChoiceIndex;
 
+  bool get _readyForConfirm =>
+      !_resolvingRound && _trayUsed.every((used) => used);
+
+  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  /// Stops the camera and saves mistakes + emotions once per playthrough.
+  Future<void> _saveGameResult() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = stopAiCamera();
+    try {
+      ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint('Database Error saving Arctic metrics: $e');
+    }
+  }
+
   // ── Audio ────────────────────────────────────────────────────────────────
   final AudioPlayer _voicePlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -96,6 +126,16 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     super.initState();
     _roundPool = [..._factPool]..shuffle();
     _initAnimations();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     finishLoading(_startIntroFlow);
   }
 
@@ -114,20 +154,24 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _leftoverPulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    _leftoverPulse = Tween(begin: 1.0, end: 1.08)
-        .animate(CurvedAnimation(parent: _leftoverPulseCtrl, curve: Curves.easeInOut));
+    _leftoverPulse = Tween(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _leftoverPulseCtrl, curve: Curves.easeInOut),
+    );
   }
 
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -175,6 +219,10 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     } else {
       _canInteract = true;
     }
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted)
+        playVoiceRestartingOnFaceLoss(_voicePlayer, _audioInstruction);
+    });
 
     setState(() {});
   }
@@ -261,6 +309,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
     if (isCorrect) {
       setState(() => _resolvingRound = true);
+      _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       showDomaReaction(DomaState.correct);
       if (!mounted) return;
@@ -272,6 +321,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
       if (_currentRound + 1 >= _totalRounds) {
         await _playVoice(_audioWin);
+        _saveGameResult();
         ArcticProgressService.instance.markLevelComplete(widget.level);
         if (!mounted) return;
         setState(() => _showWinDialog = true);
@@ -281,6 +331,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       }
     } else {
       HapticFeedback.heavyImpact();
+      _tapTracker.recordMistake();
       showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
@@ -306,13 +357,16 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   }
 
   void _playSfx(String asset) {
-    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((e) {
+    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
+      e,
+    ) {
       debugPrint('SFX audio error ($asset): $e');
     });
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _voicePlayer.dispose();
     _sfxPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -325,25 +379,54 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    // Only reacts to a *confirmed* camera result, so it never flashes just
+    // because the screen mounted. Reappears if the face is lost again.
+    final needsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    return Listener(
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () {
+            final gameContent = Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: const Color(0xFFDCEFFA)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: _introPlaying
+                      ? _buildIntroLayer()
+                      : _buildGameContent(),
+                ),
+                if (!_introPlaying) buildDoma(context),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
+              ],
+            );
+            return needsLightingPrompt
+                ? Stack(
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(
+                        child: LightingPromptCard(
+                          onClose: () {
+                            setState(() => _hideLightingCard = true);
+                            releaseFaceGate(); // don't leave audio stuck
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : gameContent;
+          },
         ),
       ),
     );
@@ -355,7 +438,11 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 25, child: ArcticXButton()),
-        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -368,7 +455,10 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                     offset: Offset(
                       0,
                       Tween<double>(begin: -6, end: 6).evaluate(
-                        CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                        CurvedAnimation(
+                          parent: _domaFloatCtrl,
+                          curve: Curves.easeInOut,
+                        ),
                       ),
                     ),
                     child: child,
@@ -377,7 +467,8 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                     _domaImage,
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                    errorBuilder: (_, __, ___) =>
+                        const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
               ),
@@ -390,13 +481,15 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                       _candyCanePlainAsset,
                       height: screenH * 0.25,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text('🍬', style: TextStyle(fontSize: 70)),
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🍬', style: TextStyle(fontSize: 70)),
                     ),
                     Image.asset(
                       _ribbonAsset,
                       height: screenH * 0.25,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text('🍧', style: TextStyle(fontSize: 70)),
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🍧', style: TextStyle(fontSize: 70)),
                     ),
                   ],
                 ),
@@ -422,7 +515,10 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
               child: Stack(
                 alignment: Alignment.topCenter,
                 children: [
-                  Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ArcticXButton(),
+                  ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: ArcticLevelBadge(level: widget.level),
@@ -620,7 +716,8 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
           _ribbonAsset,
           height: size,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Text('🍦', style: TextStyle(fontSize: size * 0.7)),
+          errorBuilder: (_, __, ___) =>
+              Text('🍦', style: TextStyle(fontSize: size * 0.7)),
         );
 
         if (used) {
@@ -670,7 +767,9 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: GestureDetector(
-              onTap: _tappedChoiceIndex == null ? () => _onChoiceTap(index) : null,
+              onTap: _tappedChoiceIndex == null
+                  ? () => _onChoiceTap(index)
+                  : null,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
                 width: btnSize,
@@ -679,7 +778,9 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                   color: bg,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [BoxShadow(color: bg.withValues(alpha: 0.4), blurRadius: 8)],
+                  boxShadow: [
+                    BoxShadow(color: bg.withValues(alpha: 0.4), blurRadius: 8),
+                  ],
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -738,14 +839,14 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
         );
       },
       onRestart: () {
-        setState(() {
-          _showWinDialog = false;
-          _currentRound = 0;
-          _solvedCount = 0;
-          _roundPool = [..._factPool]..shuffle();
-          _setupRound();
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubtractionCompareGame(level: widget.level),
+          ),
+        );
       },
+
       onBack: () {
         Navigator.pop(context);
       },
