@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ArcticDatabaseService {
-  static const int _gamesPerCycle = 20;
+  static const int _gamesPerCycle = 30;
 
   static const int _maxStoredCycles = 2;
   static String? activeChildId;
