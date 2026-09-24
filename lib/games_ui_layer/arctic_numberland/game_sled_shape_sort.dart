@@ -96,30 +96,10 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       ),
     ]),
     _RoundSpec([
-      _ShapeItem(
-        id: 'orn_green',
-        asset: '$_objBase/ornament_green.png',
-        emoji: '🟢',
-        shape: _ShapeKind.circle,
-      ),
-      _ShapeItem(
-        id: 'ice_1',
-        asset: '$_objBase/ice_1.png',
-        emoji: '🧊',
-        shape: _ShapeKind.square,
-      ),
-      _ShapeItem(
-        id: 'tree_1',
-        asset: '$_objBase/snowy_tree.png',
-        emoji: '🌲',
-        shape: _ShapeKind.triangle,
-      ),
-      _ShapeItem(
-        id: 'pkg_2',
-        asset: '$_objBase/package_1.png',
-        emoji: '📦',
-        shape: _ShapeKind.square,
-      ),
+      _ShapeItem(id: 'orn_green', asset: '$_objBase/ornament_green.png', emoji: '🟢', shape: _ShapeKind.circle),
+      _ShapeItem(id: 'ice_1', asset: '$_objBase/ice.png', emoji: '🧊', shape: _ShapeKind.square),
+      _ShapeItem(id: 'tree_1', asset: '$_objBase/snowy_tree.png', emoji: '🌲', shape: _ShapeKind.triangle),
+      _ShapeItem(id: 'pkg_2', asset: '$_objBase/package_1.png', emoji: '📦', shape: _ShapeKind.square),
     ]),
     _RoundSpec([
       _ShapeItem(
@@ -154,42 +134,12 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       ),
     ]),
     _RoundSpec([
-      _ShapeItem(
-        id: 'orn_red',
-        asset: '$_objBase/ornament_red.png',
-        emoji: '🔴',
-        shape: _ShapeKind.circle,
-      ),
-      _ShapeItem(
-        id: 'orn_yellow',
-        asset: '$_objBase/ornament_yellow.png',
-        emoji: '🟡',
-        shape: _ShapeKind.circle,
-      ),
-      _ShapeItem(
-        id: 'tree_2',
-        asset: '$_objBase/snowy_tree.png',
-        emoji: '🌲',
-        shape: _ShapeKind.triangle,
-      ),
-      _ShapeItem(
-        id: 'iceberg_2',
-        asset: '$_objBase/iceberg.png',
-        emoji: '🏔️',
-        shape: _ShapeKind.triangle,
-      ),
-      _ShapeItem(
-        id: 'star_2',
-        asset: 'assets/images/objects/puzzle/star.png',
-        emoji: '⭐',
-        shape: _ShapeKind.star,
-      ),
-      _ShapeItem(
-        id: 'ice_2',
-        asset: '$_objBase/ice_1.png',
-        emoji: '🧊',
-        shape: _ShapeKind.square,
-      ),
+      _ShapeItem(id: 'orn_red', asset: '$_objBase/ornament_red.png', emoji: '🔴', shape: _ShapeKind.circle),
+      _ShapeItem(id: 'orn_yellow', asset: '$_objBase/ornament_yellow.png', emoji: '🟡', shape: _ShapeKind.circle),
+      _ShapeItem(id: 'tree_2', asset: '$_objBase/snowy_tree.png', emoji: '🌲', shape: _ShapeKind.triangle),
+      _ShapeItem(id: 'iceberg_2', asset: '$_objBase/iceberg.png', emoji: '🏔️', shape: _ShapeKind.triangle),
+      _ShapeItem(id: 'star_2', asset: 'assets/images/objects/puzzle/star.png', emoji: '⭐', shape: _ShapeKind.star),
+      _ShapeItem(id: 'ice_2', asset: '$_objBase/ice.png', emoji: '🧊', shape: _ShapeKind.square),
     ]),
     _RoundSpec([
       _ShapeItem(

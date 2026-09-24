@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 
 mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   CameraController? aiCameraController;
-  Future<void>? _cameraInitFuture;
   Timer? _analysisTimer;
   bool isCameraInitialized = false;
   bool isFaceDetected = false;
@@ -44,10 +43,10 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   Completer<void>? _faceReturnGate;
 
   Future<void> playVoiceRestartingOnFaceLoss(
-    AudioPlayer player,
-    String asset, {
-    Duration timeout = const Duration(seconds: 20),
-  }) async {
+      AudioPlayer player,
+      String asset, {
+        Duration timeout = const Duration(seconds: 20),
+      }) async {
     while (mounted && !_isCameraDisposed) {
       // Don't start a tutorial clip while the lighting card is waiting.
       final pending = _faceReturnGate;
@@ -116,7 +115,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
     try {
       final cameras = await availableCameras();
       final frontCamera = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.front,
+            (c) => c.lensDirection == CameraLensDirection.front,
       );
 
       aiCameraController = CameraController(
@@ -125,8 +124,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         enableAudio: false,
       );
 
-      _cameraInitFuture = aiCameraController!.initialize();
-      await _cameraInitFuture;
+      await aiCameraController!.initialize();
       if (_isCameraDisposed) return;
       if (mounted) {
         setState(() {
@@ -236,7 +234,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
 
         final isUsableReading =
             detectedEmotion != "NO FACE DETECTED" &&
-            !detectedEmotion.startsWith("CALIBRATING");
+                !detectedEmotion.startsWith("CALIBRATING");
         if (isUsableReading) {
           sessionEmotions.add(detectedEmotion);
           if (!_hasFiredCalibrationComplete) {
@@ -284,23 +282,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
     releaseFaceGate();
     _analysisTimer?.cancel();
     final controller = aiCameraController;
-    final initFuture = _cameraInitFuture;
     aiCameraController = null;
-    _cameraInitFuture = null;
-    if (controller == null) return;
-
-    () async {
-      if (initFuture != null) {
-        try {
-          await initFuture;
-        } catch (_) {
-          return;
-        }
-      }
-      try {
-        await controller.dispose();
-      } catch (_) {
-      }
-    }();
+    controller?.dispose();
   }
 }

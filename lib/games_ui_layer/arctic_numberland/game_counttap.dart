@@ -32,14 +32,15 @@ class Number012TapCountScreen extends StatefulWidget {
 }
 
 class _Number012TapCountScreenState extends State<Number012TapCountScreen>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin,
-        GameLoadingMixin,
-        AiCameraMixin<Number012TapCountScreen> {
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin{
   @override
   AudioPlayer get domaPlayer => _player;
   // ── Constants ──────────────────────────────────────────────────────────────
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level8/012_countandtap.wav';
 
   static const int _totalRounds = 5;
   static const int _poolSize = 5;
@@ -62,12 +63,12 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       asset: 'assets/images/objects/arctic/snowball.png',
       label: 'Snowball',
       color: Color(0xFF4FC3F7),
-    ), // index 0
+    ),
     _RoundTheme(
       asset: 'assets/images/objects/arctic/candy_cane.png',
       label: 'Candy Cane',
       color: Color(0xFFFFC857),
-    ), // index 1
+    ), 
     _RoundTheme(
       asset: 'assets/images/objects/arctic/igloo.png',
       label: 'Igloo',
@@ -77,17 +78,15 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   // ── State ──────────────────────────────────────────────────────────────────
 
-  int _round = 0; // index into _roundOrder
+  int _round = 0; 
   late List<int> _roundOrder;
 
   int get _targetNumber => _roundOrder[_round];
 
   _RoundTheme get _theme => _themes[_targetNumber];
 
-  // Which of the 5 objects are selected
   late List<bool> _selected;
 
-  // Submit feedback
   bool _locked = false;
 
   // Animations
@@ -202,9 +201,46 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     }).toList();
   }
 
+  void _restartGame() {
+    final random = Random();
+
+    _roundOrder = [1, 2];
+
+    while (_roundOrder.length < _totalRounds) {
+      _roundOrder.add(random.nextBool() ? 1 : 2);
+    }
+
+    _roundOrder.shuffle(random);
+
+    setState(() {
+      _round = 0;
+      _showWinDialog = false;
+      _locked = false;
+      _selected = List.filled(_poolSize, false);
+      _screenPhase = _ScreenPhase.miniGame;
+    });
+
+    _celebrationCtrl.reset();
+    _wrongShakeCtrl.reset();
+
+    _enterCtrl.reset();
+    _enterCtrl.forward();
+
+    _numberBounce.reset();
+    _numberBounce.forward();
+
+    for (final controller in _objScaleCtrls) {
+      controller.reset();
+    }
+
+    _tapTracker.startSession();
+
+    startAiCamera();
+  }
+
   @override
   void dispose() {
-    disposeAiCamera(); // <-- ADDED
+    disposeAiCamera(); 
     _minLoadTimer?.cancel();
     _numberDanceCtrl.dispose();
     _player.dispose();
@@ -247,7 +283,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
     await _playAudio(
-      'assets/audio/arctic_numberland/level8/012_countandtap.wav',
+      _audioIntro,
     );
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
@@ -273,10 +309,8 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     _locked = true;
 
     if (_selectedCount == _targetNumber) {
-      // ✅ Correct
-      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT SUBMISSION
+      _tapTracker.recordCorrectTap();
 
-      await _playAudio('assets/audio/arctic_numberland/$_targetNumber.wav');
       showDomaReaction(DomaState.correct);
       _celebrationCtrl.forward(from: 0);
       _numberBounce.forward(from: 0);
@@ -288,7 +322,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         List<String> finalEmotions = stopAiCamera();
 
         try {
-          await ArcticDatabaseService.saveGameData(
+          ArcticDatabaseService.saveGameData(
             gameId: 'arctic_numberland_${widget.level}',
             mistakes: _tapTracker.mistakeCount,
             emotions: finalEmotions,
@@ -297,7 +331,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
           debugPrint("Database Error saving Arctic metrics: $e");
         }
 
-        await ArcticProgressService.instance.markLevelComplete(widget.level);
+        ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
@@ -307,8 +341,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         });
       }
     } else {
-      // ❌ Mistake
-      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
+      _tapTracker.recordMistake();
 
       await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
@@ -346,77 +379,100 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       children: [
         Positioned.fill(
           child: Image.asset(
-            'assets/images/backgrounds/bg_game_arctic.png',
+            _bgImage,
             fit: BoxFit.cover,
           ),
         ),
+
         if (_screenPhase == _ScreenPhase.intro)
           _buildIntrolayer()
         else
-          Padding(
-            padding: const EdgeInsets.only(top: 5, bottom: 5),
-            child: Column(
-              children: [
-                // ── Header ──────────────────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 25,
-                  ),
-                  child: Stack(
-                    alignment: Alignment.topCenter,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: ArcticXButton(),
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: ArcticLevelBadge(level: widget.level),
-                      ),
-                    ],
-                  ),
+          Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 25,
+                  vertical: 25,
                 ),
+                child: Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: ArcticXButton(),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ArcticLevelBadge(level: widget.level),
+                    ),
+                  ],
+                ),
+              ),
 
-                const SizedBox(height: 8),
+              // Main game
+              Expanded(
+                child: FadeTransition(
+                  opacity: _enterAnim,
+                  child: Center(
+                    child: Transform.translate(
+                      offset: const Offset(0, -70),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _buildNumberCard(),
 
-                // ── Main game area ───────────────────────────────────────────────
-                Expanded(
-                  child: FadeTransition(
-                    opacity: _enterAnim,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const Spacer(),
-                        // LEFT — Number card
-                        _buildNumberCard(),
+                            const SizedBox(width: 20),
 
-                        const SizedBox(width: 24),
+                            const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: ArcticColorTheme.slateblue,
+                              size: 34,
+                            ),
 
-                        //Arrow
-                        const Icon(
-                          Icons.arrow_forward_rounded,
-                          color: ArcticColorTheme.slateblue,
-                          size: 28,
+                            const SizedBox(width: 20),
+
+                            _buildObjectArea(),
+                          ],
                         ),
-
-                        const SizedBox(width: 12),
-
-                        _buildObjectArea(),
-
-                        const Spacer(),
-                      ],
+                      ),
                     ),
                   ),
                 ),
+              ),
+            ],
+          ),
 
-                _buildProgressDots(),
-                const SizedBox(height: 10),
-              ],
+        // Progress dots
+        if (_screenPhase == _ScreenPhase.miniGame)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 15,
+            child: Center(
+              child: _buildProgressDots(),
             ),
           ),
-        if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
-        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+
+        // Doma
+        if (_screenPhase == _ScreenPhase.miniGame)
+          buildDoma(context),
+
+        // Check button
+        if (_screenPhase == _ScreenPhase.miniGame && !_showWinDialog)
+          Positioned(
+            right: 25,
+            bottom: 25,
+            child: _buildCheckButton(),
+          ),
+
+        if (_showWinDialog)
+          Positioned.fill(
+            child: _buildGoodJobOverlay(),
+          ),
       ],
     );
 
@@ -434,7 +490,6 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         backgroundColor: ArcticColorTheme.lightgrayishcyan,
@@ -499,46 +554,42 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   // ── Object grid + submit (right) ───────────────────────────────────────────
 
   Widget _buildObjectArea() {
-    return Column(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Object row (5 objects)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(_poolSize, _buildObjectTile),
-        ),
+      children: List.generate(
+        _poolSize,
+        _buildObjectTile,
+      ),
+    );
+  }
 
-        const SizedBox(height: 18),
-
-        // Submit button
-        GestureDetector(
-          onTap: _onSubmit,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 12),
-            decoration: BoxDecoration(
-              color: ArcticColorTheme.cadetblue,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: ArcticColorTheme.cadetblue.withValues(alpha: 0.35),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+  Widget _buildCheckButton() {
+    return GestureDetector(
+      onTap: _locked ? null : _onSubmit,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: _locked
+              ? ArcticColorTheme.cadetblue.withValues(alpha: 0.5)
+              : ArcticColorTheme.cadetblue,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: ArcticColorTheme.cadetblue.withValues(alpha: 0.35),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
-            child: Text(
-              'Submit',
-              style: const TextStyle(
-                fontFamily: ArcticAppTextStyles.fredoka,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: ArcticColorTheme.cotton,
-              ),
-            ),
-          ),
+          ],
         ),
-      ],
+        child: const Icon(
+          Icons.check_rounded,
+          size: 40,
+          color: ArcticColorTheme.cotton,
+        ),
+      ),
     );
   }
 
@@ -645,7 +696,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   Widget _buildGoodJobOverlay() {
     return DomaGoodJobOverlay(
-      characterImage: 'assets/images/characters/doma_the_penguin.png',
+      characterImage: _domaImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.pushReplacement(
@@ -661,9 +712,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
           ),
         );
       },
-      onRestart: () {
-        Navigator.pop(context, Number012TapCountScreen(level: widget.level));
-      },
+      onRestart: _restartGame,
       onBack: () {
         Navigator.pop(context);
       },
