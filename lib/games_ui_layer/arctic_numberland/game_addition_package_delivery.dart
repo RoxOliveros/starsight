@@ -13,6 +13,11 @@ import '../../ui_layer/loading_screen.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class AdditionPackageDeliveryGame extends StatefulWidget {
   final int level;
@@ -20,25 +25,35 @@ class AdditionPackageDeliveryGame extends StatefulWidget {
   const AdditionPackageDeliveryGame({super.key, required this.level});
 
   @override
-  State<AdditionPackageDeliveryGame> createState() => _AdditionPackageDeliveryGameState();
+  State<AdditionPackageDeliveryGame> createState() =>
+      _AdditionPackageDeliveryGameState();
 }
 
-class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGame>
-    with TickerProviderStateMixin, DomaReactionMixin<AdditionPackageDeliveryGame>, GameLoadingMixin<AdditionPackageDeliveryGame> {
+class _AdditionPackageDeliveryGameState
+    extends State<AdditionPackageDeliveryGame>
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin<AdditionPackageDeliveryGame>,
+        GameLoadingMixin<AdditionPackageDeliveryGame>,
+        AiCameraMixin<AdditionPackageDeliveryGame> {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _packageAssetBase = 'assets/images/objects/arctic/package_';
-  static const String _miniPackageAsset = 'assets/images/objects/arctic/package_1.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _packageAssetBase =
+      'assets/images/objects/arctic/package_';
+  static const String _miniPackageAsset =
+      'assets/images/objects/arctic/package_1.png';
   static const String _sledAsset = 'assets/images/objects/arctic/sled.png';
   static const String _houseAsset = 'assets/images/objects/arctic/house.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/package_delivery_intro.wav';
-  static const String _audioPackageAddRemove = 'assets/audio/sound_effects/thump.wav';
+  static const String _audioPackageAddRemove =
+      'assets/audio/sound_effects/thump.wav';
   static const String _audioWin = '$_audioBase/package_delivery_win.wav';
 
   static final Animation<double> _kZeroAnim = AlwaysStoppedAnimation<double>(
@@ -88,6 +103,28 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
   bool _resolvingRound =
       false; // locks input while delivered/overloaded plays out
 
+  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  /// Stops the camera and saves mistakes + emotions once per playthrough.
+  Future<void> _saveGameResult() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = stopAiCamera();
+    try {
+      await ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint('Database Error saving Arctic metrics: $e');
+    }
+  }
+
   // ── Audio ────────────────────────────────────────────────────────────────
   final AudioPlayer _voicePlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -111,6 +148,16 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
     super.initState();
     _roundPool = [..._factPool]..shuffle();
     _initAnimations();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     finishLoading(_startIntroFlow);
   }
 
@@ -179,7 +226,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -255,6 +302,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
   }
 
   Future<void> _onDelivered() async {
+    _tapTracker.recordCorrectTap();
     setState(() => _resolvingRound = true);
     HapticFeedback.mediumImpact();
     _deliveredPulseCtrl.forward(from: 0);
@@ -282,6 +330,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
         _showEquation = false;
       });
       await _playVoice(_audioWin);
+      await _saveGameResult();
       await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -292,6 +341,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
   }
 
   Future<void> _onTooMany() async {
+    _tapTracker.recordMistake();
     setState(() {
       _resolvingRound = true;
       _tipping = true;
@@ -351,6 +401,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
 
   @override
   void dispose() {
+    disposeAiCamera();
     _voicePlayer.dispose();
     _sfxPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -366,26 +417,54 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    // Only reacts to a *confirmed* camera result, so it never flashes just
+    // because the screen mounted. Reappears if the face is lost again.
+    final needsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    return Listener(
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () {
+            final gameContent = Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: const Color(0xFFDCEFFA)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: _introPlaying
+                      ? _buildIntroLayer()
+                      : _buildGameContent(),
+                ),
+                if (!_introPlaying) buildDoma(context),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
+              ],
+            );
+            return needsLightingPrompt
+                ? Stack(
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(
+                        child: LightingPromptCard(
+                          onClose: () {
+                            setState(() => _hideLightingCard = true);
+                            releaseFaceGate(); // don't leave audio stuck
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : gameContent;
+          },
         ),
       ),
     );
@@ -397,7 +476,11 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
     return Stack(
       children: [
         Positioned(top: 25, left: 25, child: ArcticXButton()),
-        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -423,7 +506,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
-                    const Text('🐧', style: TextStyle(fontSize: 70)),
+                        const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
               ),
@@ -437,7 +520,7 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
                       height: screenH * 0.4,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>
-                      const Text('📋', style: TextStyle(fontSize: 70)),
+                          const Text('📋', style: TextStyle(fontSize: 70)),
                     ),
                   ],
                 ),
@@ -883,13 +966,12 @@ class _AdditionPackageDeliveryGameState extends State<AdditionPackageDeliveryGam
         );
       },
       onRestart: () {
-        setState(() {
-          _showWinDialog = false;
-          _currentRound = 0;
-          _deliveredCount = 0;
-          _roundPool = [..._factPool]..shuffle();
-          _setupRound();
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdditionPackageDeliveryGame(level: widget.level),
+          ),
+        );
       },
       onBack: () {
         Navigator.pop(context);

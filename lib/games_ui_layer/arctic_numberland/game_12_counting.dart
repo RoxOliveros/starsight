@@ -61,7 +61,7 @@ class _Number012CountingObjectsScreenState
 
   final List<Map<String, String>> _objects = [
     {'name': 'Earmuffs', 'asset': 'assets/images/objects/arctic/earmuffs.png'},
-    {'name': 'Ice', 'asset': 'assets/images/objects/arctic/ice_1.png'},
+    {'name': 'Ice', 'asset': 'assets/images/objects/arctic/ice.png'},
     {
       'name': 'Ice Skates',
       'asset': 'assets/images/objects/arctic/ice_skates.png',

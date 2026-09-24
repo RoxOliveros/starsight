@@ -14,13 +14,18 @@ import 'arctic_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 enum _RoundType { addition, subtraction }
 
 class _RoundSpec {
   final _RoundType type;
-  final int a; // addend A (addition) or minuend (subtraction)
-  final int b; // addend B (addition) or subtrahend (subtraction)
+  final int a;
+  final int b;
   const _RoundSpec(this.type, this.a, this.b);
 }
 
@@ -34,21 +39,20 @@ class SignboardMathGame extends StatefulWidget {
 }
 
 class _SignboardMathGameState extends State<SignboardMathGame>
-    with TickerProviderStateMixin, DomaReactionMixin<SignboardMathGame>, GameLoadingMixin<SignboardMathGame>, ArcticAudioMixin  {
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, ArcticAudioMixin  {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
-  // ── Asset paths (swap to match your project) ────────────────────────────
+  // ── Asset paths ────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _signboardAsset = 'assets/images/objects/arctic/snowy_signboard_big.png';
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _signboardAsset = 'assets/images/objects/arctic/snowy_signboard_bigger.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
-  /// Small repeatable icons suitable for picture clusters.
   static const List<String> _clusterAssets = [
     'assets/images/objects/arctic/candy_cane.png',
     'assets/images/objects/arctic/earmuffs.png',
-    'assets/images/objects/arctic/ice_1.png',
+    'assets/images/objects/arctic/ice.png',
     'assets/images/objects/arctic/ice_skates.png',
     'assets/images/objects/arctic/icecream.png',
     'assets/images/objects/arctic/igloo.png',
@@ -60,18 +64,17 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/signboard_intro.wav';
-  static const String _audioRoundPromptAdd = '$_audioBase/signboard_add_instruction.wav';
-  static const String _audioRoundPromptSub = '$_audioBase/signboard_sub_instruction.wav';
+  static const String _audioRoundPromptAdd =
+      '$_audioBase/signboard_add_instruction.wav';
+  static const String _audioRoundPromptSub =
+      '$_audioBase/signboard_sub_instruction.wav';
   static const String _audioBury = 'assets/audio/sound_effects/erase.wav';
-  static const String _audioPlace = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioWin = '$_audioBase/signboard_win.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
   static const int _totalRounds = 5;
 
-  /// Mixed pool of addition and subtraction round specs, kept to counts of
-  /// 5 or less, matching the visual/counting range of the rest of Arctic
-  /// Numberland.
   static final List<_RoundSpec> _specPool = [
     const _RoundSpec(_RoundType.addition, 1, 2),
     const _RoundSpec(_RoundType.addition, 2, 1),
@@ -93,22 +96,18 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   bool _showWinDialog = false;
   int _solvedCount = 0;
   bool _resolvingRound = false;
+  bool _canInteract = false;
 
   late List<_RoundSpec> _roundPool;
   late _RoundSpec _spec;
   late int _target;
 
-  // Addition round assets
   late String _itemAAsset;
   late String _itemBAsset;
-
-  // Subtraction round asset + burial state
   late String _subItemAsset;
   late List<bool> _buried;
-
-  /// Puzzle-piece answer choices for this round.
   late List<int> _choices;
-  int? _placedChoiceIndex; // which tray piece currently sits in the slot
+  int? _placedChoiceIndex;
   bool _placementWrong = false;
 
   // ── Audio ────────────────────────────────────────────────────────────────
@@ -123,6 +122,28 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   late AnimationController _snapPulseCtrl;
   late Animation<double> _snapPulse;
 
+  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  /// Stops the camera and saves mistakes + emotions once per playthrough.
+  Future<void> _saveGameResult() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = stopAiCamera();
+    try {
+      await ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint('Database Error saving Arctic metrics: $e');
+    }
+  }
+
   @override
   void initState() {
     OrientationService.setLandscape();
@@ -130,6 +151,15 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     _roundPool = List.of(_specPool, growable: true)..shuffle();
     _initAnimations();
     _setupRound();
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     finishLoading(_startIntroFlow);
   }
 
@@ -148,7 +178,10 @@ class _SignboardMathGameState extends State<SignboardMathGame>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _snapPulseCtrl = AnimationController(
       vsync: this,
@@ -164,10 +197,19 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(
+      const Duration(milliseconds: 300),
+    );
+
     await _playVoice(_audioIntro);
+
     if (!mounted) return;
-    setState(() => _introPlaying = false);
+
+    setState(() {
+      _introPlaying = false;
+    });
+
+    await _playRoundPromptAndUnlock();
   }
 
   void _setupRound() {
@@ -196,15 +238,35 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
-    if (!_introPlaying) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          _playVoice(_spec.type == _RoundType.addition ? _audioRoundPromptAdd : _audioRoundPromptSub);
-        }
-      });
-    }
+    _canInteract = false;
 
     setState(() {});
+
+    if (!_introPlaying) {
+      _playRoundPromptAndUnlock();
+    }
+  }
+
+  Future<void> _playRoundPromptAndUnlock() async {
+    _canInteract = false;
+
+    await Future.delayed(
+      const Duration(milliseconds: 500),
+    );
+
+    if (!mounted) return;
+
+    await _playVoice(
+      _spec.type == _RoundType.addition
+          ? _audioRoundPromptAdd
+          : _audioRoundPromptSub,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _canInteract = true;
+    });
   }
 
   List<int> _buildChoices(int target) {
@@ -215,35 +277,53 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     return [...distractors.take(2), target]..shuffle(rng);
   }
 
-  // ── Swipe-to-bury (subtraction rounds) ──────────────────────────────────
-  void _handleBuryAt(Offset localPosition, double rowWidth, {required bool isFreshTouch}) {
-    if (_resolvingRound || _spec.type != _RoundType.subtraction) return;
-    final slotWidth = rowWidth / _spec.a;
-    final index = (localPosition.dx / slotWidth).floor().clamp(0, _spec.a - 1);
-
-    if (isFreshTouch && _buried[index]) {
-      // tapping an already-buried item un-buries it
-      setState(() => _buried[index] = false);
+  void _handleEraseAt(
+      Offset localPosition,
+      double rowWidth,
+      ) {
+    if (!_canInteract ||
+        _resolvingRound ||
+        _spec.type != _RoundType.subtraction) {
       return;
     }
-    if (!_buried[index]) {
-      HapticFeedback.selectionClick();
-      _playSfx(_audioBury);
-      setState(() => _buried[index] = true);
-    }
+
+    final erasedCount =
+        _buried.where((isBuried) => isBuried).length;
+
+    if (erasedCount >= _spec.b) return;
+
+    final slotWidth = rowWidth / _spec.a;
+
+    final index =
+    (localPosition.dx / slotWidth)
+        .floor()
+        .clamp(0, _spec.a - 1);
+
+    if (_buried[index]) return;
+
+    HapticFeedback.selectionClick();
+    _playSfx(_audioBury);
+
+    setState(() {
+      _buried[index] = true;
+    });
   }
 
-  // ── Puzzle piece drop handler (both round types) ────────────────────────
   Future<void> _onPieceDropped(int choiceIndex) async {
-    if (_resolvingRound || _placedChoiceIndex != null) return;
+    if (!_canInteract ||
+        _resolvingRound ||
+        _placedChoiceIndex != null) {
+      return;
+    }
 
     setState(() => _placedChoiceIndex = choiceIndex);
     final isCorrect = _choices[choiceIndex] == _target;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap();
       setState(() => _resolvingRound = true);
       HapticFeedback.mediumImpact();
-      await _playSfxAndWait(_audioPlace);
+      await _playSfxAndWait(_audioBubblePop);
       if (!mounted) return;
       _snapPulseCtrl.forward(from: 0);
       showDomaReaction(DomaState.correct);
@@ -256,7 +336,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
       if (_currentRound + 1 >= _totalRounds) {
         await _playVoice(_audioWin);
-        await ArcticProgressService.instance.markLevelComplete(widget.level);
+        _saveGameResult();
+        ArcticProgressService.instance.markLevelComplete(widget.level);
         if (!mounted) return;
         setState(() => _showWinDialog = true);
       } else {
@@ -264,10 +345,11 @@ class _SignboardMathGameState extends State<SignboardMathGame>
         _setupRound();
       }
     } else {
+      _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
       setState(() => _placementWrong = true);
       await Future.delayed(const Duration(milliseconds: 350));
-      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
+      await playSfx(_audioBubblePop);
       showDomaReaction(DomaState.wrong);
       if (!mounted) return;
       setState(() {
@@ -295,7 +377,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   }
 
   void _playSfx(String asset) {
-    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((e) {
+    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
+      e,
+    ) {
       debugPrint('SFX audio error ($asset): $e');
     });
   }
@@ -318,6 +402,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _voicePlayer.dispose();
     _sfxPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -330,25 +415,54 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    // Only reacts to a *confirmed* camera result, so it never flashes just
+    // because the screen mounted. Reappears if the face is lost again.
+    final needsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    return Listener(
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () {
+            final gameContent = Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: const Color(0xFFDCEFFA)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: _introPlaying
+                      ? _buildIntroLayer()
+                      : _buildGameContent(),
+                ),
+                if (!_introPlaying) buildDoma(context),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
+              ],
+            );
+            return needsLightingPrompt
+                ? Stack(
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(
+                        child: LightingPromptCard(
+                          onClose: () {
+                            setState(() => _hideLightingCard = true);
+                            releaseFaceGate(); // don't leave audio stuck
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : gameContent;
+          },
         ),
       ),
     );
@@ -360,7 +474,11 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 25, child: ArcticXButton()),
-        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -373,16 +491,20 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                     offset: Offset(
                       0,
                       Tween<double>(begin: -6, end: 6).evaluate(
-                        CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                        CurvedAnimation(
+                          parent: _domaFloatCtrl,
+                          curve: Curves.easeInOut,
+                        ),
                       ),
                     ),
                     child: child,
                   ),
                   child: Image.asset(
-                    _characterImage,
+                    _domaImage,
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                    errorBuilder: (_, __, ___) =>
+                        const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
               ),
@@ -395,7 +517,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                       _signboardAsset,
                       height: screenH * 0.75,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text('🪧', style: TextStyle(fontSize: 70)),
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🪧', style: TextStyle(fontSize: 70)),
                     ),
                   ],
                 ),
@@ -421,8 +544,13 @@ class _SignboardMathGameState extends State<SignboardMathGame>
               child: Stack(
                 alignment: Alignment.topCenter,
                 children: [
-                  Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
-                  Align(alignment: Alignment.centerRight, child: ArcticLevelBadge(level: widget.level),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ArcticXButton(),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ArcticLevelBadge(level: widget.level),
                   ),
                 ],
               ),
@@ -430,7 +558,6 @@ class _SignboardMathGameState extends State<SignboardMathGame>
             Expanded(
               child: Stack(
                 children: [
-                  // Center the signboard on the entire screen
                   Center(
                     child: ScaleTransition(
                       scale: _sceneEnter,
@@ -438,11 +565,10 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                     ),
                   ),
 
-                  // Choices fixed on the right
-                  Padding(padding: EdgeInsetsGeometry.only(right: 25),
+                  Padding(padding: EdgeInsetsGeometry.only(right: 40),
                     child: Align(
                       alignment: Alignment.centerRight,
-                      child: _buildPieceTray(h),
+                      child: _buildChoicesColumn(h),
                     ),
                   ),
                 ],
@@ -460,62 +586,95 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
   // ── Signboard scene ──────────────────────────────────────────────────────
   Widget _buildSignboardScene(double w, double h) {
-    final boardWidth = (w * 0.60);
+    final boardWidth = w * 0.60;
     final boardHeight = h * 0.85;
-    final itemSize = (h * 0.15);
+    final itemSize = h * 0.15;
 
     return SizedBox(
       width: boardWidth,
       height: boardHeight,
       child: Stack(
         alignment: Alignment.center,
+        clipBehavior: Clip.none,
         children: [
+          // NUMBER TO ERASE — above the signboard
+          if (_spec.type == _RoundType.subtraction)
+            Positioned(
+              top: -itemSize * 0.45,
+              child: Container(
+                width: itemSize * 0.9,
+                height: itemSize * 0.9,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: ArcticColorTheme.cotton,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 3,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: 0.18,
+                      ),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  '${_spec.b}',
+                  style: TextStyle(
+                    fontFamily: ArcticAppTextStyles.fredoka,
+                    fontSize: itemSize * 0.5,
+                    fontWeight: FontWeight.bold,
+                    color: ArcticColorTheme.cadetblue,
+                  ),
+                ),
+              ),
+            ),
+
+          // SIGNBOARD
           Positioned.fill(
             child: Image.asset(
               _signboardAsset,
               fit: BoxFit.fill,
-              errorBuilder: (_, __, ___) =>
-                  Container(
-                    decoration: BoxDecoration(
-                      color: ArcticColorTheme.cotton.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white, width: 4),
-                    ),
+              errorBuilder: (_, __, ___) => Container(
+                decoration: BoxDecoration(
+                  color: ArcticColorTheme.cotton
+                      .withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 4,
                   ),
+                ),
+              ),
             ),
           ),
+
+          // CONTENT INSIDE BOARD
           Padding(
             padding: EdgeInsets.symmetric(
-                horizontal: boardWidth * 0.08, vertical: boardHeight * 0.2),
+              horizontal: boardWidth * 0.08,
+              vertical: boardHeight * 0.18,
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Expanded(
-                  child: _spec.type == _RoundType.addition
-                      ? _buildAdditionClusters(itemSize)
-                      : _buildSubtractionClusterWithBury(
-                      boardWidth * 0.7, itemSize),
+                  child: Transform.translate(
+                    offset: const Offset(0, 10),
+                    child: _spec.type == _RoundType.addition
+                        ? _buildAdditionClusters(itemSize)
+                        : _buildSubtractionClusterWithBury(
+                      boardWidth * 0.7,
+                      itemSize,
+                    ),
+                  ),
                 ),
                 _buildTagSlot(itemSize),
               ],
-            ),
-          ),
-          Positioned(
-            bottom: boardHeight * 0.30,
-            right: boardWidth * 0.06,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Text(
-                _spec.type == _RoundType.addition
-                    ? '${_spec.a} + ${_spec.b} = ?'
-                    : '${_spec.a} − ${_spec.b} = ?',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: (boardHeight * 0.09),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
             ),
           ),
         ],
@@ -556,13 +715,16 @@ class _SignboardMathGameState extends State<SignboardMathGame>
           asset,
           height: itemSize,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Icon(Icons.star, size: itemSize, color: ArcticColorTheme.pictonblue),
+          errorBuilder: (_, __, ___) => Icon(
+            Icons.star,
+            size: itemSize,
+            color: ArcticColorTheme.pictonblue,
+          ),
         );
       }),
     );
   }
 
-  /// Subtraction cluster with swipe-to-bury gesture handling.
   Widget _buildSubtractionClusterWithBury(double rowWidth, double itemSize) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -572,9 +734,16 @@ class _SignboardMathGameState extends State<SignboardMathGame>
             width: effectiveWidth,
             child: GestureDetector(
               onPanDown: (details) =>
-                  _handleBuryAt(details.localPosition, effectiveWidth, isFreshTouch: true),
+                  _handleEraseAt(
+                    details.localPosition,
+                    effectiveWidth,
+                  ),
+
               onPanUpdate: (details) =>
-                  _handleBuryAt(details.localPosition, effectiveWidth, isFreshTouch: false),
+                  _handleEraseAt(
+                    details.localPosition,
+                    effectiveWidth,
+                  ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: List.generate(_spec.a, (i) {
@@ -593,11 +762,18 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                             _subItemAsset,
                             height: itemSize,
                             fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
-                                Icon(Icons.circle, size: itemSize, color: ArcticColorTheme.pictonblue),
+                            errorBuilder: (_, __, ___) => Icon(
+                              Icons.circle,
+                              size: itemSize,
+                              color: ArcticColorTheme.pictonblue,
+                            ),
                           ),
                           if (isBuried)
-                            Icon(Icons.ac_unit, size: itemSize * 0.9, color: Colors.white.withValues(alpha: 0.85)),
+                            Icon(
+                              Icons.ac_unit,
+                              size: itemSize * 0.9,
+                              color: Colors.white.withValues(alpha: 0.85),
+                            ),
                         ],
                       ),
                     ),
@@ -611,12 +787,14 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     );
   }
 
-  /// Tag slot where the correct puzzle piece gets dropped.
   Widget _buildTagSlot(double itemSize) {
     final slotSize = itemSize * 0.95;
 
     return DragTarget<int>(
-      onWillAcceptWithDetails: (details) => !_resolvingRound && _placedChoiceIndex == null,
+      onWillAcceptWithDetails: (details) =>
+      _canInteract &&
+          !_resolvingRound &&
+          _placedChoiceIndex == null,
       onAcceptWithDetails: (details) => _onPieceDropped(details.data),
       builder: (context, candidateData, rejectedData) {
         final highlight = candidateData.isNotEmpty;
@@ -628,8 +806,14 @@ class _SignboardMathGameState extends State<SignboardMathGame>
             height: slotSize * 1.3,
             child: Center(
               child: ScaleTransition(
-                scale: !_placementWrong ? _snapPulse : const AlwaysStoppedAnimation(1.0),
-                child: _tagChoices(_choices[_placedChoiceIndex!], slotSize, wrong: _placementWrong),
+                scale: !_placementWrong
+                    ? _snapPulse
+                    : const AlwaysStoppedAnimation(1.0),
+                child: _tagChoices(
+                  _choices[_placedChoiceIndex!],
+                  slotSize,
+                  wrong: _placementWrong,
+                ),
               ),
             ),
           );
@@ -644,7 +828,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                 : Colors.white.withValues(alpha: 0.4),
             shape: BoxShape.circle,
             border: Border.all(
-              color: highlight ? ArcticColorTheme.pictonblue : ArcticColorTheme.slateblue.withValues(alpha: 0.5),
+              color: highlight
+                  ? ArcticColorTheme.pictonblue
+                  : ArcticColorTheme.slateblue.withValues(alpha: 0.5),
               width: 3,
             ),
           ),
@@ -652,15 +838,16 @@ class _SignboardMathGameState extends State<SignboardMathGame>
           child: Icon(
             Icons.help_outline,
             size: slotSize * 0.6,
-            color: ArcticColorTheme.cotton.withValues(alpha: highlight ? 0.9 : 0.4),
+            color: ArcticColorTheme.cotton.withValues(
+              alpha: highlight ? 0.9 : 0.4,
+            ),
           ),
         );
       },
     );
   }
 
-  /// Draggable puzzle-piece tray with the answer choices.
-  Widget _buildPieceTray(double h) {
+  Widget _buildChoicesColumn(double h) {
     final pieceSize = (h * 0.15);
 
     return Column(
@@ -675,6 +862,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
               ? Opacity(opacity: 0.15, child: piece)
               : Draggable<int>(
             data: i,
+            maxSimultaneousDrags:
+            _canInteract && !_resolvingRound ? 1 : 0,
             feedback: Material(color: Colors.transparent, child: piece),
             childWhenDragging: Opacity(opacity: 0.3, child: piece),
             child: piece,
@@ -684,7 +873,6 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     );
   }
 
-  /// Tag image with the choice number layered above it.
   Widget _tagChoices(int value, double size, {required bool wrong}) {
     return SizedBox(
       width: size * 1.30,
@@ -704,7 +892,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
               width: size,
               height: size,
               decoration: BoxDecoration(
-                color: wrong ? Colors.red.shade300 : ArcticColorTheme.pictonblue,
+                color: wrong
+                    ? Colors.red.shade300
+                    : ArcticColorTheme.pictonblue,
                 borderRadius: BorderRadius.circular(size * 0.22),
               ),
             ),
@@ -755,7 +945,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   // ── Win / celebration overlay ────────────────────────────────────────────
   Widget _buildGoodJobOverlay() {
     return DomaGoodJobOverlay(
-      characterImage: 'assets/images/characters/doma_the_penguin.png',
+      characterImage: _domaImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.pushReplacement(
@@ -766,14 +956,14 @@ class _SignboardMathGameState extends State<SignboardMathGame>
         );
       },
       onRestart: () {
-        setState(() {
-          _showWinDialog = false;
-          _currentRound = 0;
-          _solvedCount = 0;
-          _roundPool = List.of(_specPool, growable: true)..shuffle();
-          _setupRound();
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SignboardMathGame(level: widget.level),
+          ),
+        );
       },
+      //
       onBack: () {
         Navigator.pop(context);
       },

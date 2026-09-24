@@ -352,7 +352,7 @@ class _LevelTile extends StatelessWidget {
       case 8:
         return const Number012345SequenceScreen(level: 8);
       case 9:
-        return const Number1to5CountingTreesScreen(level: 9);
+        return const CountingTreesScreen(level: 9);
       case 10:
         return const Number1to5FillIglooScreen(level: 10);
       case 11:

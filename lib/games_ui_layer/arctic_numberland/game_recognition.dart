@@ -30,13 +30,18 @@ class Number012RecognitionScreen extends StatefulWidget {
 }
 
 class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
-    with
-        TickerProviderStateMixin,
-        GameLoadingMixin,
-        DomaReactionMixin,
-        AiCameraMixin<Number012RecognitionScreen> {
+    with TickerProviderStateMixin, GameLoadingMixin, DomaReactionMixin, AiCameraMixin{
   @override
   AudioPlayer get domaPlayer => _player;
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _speakerImage = 'assets/images/icons/speaker.png';
+
+  static const String _audioIntro = 'assets/audio/arctic_numberland/012_recog_intro.wav';
+  static const String _audioInstruction = 'assets/audio/arctic_numberland/012_recog_instruction.wav';
+
+  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
 
   late int _correctNumber;
   late List<int> _choices;
@@ -44,6 +49,8 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   int _round = 1;
   static const int _totalRounds = 5;
   bool _showWinDialog = false;
+  bool _isInputLocked = true;
+
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   final AudioPlayer _player = AudioPlayer();
 
@@ -90,7 +97,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   @override
   void dispose() {
-    disposeAiCamera(); // <-- ADDED
+    disposeAiCamera(); 
     _numberDanceCtrl.dispose();
     _player.dispose();
     OrientationService.setLandscape();
@@ -99,27 +106,30 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   void _generateRound() {
     final all = [0, 1, 2]..shuffle();
+
     _correctNumber = all.first;
     _choices = [0, 1, 2]..shuffle();
-    setState(() => _tappedIndex = null);
+    _tappedIndex = null;
   }
 
   void _onChoiceTap(int index) async {
-    if (_tappedIndex != null) return;
+    if (_isInputLocked || _tappedIndex != null) return;
+
+    setState(() {
+      _isInputLocked = true;
+    });
 
     if (_choices[index] == _correctNumber) {
-      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
+      _tapTracker.recordCorrectTap();
 
       setState(() => _tappedIndex = index);
-      await _playAudio('assets/audio/arctic_numberland/$_correctNumber.wav');
       showDomaReaction(DomaState.correct);
-      await Future.delayed(const Duration(milliseconds: 900));
+      await Future.delayed(const Duration(milliseconds: 1000));
       if (_round >= _totalRounds) {
-        // --- ADDED AI STOP & DATABASE SAVE ---
         List<String> finalEmotions = stopAiCamera();
 
         try {
-          await ArcticDatabaseService.saveGameData(
+          ArcticDatabaseService.saveGameData(
             gameId: 'arctic_numberland_${widget.level}',
             mistakes: _tapTracker.mistakeCount,
             emotions: finalEmotions,
@@ -128,30 +138,90 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
           debugPrint("Database Error saving Arctic metrics: $e");
         }
 
-        await ArcticProgressService.instance.markLevelComplete(widget.level);
+        ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
         setState(() {
           _round++;
           _generateRound();
         });
+
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        await _playCurrentNumber();
+
+        if (mounted) {
+          setState(() {
+            _isInputLocked = false;
+          });
+        }
       }
     } else {
-      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
+      _tapTracker.recordMistake();
 
       setState(() => _tappedIndex = index);
-      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+
+      await _playAudio(_audioBubblePop);
+
       showDomaReaction(DomaState.wrong);
+
       await Future.delayed(const Duration(milliseconds: 600));
-      setState(() => _tappedIndex = null);
+
+      if (mounted) {
+        setState(() {
+          _tappedIndex = null;
+          _isInputLocked = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _playCurrentNumber() async {
+    await _playAudio(
+      'assets/audio/arctic_numberland/$_correctNumber.wav',
+    );
+  }
+
+  Future<void> _onSpeakerTap() async {
+    if (_isInputLocked || _tappedIndex != null) return;
+
+    if (mounted) {
+      setState(() => _isInputLocked = true);
+    }
+
+    await _playCurrentNumber();
+
+    if (mounted) {
+      setState(() => _isInputLocked = false);
     }
   }
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
-    await _playAudio('assets/audio/arctic_numberland/level5/012_recog.wav');
+
+    if (mounted) {
+      setState(() => _isInputLocked = true);
+    }
+
+    await _playAudio(_audioIntro);
+
     await Future.delayed(const Duration(milliseconds: 400));
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
+
+    if (mounted) {
+      setState(() => _screenPhase = _ScreenPhase.miniGame);
+    }
+
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    await _playAudio(_audioInstruction);
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    await _playCurrentNumber();
+
+    if (mounted) {
+      setState(() => _isInputLocked = false);
+    }
   }
 
   Future<void> _playAudio(String asset) async {
@@ -184,7 +254,6 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   @override
   Widget build(BuildContext context) {
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(
@@ -193,7 +262,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
             children: [
               Positioned.fill(
                 child: Image.asset(
-                  'assets/images/backgrounds/bg_game_arctic.png',
+                  _bgImage,
                   fit: BoxFit.cover,
                 ),
               ),
@@ -225,71 +294,54 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
                     // --- MAIN CONTENT ---
                     Expanded(
-                      child: Row(
+                      child: Column(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // BIG NUMBER CARD
-                          Container(
-                            width: 180,
-                            height: 180,
-                            decoration: BoxDecoration(
-                              color: ArcticColorTheme.cotton,
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
+                          GestureDetector(
+                            onTap: _isInputLocked ? null : _onSpeakerTap,
+                            child: Container(
+                              width: 160,
+                              decoration: BoxDecoration(
                                 color: ArcticColorTheme.pictonblue,
-                                width: 4,
+                                shape: BoxShape.rectangle,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: ArcticColorTheme.slateblue,
+                                  width: 3,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: ArcticColorTheme.pictonblue.withValues(alpha: 0.35),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: ArcticColorTheme.pictonblue.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(20),
                               child: Image.asset(
-                                'assets/fonts/game_numbers/$_correctNumber.png',
+                                _speakerImage,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => Center(
-                                  child: Text(
-                                    '$_correctNumber',
-                                    style: const TextStyle(
-                                      fontFamily: ArcticAppTextStyles.fredoka,
-                                      fontSize: 100,
-                                      fontWeight: FontWeight.bold,
-                                      color: ArcticColorTheme.cadetblue,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
+                                errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.volume_up, color: Colors.white, size: 40),
                               ),
                             ),
                           ),
 
                           // CHOICES GRID
-                          SizedBox(
-                            width: 280,
-                            child: GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    crossAxisSpacing: 14,
-                                    mainAxisSpacing: 14,
-                                    childAspectRatio: 1.3,
-                                  ),
-                              itemCount: _choices.length,
-                              itemBuilder: (context, index) {
-                                return GestureDetector(
-                                  onTap: () => _onChoiceTap(index),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(_choices.length, (index) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: GestureDetector(
+                                  onTap: _isInputLocked
+                                      ? null
+                                      : () => _onChoiceTap(index),
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 300),
+                                    width: 90,
+                                    height: 90,
                                     decoration: BoxDecoration(
                                       color: _choiceColor(index),
                                       borderRadius: BorderRadius.circular(18),
@@ -299,9 +351,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: _choiceColor(
-                                            index,
-                                          ).withValues(alpha: 0.35),
+                                          color: _choiceColor(index).withValues(alpha: 0.35),
                                           blurRadius: 8,
                                           offset: const Offset(0, 3),
                                         ),
@@ -316,8 +366,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                                           child: Text(
                                             '${_choices[index]}',
                                             style: const TextStyle(
-                                              fontFamily:
-                                                  ArcticAppTextStyles.fredoka,
+                                              fontFamily: ArcticAppTextStyles.fredoka,
                                               fontSize: 40,
                                               fontWeight: FontWeight.bold,
                                               color: ArcticColorTheme.cotton,
@@ -327,9 +376,9 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                                       ),
                                     ),
                                   ),
-                                );
-                              },
-                            ),
+                                ),
+                              );
+                            }),
                           ),
                         ],
                       ),
@@ -392,7 +441,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   Widget _buildGoodJobOverlay() {
     return DomaGoodJobOverlay(
-      characterImage: 'assets/images/characters/doma_the_penguin.png',
+      characterImage: _domaImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.pushReplacement(
@@ -431,7 +480,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                 Expanded(
                   child: Center(
                     child: Image.asset(
-                      'assets/images/characters/doma_the_penguin.png',
+                      _domaImage,
                       height: MediaQuery.of(context).size.height * 0.65,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>

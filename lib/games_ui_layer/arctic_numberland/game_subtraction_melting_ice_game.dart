@@ -12,55 +12,53 @@ import '../../ui_layer/loading_screen.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class SubtractionMeltingIceGame extends StatefulWidget {
   final int level;
 
-  const SubtractionMeltingIceGame({super.key,required this.level});
+  const SubtractionMeltingIceGame({super.key, required this.level});
 
   @override
-  State<SubtractionMeltingIceGame> createState() =>
-      _SubtractionMeltingIceGameState();
+  State<SubtractionMeltingIceGame> createState() => _SubtractionMeltingIceGameState();
 }
 
 class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin<SubtractionMeltingIceGame>,
-        GameLoadingMixin<SubtractionMeltingIceGame> {
-  // ADD GameLoadingMixin
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
   static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _iceAsset = 'assets/images/objects/arctic/ice_1.png';
+  static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/melting_ice_intro.wav';
   static const String _audioInstructionPrompt = '$_audioBase/melting_ice_instruction.wav';
+  static const String _audioQuestion = '$_audioBase/melting_ice_question.wav';
   static const String _audioMeltRefreeze = 'assets/audio/sound_effects/plip.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
   static const int _totalRounds = 5;
 
-  /// Subtraction facts kept to a minuend of 5 or less, matching the
-  /// visual/counting range of the rest of Arctic Numberland.
   static const List<List<int>> _factPool = [
-    [2, 1], // 2-1=1
-    [3, 1], // 3-1=2
-    [3, 2], // 3-2=1
-    [4, 1], // 4-1=3
-    [4, 2], // 4-2=2
-    [4, 3], // 4-3=1
-    [5, 1], // 5-1=4
-    [5, 2], // 5-2=3
-    [5, 3], // 5-3=2
-    [5, 4], // 5-4=1
+    [2, 1],
+    [3, 1],
+    [3, 2],
+    [4, 1],
+    [4, 2],
+    [4, 3],
+    [5, 1],
+    [5, 2],
+    [5, 3],
+    [5, 4],
   ];
 
-  /// Slight length variation so the ice don't look mechanically uniform.
   static const List<double> _iceLengthScale = [1.0, 1.25, 0.9, 1.15, 1.05];
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -70,15 +68,42 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   int _solvedCount = 0;
   bool _resolvingRound = false;
   bool _shattering = false;
+  bool _showAnswerChoices = false;
+  bool _awaitingAnswer = false;
+  bool _hideSubtractNumber = false;
+  bool _canTapIce = false;
+  bool _canTapAnswers = false;
 
+  late List<int> _answerChoices;
   late List<List<int>> _roundPool;
   late int _minuend;
   late int _subtrahend;
 
-  /// One entry per ice in this round — true once melted away.
   late List<bool> _popped;
 
   Timer? _solveTimer;
+
+  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  /// Stops the camera and saves mistakes + emotions once per playthrough.
+  Future<void> _saveGameResult() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = stopAiCamera();
+    try {
+      await ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint('Database Error saving Arctic metrics: $e');
+    }
+  }
 
   // ── Audio ────────────────────────────────────────────────────────────────
   final AudioPlayer _voicePlayer = AudioPlayer();
@@ -87,11 +112,9 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _correctPulseCtrl;
-  late Animation<double> _correctPulse;
   late AnimationController _shatterCtrl;
   late Animation<double> _shatterShake;
 
@@ -101,6 +124,16 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     super.initState();
     _roundPool = [..._factPool]..shuffle();
     _initAnimations();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     finishLoading(_startIntroFlow);
   }
 
@@ -114,13 +147,6 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -135,15 +161,6 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _correctPulse =
-        TweenSequence([
-          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.2), weight: 40),
-          TweenSequenceItem(tween: Tween(begin: 1.2, end: 0.95), weight: 30),
-          TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.05), weight: 20),
-          TweenSequenceItem(tween: Tween(begin: 1.05, end: 1.0), weight: 10),
-        ]).animate(
-          CurvedAnimation(parent: _correctPulseCtrl, curve: Curves.easeOut),
-        );
 
     _shatterCtrl = AnimationController(
       vsync: this,
@@ -161,7 +178,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -171,23 +188,54 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     if (_roundPool.isEmpty) {
       _roundPool = [..._factPool]..shuffle();
     }
+
     final fact = _roundPool.removeLast();
+
     _minuend = fact[0];
     _subtrahend = fact[1];
 
     _popped = List.filled(_minuend, false);
+
     _resolvingRound = false;
     _shattering = false;
+
+    _showAnswerChoices = false;
+    _awaitingAnswer = false;
+    _hideSubtractNumber = false;
+
+    _canTapAnswers = false;
+    _canTapIce = _currentRound != 0;
+
+    final correctAnswer = _minuend - _subtrahend;
+
+    final otherAnswers = [0, 1, 2, 3, 4, 5]
+      ..remove(correctAnswer)
+      ..shuffle();
+
+    _answerChoices = [
+      correctAnswer,
+      otherAnswers[0],
+      otherAnswers[1],
+    ]..shuffle();
 
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
     if (_currentRound == 0) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          _playVoice(_audioInstructionPrompt);
-        }
-      });
+      Future.delayed(
+        const Duration(milliseconds: 500),
+            () async {
+          if (!mounted) return;
+
+          await _playVoice(_audioInstructionPrompt);
+
+          if (!mounted) return;
+
+          setState(() {
+            _canTapIce = true;
+          });
+        },
+      );
     }
 
     setState(() {});
@@ -197,48 +245,115 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
 
   // ── Tap handler ──────────────────────────────────────────────────────────
   void _onIceTap(int index) {
-    if (_resolvingRound) return;
+    if (_resolvingRound ||
+        _awaitingAnswer ||
+        !_canTapIce) {
+      return;
+    }
 
     final wasPopped = _popped[index];
-    HapticFeedback.selectionClick();
-    _playSfx(wasPopped ? _audioMeltRefreeze : _audioMeltRefreeze);
 
-    setState(() => _popped[index] = !wasPopped);
-    _solveTimer?.cancel();
+    HapticFeedback.selectionClick();
+    _playSfx(_audioMeltRefreeze);
+
+    setState(() {
+      _popped[index] = !wasPopped;
+    });
 
     final poppedCount = _poppedCount;
+
     if (poppedCount > _subtrahend) {
       _onTooManyMelted();
     } else if (poppedCount == _subtrahend) {
-      _correctPulseCtrl.forward(from: 0);
-      _solveTimer = Timer(const Duration(milliseconds: 800), () {
-        if (mounted && !_resolvingRound) _onSolved();
-      });
+      _startAnswerQuestion();
     }
   }
 
-  Future<void> _onSolved() async {
-    setState(() => _resolvingRound = true);
+  Future<void> _startAnswerQuestion() async {
+    if (_awaitingAnswer) return;
+
+    setState(() {
+      _awaitingAnswer = true;
+      _canTapIce = false;
+      _canTapAnswers = false;
+    });
+
     HapticFeedback.mediumImpact();
-    showDomaReaction(DomaState.correct);
+    _correctPulseCtrl.forward(from: 0);
+
+    await Future.delayed(
+      const Duration(milliseconds: 1000),
+    );
+
     if (!mounted) return;
 
-    setState(() => _solvedCount++);
+    setState(() {
+      _hideSubtractNumber = true;
+      _showAnswerChoices = true;
+    });
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await _playVoice(_audioQuestion);
+
+    if (!mounted) return;
+
+    setState(() {
+      _canTapAnswers = true;
+    });
+  }
+
+  Future<void> _onAnswerTap(int answer) async {
+    if (!_awaitingAnswer ||
+        _resolvingRound ||
+        !_canTapAnswers) {
+      return;
+    }
+
+    final correctAnswer = _minuend - _subtrahend;
+
+    if (answer != correctAnswer) {
+      HapticFeedback.heavyImpact();
+      showDomaReaction(DomaState.wrong);
+      return;
+    }
+
+    setState(() {
+      _resolvingRound = true;
+      _awaitingAnswer = false;
+      _showAnswerChoices = false;
+    });
+
+    HapticFeedback.mediumImpact();
+    showDomaReaction(DomaState.correct);
+
+    setState(() {
+      _solvedCount++;
+    });
+
+    await Future.delayed(
+      const Duration(milliseconds: 700),
+    );
+
     if (!mounted) return;
 
     if (_currentRound + 1 >= _totalRounds) {
-      await ArcticProgressService.instance.markLevelComplete(widget.level);
+      _saveGameResult();
+      ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
-      setState(() => _showWinDialog = true);
+
+      setState(() {
+        _showWinDialog = true;
+      });
     } else {
-      setState(() => _currentRound++);
+      setState(() {
+        _currentRound++;
+      });
+
       _setupRound();
     }
   }
 
   Future<void> _onTooManyMelted() async {
+    _tapTracker.recordMistake();
     setState(() {
       _resolvingRound = true;
       _shattering = true;
@@ -257,22 +372,6 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   }
 
   // ── Audio ────────────────────────────────────────────────────────────────
-  Future<void> _playVoice(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _voicePlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _voicePlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 15));
-    } catch (e) {
-      debugPrint('Voice audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
   void _playSfx(String asset) {
     _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
       e,
@@ -283,6 +382,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _solveTimer?.cancel();
     _voicePlayer.dispose();
     _sfxPlayer.dispose();
@@ -297,26 +397,54 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    // Only reacts to a *confirmed* camera result, so it never flashes just
+    // because the screen mounted. Reappears if the face is lost again.
+    final needsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    return Listener(
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () {
+            final gameContent = Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: const Color(0xFFDCEFFA)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: _introPlaying
+                      ? _buildIntroLayer()
+                      : _buildGameContent(),
+                ),
+                if (!_introPlaying) buildDoma(context),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
+              ],
+            );
+            return needsLightingPrompt
+                ? Stack(
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(
+                        child: LightingPromptCard(
+                          onClose: () {
+                            setState(() => _hideLightingCard = true);
+                            releaseFaceGate(); // don't leave audio stuck
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : gameContent;
+          },
         ),
       ),
     );
@@ -328,7 +456,11 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 25, child: ArcticXButton()),
-        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -354,7 +486,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
-                    const Text('🐧', style: TextStyle(fontSize: 70)),
+                        const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
               ),
@@ -368,7 +500,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
                       height: screenH * 0.3,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>
-                      const Text('🧊', style: TextStyle(fontSize: 70)),
+                          const Text('🧊', style: TextStyle(fontSize: 70)),
                     ),
                   ],
                 ),
@@ -387,10 +519,18 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
         final h = constraints.maxHeight;
         final w = constraints.maxWidth;
 
+        final choicesWidth =
+        (w * 0.18).clamp(150.0, 220.0);
+
         return Column(
           children: [
+            // TOP BAR
             Padding(
-              padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
+              padding: const EdgeInsets.only(
+                left: 25,
+                right: 25,
+                top: 25,
+              ),
               child: Stack(
                 alignment: Alignment.topCenter,
                 children: [
@@ -398,29 +538,62 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
                     alignment: Alignment.centerLeft,
                     child: ArcticXButton(),
                   ),
+
                   Align(
                     alignment: Alignment.centerRight,
-                    child: ArcticLevelBadge(level: widget.level),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    flex: 6,
-                    child: ScaleTransition(
-                      scale: _sceneEnter,
-                      child: _buildIceScene(w, h),
+                    child: ArcticLevelBadge(
+                      level: widget.level,
                     ),
                   ),
                 ],
               ),
             ),
+
+            // GAME AREA
+            Expanded(
+              child: Stack(
+                children: [
+                  // MAIN GAME — centered using full available width
+                  Positioned.fill(
+                    child: Center(
+                      child: ScaleTransition(
+                        scale: _sceneEnter,
+                        child: _buildIceScene(
+                          w,
+                          h,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // ANSWER CHOICES — overlay on right
+                  Positioned(
+                    right: 25,
+                    top: 0,
+                    bottom: 0,
+                    width: choicesWidth,
+                    child: Center(
+                      child: IgnorePointer(
+                        ignoring: !_showAnswerChoices || !_canTapAnswers,
+                        child: AnimatedOpacity(
+                          opacity:
+                          _showAnswerChoices ? 1.0 : 0.0,
+                          duration:
+                          const Duration(milliseconds: 300),
+                          child: _buildAnswerChoices(h),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ROUND INDICATOR
             Padding(
-              padding: const EdgeInsets.only(bottom: 15),
+              padding: const EdgeInsets.only(
+                bottom: 15,
+              ),
               child: _buildRoundIndicator(),
             ),
           ],
@@ -431,42 +604,58 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
 
   // ── Ice scene: equation + beam + tappable ice ─────────────────────
   Widget _buildIceScene(double w, double h) {
-    final beamWidth = (w * 0.85).clamp(220.0, 380.0);
-    final equationSize = (h * 0.3).clamp(70.0, 110.0);
+    final beamWidth =
+    (w * 0.85).clamp(220.0, 380.0);
+
+    final numberSize =
+    (h * 0.3).clamp(70.0, 110.0);
+
     final iceAreaHeight = h * 0.4;
-    final waitingForConfirm = !_resolvingRound && _poppedCount == _subtrahend;
 
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildEquationDisplay(equationSize),
+          Visibility(
+            visible: !_hideSubtractNumber,
+            maintainSize: true,
+            maintainAnimation: true,
+            maintainState: true,
+            child: _buildSubtractNumber(numberSize),
+          ),
+
           const SizedBox(height: 14),
+
+          // Ice
           AnimatedBuilder(
-            animation: _shattering ? _shatterShake : _kZeroAnim,
-            builder: (_, child) => Transform.rotate(
-              angle: _shattering ? _shatterShake.value : 0,
-              child: child,
-            ),
-            child: ScaleTransition(
-              scale: waitingForConfirm
-                  ? _correctPulse
-                  : const AlwaysStoppedAnimation(1.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: beamWidth,
-                    height: iceAreaHeight,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: List.generate(_minuend, (i) {
-                        return _buildIce(i, iceAreaHeight);
-                      }),
-                    ),
+            animation:
+            _shattering
+                ? _shatterShake
+                : _kZeroAnim,
+            builder: (_, child) {
+              return Transform.rotate(
+                angle:
+                _shattering
+                    ? _shatterShake.value
+                    : 0,
+                child: child,
+              );
+            },
+            child: SizedBox(
+              width: beamWidth,
+              height: iceAreaHeight,
+              child: Row(
+                mainAxisAlignment:
+                MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
+                children: List.generate(
+                  _minuend,
+                      (i) => _buildIce(
+                    i,
+                    iceAreaHeight,
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -479,39 +668,40 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     0.0,
   );
 
-  Widget _buildEquationDisplay(double size) {
+  Widget _buildSubtractNumber(double size) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: size * 0.25,
-        vertical: size * 0.08,
-      ),
+      width: size * 0.75,
+      height: size * 0.75,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: ArcticColorTheme.cotton.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white, width: 3),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white,
+          width: 3,
+        ),
         boxShadow: [
           BoxShadow(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.3),
+            color: ArcticColorTheme.pictonblue.withValues(
+              alpha: 0.3,
+            ),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Text(
-        '$_minuend − $_subtrahend = ?',
+        '$_subtrahend',
         style: TextStyle(
           fontFamily: ArcticAppTextStyles.fredoka,
-          fontSize: size * 0.24,
+          fontSize: size * 0.42,
           fontWeight: FontWeight.bold,
           color: ArcticColorTheme.cadetblue,
-          shadows: const [Shadow(color: Colors.white, blurRadius: 4)],
         ),
       ),
     );
   }
 
-  /// A single hanging, tappable ice. Melted ice shrink, drip down,
-  /// and fade out; tapping a melted ice re-freezes it.
   Widget _buildIce(int index, double areaHeight) {
     final popped = _popped[index];
     final lengthScale = _iceLengthScale[index % _iceLengthScale.length];
@@ -545,6 +735,59 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAnswerChoices(double h) {
+    final buttonSize =
+    (h * 0.13).clamp(65.0, 90.0);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: _answerChoices.map((answer) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: 8,
+          ),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _onAnswerTap(answer),
+            child: Container(
+              width: buttonSize,
+              height: buttonSize,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: ArcticColorTheme.cotton,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: ArcticColorTheme.pictonblue,
+                  width: 4,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: 0.15,
+                    ),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Text(
+                '$answer',
+                style: TextStyle(
+                  fontFamily:
+                  ArcticAppTextStyles.fredoka,
+                  fontSize: buttonSize * 0.48,
+                  fontWeight: FontWeight.bold,
+                  color: ArcticColorTheme.cadetblue,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -587,14 +830,14 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
         );
       },
       onRestart: () {
-        setState(() {
-          _showWinDialog = false;
-          _currentRound = 0;
-          _solvedCount = 0;
-          _roundPool = [..._factPool]..shuffle();
-          _setupRound();
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubtractionMeltingIceGame(level: widget.level),
+          ),
+        );
       },
+
       onBack: () {
         Navigator.pop(context);
       },

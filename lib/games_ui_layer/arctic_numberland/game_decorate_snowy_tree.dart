@@ -13,6 +13,11 @@ import 'arctic_game_ui.dart';
 import 'game_aurora_catcher.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 enum _OrnamentColor { red, blue, green, yellow, purple }
 
@@ -100,18 +105,22 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
         TickerProviderStateMixin,
         DomaReactionMixin<DecorateSnowyTreeGame>,
         GameLoadingMixin<DecorateSnowyTreeGame>,
-        ArcticAudioMixin<DecorateSnowyTreeGame> {
+        ArcticAudioMixin<DecorateSnowyTreeGame>,
+        AiCameraMixin<DecorateSnowyTreeGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _treeAsset = 'assets/images/objects/arctic/snowy_tree.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _treeAsset =
+      'assets/images/objects/arctic/snowy_tree.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/decorate_tree_intro.wav';
-  static const String _audioInstruction = '$_audioBase/decorate_tree_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/decorate_tree_instruction.wav';
   static const String _audioWin = '$_audioBase/decorate_tree_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -119,29 +128,119 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   // choices grow from 2 up to 4.
   static const List<_RoundSpec> _rounds = [
     _RoundSpec([
-      _OrnamentSpot(id: 'top', correctColor: _OrnamentColor.red, anchorX: 0.5, anchorY: 0.18, trayChoices: 2),
+      _OrnamentSpot(
+        id: 'top',
+        correctColor: _OrnamentColor.red,
+        anchorX: 0.5,
+        anchorY: 0.18,
+        trayChoices: 2,
+      ),
     ]),
     _RoundSpec([
-      _OrnamentSpot(id: 'top', correctColor: _OrnamentColor.red, anchorX: 0.5, anchorY: 0.18, trayChoices: 2),
-      _OrnamentSpot(id: 'left1', correctColor: _OrnamentColor.blue, anchorX: 0.32, anchorY: 0.38, trayChoices: 2),
+      _OrnamentSpot(
+        id: 'top',
+        correctColor: _OrnamentColor.red,
+        anchorX: 0.5,
+        anchorY: 0.18,
+        trayChoices: 2,
+      ),
+      _OrnamentSpot(
+        id: 'left1',
+        correctColor: _OrnamentColor.blue,
+        anchorX: 0.32,
+        anchorY: 0.38,
+        trayChoices: 2,
+      ),
     ]),
     _RoundSpec([
-      _OrnamentSpot(id: 'top', correctColor: _OrnamentColor.yellow, anchorX: 0.5, anchorY: 0.18, trayChoices: 3),
-      _OrnamentSpot(id: 'left1', correctColor: _OrnamentColor.blue, anchorX: 0.32, anchorY: 0.38, trayChoices: 3),
-      _OrnamentSpot(id: 'right1', correctColor: _OrnamentColor.green, anchorX: 0.68, anchorY: 0.42, trayChoices: 3),
+      _OrnamentSpot(
+        id: 'top',
+        correctColor: _OrnamentColor.yellow,
+        anchorX: 0.5,
+        anchorY: 0.18,
+        trayChoices: 3,
+      ),
+      _OrnamentSpot(
+        id: 'left1',
+        correctColor: _OrnamentColor.blue,
+        anchorX: 0.32,
+        anchorY: 0.38,
+        trayChoices: 3,
+      ),
+      _OrnamentSpot(
+        id: 'right1',
+        correctColor: _OrnamentColor.green,
+        anchorX: 0.68,
+        anchorY: 0.42,
+        trayChoices: 3,
+      ),
     ]),
     _RoundSpec([
-      _OrnamentSpot(id: 'top', correctColor: _OrnamentColor.purple, anchorX: 0.5, anchorY: 0.18, trayChoices: 3),
-      _OrnamentSpot(id: 'left1', correctColor: _OrnamentColor.blue, anchorX: 0.32, anchorY: 0.38, trayChoices: 3),
-      _OrnamentSpot(id: 'right1', correctColor: _OrnamentColor.green, anchorX: 0.68, anchorY: 0.42, trayChoices: 3),
-      _OrnamentSpot(id: 'left2', correctColor: _OrnamentColor.red, anchorX: 0.51, anchorY: 0.32, trayChoices: 3),
+      _OrnamentSpot(
+        id: 'top',
+        correctColor: _OrnamentColor.purple,
+        anchorX: 0.5,
+        anchorY: 0.18,
+        trayChoices: 3,
+      ),
+      _OrnamentSpot(
+        id: 'left1',
+        correctColor: _OrnamentColor.blue,
+        anchorX: 0.32,
+        anchorY: 0.38,
+        trayChoices: 3,
+      ),
+      _OrnamentSpot(
+        id: 'right1',
+        correctColor: _OrnamentColor.green,
+        anchorX: 0.68,
+        anchorY: 0.42,
+        trayChoices: 3,
+      ),
+      _OrnamentSpot(
+        id: 'left2',
+        correctColor: _OrnamentColor.red,
+        anchorX: 0.51,
+        anchorY: 0.32,
+        trayChoices: 3,
+      ),
     ]),
     _RoundSpec([
-      _OrnamentSpot(id: 'top', correctColor: _OrnamentColor.red, anchorX: 0.5, anchorY: 0.16, trayChoices: 4),
-      _OrnamentSpot(id: 'left1', correctColor: _OrnamentColor.blue, anchorX: 0.32, anchorY: 0.36, trayChoices: 4),
-      _OrnamentSpot(id: 'right1', correctColor: _OrnamentColor.green, anchorX: 0.68, anchorY: 0.4, trayChoices: 4),
-      _OrnamentSpot(id: 'left2', correctColor: _OrnamentColor.yellow, anchorX: 0.51, anchorY: 0.32, trayChoices: 4),
-      _OrnamentSpot(id: 'right2', correctColor: _OrnamentColor.purple, anchorX: 0.64, anchorY: 0.24, trayChoices: 4),
+      _OrnamentSpot(
+        id: 'top',
+        correctColor: _OrnamentColor.red,
+        anchorX: 0.5,
+        anchorY: 0.16,
+        trayChoices: 4,
+      ),
+      _OrnamentSpot(
+        id: 'left1',
+        correctColor: _OrnamentColor.blue,
+        anchorX: 0.32,
+        anchorY: 0.36,
+        trayChoices: 4,
+      ),
+      _OrnamentSpot(
+        id: 'right1',
+        correctColor: _OrnamentColor.green,
+        anchorX: 0.68,
+        anchorY: 0.4,
+        trayChoices: 4,
+      ),
+      _OrnamentSpot(
+        id: 'left2',
+        correctColor: _OrnamentColor.yellow,
+        anchorX: 0.51,
+        anchorY: 0.32,
+        trayChoices: 4,
+      ),
+      _OrnamentSpot(
+        id: 'right2',
+        correctColor: _OrnamentColor.purple,
+        anchorX: 0.64,
+        anchorY: 0.24,
+        trayChoices: 4,
+      ),
     ]),
   ];
 
@@ -173,12 +272,38 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   List<_OrnamentColor> _buildTrayForRound(_RoundSpec round) {
     final needed = round.spots.map((s) => s.correctColor).toList();
     final maxChoices = round.spots.map((s) => s.trayChoices).reduce(max);
-    final distractorSlots = (maxChoices - 1).clamp(0, _OrnamentColor.values.length);
-    final distractors = _OrnamentColor.values.where((c) => !needed.contains(c)).toList()
-      ..shuffle(Random());
+    final distractorSlots = (maxChoices - 1).clamp(
+      0,
+      _OrnamentColor.values.length,
+    );
+    final distractors =
+        _OrnamentColor.values.where((c) => !needed.contains(c)).toList()
+          ..shuffle(Random());
     final tray = [...needed, ...distractors.take(distractorSlots)];
     tray.shuffle(Random());
     return tray;
+  }
+
+  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  /// Stops the camera and saves mistakes + emotions once per playthrough.
+  Future<void> _saveGameResult() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = stopAiCamera();
+    try {
+      await ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint('Database Error saving Arctic metrics: $e');
+    }
   }
 
   @override
@@ -187,6 +312,15 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
     super.initState();
     _initAnimations();
     _setupRound(playInstruction: false);
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     finishLoading(_startIntroFlow);
   }
 
@@ -200,24 +334,31 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
+    _instructionBounce = TweenSequence(
+      [
+        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
+        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
+        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+      ],
+    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _spotPulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    _spotPulse = Tween<double>(begin: 0.85, end: 1.15)
-        .animate(CurvedAnimation(parent: _spotPulseCtrl, curve: Curves.easeInOut));
+    _spotPulse = Tween<double>(
+      begin: 0.85,
+      end: 1.15,
+    ).animate(CurvedAnimation(parent: _spotPulseCtrl, curve: Curves.easeInOut));
 
     _wiggleCtrl = AnimationController(
       vsync: this,
@@ -233,11 +374,12 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) playVoice(_audioInstruction);
+    if (mounted)
+      playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -251,17 +393,22 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
 
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) playVoice(_audioInstruction);
+        if (mounted)
+          playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
       });
     }
 
     setState(() {});
   }
 
-  Future<void> _onColorDropped(_OrnamentSpot spot, _OrnamentColor dropped) async {
+  Future<void> _onColorDropped(
+    _OrnamentSpot spot,
+    _OrnamentColor dropped,
+  ) async {
     if (_filledSpotIds.contains(spot.id)) return;
 
     if (dropped == spot.correctColor) {
+      _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       setState(() {
         _filledSpotIds.add(spot.id);
@@ -275,6 +422,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
         await _onRoundComplete();
       }
     } else {
+      _tapTracker.recordMistake();
       await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       HapticFeedback.heavyImpact();
@@ -296,6 +444,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
 
     if (_currentRound + 1 >= _totalRounds) {
       await playVoice(_audioWin);
+      await _saveGameResult();
       await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -307,6 +456,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -318,25 +468,54 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    // Only reacts to a *confirmed* camera result, so it never flashes just
+    // because the screen mounted. Reappears if the face is lost again.
+    final needsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    return Listener(
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () {
+            final gameContent = Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: const Color(0xFFDCEFFA)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: _introPlaying
+                      ? _buildIntroLayer()
+                      : _buildGameContent(),
+                ),
+                if (!_introPlaying) buildDoma(context),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
+              ],
+            );
+            return needsLightingPrompt
+                ? Stack(
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(
+                        child: LightingPromptCard(
+                          onClose: () {
+                            setState(() => _hideLightingCard = true);
+                            releaseFaceGate(); // don't leave audio stuck
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : gameContent;
+          },
         ),
       ),
     );
@@ -348,7 +527,11 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 25, child: ArcticXButton()),
-        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -361,7 +544,10 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
                     offset: Offset(
                       0,
                       Tween<double>(begin: -6, end: 6).evaluate(
-                        CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                        CurvedAnimation(
+                          parent: _domaFloatCtrl,
+                          curve: Curves.easeInOut,
+                        ),
                       ),
                     ),
                     child: child,
@@ -370,7 +556,8 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
                     _characterImage,
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                    errorBuilder: (_, __, ___) =>
+                        const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
               ),
@@ -380,7 +567,8 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
                   _treeAsset,
                   height: screenH * 0.75,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text('🎄', style: TextStyle(fontSize: 90)),
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🎄', style: TextStyle(fontSize: 90)),
                 ),
               ),
             ],
@@ -406,7 +594,10 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
                   child: Stack(
                     alignment: Alignment.topCenter,
                     children: [
-                      Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: ArcticXButton(),
+                      ),
                       Align(
                         alignment: Alignment.centerRight,
                         child: ArcticLevelBadge(level: widget.level),
@@ -470,11 +661,16 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
                 height: boardHeight,
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => Center(
-                  child: Text('🎄', style: TextStyle(fontSize: boardHeight * 0.5)),
+                  child: Text(
+                    '🎄',
+                    style: TextStyle(fontSize: boardHeight * 0.5),
+                  ),
                 ),
               ),
             ),
-            ..._round.spots.map((spot) => _buildSpot(spot, boardWidth, boardHeight)),
+            ..._round.spots.map(
+              (spot) => _buildSpot(spot, boardWidth, boardHeight),
+            ),
           ],
         ),
       ),
@@ -504,10 +700,8 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
 
           return AnimatedBuilder(
             animation: _spotPulse,
-            builder: (_, child) => Transform.scale(
-              scale: _spotPulse.value,
-              child: child,
-            ),
+            builder: (_, child) =>
+                Transform.scale(scale: _spotPulse.value, child: child),
             child: Container(
               decoration: BoxDecoration(
                 color: highlight
@@ -515,12 +709,18 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
                     : spot.correctColor.swatch.withValues(alpha: 0.28),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: highlight ? ArcticColorTheme.pictonblue : spot.correctColor.swatch,
+                  color: highlight
+                      ? ArcticColorTheme.pictonblue
+                      : spot.correctColor.swatch,
                   width: 2.5,
                 ),
               ),
               alignment: Alignment.center,
-              child: Icon(Icons.help_outline, size: size * 0.5, color: spot.correctColor.swatch),
+              child: Icon(
+                Icons.help_outline,
+                size: size * 0.5,
+                color: spot.correctColor.swatch,
+              ),
             ),
           );
         },
@@ -540,38 +740,50 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: ArcticColorTheme.pictonblue, width: 2),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 12, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: _trayOptions.isEmpty
           ? Text(
-        'Great job!',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontFamily: ArcticAppTextStyles.fredoka,
-          fontSize: (h * 0.032).clamp(12.0, 15.0),
-          fontWeight: FontWeight.w600,
-          color: ArcticColorTheme.slateblue.withValues(alpha: 0.7),
-        ),
-      )
+              'Great job!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: ArcticAppTextStyles.fredoka,
+                fontSize: (h * 0.032).clamp(12.0, 15.0),
+                fontWeight: FontWeight.w600,
+                color: ArcticColorTheme.slateblue.withValues(alpha: 0.7),
+              ),
+            )
           : Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        alignment: WrapAlignment.center,
-        children: _trayOptions.map((color) {
-          final tile = _ornamentVisual(color, tileSize, wrong: _trayWrong);
-          return Draggable<_OrnamentColor>(
-            data: color,
-            feedback: Material(color: Colors.transparent, child: tile),
-            childWhenDragging: Opacity(opacity: 0.3, child: tile),
-            child: tile,
-          );
-        }).toList(),
-      ),
+              spacing: 10,
+              runSpacing: 10,
+              alignment: WrapAlignment.center,
+              children: _trayOptions.map((color) {
+                final tile = _ornamentVisual(
+                  color,
+                  tileSize,
+                  wrong: _trayWrong,
+                );
+                return Draggable<_OrnamentColor>(
+                  data: color,
+                  feedback: Material(color: Colors.transparent, child: tile),
+                  childWhenDragging: Opacity(opacity: 0.3, child: tile),
+                  child: tile,
+                );
+              }).toList(),
+            ),
     );
   }
 
-  Widget _ornamentVisual(_OrnamentColor color, double size, {bool wrong = false}) {
+  Widget _ornamentVisual(
+    _OrnamentColor color,
+    double size, {
+    bool wrong = false,
+  }) {
     return SizedBox(
       width: size,
       height: size * 1.15,
@@ -585,7 +797,10 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
           errorBuilder: (_, __, ___) => Container(
             width: size,
             height: size,
-            decoration: BoxDecoration(color: color.swatch, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: color.swatch,
+              shape: BoxShape.circle,
+            ),
           ),
         ),
       ),
@@ -608,8 +823,8 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
             color: done
                 ? ArcticColorTheme.cadetblue
                 : current
-                    ? ArcticColorTheme.slateblue
-                    : ArcticColorTheme.slateblue.withValues(alpha: 0.35),
+                ? ArcticColorTheme.slateblue
+                : ArcticColorTheme.slateblue.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(6),
           ),
         );
@@ -631,13 +846,14 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
         );
       },
       onRestart: () {
-        setState(() {
-          _showWinDialog = false;
-          _currentRound = 0;
-          _solvedRounds = 0;
-          _setupRound();
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DecorateSnowyTreeGame(level: widget.level),
+          ),
+        );
       },
+
       onBack: () {
         Navigator.pop(context);
       },

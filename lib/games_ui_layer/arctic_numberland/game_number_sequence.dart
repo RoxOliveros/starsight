@@ -813,7 +813,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
           context,
           MaterialPageRoute(
             builder: (_) =>
-                Number1to5CountingTreesScreen(level: widget.level + 1),
+                CountingTreesScreen(level: widget.level + 1),
           ),
         );
       },

@@ -13,6 +13,11 @@ import 'game_addition_subtraction_signboard.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class SubtractionCompareGame extends StatefulWidget {
   final int level;
@@ -20,44 +25,41 @@ class SubtractionCompareGame extends StatefulWidget {
   const SubtractionCompareGame({super.key, required this.level});
 
   @override
-  State<SubtractionCompareGame> createState() =>
-      _SubtractionCompareGameState();
+  State<SubtractionCompareGame> createState() => _SubtractionCompareGameState();
 }
 
 class _SubtractionCompareGameState extends State<SubtractionCompareGame>
-    with TickerProviderStateMixin, DomaReactionMixin<SubtractionCompareGame>, GameLoadingMixin<SubtractionCompareGame> {
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
-  // ── Asset paths (swap to match your project) ────────────────────────────
+  // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _candyCanePlainAsset = 'assets/images/objects/arctic/candy_cane_plain.png';
   static const String _candyCaneAsset = 'assets/images/objects/arctic/candy_cane.png';
-  static const String _iceCreamAsset = 'assets/images/objects/arctic/icecream.png';
+  static const String _ribbonAsset = 'assets/images/objects/arctic/ribbon.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/treat_compare_intro.wav';
   static const String _audioInstruction = '$_audioBase/treat_compare_instruction.wav';
+  static const String _audioQuestion = '$_audioBase/treat_compare_question.wav';
   static const String _audioTreatPlaceRemove = 'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioWin = '$_audioBase/mahusay.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
   static const int _totalRounds = 5;
-
-  /// [bigger, smaller] pairs — candy canes (fixed row) vs. ice cream cups
-  /// (draggable). Difference kept to 4 or less, matching the visual/
-  /// counting range of the rest of Arctic Numberland.
   static const List<List<int>> _factPool = [
-    [2, 1], // leftover 1
-    [3, 1], // leftover 2
-    [3, 2], // leftover 1
-    [4, 1], // leftover 3
-    [4, 2], // leftover 2
-    [4, 3], // leftover 1
-    [5, 1], // leftover 4
-    [5, 2], // leftover 3
-    [5, 3], // leftover 2
-    [5, 4], // leftover 1
+    [2, 1],
+    [3, 1],
+    [3, 2],
+    [4, 1],
+    [4, 2],
+    [4, 3],
+    [5, 1],
+    [5, 2],
+    [5, 3],
+    [5, 4],
   ];
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -66,25 +68,45 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   bool _showWinDialog = false;
   int _solvedCount = 0;
   bool _resolvingRound = false;
+  bool _canTapChoices = false;
+  bool _showChoices = false;
+  bool _instructionPlayed = false;
+  bool _canInteract = false;
+  bool get _readyForConfirm => !_resolvingRound && _trayUsed.every((used) => used);
 
   late List<List<int>> _roundPool;
-  late int _biggerCount;   // candy canes shown, fixed
-  late int _smallerCount;  // ice cream cups available to place
-  late int _target;        // leftover = biggerCount - smallerCount
-
-  /// One slot per candy cane. Holds the tray index of the ice cream cup
-  /// stacked under it, or null if that candy cane has no partner yet.
+  late int _biggerCount;
+  late int _smallerCount;
+  late int _target;
   late List<int?> _pairedSlot;
-
-  /// Parallel to the ice cream tray — true once that cup has been placed.
   late List<bool> _trayUsed;
-
-  /// Confirmation number choices, shown once every cup has been placed.
   late List<int> _choices;
   int? _tappedChoiceIndex;
 
   bool get _readyForConfirm =>
       !_resolvingRound && _trayUsed.every((used) => used);
+
+  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  /// Stops the camera and saves mistakes + emotions once per playthrough.
+  Future<void> _saveGameResult() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = stopAiCamera();
+    try {
+      ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint('Database Error saving Arctic metrics: $e');
+    }
+  }
 
   // ── Audio ────────────────────────────────────────────────────────────────
   final AudioPlayer _voicePlayer = AudioPlayer();
@@ -93,7 +115,6 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _leftoverPulseCtrl;
@@ -105,6 +126,16 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     super.initState();
     _roundPool = [..._factPool]..shuffle();
     _initAnimations();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     finishLoading(_startIntroFlow);
   }
 
@@ -118,30 +149,29 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _leftoverPulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    _leftoverPulse = Tween(begin: 1.0, end: 1.08)
-        .animate(CurvedAnimation(parent: _leftoverPulseCtrl, curve: Curves.easeInOut));
+    _leftoverPulse = Tween(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _leftoverPulseCtrl, curve: Curves.easeInOut),
+    );
   }
 
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -162,11 +192,36 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     _tappedChoiceIndex = null;
     _resolvingRound = false;
 
+    _showChoices = false;
+    _canTapChoices = false;
+
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
+    if (!_instructionPlayed) {
+      _canInteract = false;
+
+      Future.delayed(
+        const Duration(milliseconds: 500),
+            () async {
+          if (!mounted) return;
+
+          await _playVoice(_audioInstruction);
+
+          if (!mounted) return;
+
+          setState(() {
+            _instructionPlayed = true;
+            _canInteract = true;
+          });
+        },
+      );
+    } else {
+      _canInteract = true;
+    }
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) _playVoice(_audioInstruction);
+      if (mounted)
+        playVoiceRestartingOnFaceLoss(_voicePlayer, _audioInstruction);
     });
 
     setState(() {});
@@ -181,8 +236,14 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   }
 
   // ── Drag handlers ────────────────────────────────────────────────────────
-  void _onCupDropped(int slotIndex, int trayIndex) {
-    if (_resolvingRound || _pairedSlot[slotIndex] != null || _trayUsed[trayIndex]) {
+  Future<void> _onCupDropped(
+      int slotIndex,
+      int trayIndex,
+      ) async {
+    if (!_canInteract ||
+        _resolvingRound ||
+        _pairedSlot[slotIndex] != null ||
+        _trayUsed[trayIndex]) {
       return;
     }
 
@@ -193,12 +254,41 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       _pairedSlot[slotIndex] = trayIndex;
       _trayUsed[trayIndex] = true;
     });
+
+    if (_trayUsed.every((used) => used)) {
+      await Future.delayed(
+        const Duration(milliseconds: 700),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _showChoices = true;
+        _canTapChoices = false;
+      });
+
+      // Ask the question.
+      await _playVoice(_audioQuestion);
+
+      if (!mounted) return;
+
+      setState(() {
+        _canTapChoices = true;
+      });
+    }
   }
 
   void _onCupRemoved(int slotIndex) {
-    if (_resolvingRound || _pairedSlot[slotIndex] == null) return;
+    if (!_canInteract ||
+        _resolvingRound ||
+        _pairedSlot[slotIndex] == null) {
+      return;
+    }
+
     final trayIndex = _pairedSlot[slotIndex]!;
-    _playVoice(_audioTreatPlaceRemove);
+
+    _playSfx(_audioTreatPlaceRemove);
+
     setState(() {
       _pairedSlot[slotIndex] = null;
       _trayUsed[trayIndex] = false;
@@ -208,13 +298,18 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
   // ── Confirmation tap ─────────────────────────────────────────────────────
   Future<void> _onChoiceTap(int index) async {
-    if (!_readyForConfirm || _tappedChoiceIndex != null) return;
+    if (!_readyForConfirm ||
+        !_canTapChoices ||
+        _tappedChoiceIndex != null) {
+      return;
+    }
     setState(() => _tappedChoiceIndex = index);
 
     final isCorrect = _choices[index] == _target;
 
     if (isCorrect) {
       setState(() => _resolvingRound = true);
+      _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       showDomaReaction(DomaState.correct);
       if (!mounted) return;
@@ -226,7 +321,8 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
       if (_currentRound + 1 >= _totalRounds) {
         await _playVoice(_audioWin);
-        await ArcticProgressService.instance.markLevelComplete(widget.level);
+        _saveGameResult();
+        ArcticProgressService.instance.markLevelComplete(widget.level);
         if (!mounted) return;
         setState(() => _showWinDialog = true);
       } else {
@@ -235,6 +331,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       }
     } else {
       HapticFeedback.heavyImpact();
+      _tapTracker.recordMistake();
       showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
@@ -260,13 +357,16 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   }
 
   void _playSfx(String asset) {
-    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((e) {
+    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
+      e,
+    ) {
       debugPrint('SFX audio error ($asset): $e');
     });
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _voicePlayer.dispose();
     _sfxPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -279,25 +379,54 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFDCEFFA)),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+    // Only reacts to a *confirmed* camera result, so it never flashes just
+    // because the screen mounted. Reappears if the face is lost again.
+    final needsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    return Listener(
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () {
+            final gameContent = Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: const Color(0xFFDCEFFA)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: _introPlaying
+                      ? _buildIntroLayer()
+                      : _buildGameContent(),
+                ),
+                if (!_introPlaying) buildDoma(context),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
+              ],
+            );
+            return needsLightingPrompt
+                ? Stack(
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(
+                        child: LightingPromptCard(
+                          onClose: () {
+                            setState(() => _hideLightingCard = true);
+                            releaseFaceGate(); // don't leave audio stuck
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : gameContent;
+          },
         ),
       ),
     );
@@ -309,7 +438,11 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 25, child: ArcticXButton()),
-        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -322,16 +455,20 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                     offset: Offset(
                       0,
                       Tween<double>(begin: -6, end: 6).evaluate(
-                        CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                        CurvedAnimation(
+                          parent: _domaFloatCtrl,
+                          curve: Curves.easeInOut,
+                        ),
                       ),
                     ),
                     child: child,
                   ),
                   child: Image.asset(
-                    _characterImage,
+                    _domaImage,
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
+                    errorBuilder: (_, __, ___) =>
+                        const Text('🐧', style: TextStyle(fontSize: 70)),
                   ),
                 ),
               ),
@@ -341,16 +478,18 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Image.asset(
-                      _candyCaneAsset,
+                      _candyCanePlainAsset,
                       height: screenH * 0.25,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text('🍬', style: TextStyle(fontSize: 70)),
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🍬', style: TextStyle(fontSize: 70)),
                     ),
                     Image.asset(
-                      _iceCreamAsset,
+                      _ribbonAsset,
                       height: screenH * 0.25,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Text('🍧', style: TextStyle(fontSize: 70)),
+                      errorBuilder: (_, __, ___) =>
+                          const Text('🍧', style: TextStyle(fontSize: 70)),
                     ),
                   ],
                 ),
@@ -376,7 +515,10 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
               child: Stack(
                 alignment: Alignment.topCenter,
                 children: [
-                  Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ArcticXButton(),
+                  ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: ArcticLevelBadge(level: widget.level),
@@ -401,12 +543,17 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                           ),
                         ),
                         SizedBox(
-                          width: (w * 0.18).clamp(90.0, 140.0),
+                          width: (w * 0.19),
                           child: AnimatedSwitcher(
                             duration: const Duration(milliseconds: 250),
-                            child: _readyForConfirm
-                                ? _buildConfirmRow(h, key: const ValueKey('confirm'))
-                                : const SizedBox(key: ValueKey('empty')),
+                            child: _showChoices
+                                ? _buildChoicesRow(
+                              h,
+                              key: const ValueKey('confirm'),
+                            )
+                                : const SizedBox(
+                              key: ValueKey('empty'),
+                            ),
                           ),
                         ),
                       ],
@@ -425,7 +572,6 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     );
   }
 
-  // ── Comparison scene: candy cane row + stacked cup slots + tray ─────────
   Widget _buildCompareScene(double w, double h) {
     final slotWidth = (w * 0.85 / _biggerCount).clamp(50.0, 100.0);
     final caneSize = (slotWidth * 0.8).clamp(40.0, 76.0);
@@ -443,19 +589,39 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(_biggerCount, (i) {
+                    final isMerged = _pairedSlot[i] != null;
+
                     return SizedBox(
                       width: slotWidth,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Image.asset(
-                            _candyCaneAsset,
-                            height: caneSize,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) =>
-                                Text('🍬', style: TextStyle(fontSize: caneSize * 0.7)),
+                          // Plain candy cane becomes completed candy cane
+                          GestureDetector(
+                            onTap: isMerged
+                                ? () => _onCupRemoved(i)
+                                : null,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 250),
+                              child: Image.asset(
+                                isMerged
+                                    ? _candyCaneAsset
+                                    : _candyCanePlainAsset,
+                                key: ValueKey(isMerged),
+                                height: caneSize,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Text(
+                                  '🍬',
+                                  style: TextStyle(
+                                    fontSize: caneSize * 0.7,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
+
                           const SizedBox(height: 6),
+
                           _buildCupSlot(i, cupSize),
                         ],
                       ),
@@ -472,39 +638,56 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     );
   }
 
-  /// A single drop slot under a candy cane. Highlights (pulses) once the
-  /// tray has run out and this slot never got a partner.
   Widget _buildCupSlot(int slotIndex, double size) {
-    final filledTrayIndex = _pairedSlot[slotIndex];
-    final isLeftover = _readyForConfirm && filledTrayIndex == null;
+    final isFilled = _pairedSlot[slotIndex] != null;
+    final isLeftover =
+        _readyForConfirm && !isFilled;
+
+    // Keep the same space so the layout does not move.
+    if (isFilled) {
+      return SizedBox(
+        width: size,
+        height: size,
+      );
+    }
 
     Widget slot = DragTarget<int>(
       onWillAcceptWithDetails: (details) =>
-      !_resolvingRound && _pairedSlot[slotIndex] == null && !_trayUsed[details.data],
-      onAcceptWithDetails: (details) => _onCupDropped(slotIndex, details.data),
-      builder: (context, candidateData, rejectedData) {
-        final highlight = candidateData.isNotEmpty;
-        if (filledTrayIndex != null) {
-          return GestureDetector(
-            onTap: () => _onCupRemoved(slotIndex),
-            child: Image.asset(
-              _iceCreamAsset,
-              height: size,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Text('🍦', style: TextStyle(fontSize: size * 0.7)),
-            ),
-          );
-        }
+      _canInteract &&
+          !_resolvingRound &&
+          _pairedSlot[slotIndex] == null &&
+          !_trayUsed[details.data],
+
+      onAcceptWithDetails: (details) =>
+          _onCupDropped(
+            slotIndex,
+            details.data,
+          ),
+
+      builder: (
+          context,
+          candidateData,
+          rejectedData,
+          ) {
+        final highlight =
+            candidateData.isNotEmpty;
+
         return Container(
           width: size,
           height: size,
           decoration: BoxDecoration(
             color: highlight
-                ? ArcticColorTheme.pictonblue.withValues(alpha: 0.25)
-                : Colors.grey.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(14),
+                ? ArcticColorTheme.pictonblue
+                .withValues(alpha: 0.25)
+                : Colors.grey.withValues(
+              alpha: 0.35,
+            ),
+            borderRadius:
+            BorderRadius.circular(14),
             border: Border.all(
-              color: highlight ? ArcticColorTheme.pictonblue : Colors.white,
+              color: highlight
+                  ? ArcticColorTheme.pictonblue
+                  : Colors.white,
               width: 2,
             ),
           ),
@@ -513,13 +696,15 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     );
 
     if (isLeftover) {
-      slot = ScaleTransition(scale: _leftoverPulse, child: slot);
+      slot = ScaleTransition(
+        scale: _leftoverPulse,
+        child: slot,
+      );
     }
 
     return slot;
   }
 
-  /// Draggable ice cream cups the player pairs up with candy canes.
   Widget _buildCupTray(double size) {
     return Wrap(
       spacing: 10,
@@ -528,10 +713,11 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       children: List.generate(_smallerCount, (i) {
         final used = _trayUsed[i];
         final cup = Image.asset(
-          _iceCreamAsset,
+          _ribbonAsset,
           height: size,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Text('🍦', style: TextStyle(fontSize: size * 0.7)),
+          errorBuilder: (_, __, ___) =>
+              Text('🍦', style: TextStyle(fontSize: size * 0.7)),
         );
 
         if (used) {
@@ -540,16 +726,24 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
         return Draggable<int>(
           data: i,
-          feedback: Material(color: Colors.transparent, child: cup),
-          childWhenDragging: Opacity(opacity: 0.25, child: cup),
+          maxSimultaneousDrags:
+          _canInteract && !_resolvingRound ? 1 : 0,
+          feedback: Material(
+            color: Colors.transparent,
+            child: cup,
+          ),
+          childWhenDragging: Opacity(
+            opacity: 0.25,
+            child: cup,
+          ),
           child: cup,
         );
       }),
     );
   }
 
-  // ── Confirmation row ─────────────────────────────────────────────────────
-  Widget _buildConfirmRow(double h, {Key? key}) {
+  // ── Choices row ─────────────────────────────────────────────────────
+  Widget _buildChoicesRow(double h, {Key? key}) {
     final btnSize = (h * 0.18);
 
     return Padding(
@@ -573,7 +767,9 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: GestureDetector(
-              onTap: _tappedChoiceIndex == null ? () => _onChoiceTap(index) : null,
+              onTap: _tappedChoiceIndex == null
+                  ? () => _onChoiceTap(index)
+                  : null,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
                 width: btnSize,
@@ -582,7 +778,9 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                   color: bg,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [BoxShadow(color: bg.withValues(alpha: 0.4), blurRadius: 8)],
+                  boxShadow: [
+                    BoxShadow(color: bg.withValues(alpha: 0.4), blurRadius: 8),
+                  ],
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -630,7 +828,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   // ── Win / celebration overlay ────────────────────────────────────────────
   Widget _buildGoodJobOverlay() {
     return DomaGoodJobOverlay(
-      characterImage: 'assets/images/characters/doma_the_penguin.png',
+      characterImage: _domaImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.pushReplacement(
@@ -641,14 +839,14 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
         );
       },
       onRestart: () {
-        setState(() {
-          _showWinDialog = false;
-          _currentRound = 0;
-          _solvedCount = 0;
-          _roundPool = [..._factPool]..shuffle();
-          _setupRound();
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubtractionCompareGame(level: widget.level),
+          ),
+        );
       },
+
       onBack: () {
         Navigator.pop(context);
       },

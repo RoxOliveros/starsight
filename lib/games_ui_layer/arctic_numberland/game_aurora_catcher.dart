@@ -15,6 +15,11 @@ import 'arctic_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 enum _AuroraColor { red, blue, green, yellow, purple }
 
@@ -110,18 +115,22 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
         TickerProviderStateMixin,
         DomaReactionMixin<AuroraCatcherGame>,
         GameLoadingMixin<AuroraCatcherGame>,
-        ArcticAudioMixin<AuroraCatcherGame> {
+        ArcticAudioMixin<AuroraCatcherGame>,
+        AiCameraMixin<AuroraCatcherGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_night_sky.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_arctic_night_sky.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
   static const String _auroraAsset = 'assets/images/objects/arctic/aurora.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/aurora_catch_intro.wav';
-  static const String _audioInstruction = '$_audioBase/aurora_catch_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/aurora_catch_instruction.wav';
   static const String _audioWin = '$_audioBase/aurora_catch_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -129,11 +138,25 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
   // distractors) as rounds progress.
   static const List<_RoundSpec> _rounds = [
     _RoundSpec(targets: [_AuroraColor.red], ribbonCount: 2),
-    _RoundSpec(targets: [_AuroraColor.blue, _AuroraColor.yellow], ribbonCount: 3),
-    _RoundSpec(targets: [_AuroraColor.green, _AuroraColor.red, _AuroraColor.purple], ribbonCount: 4),
-    _RoundSpec(targets: [_AuroraColor.yellow, _AuroraColor.blue, _AuroraColor.green], ribbonCount: 4),
     _RoundSpec(
-      targets: [_AuroraColor.purple, _AuroraColor.red, _AuroraColor.blue, _AuroraColor.yellow],
+      targets: [_AuroraColor.blue, _AuroraColor.yellow],
+      ribbonCount: 3,
+    ),
+    _RoundSpec(
+      targets: [_AuroraColor.green, _AuroraColor.red, _AuroraColor.purple],
+      ribbonCount: 4,
+    ),
+    _RoundSpec(
+      targets: [_AuroraColor.yellow, _AuroraColor.blue, _AuroraColor.green],
+      ribbonCount: 4,
+    ),
+    _RoundSpec(
+      targets: [
+        _AuroraColor.purple,
+        _AuroraColor.red,
+        _AuroraColor.blue,
+        _AuroraColor.yellow,
+      ],
       ribbonCount: 5,
     ),
   ];
@@ -164,6 +187,28 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
   late final Ticker _skyTicker;
   double _elapsed = 0;
 
+  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  /// Stops the camera and saves mistakes + emotions once per playthrough.
+  Future<void> _saveGameResult() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = stopAiCamera();
+    try {
+      await ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint('Database Error saving Arctic metrics: $e');
+    }
+  }
+
   @override
   void initState() {
     OrientationService.setLandscape();
@@ -172,8 +217,16 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     _setupRound(playInstruction: false);
     _skyTicker = createTicker((elapsed) {
       setState(() => _elapsed = elapsed.inMilliseconds / 1000.0);
-    })
-      ..start();
+    })..start();
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     finishLoading(_startIntroFlow);
   }
 
@@ -192,7 +245,10 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _jarBounceCtrl = AnimationController(
       vsync: this,
@@ -203,18 +259,20 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) playVoice(_audioInstruction);
+    if (mounted)
+      playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
   }
 
   List<_AuroraRibbon> _buildRibbonsForRound(_RoundSpec round) {
     final rng = Random();
     final colors = <_AuroraColor>[...round.targets];
     final remaining = round.ribbonCount - colors.length;
-    final pool = _AuroraColor.values.where((c) => !colors.contains(c)).toList()..shuffle(rng);
+    final pool = _AuroraColor.values.where((c) => !colors.contains(c)).toList()
+      ..shuffle(rng);
     colors.addAll(pool.take(remaining));
     colors.shuffle(rng);
 
@@ -246,7 +304,8 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
 
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) playVoice(_audioInstruction);
+        if (mounted)
+          playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
       });
     }
 
@@ -266,6 +325,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
 
     final targetColor = _round.targets[_targetIndex];
     if (ribbon.color == targetColor) {
+      _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       setState(() => _catchingId = ribbon.id);
       await playSfx(ribbon.color.audioAsset);
@@ -284,6 +344,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
         await _onRoundComplete();
       }
     } else {
+      _tapTracker.recordMistake();
       await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       HapticFeedback.heavyImpact();
@@ -302,6 +363,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     if (_currentRound + 1 >= _totalRounds) {
       setState(() => _showWinAurora = true);
       await playVoice(_audioWin);
+      await _saveGameResult();
       await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() {
@@ -316,6 +378,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _skyTicker.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -327,34 +390,62 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFF0B1E3D), Color(0xFF16406B)],
+    // Only reacts to a *confirmed* camera result, so it never flashes just
+    // because the screen mounted. Reappears if the face is lost again.
+    final needsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    return Listener(
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () {
+            final gameContent = Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0xFF0B1E3D), Color(0xFF16406B)],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinAurora) _buildWinAurora(),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: _introPlaying
+                      ? _buildIntroLayer()
+                      : _buildGameContent(),
+                ),
+                if (!_introPlaying) buildDoma(context),
+                if (_showWinAurora) _buildWinAurora(),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
+              ],
+            );
+            return needsLightingPrompt
+                ? Stack(
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(
+                        child: LightingPromptCard(
+                          onClose: () {
+                            setState(() => _hideLightingCard = true);
+                            releaseFaceGate(); // don't leave audio stuck
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : gameContent;
+          },
         ),
       ),
     );
@@ -366,37 +457,46 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 25, child: ArcticXButton()),
-        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: AnimatedBuilder(
-              animation: _domaFloatCtrl,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(
-                  0,
-                  Tween<double>(begin: -6, end: 6).evaluate(
-                    CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+            animation: _domaFloatCtrl,
+            builder: (_, child) => Transform.translate(
+              offset: Offset(
+                0,
+                Tween<double>(begin: -6, end: 6).evaluate(
+                  CurvedAnimation(
+                    parent: _domaFloatCtrl,
+                    curve: Curves.easeInOut,
                   ),
                 ),
-                child: child,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    _characterImage,
-                    height: screenH * 0.7,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🐧', style: TextStyle(fontSize: 70)),
-                  ),
-                  SizedBox(width: 130),
-                  Image.asset(
-                    _auroraAsset,
-                    height: screenH * 0.7,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🌌', style: TextStyle(fontSize: 70)),
-                  ),
-                ],
-              )
+              child: child,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  _characterImage,
+                  height: screenH * 0.7,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🐧', style: TextStyle(fontSize: 70)),
+                ),
+                SizedBox(width: 130),
+                Image.asset(
+                  _auroraAsset,
+                  height: screenH * 0.7,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      const Text('🌌', style: TextStyle(fontSize: 70)),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -419,7 +519,10 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
                   child: Stack(
                     alignment: Alignment.topCenter,
                     children: [
-                      Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: ArcticXButton(),
+                      ),
                       Align(
                         alignment: Alignment.centerRight,
                         child: ArcticLevelBadge(level: widget.level),
@@ -445,7 +548,6 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     );
   }
 
-
   // ── Sky scene ────────────────────────────────────────────────────────────
   Widget _buildSkyScene(double w, double h) {
     return SizedBox(
@@ -456,9 +558,9 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
         children: _showWinAurora
             ? []
             : _ribbons
-            .where((r) => !_caughtIds.contains(r.id))
-            .map((r) => _buildRibbon(r, w, h))
-            .toList(),
+                  .where((r) => !_caughtIds.contains(r.id))
+                  .map((r) => _buildRibbon(r, w, h))
+                  .toList(),
       ),
     );
   }
@@ -492,7 +594,12 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
               child: Image.asset(
                 ribbon.color.imageAsset,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => _ribbonVisual(ribbon.color, ribbonSize, ribbonSize * 0.42, wrong: wrong),
+                errorBuilder: (_, __, ___) => _ribbonVisual(
+                  ribbon.color,
+                  ribbonSize,
+                  ribbonSize * 0.42,
+                  wrong: wrong,
+                ),
               ),
             ),
           ),
@@ -501,7 +608,12 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     );
   }
 
-  Widget _ribbonVisual(_AuroraColor color, double w, double h, {bool wrong = false}) {
+  Widget _ribbonVisual(
+    _AuroraColor color,
+    double w,
+    double h, {
+    bool wrong = false,
+  }) {
     final tint = wrong ? Colors.red.shade300 : color.swatch;
     return Container(
       width: w,
@@ -509,10 +621,18 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(h),
         gradient: LinearGradient(
-          colors: [tint.withValues(alpha: 0.55), tint, tint.withValues(alpha: 0.55)],
+          colors: [
+            tint.withValues(alpha: 0.55),
+            tint,
+            tint.withValues(alpha: 0.55),
+          ],
         ),
         boxShadow: [
-          BoxShadow(color: tint.withValues(alpha: 0.6), blurRadius: 14, spreadRadius: 1),
+          BoxShadow(
+            color: tint.withValues(alpha: 0.6),
+            blurRadius: 14,
+            spreadRadius: 1,
+          ),
         ],
       ),
     );
@@ -526,12 +646,14 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
           tween: Tween(begin: 0.0, end: 1.0),
           duration: const Duration(milliseconds: 400),
           curve: Curves.elasticOut,
-          builder: (_, value, child) => Transform.scale(scale: value, child: child),
+          builder: (_, value, child) =>
+              Transform.scale(scale: value, child: child),
           child: Image.asset(
             _auroraAsset,
             height: screenH * 0.7,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Text('🌌', style: TextStyle(fontSize: 90)),
+            errorBuilder: (_, __, ___) =>
+                const Text('🌌', style: TextStyle(fontSize: 90)),
           ),
         ),
       ),
@@ -577,13 +699,14 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
         );
       },
       onRestart: () {
-        setState(() {
-          _showWinDialog = false;
-          _currentRound = 0;
-          _solvedRounds = 0;
-          _setupRound();
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AuroraCatcherGame(level: widget.level),
+          ),
+        );
       },
+      //
       onBack: () {
         Navigator.pop(context);
       },

@@ -15,6 +15,11 @@ import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'game_arctic_festival.dart';
 import 'goodjob_doma_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/business_layer/arctic_database_service.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 enum _RoundPhase { watching, answering }
 
@@ -23,7 +28,6 @@ class _RoundSpec {
   final int optionCount; // how many number buttons to show
   const _RoundSpec({required this.starCount, required this.optionCount});
 }
-
 
 class _StarSpec {
   final int id;
@@ -64,7 +68,8 @@ class ShootingStarCountingGame extends StatefulWidget {
   const ShootingStarCountingGame({super.key, required this.level});
 
   @override
-  State<ShootingStarCountingGame> createState() => _ShootingStarCountingGameState();
+  State<ShootingStarCountingGame> createState() =>
+      _ShootingStarCountingGameState();
 }
 
 class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
@@ -72,18 +77,23 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
         TickerProviderStateMixin,
         DomaReactionMixin<ShootingStarCountingGame>,
         GameLoadingMixin<ShootingStarCountingGame>,
-        ArcticAudioMixin<ShootingStarCountingGame> {
+        ArcticAudioMixin<ShootingStarCountingGame>,
+        AiCameraMixin<ShootingStarCountingGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_night_sky.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _shootingStarAsset = 'assets/images/objects/arctic/shooting_star.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_arctic_night_sky.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _shootingStarAsset =
+      'assets/images/objects/arctic/shooting_star.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/shooting_star_intro.wav';
-  static const String _audioInstruction = '$_audioBase/shooting_star_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/shooting_star_instruction.wav';
   static const String _audioAskCount = '$_audioBase/shooting_star_ask.wav';
   static const String _audioWin = '$_audioBase/shooting_star_win.wav';
 
@@ -124,6 +134,28 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   late final Ticker _skyTicker;
   double _elapsed = 0;
 
+  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  /// Stops the camera and saves mistakes + emotions once per playthrough.
+  Future<void> _saveGameResult() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = stopAiCamera();
+    try {
+      await ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      );
+    } catch (e) {
+      debugPrint('Database Error saving Arctic metrics: $e');
+    }
+  }
+
   @override
   void initState() {
     OrientationService.setLandscape();
@@ -135,6 +167,15 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       setState(() => _elapsed = t);
       _checkPhaseTransition(t);
     });
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     finishLoading(_startIntroFlow);
   }
 
@@ -153,13 +194,16 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
   }
 
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
 
     if (!mounted) return;
 
@@ -173,7 +217,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     await Future.delayed(const Duration(milliseconds: 300));
 
     if (mounted) {
-      await playVoice(_audioInstruction);
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
     }
   }
 
@@ -204,14 +248,16 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       final bow = 0.12 + rng.nextDouble() * 0.1;
       final control = Offset(mid.dx, start.dy + (end.dy - start.dy) * bow);
 
-      specs.add(_StarSpec(
-        id: i,
-        startTime: t,
-        duration: duration,
-        start: start,
-        control: control,
-        end: end,
-      ));
+      specs.add(
+        _StarSpec(
+          id: i,
+          startTime: t,
+          duration: duration,
+          start: start,
+          control: control,
+          end: end,
+        ),
+      );
       t += duration * 0.4 + 0.5 + rng.nextDouble() * 0.7; // stagger next star
     }
     return specs;
@@ -234,7 +280,8 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
 
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) playVoice(_audioInstruction);
+        if (mounted)
+          playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
       });
     }
 
@@ -246,9 +293,12 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     if (t - _roundStartElapsed >= _roundTotalDuration) {
       setState(() {
         _phase = _RoundPhase.answering;
-        _answerOptions = _buildAnswerOptions(_round.starCount, _round.optionCount);
+        _answerOptions = _buildAnswerOptions(
+          _round.starCount,
+          _round.optionCount,
+        );
       });
-      playVoice(_audioAskCount);
+      playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioAskCount);
     }
   }
 
@@ -274,12 +324,14 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
 
     final correct = value == _round.starCount;
     if (correct) {
+      _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       showDomaReaction(DomaState.correct);
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       await _onRoundComplete();
     } else {
+      _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
       await playSfx('assets/audio/sound_effects/bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
@@ -300,6 +352,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     if (_currentRound + 1 >= _totalRounds) {
       setState(() => _showWinBurst = true);
       await playVoice(_audioWin);
+      await _saveGameResult();
       await ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() {
@@ -314,6 +367,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _skyTicker.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -324,34 +378,62 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.arctic(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                _bgImage,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFF0B1E3D), Color(0xFF16406B)],
+    // Only reacts to a *confirmed* camera result, so it never flashes just
+    // because the screen mounted. Reappears if the face is lost again.
+    final needsLightingPrompt =
+        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+
+    return Listener(
+      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.arctic(),
+          gameBuilder: () {
+            final gameContent = Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0xFF0B1E3D), Color(0xFF16406B)],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
-              ),
-            if (!_introPlaying) buildDoma(context),
-            if (_showWinBurst) _buildWinBurst(),
-            if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
-          ],
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: _introPlaying
+                      ? _buildIntroLayer()
+                      : _buildGameContent(),
+                ),
+                if (!_introPlaying) buildDoma(context),
+                if (_showWinBurst) _buildWinBurst(),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
+              ],
+            );
+            return needsLightingPrompt
+                ? Stack(
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(
+                        child: LightingPromptCard(
+                          onClose: () {
+                            setState(() => _hideLightingCard = true);
+                            releaseFaceGate(); // don't leave audio stuck
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                : gameContent;
+          },
         ),
       ),
     );
@@ -363,7 +445,11 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     return Stack(
       children: [
         Positioned(top: 25, left: 25, child: ArcticXButton()),
-        Positioned(top: 25, right: 25, child: ArcticLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         Center(
           child: AnimatedBuilder(
             animation: _domaFloatCtrl,
@@ -371,13 +457,15 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
               offset: Offset(
                 0,
                 Tween<double>(begin: -6, end: 6).evaluate(
-                  CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
+                  CurvedAnimation(
+                    parent: _domaFloatCtrl,
+                    curve: Curves.easeInOut,
+                  ),
                 ),
               ),
               child: child,
             ),
-            child:
-            Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Image.asset(
@@ -385,7 +473,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
                   height: screenH * 0.7,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
-                  const Text('🐧', style: TextStyle(fontSize: 70)),
+                      const Text('🐧', style: TextStyle(fontSize: 70)),
                 ),
                 SizedBox(width: 130),
                 Image.asset(
@@ -393,7 +481,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
                   height: screenH * 0.4,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
-                  const Text('🐧', style: TextStyle(fontSize: 70)),
+                      const Text('🐧', style: TextStyle(fontSize: 70)),
                 ),
               ],
             ),
@@ -419,7 +507,10 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
                   child: Stack(
                     alignment: Alignment.topCenter,
                     children: [
-                      Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: ArcticXButton(),
+                      ),
                       Align(
                         alignment: Alignment.centerRight,
                         child: ArcticLevelBadge(level: widget.level),
@@ -452,9 +543,9 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     final roundElapsed = _elapsed - _roundStartElapsed;
     final visible = _phase == _RoundPhase.watching
         ? _starSchedule.where((s) {
-      final t = roundElapsed - s.startTime;
-      return t >= 0 && t <= s.duration;
-    }).toList()
+            final t = roundElapsed - s.startTime;
+            return t >= 0 && t <= s.duration;
+          }).toList()
         : <_StarSpec>[];
 
     return SizedBox(
@@ -462,7 +553,9 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       height: h,
       child: Stack(
         clipBehavior: Clip.none,
-        children: visible.map((s) => _buildStar(s, w, h, roundElapsed - s.startTime)).toList(),
+        children: visible
+            .map((s) => _buildStar(s, w, h, roundElapsed - s.startTime))
+            .toList(),
       ),
     );
   }
@@ -475,7 +568,12 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
         : progress > 0.85
         ? (1 - progress) / 0.15
         : 1.0;
-    final tangent = _bezierTangent(spec.start, spec.control, spec.end, progress);
+    final tangent = _bezierTangent(
+      spec.start,
+      spec.control,
+      spec.end,
+      progress,
+    );
     final angle = atan2(tangent.dy, tangent.dx);
     final starSize = w * 0.15;
 
@@ -491,7 +589,8 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
           child: Image.asset(
             _shootingStarAsset,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Text('🌠', style: TextStyle(fontSize: 34)),
+            errorBuilder: (_, __, ___) =>
+                const Text('🌠', style: TextStyle(fontSize: 34)),
           ),
         ),
       ),
@@ -526,9 +625,16 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
                 decoration: BoxDecoration(
                   color: bg,
                   shape: BoxShape.circle,
-                  border: Border.all(color: ArcticColorTheme.pictonblue, width: 3),
+                  border: Border.all(
+                    color: ArcticColorTheme.pictonblue,
+                    width: 3,
+                  ),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 3)),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
                   ],
                 ),
                 child: Text(
@@ -582,12 +688,14 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
           tween: Tween(begin: 0.0, end: 1.0),
           duration: const Duration(milliseconds: 400),
           curve: Curves.elasticOut,
-          builder: (_, value, child) => Transform.scale(scale: value, child: child),
+          builder: (_, value, child) =>
+              Transform.scale(scale: value, child: child),
           child: Image.asset(
             _shootingStarAsset,
             height: screenH * 0.6,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Text('✨', style: TextStyle(fontSize: 90)),
+            errorBuilder: (_, __, ___) =>
+                const Text('✨', style: TextStyle(fontSize: 90)),
           ),
         ),
       ),
@@ -608,13 +716,14 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
         );
       },
       onRestart: () {
-        setState(() {
-          _showWinDialog = false;
-          _currentRound = 0;
-          _solvedRounds = 0;
-          _setupRound();
-        });
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ShootingStarCountingGame(level: widget.level),
+          ),
+        );
       },
+      //
       onBack: () {
         Navigator.pop(context);
       },
