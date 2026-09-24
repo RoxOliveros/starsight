@@ -11,15 +11,13 @@ class PenguinSnowflakesMiniGame extends StatefulWidget {
   final AudioPlayer player;
   final VoidCallback onComplete;
   final int level;
-  final String instructionAudio;
-  final GameTapTracker tapTracker; 
+  final GameTapTracker tapTracker;
 
   const PenguinSnowflakesMiniGame({
     super.key,
     required this.number,
     required this.player,
     required this.onComplete,
-    this.instructionAudio = '',
     required this.level,
     required this.tapTracker,
   });
@@ -31,6 +29,14 @@ class PenguinSnowflakesMiniGame extends StatefulWidget {
 
 class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
     with TickerProviderStateMixin {
+
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _snowflakeImage = 'assets/images/objects/arctic/snowflake.png';
+
+  String get _snowflakeRequestAudio => 'audio/arctic_numberland/snowflake_${widget.number}.wav';
+  static const String _audioBubblePop = 'audio/sound_effects/bubble_pop.wav';
+  static const String _audioMahusay = 'audio/arctic_numberland/mahusay.wav';
+
   final Random _random = Random();
   final List<_FallingSnowflake> _flakes = [];
   int _nextId = 0;
@@ -45,15 +51,9 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   late AnimationController _penguinCelebrateCtrl;
   late Animation<double> _penguinCelebrateScale;
 
-  double get _fallSpeed =>
-      (0.0016 + widget.number * 0.00016).clamp(0.0016, 0.0042);
-
-  int get _spawnIntervalMs =>
-      (1400 - widget.number * 75).clamp(600, 1400).toInt();
-
-  double get _flakeSizeFactor =>
-      (0.15 - widget.number * 0.004).clamp(0.095, 0.15);
-
+  double get _fallSpeed => (0.0016 + widget.number * 0.00016).clamp(0.0016, 0.0042);
+  int get _spawnIntervalMs => (1400 - widget.number * 75).clamp(600, 1400).toInt();
+  double get _flakeSizeFactor => (0.15 - widget.number * 0.004).clamp(0.095, 0.15);
   int get _maxOnScreen => (4 + (widget.number / 2).ceil()).clamp(4, 9);
 
   @override
@@ -74,26 +74,27 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
           CurvedAnimation(parent: _penguinCelebrateCtrl, curve: Curves.easeOut),
         );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _playInstruction());
-    _startGameLoops();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _playInstruction();
+
+      if (!mounted) return;
+
+      _startGameLoops();
+    });
   }
 
   Future<void> _playInstruction() async {
     await widget.player.stop();
-    try {
-      await widget.player.play(
-        AssetSource('audio/arctic_numberland/snowflake_instruction.wav'),
-      );
-      await widget.player.onPlayerComplete.first;
-    } catch (_) {}
 
-    if (widget.instructionAudio.isEmpty) return;
-    if (!mounted) return;
     try {
       await widget.player.play(
-        AssetSource(widget.instructionAudio.replaceFirst('assets/', '')),
+        AssetSource(_snowflakeRequestAudio),
       );
-    } catch (_) {}
+
+      await widget.player.onPlayerComplete.first;
+    } catch (e) {
+      debugPrint('Snowflake request audio error: $e');
+    }
   }
 
   void _startGameLoops() {
@@ -152,7 +153,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
 
     try {
       await widget.player.play(
-        AssetSource('audio/sound_effects/bubble_pop.wav'),
+        AssetSource(_audioBubblePop),
       );
       await widget.player.play(
         AssetSource('audio/arctic_numberland/$_delivered.wav'),
@@ -175,7 +176,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
 
     try {
       await widget.player.play(
-        AssetSource('audio/arctic_numberland/mahusay.wav'),
+        AssetSource(_audioMahusay),
       );
       await widget.player.onPlayerComplete.first;
     } catch (_) {}
@@ -222,8 +223,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
               ..._flakes.map((f) => _buildDraggableFlake(f, w, h, flakeSize)),
               Positioned(
                 bottom: h * 0.02,
-                left: 0,
-                right: 0,
+                left: 50,
                 child: Center(child: _buildPenguinTarget(h)),
               ),
             ],
@@ -245,7 +245,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
     final flakeVisual = Transform.rotate(
       angle: f.rotation,
       child: Image.asset(
-        'assets/images/objects/arctic/snowflake.png',
+        _snowflakeImage,
         width: size,
         height: size,
         fit: BoxFit.contain,
@@ -274,7 +274,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   }
 
   Widget _buildPenguinTarget(double h) {
-    final penguinH = (h * 0.50);
+    final penguinH = (h * 0.70);
 
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) {
@@ -300,7 +300,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
             scale: _basketHovered ? 1.08 : 1.0,
             duration: const Duration(milliseconds: 150),
             child: Image.asset(
-              'assets/images/characters/doma_the_penguin.png',
+              _domaImage,
               height: penguinH,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) =>

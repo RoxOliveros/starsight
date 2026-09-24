@@ -41,36 +41,24 @@ class IglooPeekabooGame extends StatefulWidget {
 }
 
 class _IglooPeekabooGameState extends State<IglooPeekabooGame>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin<IglooPeekabooGame>,
-        GameLoadingMixin<IglooPeekabooGame>,
-        ArcticAudioMixin<IglooPeekabooGame>,
-        AiCameraMixin<IglooPeekabooGame> {
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, ArcticAudioMixin, AiCameraMixin {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _iglooAsset = 'assets/images/objects/arctic/igloo.png';
-  static const String _brokenIglooAsset =
-      'assets/images/objects/arctic/broken_igloo.png';
-  static const String _babyPenguinAsset =
-      'assets/images/characters/baby_penguin.png';
-  static const String _snowballAsset =
-      'assets/images/objects/arctic/snowball.png';
+  static const String _brokenIglooAsset = 'assets/images/objects/arctic/broken_igloo.png';
+  static const String _babyPenguinAsset = 'assets/images/characters/baby_penguin.png';
+  static const String _snowballAsset = 'assets/images/objects/arctic/snowball.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/igloo_peekaboo_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/igloo_peekaboo_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/igloo_peekaboo_instruction.wav';
   static const String _audioWin = '$_audioBase/igloo_peekaboo_win.wav';
 
-  // Ramp: 2 choices for the first two rounds, 3 for the middle stretch,
-  // 4 once numbers get bigger and there's more to compare.
   static const List<int> _optionCounts = [2, 2, 3, 3, 3];
   static const int _totalRounds = 5;
 
@@ -86,8 +74,8 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
   int _currentRound = 0;
   int _solvedRounds = 0;
   bool _roundResolving = false;
-  String? _correctSpotId; // set once the round's correct igloo is revealed
-  String? _wrongSpotId; // set briefly when the wrong igloo is tapped
+  String? _correctSpotId;
+  String? _wrongSpotId;
   bool _showWinDialog = false;
 
   late AnimationController _domaFloatCtrl;
@@ -256,7 +244,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
       List<String> finalEmotions = stopAiCamera();
 
       try {
-        await ArcticDatabaseService.saveGameData(
+        ArcticDatabaseService.saveGameData(
           gameId: 'arctic_numberland_${widget.level}',
           mistakes: _tapTracker.mistakeCount,
           emotions: finalEmotions,
@@ -265,7 +253,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
         debugPrint("Database Error saving Arctic metrics: $e");
       }
 
-      await ArcticProgressService.instance.markLevelComplete(widget.level);
+      ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
       return;
@@ -329,7 +317,6 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
           padding: const EdgeInsets.only(top: 5),
           child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
         ),
-        if (!_introPlaying) buildDoma(context),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
@@ -446,29 +433,59 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
 
         return ScaleTransition(
           scale: _sceneEnter,
-          child: Column(
+          child: Stack(
             children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
-                child: Stack(
-                  alignment: Alignment.topCenter,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: ArcticXButton(),
+              // MAIN LAYOUT
+              Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: 25,
+                      right: 25,
+                      top: 25,
                     ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ArcticLevelBadge(level: widget.level),
+                    child: Stack(
+                      alignment: Alignment.topCenter,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ArcticXButton(),
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: ArcticLevelBadge(
+                            level: widget.level,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+
+                  Expanded(
+                    child: Transform.translate(
+                      offset: const Offset(0, 50),
+                      child: _buildIglooRow(w, h),
+                    ),
+                  ),
+
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: 15,
+                    ),
+                    child: _buildProgressDots(),
+                  ),
+                ],
               ),
-              _buildTargetBadge(h * 0.22),
-              Expanded(child: _buildIglooRow(w, h)),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 15),
-                child: _buildProgressDots(),
+
+              Positioned(
+                top: 20,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: _buildTargetBadge(
+                    h * 0.22,
+                  ),
+                ),
               ),
             ],
           ),
@@ -477,8 +494,6 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
     );
   }
 
-  /// Target number shown on a tag, with that many mini snowballs beside it
-  /// so the numeral and the quantity are always taught together.
   Widget _buildTargetBadge(double size) {
     final target = _rounds[_currentRound].targetNumber;
     final tagSize = size.clamp(60.0, 96.0);
@@ -510,7 +525,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
                   offset: Offset(
                     0,
                     tagSize * 0.08,
-                  ), // ← increase/decrease to move it down more or less
+                  ),
                   child: Text(
                     '$target',
                     style: TextStyle(
@@ -532,7 +547,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
   // ── Igloo row ─────────────────────────────────────────────────────────────
   Widget _buildIglooRow(double w, double h) {
     final round = _rounds[_currentRound];
-    final iglooSize = (h * 0.38);
+    final iglooSize = (h * 0.50);
 
     return Align(
       alignment: const Alignment(0, -1.5), // move toward -1.0 to go higher

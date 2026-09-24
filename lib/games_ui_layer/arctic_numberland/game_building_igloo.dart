@@ -18,22 +18,17 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/business_layer/arctic_database_service.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
-class Number1to5FillIglooScreen extends StatefulWidget {
+class BuildIglooScreen extends StatefulWidget {
   final int level;
 
-  const Number1to5FillIglooScreen({super.key, required this.level});
+  const BuildIglooScreen({super.key, required this.level});
 
   @override
-  State<Number1to5FillIglooScreen> createState() =>
-      _Number1to5FillIglooScreenState();
+  State<BuildIglooScreen> createState() => _BuildIglooScreenState();
 }
 
-class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin,
-        GameLoadingMixin,
-        AiCameraMixin<Number1to5FillIglooScreen> {
+class _BuildIglooScreenState extends State<BuildIglooScreen>
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin {
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -41,14 +36,12 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
   static const int _totalRounds = 5;
   static const int _maxNumber = 5;
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level19/intro.wav';
-  static const String _audioBuild =
-      'assets/audio/arctic_numberland/level19/build.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/building_igloo_intro.wav';
+  static const String _audioInstruction = 'assets/audio/arctic_numberland/building_igloo_instruction.wav';
+  static const String _audioBuild = 'assets/audio/sound_effects/build.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -58,13 +51,15 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
 
   // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
+  bool _canInteract = false;
+  bool _instructionPlayed = false;
   int _currentRound = 0;
 
-  late int _targetCount; // how many ice blocks to place (0–5)
-  late List<int?> _slotContents; // null = empty, int = block id placed
-  late List<bool> _slotHighlighted; // slot highlight when dragging over
-  late List<_IceBlockData> _sourceBlocks; // blocks in the pile
-  late List<bool> _blockPlaced; // which source blocks have been placed
+  late int _targetCount; 
+  late List<int?> _slotContents;
+  late List<bool> _slotHighlighted; 
+  late List<_IceBlockData> _sourceBlocks; 
+  late List<bool> _blockPlaced;
 
   int _placedCount = 0;
   bool _roundComplete = false;
@@ -82,7 +77,6 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _slotsEnterCtrl;
   late Animation<double> _slotsEnter;
   late AnimationController _blocksEnterCtrl;
@@ -91,24 +85,15 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
   late Animation<double> _correctPulse;
   late AnimationController _iglooShakeCtrl;
   late Animation<double> _iglooShake;
-
-  // Intro dance
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
-
-  // Slot fill animations (one per slot, max 5)
   late List<AnimationController> _slotFillCtrls;
   late List<Animation<double>> _slotFillAnims;
 
-  // ── Igloo slot layout (relative positions inside igloo widget) ─────────────
-  // Slots are arranged like igloo bricks: bottom row then top row
   static const List<_SlotLayout> _slotLayouts = [
-    // bottom row
     _SlotLayout(rowFracX: 0.30, rowFracY: 0.66),
     _SlotLayout(rowFracX: 0.50, rowFracY: 0.66),
     _SlotLayout(rowFracX: 0.70, rowFracY: 0.66),
-
-    // top row
     _SlotLayout(rowFracX: 0.40, rowFracY: 0.38),
     _SlotLayout(rowFracX: 0.60, rowFracY: 0.38),
   ];
@@ -162,13 +147,6 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _slotsEnterCtrl = AnimationController(
       vsync: this,
@@ -238,53 +216,98 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
 
   // ── Flow ───────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(
+      const Duration(milliseconds: 300),
+    );
+
     await _playAudio(_audioIntro);
+
     if (!mounted) return;
-    setState(() => _introPlaying = false);
+
+    setState(() {
+      _introPlaying = false;
+      _canInteract = false;
+    });
+
     _setupRound();
+
+    await Future.delayed(
+      const Duration(milliseconds: 400),
+    );
+
+    if (!_instructionPlayed) {
+      await _playAudio(_audioInstruction);
+
+      if (!mounted) return;
+
+      setState(() {
+        _instructionPlayed = true;
+        _canInteract = true;
+      });
+    }
   }
 
   void _setupRound() {
     if (_roundPool.isEmpty) {
-      _roundPool = List.generate(_maxNumber, (i) => i + 1)..shuffle();
+      _roundPool =
+      List.generate(_maxNumber, (i) => i + 1)
+        ..shuffle();
     }
 
     _targetCount = _roundPool.removeLast();
 
-    // Reset slots (always 5 visual slots, only _targetCount are "active")
-    _slotContents = List.filled(_targetCount, null);
-    _slotHighlighted = List.filled(_targetCount, false);
+    _slotContents =
+        List.filled(_targetCount, null);
+
+    _slotHighlighted =
+        List.filled(_targetCount, false);
+
     _placedCount = 0;
     _roundComplete = false;
     _roundAdvancing = false;
     _draggingBlockIndex = null;
 
-    // Reset slot fill animations
     for (final c in _slotFillCtrls) {
       c.reset();
     }
 
-    // Generate source blocks in a pile (6 blocks always, player places exactly _targetCount)
     final rng = Random();
+
     _sourceBlocks = List.generate(6, (i) {
       return _IceBlockData(
         id: i,
-        pileOffsetX: (rng.nextDouble() - 0.5) * 1.0,
-        pileOffsetY: (rng.nextDouble() - 0.5) * 0.8,
-        rotation: (rng.nextDouble() - 0.5) * 0.4,
+        pileOffsetX:
+        (rng.nextDouble() - 0.5) * 1.0,
+        pileOffsetY:
+        (rng.nextDouble() - 0.5) * 0.8,
+        rotation:
+        (rng.nextDouble() - 0.5) * 0.4,
       );
     });
+
     _blockPlaced = List.filled(6, false);
 
     _slotsEnterCtrl.forward(from: 0);
     _blocksEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
+
+    if (_instructionPlayed) {
+      _canInteract = true;
+    }
   }
 
   // ── Drag Logic ─────────────────────────────────────────────────────────────
-  void _onDragStart(int blockIndex, Offset globalPos) {
-    if (_blockPlaced[blockIndex] || _roundComplete) return;
+  void _onDragStart(
+      int blockIndex,
+      Offset globalPos,
+      ) {
+    if (!_canInteract ||
+        _blockPlaced[blockIndex] ||
+        _roundComplete ||
+        _roundAdvancing) {
+      return;
+    }
+
     setState(() {
       _draggingBlockIndex = blockIndex;
       _dragPosition = globalPos;
@@ -292,85 +315,133 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
   }
 
   void _onDragUpdate(Offset globalPos) {
-    if (_draggingBlockIndex == null) return;
+    if (!_canInteract ||
+        _draggingBlockIndex == null) {
+      return;
+    }
+
     setState(() {
       _dragPosition = globalPos;
-      // Highlight slots on hover
-      for (int i = 0; i < _targetCount; i++) {
+
+      for (int i = 0;
+      i < _targetCount;
+      i++) {
         _slotHighlighted[i] =
-            _isOverSlot(i, globalPos) && _slotContents[i] == null;
+            _isOverSlot(i, globalPos) &&
+                _slotContents[i] == null;
       }
     });
   }
 
   Future<void> _onDragEnd(Offset globalPos) async {
+    // No active block being dragged
     if (_draggingBlockIndex == null) return;
 
+    // Do not allow another action while audio/round is processing
+    if (!_canInteract || _roundAdvancing) {
+      return;
+    }
+
     int? hitSlot;
+
+    // Check which slot the block was dropped on
     for (int i = 0; i < _targetCount; i++) {
-      if (_isOverSlot(i, globalPos) && _slotContents[i] == null) {
+      if (_isOverSlot(i, globalPos) &&
+          _slotContents[i] == null) {
         hitSlot = i;
         break;
       }
     }
 
+    // ─────────────────────────────────────────
+    // VALID DROP
+    // ─────────────────────────────────────────
     if (hitSlot != null) {
-      if (_roundAdvancing) return;
-
-      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
+      _canInteract = false;
+      _tapTracker.recordCorrectTap();
 
       final blockId = _draggingBlockIndex!;
+
       setState(() {
         _slotContents[hitSlot!] = blockId;
         _blockPlaced[blockId] = true;
         _slotHighlighted[hitSlot] = false;
         _draggingBlockIndex = null;
+
         _placedCount++;
       });
 
       _slotFillCtrls[hitSlot].forward(from: 0);
-      await _playAudio('assets/audio/arctic_numberland/$_placedCount.wav');
 
-      if (_placedCount == _targetCount && !_roundAdvancing) {
+      await _playAudio('assets/audio/arctic_numberland/$_placedCount.wav',);
+      if (!mounted) return;
+
+      if (_placedCount == _targetCount) {
         _roundAdvancing = true;
-        await Future.delayed(const Duration(milliseconds: 300));
+
+        await Future.delayed(const Duration(milliseconds: 300),);
+        if (!mounted) return;
+
         await _playAudio(_audioBuild);
         if (!mounted) return;
-        setState(() => _roundComplete = true);
+
+        setState(() {
+          _roundComplete = true;
+        });
+
         _correctPulseCtrl.forward(from: 0);
-        showDomaReaction(DomaState.correct);
-        await Future.delayed(const Duration(milliseconds: 700));
+
+        showDomaReaction(DomaState.correct,);
+        await Future.delayed(const Duration(milliseconds: 700),);
         if (!mounted) return;
+
         if (_currentRound + 1 >= _totalRounds) {
-          // --- ADDED AI STOP & DATABASE SAVE ---
-          List<String> finalEmotions = stopAiCamera();
+          final List<String> finalEmotions = stopAiCamera();
 
           try {
-            await ArcticDatabaseService.saveGameData(
+            ArcticDatabaseService.saveGameData(
               gameId: 'arctic_numberland_${widget.level}',
               mistakes: _tapTracker.mistakeCount,
               emotions: finalEmotions,
             );
           } catch (e) {
-            debugPrint("Database Error saving Arctic metrics: $e");
+            debugPrint(
+              'Database Error saving Arctic metrics: $e',
+            );
           }
 
-          await ArcticProgressService.instance.markLevelComplete(widget.level);
-          setState(() => _showWinDialog = true);
+          ArcticProgressService.instance.markLevelComplete(widget.level);
+          if (!mounted) return;
+
+          setState(() {
+            _showWinDialog = true;
+          });
         } else {
-          setState(() => _currentRound++);
+          setState(() {
+            _currentRound++;
+          });
+
           _setupRound();
         }
+      } else {
+        if (!mounted) return;
+
+        setState(() {
+          _canInteract = true;
+        });
       }
     } else {
-      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
+      _tapTracker.recordMistake();
 
-      // Return to pile
+      if (!mounted) return;
+
       setState(() {
         _draggingBlockIndex = null;
+
         for (int i = 0; i < _targetCount; i++) {
           _slotHighlighted[i] = false;
         }
+        _canInteract = true;
       });
     }
   }
@@ -395,7 +466,7 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
         if (!completer.isCompleted) completer.complete();
       });
       await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
+      await completer.future.timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
     } finally {
@@ -405,7 +476,7 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
 
   @override
   void dispose() {
-    disposeAiCamera(); // <-- ADDED
+    disposeAiCamera(); 
     _minLoadTimer?.cancel();
     _player.dispose();
     _domaFloatCtrl.dispose();
@@ -466,7 +537,6 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(
@@ -620,10 +690,8 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(width: 120),
-                      // LEFT: Doma + ice block pile
                       Expanded(flex: 4, child: _buildBlockPileArea(h, w)),
 
-                      // RIGHT: Igloo with slots
                       Expanded(
                         flex: 6,
                         child: ScaleTransition(
@@ -643,7 +711,6 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
               ],
             ),
 
-            // Dragging ghost block
             if (_draggingBlockIndex != null)
               Positioned(
                 left: _dragPosition.dx - 36,
@@ -670,7 +737,6 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
 
         return Stack(
           children: [
-            // Source ice blocks (pile)
             ...List.generate(6, (i) {
               if (_blockPlaced[i]) return const SizedBox.shrink();
 
@@ -779,10 +845,8 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
             child: Stack(
               key: _iglooAreaKey,
               children: [
-                // Igloo outline
                 Positioned.fill(child: _buildIglooOutline(areaW, areaH)),
 
-                // Slots inside igloo
                 ...List.generate(_targetCount, (i) {
                   final layout = _slotLayouts[i];
                   final slotSize = (areaH * 0.22).clamp(52.0, 90.0);
@@ -905,7 +969,7 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
         );
       },
       onRestart: () {
-        Navigator.pop(context, Number1to5FillIglooScreen(level: widget.level));
+        Navigator.pop(context, BuildIglooScreen(level: widget.level));
       },
       onBack: () {
         Navigator.pop(context);
@@ -917,9 +981,9 @@ class _Number1to5FillIglooScreenState extends State<Number1to5FillIglooScreen>
 // ── Data Models ────────────────────────────────────────────────────────────────
 class _IceBlockData {
   final int id;
-  final double pileOffsetX; // -0.5 to 0.5
+  final double pileOffsetX;
   final double pileOffsetY;
-  final double rotation; // radians
+  final double rotation;
 
   const _IceBlockData({
     required this.id,
@@ -930,8 +994,8 @@ class _IceBlockData {
 }
 
 class _SlotLayout {
-  final double rowFracX; // fraction of igloo widget width
-  final double rowFracY; // fraction of igloo widget height
+  final double rowFracX;
+  final double rowFracY;
 
   const _SlotLayout({required this.rowFracX, required this.rowFracY});
 }

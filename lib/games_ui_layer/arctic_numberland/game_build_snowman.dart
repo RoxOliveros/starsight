@@ -30,29 +30,21 @@ class BuildSnowmanGame extends StatefulWidget {
 }
 
 class _BuildSnowmanGameState extends State<BuildSnowmanGame>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin<BuildSnowmanGame>,
-        GameLoadingMixin<BuildSnowmanGame>,
-        ArcticAudioMixin<BuildSnowmanGame>,
-        AiCameraMixin<BuildSnowmanGame> {
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, ArcticAudioMixin, AiCameraMixin{
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _snowballAsset =
-      'assets/images/objects/arctic/snowball_clean.png';
-  static const String _snowmanHatAsset =
-      'assets/images/objects/arctic/snowman_hat.png';
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _snowballAsset = 'assets/images/objects/arctic/snowball_clean.png';
+  static const String _snowmanAsset = 'assets/images/objects/arctic/snowman.png';
+  static const String _snowmanHatFaceAsset = 'assets/images/objects/arctic/snowman_hat_face.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/build_snowman_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/build_snowman_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/build_snowman_instruction.wav';
   static const String _audioWin = '$_audioBase/build_snowman_win.wav';
 
   static const int _totalRounds = 5;
@@ -65,7 +57,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
 
   // ── State ────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
-  late List<int> _targets; // one shuffled target per round, 1-8, no repeats
+  late List<int> _targets;
   int _currentRound = 0;
   int _solvedRounds = 0;
   int _stackCount = 0;
@@ -76,11 +68,11 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
   late AnimationController _instructionCtrl;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
-  late AnimationController _popCtrl; // per-snowball pop-in when stacked
+  late AnimationController _popCtrl;
   late Animation<double> _pop;
-  late AnimationController _tumbleCtrl; // stack collapsing on overshoot
+  late AnimationController _tumbleCtrl;
   late Animation<double> _tumble;
-  late AnimationController _completeCtrl; // hat drops on + celebratory bounce
+  late AnimationController _completeCtrl;
   late Animation<double> _complete;
 
   @override
@@ -220,7 +212,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       List<String> finalEmotions = stopAiCamera();
 
       try {
-        await ArcticDatabaseService.saveGameData(
+        ArcticDatabaseService.saveGameData(
           gameId: 'arctic_numberland_${widget.level}',
           mistakes: _tapTracker.mistakeCount,
           emotions: finalEmotions,
@@ -229,7 +221,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
         debugPrint("Database Error saving Arctic metrics: $e");
       }
 
-      await ArcticProgressService.instance.markLevelComplete(widget.level);
+      ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
       return;
@@ -364,7 +356,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                     child: child,
                   ),
                   child: Image.asset(
-                    _characterImage,
+                    _domaImage,
                     height: screenH * 0.7,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
@@ -375,7 +367,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
               Expanded(
                 flex: 5,
                 child: Image.asset(
-                  _snowballAsset,
+                  _snowmanAsset,
                   height: screenH * 0.5,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
@@ -430,11 +422,11 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                 ],
               ),
             ),
-            Positioned(right: 70, top: 100, child: _buildTargetBadge(h * 0.22)),
+            Positioned(right: 35, top: 100, child: _buildTargetBadge(h * 0.22)),
             Positioned(
-              right: 25,
+              right: 20,
               bottom: 16,
-              child: _buildSnowballSource((h * 0.16).clamp(36.0, 70.0)),
+              child: _buildSnowballSource((h * 0.30)),
             ),
           ],
         );
@@ -530,24 +522,16 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
     final ballSize = h * 0.30;
     final target = _targets[_currentRound];
     final isComplete = _stackCount == target && _roundResolving;
-
-    // Each ball's scale, biggest at the bottom (i = 0).
     final scales = List<double>.generate(_stackCount, (i) => 1.0 - (i * 0.1));
-
-    // Cumulative bottom offset per ball -- proportional to that ball's own
-    // (already-shrunk) height, so the overlap stays consistent as balls
-    // get smaller toward the top instead of using one fixed gap for all.
-    const overlapFraction =
-        0.45; // fraction of a ball's height it overlaps the one below
+    const overlapFraction = 0.45;
     final bottoms = <double>[];
     double cumulative = 0;
-    for (int i = 0; i < _stackCount; i++) {
-      bottoms.add(cumulative);
-      cumulative += ballSize * scales[i] * overlapFraction;
-    }
+    for (int i = 0; i < _stackCount; i++) {bottoms.add(cumulative);cumulative += ballSize * scales[i] * overlapFraction;}
     final topHeight = _stackCount == 0 ? ballSize : ballSize * scales.last;
-    final stackHeight =
-        cumulative + topHeight + ballSize * 0.9; // + room for hat
+    final stackHeight = cumulative + topHeight + ballSize * 0.9;
+    final topBallScale = _stackCount > 0 ? scales.last : 1.0;
+    final topBallSize = ballSize * topBallScale;
+    final topBallBottom = _stackCount > 0 ? bottoms.last : 0.0;
 
     return Center(
       child: DragTarget<int>(
@@ -620,25 +604,35 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                       );
                     }),
 
-                    Positioned(
-                      bottom: cumulative + ballSize * 0.02,
-                      child: AnimatedBuilder(
-                        animation: _completeCtrl,
-                        builder: (_, child) => Transform.scale(
-                          scale: isComplete ? _complete.value : 0,
-                          child: child,
-                        ),
-                        child: Image.asset(
-                          _snowmanHatAsset,
-                          width: ballSize * 0.9,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Text(
-                            '🎩',
-                            style: TextStyle(fontSize: ballSize * 0.6),
+                    if (_stackCount > 0)
+                      Positioned(
+                        bottom: topBallBottom + (topBallSize * 0.3),
+                        child: AnimatedBuilder(
+                          animation: _completeCtrl,
+                          builder: (_, child) {
+                            return Transform.scale(
+                              scale: isComplete
+                                  ? _complete.value
+                                  : 0.0,
+                              child: child,
+                            );
+                          },
+                          child: IgnorePointer(
+                            child: Image.asset(
+                              _snowmanHatFaceAsset,
+                              width: topBallSize * 0.9,
+                              height: topBallSize * 0.9,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => Text(
+                                '🎩',
+                                style: TextStyle(
+                                  fontSize: topBallSize * 0.6,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),

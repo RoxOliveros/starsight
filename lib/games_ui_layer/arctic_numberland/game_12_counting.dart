@@ -19,25 +19,27 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 enum _ScreenPhase { intro, miniGame }
 
-class Number012CountingObjectsScreen extends StatefulWidget {
+class Number12CountingObjectsScreen extends StatefulWidget {
   final int level;
 
-  const Number012CountingObjectsScreen({super.key, required this.level});
+  const Number12CountingObjectsScreen({super.key, required this.level});
 
   @override
-  State<Number012CountingObjectsScreen> createState() =>
-      _Number012CountingObjectsScreenState();
+  State<Number12CountingObjectsScreen> createState() => _Number12CountingObjectsScreenState();
 }
 
-class _Number012CountingObjectsScreenState
-    extends State<Number012CountingObjectsScreen>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin,
-        GameLoadingMixin,
-        AiCameraMixin<Number012CountingObjectsScreen> {
+class _Number12CountingObjectsScreenState
+    extends State<Number12CountingObjectsScreen>
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin {
   @override
   AudioPlayer get domaPlayer => _player;
+
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
+
+  static const String _audioIntro = 'assets/audio/arctic_numberland/012_counting_intro.wav';
+  static const String _audioInstruction = 'assets/audio/arctic_numberland/012_counting_instruction.wav';
+  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
 
   late int _correctCount;
   late List<int> _choices;
@@ -48,6 +50,7 @@ class _Number012CountingObjectsScreenState
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   bool _showWinDialog = false;
+  bool _canTapChoices = false;
   final AudioPlayer _player = AudioPlayer();
 
   late AnimationController _numberDanceCtrl;
@@ -62,35 +65,17 @@ class _Number012CountingObjectsScreenState
   final List<Map<String, String>> _objects = [
     {'name': 'Earmuffs', 'asset': 'assets/images/objects/arctic/earmuffs.png'},
     {'name': 'Ice', 'asset': 'assets/images/objects/arctic/ice.png'},
-    {
-      'name': 'Ice Skates',
-      'asset': 'assets/images/objects/arctic/ice_skates.png',
-    },
+    {'name': 'Ice Skates', 'asset': 'assets/images/objects/arctic/ice_skates.png',},
     {'name': 'Ice Cream', 'asset': 'assets/images/objects/arctic/icecream.png'},
     {'name': 'Igloo', 'asset': 'assets/images/objects/arctic/igloo.png'},
     {'name': 'Sled', 'asset': 'assets/images/objects/arctic/sled.png'},
     {'name': 'Snowball', 'asset': 'assets/images/objects/arctic/snowball.png'},
-    {
-      'name': 'Snow Globe',
-      'asset': 'assets/images/objects/arctic/snowglobe.png',
-    },
+    {'name': 'Snow Globe', 'asset': 'assets/images/objects/arctic/snowglobe.png',},
     {'name': 'Snowman', 'asset': 'assets/images/objects/arctic/snowman.png'},
-    {
-      'name': 'Snowy Sign Board',
-      'asset': 'assets/images/objects/arctic/snowy_signboard.png',
-    },
-    {
-      'name': 'Snowy Tree',
-      'asset': 'assets/images/objects/arctic/snowy_tree.png',
-    },
-    {
-      'name': 'Candy Cane',
-      'asset': 'assets/images/objects/arctic/candy_cane.png',
-    },
-    {
-      'name': 'Winter Hat',
-      'asset': 'assets/images/objects/arctic/winter_hat.png',
-    },
+    {'name': 'Snowy Sign Board', 'asset': 'assets/images/objects/arctic/snowy_signboard.png',},
+    {'name': 'Snowy Tree', 'asset': 'assets/images/objects/arctic/snowy_tree.png',},
+    {'name': 'Candy Cane', 'asset': 'assets/images/objects/arctic/candy_cane.png',},
+    {'name': 'Winter Hat', 'asset': 'assets/images/objects/arctic/winter_hat.png',},
   ];
 
   @override
@@ -120,7 +105,6 @@ class _Number012CountingObjectsScreenState
       if (mounted) setState(() => _loadingScreenElapsed = true);
     });
 
-    // Pause for face detection ONLY if this happens to be used as level 1
     if (widget.level == 1) {
       onFirstFaceDetected = () {
         finishLoading(_startIntroFlow);
@@ -133,9 +117,6 @@ class _Number012CountingObjectsScreenState
       finishLoading(_startIntroFlow);
     }
 
-    // A dismissed lighting card should only stay dismissed until the face
-    // is actually lost again — not forever — so it can reappear later on
-    // this same screen if the kid moves out of frame mid-play.
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) {
         setState(() => _hideLightingCard = false);
@@ -147,7 +128,7 @@ class _Number012CountingObjectsScreenState
 
   @override
   void dispose() {
-    disposeAiCamera(); // <-- ADDED
+    disposeAiCamera(); 
     _minLoadTimer?.cancel();
     _numberDanceCtrl.dispose();
     _player.dispose();
@@ -169,21 +150,22 @@ class _Number012CountingObjectsScreenState
   }
 
   void _onChoiceTap(int index) async {
-    if (_tappedIndex != null) return;
+    if (!_canTapChoices || _tappedIndex != null) {
+      return;
+    }
 
     if (_choices[index] == _correctCount) {
-      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
+      _tapTracker.recordCorrectTap();
 
       setState(() => _tappedIndex = index);
       await _playAudio('assets/audio/arctic_numberland/$_correctCount.wav');
       showDomaReaction(DomaState.correct);
       await Future.delayed(const Duration(milliseconds: 900));
       if (_round >= _totalRounds) {
-        // --- ADDED AI STOP & DATABASE SAVE ---
         List<String> finalEmotions = stopAiCamera();
 
         try {
-          await ArcticDatabaseService.saveGameData(
+          ArcticDatabaseService.saveGameData(
             gameId: 'arctic_numberland_${widget.level}',
             mistakes: _tapTracker.mistakeCount,
             emotions: finalEmotions,
@@ -192,7 +174,7 @@ class _Number012CountingObjectsScreenState
           debugPrint("Database Error saving Arctic metrics: $e");
         }
 
-        await ArcticProgressService.instance.markLevelComplete(widget.level);
+        ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
         setState(() {
@@ -201,11 +183,10 @@ class _Number012CountingObjectsScreenState
         });
       }
     } else {
-      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
-
+      _tapTracker.recordMistake();
       setState(() => _tappedIndex = index);
 
-      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await _playAudio(_audioBubblePop);
       showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 600));
       setState(() => _tappedIndex = null);
@@ -213,10 +194,30 @@ class _Number012CountingObjectsScreenState
   }
 
   Future<void> _startIntroFlow() async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    await _playAudio('assets/audio/arctic_numberland/level6/012_counting.wav');
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
+    await Future.delayed(
+      const Duration(milliseconds: 400),
+    );
+
+    await _playAudio(_audioIntro);
+
+    if (!mounted) return;
+
+    setState(() {
+      _screenPhase = _ScreenPhase.miniGame;
+      _canTapChoices = false;
+    });
+
+    await Future.delayed(
+      const Duration(milliseconds: 400),
+    );
+
+    await _playAudio(_audioInstruction);
+
+    if (!mounted) return;
+
+    setState(() {
+      _canTapChoices = true;
+    });
   }
 
   Future<void> _playAudio(String asset) async {
@@ -234,57 +235,38 @@ class _Number012CountingObjectsScreenState
     }
   }
 
-  // Unselected → pictonblue | correct → green | wrong tap → red
   Color _choiceColor(int index) {
     if (_tappedIndex == null) return ArcticColorTheme.pictonblue;
-    if (_choices[index] == _correctCount) return Colors.green;
-    if (_tappedIndex == index) return Colors.red;
     return ArcticColorTheme.pictonblue;
   }
 
   Color _choiceBorderColor(int index) {
     if (_tappedIndex == null) return ArcticColorTheme.slateblue;
-    if (_choices[index] == _correctCount) return ArcticColorTheme.pictonblue;
-    if (_tappedIndex == index) return ArcticColorTheme.slateblue;
     return ArcticColorTheme.slateblue;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Level 1's blocking gate: shown as soon as we know no face is
-    // confirmed yet, even before the camera's first real reading — this is
-    // the "at the beginning" check. Dismissing it manually is an escape
-    // hatch (in case detection is flaky) so a kid never gets stuck.
     final gateNeedsLightingPrompt = widget.level == 1 && !isFaceDetected;
-
-    // Every level, reactively: only fires off a *confirmed* camera result
-    // (hasCapturedFirstFrame), never off the initial unknown state — so it
-    // never flashes just because a new level screen mounted. Resets its
-    // own dismissal once the face is regained, so it can reappear later on
-    // this same screen if the face is lost again mid-play.
     final reactiveNeedsLightingPrompt =
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
-    Widget reactiveLightingCard() => LightingPromptCard(
-      onClose: () => setState(() => _hideLightingCard = true),
-    );
+    Widget reactiveLightingCard() =>
+        LightingPromptCard(
+          onClose: () => setState(() => _hideLightingCard = true),
+        );
 
-    // Sequential, never simultaneous: the real loading screen plays for its
-    // full minimum duration first. Only once that's elapsed do we swap it
-    // for the lighting card (if a face still hasn't been found) — the card
-    // takes the loading screen's place rather than sitting on top of it.
     final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
         ? LightingPromptCard(
-            onClose: () {
-              setState(() => isFaceDetected = true);
-              onFirstFaceDetected?.call();
-              onFirstFaceDetected = null;
-            },
-          )
+      onClose: () {
+        setState(() => isFaceDetected = true);
+        onFirstFaceDetected?.call();
+        onFirstFaceDetected = null;
+      },
+    )
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         backgroundColor: ArcticColorTheme.lightgrayishcyan,
@@ -295,151 +277,191 @@ class _Number012CountingObjectsScreenState
               children: [
                 Positioned.fill(
                   child: Image.asset(
-                    'assets/images/backgrounds/bg_game_arctic.png',
+                    _bgImage,
                     fit: BoxFit.cover,
                   ),
                 ),
                 if (_screenPhase == _ScreenPhase.intro)
                   _buildIntroLayer()
                 else
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5, bottom: 5),
-                    child: Column(
-                      children: [
-                        // --- HEADER ---
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 25,
-                          ),
-                          child: Stack(
-                            alignment: Alignment.topCenter,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: ArcticXButton(),
-                              ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: ArcticLevelBadge(level: widget.level),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        // --- MAIN CONTENT ---
-                        Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              // OBJECTS DISPLAY BOX
-                              Expanded(
-                                flex: 3,
-                                child: Container(
-                                  height: double.infinity,
-                                  margin: const EdgeInsets.only(
-                                    bottom: 16,
-                                    left: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: ArcticColorTheme.cotton,
-                                    borderRadius: BorderRadius.circular(24),
-                                    border: Border.all(
-                                      color: ArcticColorTheme.pictonblue,
-                                      width: 4,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: ArcticColorTheme.pictonblue
-                                            .withValues(alpha: 0.3),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: _buildObjectGrid(),
+                  Stack(
+                    children: [
+                      Column(
+                        children: [
+                          // HEADER
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 25,
+                            ),
+                            child: Stack(
+                              alignment: Alignment.topCenter,
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: ArcticXButton(),
+                                ),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: ArcticLevelBadge(
+                                    level: widget.level,
                                   ),
                                 ),
-                              ),
+                              ],
+                            ),
+                          ),
 
-                              // CHOICES
-                              Expanded(
-                                flex: 2,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 16,
+                          // MAIN CONTENT
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                left: 150,
+                                right: 150,
+
+                                // Leave room for progress dots.
+                                bottom: 30,
+                              ),
+                              child: Row(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.center,
+                                children: [
+                                  // OBJECT BOX
+                                  Expanded(
+                                    flex: 3,
+                                    child: Container(
+                                      height: double.infinity,
+                                      margin: const EdgeInsets.only(
+                                        bottom: 16,
+                                        left: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: ArcticColorTheme.cotton,
+                                        borderRadius:
+                                        BorderRadius.circular(24),
+                                        border: Border.all(
+                                          color:
+                                          ArcticColorTheme.pictonblue,
+                                          width: 4,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: ArcticColorTheme
+                                                .pictonblue
+                                                .withValues(alpha: 0.3),
+                                            blurRadius: 12,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Padding(
+                                        padding:
+                                        const EdgeInsets.all(16),
+                                        child: _buildObjectGrid(),
+                                      ),
+                                    ),
                                   ),
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      return Column(
+
+                                  const SizedBox(width: 30),
+
+                                  // CHOICES
+                                  Expanded(
+                                    flex: 2,
+                                    child: Padding(
+                                      padding:
+                                      const EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
+                                      child: Column(
                                         mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: List.generate(_choices.length, (
-                                          index,
-                                        ) {
-                                          return Expanded(
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    vertical: 7,
-                                                  ),
-                                              child: GestureDetector(
-                                                onTap: () =>
-                                                    _onChoiceTap(index),
-                                                child: AnimatedContainer(
-                                                  duration: const Duration(
-                                                    milliseconds: 250,
-                                                  ),
-                                                  width: double.infinity,
-                                                  decoration: BoxDecoration(
-                                                    color: _choiceColor(index),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          18,
-                                                        ),
-                                                    border: Border.all(
-                                                      color: _choiceBorderColor(
+                                        MainAxisAlignment.center,
+                                        children: List.generate(
+                                          _choices.length,
+                                              (index) {
+                                            return Expanded(
+                                              child: Padding(
+                                                padding:
+                                                const EdgeInsets
+                                                    .symmetric(
+                                                  vertical: 7,
+                                                ),
+                                                child: GestureDetector(
+                                                  onTap: _canTapChoices
+                                                      ? () =>
+                                                      _onChoiceTap(
+                                                        index,
+                                                      )
+                                                      : null,
+                                                  child:
+                                                  AnimatedContainer(
+                                                    duration:
+                                                    const Duration(
+                                                      milliseconds: 250,
+                                                    ),
+                                                    width:
+                                                    double.infinity,
+                                                    decoration:
+                                                    BoxDecoration(
+                                                      color:
+                                                      _choiceColor(
                                                         index,
                                                       ),
-                                                      width: 3,
+                                                      borderRadius:
+                                                      BorderRadius
+                                                          .circular(
+                                                        18,
+                                                      ),
+                                                      border:
+                                                      Border.all(
+                                                        color:
+                                                        _choiceBorderColor(
+                                                          index,
+                                                        ),
+                                                        width: 3,
+                                                      ),
                                                     ),
-                                                  ),
-                                                  child: Center(
-                                                    child: Padding(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                            10,
-                                                          ),
-                                                      child: Image.asset(
-                                                        'assets/fonts/game_numbers/${_choices[index]}.png',
-                                                        fit: BoxFit.contain,
+                                                    child: Center(
+                                                      child: Padding(
+                                                        padding:
+                                                        const EdgeInsets
+                                                            .all(
+                                                          10,
+                                                        ),
+                                                        child:
+                                                        Image.asset(
+                                                          'assets/fonts/game_numbers/${_choices[index]}.png',
+                                                          fit: BoxFit
+                                                              .contain,
+                                                        ),
                                                       ),
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                            ),
-                                          );
-                                        }),
-                                      );
-                                    },
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
+                        ],
+                      ),
+
+                      // PROGRESS DOTS
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 15,
+                        child: Center(
+                          child: _buildProgressDots(),
                         ),
-                        _buildProgressDots(),
-                        const SizedBox(height: 10),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+
 
                 if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
                 if (_showWinDialog)
@@ -448,11 +470,11 @@ class _Number012CountingObjectsScreenState
             );
             return reactiveNeedsLightingPrompt
                 ? Stack(
-                    children: [
-                      Positioned.fill(child: gameContent),
-                      Positioned.fill(child: reactiveLightingCard()),
-                    ],
-                  )
+              children: [
+                Positioned.fill(child: gameContent),
+                Positioned.fill(child: reactiveLightingCard()),
+              ],
+            )
                 : gameContent;
           },
         ),
@@ -510,7 +532,7 @@ class _Number012CountingObjectsScreenState
 
   Widget _buildGoodJobOverlay() {
     return DomaGoodJobOverlay(
-      characterImage: 'assets/images/characters/doma_the_penguin.png',
+      characterImage: _domaImage,
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
         Navigator.pushReplacement(
@@ -523,7 +545,7 @@ class _Number012CountingObjectsScreenState
       onRestart: () {
         Navigator.pop(
           context,
-          Number012CountingObjectsScreen(level: widget.level),
+          Number12CountingObjectsScreen(level: widget.level),
         );
       },
       onBack: () {
@@ -550,7 +572,7 @@ class _Number012CountingObjectsScreenState
                 Expanded(
                   child: Center(
                     child: Image.asset(
-                      'assets/images/characters/doma_the_penguin.png',
+                      _domaImage,
                       height: MediaQuery.of(context).size.height * 0.65,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>
