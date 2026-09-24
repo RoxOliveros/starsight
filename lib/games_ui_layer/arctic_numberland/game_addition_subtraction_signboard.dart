@@ -141,15 +141,13 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     _hasSavedResult = true;
 
     final finalEmotions = stopAiCamera();
-    try {
-      await ArcticDatabaseService.saveGameData(
-        gameId: 'arctic_numberland_${widget.level}',
-        mistakes: _tapTracker.mistakeCount,
-        emotions: finalEmotions,
-      );
-    } catch (e) {
-      debugPrint('Database Error saving Arctic metrics: $e');
-    }
+    ArcticDatabaseService.saveGameData(
+      gameId: 'arctic_numberland_${widget.level}',
+      mistakes: _tapTracker.mistakeCount,
+      emotions: finalEmotions,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
   }
 
   @override
