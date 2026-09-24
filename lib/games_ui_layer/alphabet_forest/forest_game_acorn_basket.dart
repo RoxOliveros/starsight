@@ -284,7 +284,11 @@ class _AcornBasketGameState extends State<AcornBasketGame>
         Future.delayed(const Duration(milliseconds: 700), () async {
           if (!mounted) return;
 
-          await ForestProgressService.instance.markLevelComplete(widget.level);
+          ForestProgressService.instance
+              .markLevelComplete(widget.level)
+              .catchError((e) {
+                debugPrint("Database Error marking level complete: $e");
+              });
 
           if (!mounted) return;
 
@@ -345,18 +349,16 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     List<String> finalEmotions = stopAiCamera();
 
     // 2. Save raw data silently using the service
-    try {
-      await ForestDatabaseService.saveGameData(
-        gameId: 'forest_acorn_basket',
-        activityName: "Acorn Basket",
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
-      debugPrint("Database Error saving Acorn metrics: $e");
-    }
+    ForestDatabaseService.saveGameData(
+      gameId: 'forest_acorn_basket',
+      activityName: "Acorn Basket",
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
     // 3. Now show the normal win dialog
     _showGoodJob();
   }

@@ -688,18 +688,16 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     List<String> finalEmotions = stopAiCamera();
 
     // 2. Save raw data silently using the centralized service
-    try {
-      await ForestDatabaseService.saveGameData(
-        gameId: 'letter_puzzle_${widget.letter.toLowerCase()}',
-        activityName: "Alphabet Puzzle (${widget.letter.toUpperCase()})",
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
-      debugPrint("Database Error saving Puzzle metrics: $e");
-    }
+    ForestDatabaseService.saveGameData(
+      gameId: 'letter_puzzle_${widget.letter.toLowerCase()}',
+      activityName: "Alphabet Puzzle (${widget.letter.toUpperCase()})",
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
 
     // 3. Now show the normal win dialog
     _showSuccessDialog();

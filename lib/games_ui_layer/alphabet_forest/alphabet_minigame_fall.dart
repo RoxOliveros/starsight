@@ -272,18 +272,16 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await ForestDatabaseService.saveGameData(
-        gameId: 'letter_fall_${widget.letter.toLowerCase()}',
-        activityName: "Alphabet Fall (${widget.letter.toUpperCase()})",
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
-      debugPrint("Error saving metrics: $e");
-    }
+    ForestDatabaseService.saveGameData(
+      gameId: 'letter_fall_${widget.letter.toLowerCase()}',
+      activityName: "Alphabet Fall (${widget.letter.toUpperCase()})",
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
 
     _showApplause();
   }

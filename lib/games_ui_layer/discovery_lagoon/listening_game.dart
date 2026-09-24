@@ -254,20 +254,22 @@ class _ListeningGameState extends State<ListeningGame> with AiCameraMixin {
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await LagoonDatabaseService.saveGameData(
-        gameId: 'lagoon_listening_game',
-        activityName: 'Listening Game',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
-      debugPrint("Database Error saving Listening Game metrics: $e");
-    }
-    await LagoonProgressService.instance.markLevelComplete(3);
+    LagoonDatabaseService.saveGameData(
+      gameId: 'lagoon_listening_game',
+      activityName: 'Listening Game',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
 
+    LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
     if (mounted) {
       setState(() {
         _currentPhase = GamePhase.goodJob;

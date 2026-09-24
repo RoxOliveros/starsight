@@ -176,22 +176,24 @@ class _ColdHotGameState extends State<ColdHotGame>
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await LagoonDatabaseService.saveGameData(
-        gameId: 'lagoon_cold_hot',
-        activityName: 'Cold & Hot Game',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
+    LagoonDatabaseService.saveGameData(
+      gameId: 'lagoon_cold_hot',
+      activityName: 'Cold & Hot Game',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
-    }
+    });
 
     if (mounted) {
       setState(() {
-        LagoonProgressService.instance.markLevelComplete(widget.level);
+        LagoonProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
         _showVictoryOverlay = true;
       });
     }

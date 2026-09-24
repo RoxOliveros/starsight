@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,14 +18,9 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_shape_fit.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
 
 enum _IntroPhase { playingIntro, playingWelcome, done }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
 
 const _kAllObjects = [
   'compass',
@@ -38,10 +38,6 @@ const _kAllObjects = [
 const _kPeekDuration = Duration(milliseconds: 1400);
 const _kTotalRounds = 5;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Card model
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _CardModel {
   final int id;
   final int pairId;
@@ -52,32 +48,38 @@ class _CardModel {
   _CardModel({required this.id, required this.pairId, required this.object});
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 class MemoryMatchScreen extends StatefulWidget {
   final int level;
 
   const MemoryMatchScreen({super.key, required this.level});
 
   @override
-  State<MemoryMatchScreen> createState() =>
-      _MemoryMatchScreenState();
+  State<MemoryMatchScreen> createState() => _MemoryMatchScreenState();
 }
 
 class _MemoryMatchScreenState extends State<MemoryMatchScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
+
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/memory_match_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/memory_match_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/memory_match_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/memory_match_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/memory_match_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/memory_match_complete.wav';
 
   // ── Phase state ────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -91,49 +93,52 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   int _matchesFound = 0;
   bool _showWinDialog = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer(); // intro, welcome, instructions
-  final AudioPlayer _sfxPlayer = AudioPlayer(); // correct, success, complete
+  final AudioPlayer _bgPlayer = AudioPlayer();
+  final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _cardDanceCtrl;
   late Animation<double> _cardDance;
   late AnimationController _speechBubbleCtrl;
-
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
-
-  // Round
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
   late AnimationController _celebCtrl;
   late Animation<double> _celebAnim;
 
-  // Per-card flip
   List<AnimationController> _flipCtrls = [];
   List<Animation<double>> _flipAnims = [];
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _bgPlayer.dispose();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
@@ -151,7 +156,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     super.dispose();
   }
 
-  // ── Animation init ─────────────────────────────────────────────────────────
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
       vsync: this,
@@ -204,38 +208,30 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     _celebAnim = CurvedAnimation(parent: _celebCtrl, curve: Curves.elasticOut);
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;                       
+    if (!mounted) return;
     _roxieSlideCtrl.forward();
 
-    _setIntroPhase(_IntroPhase.playingIntro);
     _speechBubbleCtrl.forward(from: 0);
     await _playAudio(_audioIntro);
-    if (!mounted) return;                       
+    if (!mounted) return;
 
-    _setIntroPhase(_IntroPhase.playingWelcome);
     _speechBubbleCtrl.forward(from: 0);
-
-    _setIntroPhase(_IntroPhase.done);
     _gameEnterCtrl.forward();
     _buildRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
     await _playAudio(_audioInstructions);
   }
-  
+
   Future<void> _playAudio(String asset) async {
     StreamSubscription? sub;
     try {
       final completer = Completer<void>();
-
       sub = _bgPlayer.onPlayerComplete.listen((_) {
         if (!completer.isCompleted) completer.complete();
       });
-
       await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-
       await completer.future.timeout(const Duration(seconds: 15));
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
@@ -244,17 +240,12 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     }
   }
 
-  void _setIntroPhase(_IntroPhase p) {
-    if (!mounted) return;
-  }
-
   int _pairsForRound(int round) {
     if (round <= 2) return 2;
     if (round <= 4) return 3;
-    return 4; // round 5
+    return 4;
   }
 
-  // ── Round setup ────────────────────────────────────────────────────────────
   void _buildRound() {
     final pairsThisRound = _pairsForRound(_round);
     final rng = Random();
@@ -296,7 +287,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     _enterCtrl.forward(from: 0);
   }
 
-  // ── Card tap logic ─────────────────────────────────────────────────────────
   Future<void> _onCardTap(int cardIndex) async {
     if (_locked || _roundComplete) return;
 
@@ -318,7 +308,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     final cardB = _cards[idxB];
 
     if (cardA.pairId == cardB.pairId) {
-      unawaited(showRoxieReaction(RoxieState.correct));
+      _tapTracker.recordCorrectTap();
+      showRoxieReaction(RoxieState.correct);
       await Future.delayed(const Duration(milliseconds: 500));
       setState(() {
         cardA.isMatched = true;
@@ -349,9 +340,12 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
           await completer.future.timeout(const Duration(seconds: 10));
           await sub.cancel();
 
-          await PuzzleProgressService.instance.markLevelComplete(3);
-
-          if (mounted) setState(() => _showWinDialog = true);
+          PuzzleProgressService.instance
+              .markLevelComplete(widget.level)
+              .catchError((e) {
+                debugPrint("Database Error marking level complete: $e");
+              });
+          await _saveDataAndShowWinDialog();
         } else {
           await _enterCtrl.reverse();
           setState(() {
@@ -361,7 +355,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
         }
       }
     } else {
-      unawaited(showRoxieReaction(RoxieState.wrong));
+      _tapTracker.recordMistake();
+      showRoxieReaction(RoxieState.wrong);
       await Future.delayed(_kPeekDuration);
       setState(() {
         cardA.isFaceUp = false;
@@ -375,28 +370,48 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_memory_match',
+      activityName: 'Memory Match',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
-            Stack(
-              children: [
-          Positioned.fill(
-            child: Stack(
-              children: [
-                Image.asset(
-                  _bgImage,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-                Container(color: Colors.black.withValues(alpha: 0.15)),
-              ],
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.puzzleGlade(),
+        gameBuilder: () => Stack(
+          children: [
+            Positioned.fill(
+              child: Stack(
+                children: [
+                  Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                ],
+              ),
             ),
-          ),
-          _screenPhase == _ScreenPhase.intro
+            _screenPhase == _ScreenPhase.intro
                 ? _buildIntroLayer()
                 : Stack(
                     children: [
@@ -404,32 +419,39 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
                         opacity: _gameFade,
                         child: _buildGameLayer(),
                       ),
-
                       buildRoxie(context),
                     ],
                   ),
 
-                Positioned(top: 25, left: 25, child: PuzzleXButton()),
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-          if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-        ],
-      ),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+          ],
         ),
+      ),
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
   Widget _buildIntroLayer() {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-          child:Stack(
+          child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -453,7 +475,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );
-
         return ClipRect(
           child: Align(
             alignment: Alignment.bottomCenter,
@@ -471,8 +492,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
                     _characterImage,
                     height: roxieH,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        Text('🐰', style: TextStyle(fontSize: roxieH * 0.5)),
                   ),
                 ),
               ),
@@ -484,7 +503,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   }
 
   Widget _buildIntroDancingCards() {
-    // Show a preview of face-down cards dancing to hint at the memory game
     return AnimatedBuilder(
       animation: _cardDanceCtrl,
       builder: (_, __) {
@@ -538,9 +556,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
   Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _enterAnim,
@@ -548,11 +563,13 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-            child:
-            Stack(
+            child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -573,7 +590,10 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     final pairsThisRound = _pairsForRound(_round);
 
     final topIndices = List.generate(pairsThisRound, (i) => i);
-    final bottomIndices = List.generate(pairsThisRound, (i) => pairsThisRound + i);
+    final bottomIndices = List.generate(
+      pairsThisRound,
+      (i) => pairsThisRound + i,
+    );
 
     return Center(
       child: Column(
@@ -636,7 +656,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
             height: 44,
             color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.12),
             colorBlendMode: BlendMode.modulate,
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
           ),
           Text(
             '?',
@@ -668,16 +687,12 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
             width: 60,
             height: 60,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
-                const Text('🖼️', style: TextStyle(fontSize: 36)),
           ),
           if (card.isMatched)
             Positioned(
               top: 6,
               right: 6,
-              child: ScaleTransition(
-                scale: _celebAnim,
-              ),
+              child: ScaleTransition(scale: _celebAnim),
             ),
         ],
       ),
@@ -709,11 +724,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     );
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
       onNext: () {
         Navigator.pushReplacement(
           context,
@@ -723,17 +736,17 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
         );
       },
       onRestart: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MemoryMatchScreen(level: widget.level),
-          ),
-        );
+        setState(() {
+          _round = 1;
+          _showWinDialog = false;
+          _hasSavedResult = false;
+          _tapTracker.startSession();
+        });
+        _buildRound();
       },
       onBack: () {
         Navigator.pop(context);
       },
     );
   }
-
 }

@@ -128,18 +128,16 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await LagoonDatabaseService.saveGameData(
-        gameId: 'lagoon_bodyparts',
-        activityName: 'Body Parts Assembly',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
+    LagoonDatabaseService.saveGameData(
+      gameId: 'lagoon_bodyparts',
+      activityName: 'Body Parts Assembly',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
-    }
+    });
 
     if (mounted) {
       _showSuccessDialog();

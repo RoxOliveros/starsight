@@ -1,9 +1,14 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -12,16 +17,11 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_copy_pattern.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Puzzle model
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ConnectDotsPuzzle {
   final String name;
-  final List<Offset> dots; // normalized 0.0–1.0 positions, in connect order
+  final List<Offset> dots;
   final String completedImage;
 
   const _ConnectDotsPuzzle({
@@ -33,76 +33,67 @@ class _ConnectDotsPuzzle {
   int get connectionCount => dots.length;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Puzzle definitions (one per round, dot count ramps 4 → 8)
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Round 1 — 4 dots, kite / diamond outline.
 const _ConnectDotsPuzzle _kPuzzleKite = _ConnectDotsPuzzle(
   name: 'kite',
   dots: [
-    Offset(0.50, 0.15), // 1 — top
-    Offset(0.78, 0.50), // 2 — right
-    Offset(0.50, 0.85), // 3 — bottom
-    Offset(0.22, 0.50), // 4 — left
+    Offset(0.50, 0.15),
+    Offset(0.78, 0.50),
+    Offset(0.50, 0.85),
+    Offset(0.22, 0.50),
   ],
   completedImage: 'assets/images/objects/puzzle/connect_the_dots_kite.png',
 );
 
-// Round 2 — 5 dots, one-stroke star traversal.
 const _ConnectDotsPuzzle _kPuzzleStar = _ConnectDotsPuzzle(
   name: 'star',
   dots: [
-    Offset(0.50, 0.15), // 1 — top point
-    Offset(0.68, 0.68), // 2 — bottom-right point
-    Offset(0.20, 0.36), // 3 — mid-left point
-    Offset(0.80, 0.36), // 4 — mid-right point
-    Offset(0.32, 0.68), // 5 — bottom-left point
+    Offset(0.50, 0.15),
+    Offset(0.68, 0.68),
+    Offset(0.20, 0.36),
+    Offset(0.80, 0.36),
+    Offset(0.32, 0.68),
   ],
   completedImage: 'assets/images/objects/puzzle/star.png',
 );
 
-// Round 3 — 6 dots, house outline.
 const _ConnectDotsPuzzle _kPuzzleHouse = _ConnectDotsPuzzle(
   name: 'house',
   dots: [
-    Offset(0.25, 0.85), // 1 — bottom-left
-    Offset(0.25, 0.50), // 2 — wall top-left / roof base-left
-    Offset(0.50, 0.20), // 3 — roof peak
-    Offset(0.75, 0.50), // 4 — wall top-right / roof base-right
-    Offset(0.75, 0.85), // 5 — bottom-right
-    Offset(0.50, 0.85), // 6 — bottom-middle
+    Offset(0.25, 0.85),
+    Offset(0.25, 0.50),
+    Offset(0.50, 0.20),
+    Offset(0.75, 0.50),
+    Offset(0.75, 0.85),
+    Offset(0.50, 0.85),
   ],
   completedImage: 'assets/images/objects/puzzle/house.png',
 );
 
-// Round 4 — 7 dots, fish outline.
 const _ConnectDotsPuzzle _kPuzzleFish = _ConnectDotsPuzzle(
   name: 'fish',
   dots: [
-    Offset(0.12, 0.50), // 1 — nose
-    Offset(0.32, 0.28), // 2 — top-front body
-    Offset(0.58, 0.26), // 3 — top-back body
-    Offset(0.88, 0.14), // 4 — tail tip, top
-    Offset(0.66, 0.50), // 5 — tail notch
-    Offset(0.88, 0.86), // 6 — tail tip, bottom
-    Offset(0.32, 0.72), // 7 — bottom-back body
+    Offset(0.12, 0.50),
+    Offset(0.32, 0.28),
+    Offset(0.58, 0.26),
+    Offset(0.88, 0.14),
+    Offset(0.66, 0.50),
+    Offset(0.88, 0.86),
+    Offset(0.32, 0.72),
   ],
   completedImage: 'assets/images/objects/puzzle/fish.png',
 );
 
-// Round 5 — 8 dots, rocket outline.
 const _ConnectDotsPuzzle _kPuzzleRocket = _ConnectDotsPuzzle(
   name: 'rocket',
   dots: [
-    Offset(0.50, 0.08), // 1 — nose tip
-    Offset(0.64, 0.32), // 2 — right upper body
-    Offset(0.64, 0.68), // 3 — right lower body
-    Offset(0.84, 0.90), // 4 — right fin
-    Offset(0.50, 0.72), // 5 — bottom center
-    Offset(0.16, 0.90), // 6 — left fin
-    Offset(0.36, 0.68), // 7 — left lower body
-    Offset(0.36, 0.32), // 8 — left upper body
+    Offset(0.50, 0.08),
+    Offset(0.64, 0.32),
+    Offset(0.64, 0.68),
+    Offset(0.84, 0.90),
+    Offset(0.50, 0.72),
+    Offset(0.16, 0.90),
+    Offset(0.36, 0.68),
+    Offset(0.36, 0.32),
   ],
   completedImage: 'assets/images/objects/puzzle/rocket.png',
 );
@@ -117,10 +108,6 @@ const List<_ConnectDotsPuzzle> _kPuzzles = [
   _kPuzzleRocket,
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 class ConnectTheDotsScreen extends StatefulWidget {
   final int level;
 
@@ -131,21 +118,27 @@ class ConnectTheDotsScreen extends StatefulWidget {
 }
 
 class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<ConnectTheDotsScreen>, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<ConnectTheDotsScreen>,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/connect_the_dots_intro.wav';
-  static const String _audioInstruction = 'assets/audio/puzzle_glade/connect_the_dots_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/connect_the_dots_complete.wav';
-
-  // Shared pop/tap sfx reused from existing Puzzle Glade assets. If this
-  // filename doesn't exist in the project, the try/catch in _playPopSfx
-  // silently no-ops — swap in the real shared asset name if different.
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/connect_the_dots_intro.wav';
+  static const String _audioInstruction =
+      'assets/audio/puzzle_glade/connect_the_dots_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/connect_the_dots_complete.wav';
   static const String _audioPop = 'audio/puzzle_glade/sfx_pop.mp3';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
@@ -167,6 +160,9 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   bool _showWinDialog = false;
   bool _instructionPlayed = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   int? _wrongDotIndex;
   int? _bounceDotIndex;
 
@@ -179,21 +175,15 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _introPreviewCtrl;
 
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
 
-  // Round
   late AnimationController _puzzleEnterCtrl;
   late Animation<double> _puzzleFade;
   late Animation<double> _puzzleScale;
@@ -207,18 +197,26 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   late Animation<double> _pictureFade;
   late Animation<double> _pictureScale;
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
-
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _bgPlayer.stop();
     _popPlayer.stop();
     _completePlayer.stop();
@@ -244,8 +242,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     super.dispose();
   }
 
-  // ── Animation init ─────────────────────────────────────────────────────────
-
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
       vsync: this,
@@ -257,8 +253,13 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       duration: const Duration(milliseconds: 900),
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut));
-    _roxieFade = CurvedAnimation(parent: _roxieSlideCtrl, curve: const Interval(0, 0.4));
+        .animate(
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
+    _roxieFade = CurvedAnimation(
+      parent: _roxieSlideCtrl,
+      curve: const Interval(0, 0.4),
+    );
 
     _introPreviewCtrl = AnimationController(
       vsync: this,
@@ -275,10 +276,14 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _puzzleFade = CurvedAnimation(parent: _puzzleEnterCtrl, curve: Curves.easeOut);
-    _puzzleScale = Tween<double>(begin: 0.9, end: 1.0).animate(
-      CurvedAnimation(parent: _puzzleEnterCtrl, curve: Curves.easeOut),
+    _puzzleFade = CurvedAnimation(
+      parent: _puzzleEnterCtrl,
+      curve: Curves.easeOut,
     );
+    _puzzleScale = Tween<double>(
+      begin: 0.9,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _puzzleEnterCtrl, curve: Curves.easeOut));
 
     _activePulseCtrl = AnimationController(
       vsync: this,
@@ -292,9 +297,10 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       vsync: this,
       duration: const Duration(milliseconds: 380),
     );
-    _bounceAnim = Tween<double>(begin: 1.0, end: 1.3).animate(
-      CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut),
-    );
+    _bounceAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.3,
+    ).animate(CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut));
 
     _shakeCtrl = AnimationController(
       vsync: this,
@@ -311,37 +317,33 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _pictureFade = CurvedAnimation(parent: _pictureRevealCtrl, curve: Curves.easeIn);
+    _pictureFade = CurvedAnimation(
+      parent: _pictureRevealCtrl,
+      curve: Curves.easeIn,
+    );
     _pictureScale = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(parent: _pictureRevealCtrl, curve: Curves.easeOut),
     );
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-
     if (!mounted) return;
 
     _roxieSlideCtrl.forward();
 
     await _playNarration(_audioIntro);
-
     if (!mounted) return;
 
     _gameEnterCtrl.forward();
-
     _startRound();
 
     if (!mounted) return;
-
     setState(() {
       _screenPhase = _ScreenPhase.game;
     });
 
     await Future.delayed(const Duration(milliseconds: 350));
-
     if (!mounted) return;
 
     await _playInstructionAudio();
@@ -363,8 +365,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     }
   }
 
-  /// Plays once, the first time gameplay is reached. Rounds 2–5 begin
-  /// immediately after their entrance animation with no repeated narration.
   Future<void> _playInstructionAudio() async {
     if (!mounted || _instructionPlayed) return;
     _instructionPlayed = true;
@@ -389,12 +389,8 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   Future<void> _playPopSfx() async {
     try {
       await _popPlayer.play(AssetSource(_audioPop));
-    } catch (_) {
-      // Pop sfx is a nice-to-have; ignore failures silently.
-    }
+    } catch (_) {}
   }
-
-  // ── Round setup ────────────────────────────────────────────────────────────
 
   void _startRound() {
     if (!mounted) return;
@@ -415,18 +411,13 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     _puzzleEnterCtrl.forward(from: 0);
   }
 
-  // ── Coordinate helpers ────────────────────────────────────────────────────
-
   static const double _dotInset = 30.0;
   static const double _dotHitRadius = 48.0;
 
   Offset _dotToPixel(Offset normalized, Size boxSize) {
     final w = boxSize.width - _dotInset * 2;
     final h = boxSize.height - _dotInset * 2;
-    return Offset(
-      _dotInset + normalized.dx * w,
-      _dotInset + normalized.dy * h,
-    );
+    return Offset(_dotInset + normalized.dx * w, _dotInset + normalized.dy * h);
   }
 
   List<Offset> get _dotPixelPositions {
@@ -434,28 +425,18 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     return _puzzle.dots.map((d) => _dotToPixel(d, _puzzleBoxSize)).toList();
   }
 
-  // ── Gesture handling ──────────────────────────────────────────────────────
-
   void _handlePanStart(DragStartDetails details) {
-    if (_interactionDisabled ||
-        _roundComplete ||
-        _isDragging) {
-      return;
-    }
+    if (_interactionDisabled || _roundComplete || _isDragging) return;
 
     final positions = _dotPixelPositions;
 
-    if (positions.isEmpty ||
-        _activeDotIndex >= positions.length) {
-      return;
-    }
+    if (positions.isEmpty || _activeDotIndex >= positions.length) return;
 
     final distanceFromActive =
-        (positions[_activeDotIndex] -
-            details.localPosition)
-            .distance;
+        (positions[_activeDotIndex] - details.localPosition).distance;
 
     if (distanceFromActive > _dotHitRadius) {
+      _tapTracker.recordMistake();
       return;
     }
 
@@ -466,11 +447,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   }
 
   Future<void> _handlePanUpdate(DragUpdateDetails details) async {
-    if (!_isDragging ||
-        _interactionDisabled ||
-        _roundComplete) {
-      return;
-    }
+    if (!_isDragging || _interactionDisabled || _roundComplete) return;
 
     final position = details.localPosition;
     final positions = _dotPixelPositions;
@@ -481,20 +458,11 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       _dragPosition = position;
     });
 
-    // Normally:
-    // 1 → 2
-    // 2 → 3
-    // 3 → 4
-    //
-    // But when we're on the LAST dot:
-    // 4 → 1
-    final int requiredNextIndex =
-    _activeDotIndex == positions.length - 1
+    final int requiredNextIndex = _activeDotIndex == positions.length - 1
         ? 0
         : _activeDotIndex + 1;
 
-    final distance =
-        (positions[requiredNextIndex] - position).distance;
+    final distance = (positions[requiredNextIndex] - position).distance;
 
     if (distance <= _dotHitRadius) {
       await _handleCorrectConnection(requiredNextIndex);
@@ -510,10 +478,9 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     });
   }
 
-  // ── Connection handling ───────────────────────────────────────────────────
-
   Future<void> _handleCorrectConnection(int newDotIndex) async {
     if (_roundComplete || _interactionDisabled) return;
+    _tapTracker.recordCorrectTap();
 
     final newConnectionCount = _completedConnections + 1;
 
@@ -521,7 +488,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       _completedConnections = newConnectionCount;
       _activeDotIndex = newDotIndex;
       _bounceDotIndex = newDotIndex;
-
     });
 
     if (mounted) {
@@ -540,8 +506,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     }
   }
 
-  // ── Round / game completion ───────────────────────────────────────────────
-
   Future<void> _handleRoundComplete() async {
     setState(() {
       _roundComplete = true;
@@ -549,7 +513,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     });
 
     await Future.delayed(const Duration(milliseconds: 300));
-
     if (!mounted) return;
 
     setState(() {
@@ -560,25 +523,36 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     unawaited(showRoxieReaction(RoxieState.correct));
 
     await Future.delayed(const Duration(milliseconds: 2000));
-
     if (!mounted) return;
 
     if (_round >= _kTotalRounds) {
-      await _completeGame();
+      await _saveDataAndShowWinDialog();
     } else {
       await _puzzleEnterCtrl.reverse();
-
       if (!mounted) return;
-
       setState(() {
         _round++;
       });
-
       _startRound();
     }
   }
 
-  Future<void> _completeGame() async {
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_connect_dots',
+      activityName: 'Connect The Dots',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
     await _bgPlayer.stop();
 
     if (!mounted) return;
@@ -598,15 +572,12 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     }
 
     if (!mounted) return;
-
     await PuzzleProgressService.instance.markLevelComplete(widget.level);
 
-    if (!mounted) return;
-
-    setState(() => _showWinDialog = true);
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
   }
-
-  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -642,16 +613,20 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
 
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
         ),
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
@@ -661,7 +636,10 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -712,8 +690,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     );
   }
 
-  /// Looping 3-dot "1 → 2 → 3" animation. Purely decorative — the child
-  /// does not interact with this preview.
   Widget _buildIntroPreview() {
     const previewDots = [
       Offset(0.15, 0.75),
@@ -752,10 +728,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
-
   Widget _buildGameArea() {
     return Column(
       children: [
@@ -764,7 +736,10 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -812,7 +787,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
                   },
                   child: Stack(
                     children: [
-                      // Completed picture
                       if (_showCompletedPicture)
                         Positioned.fill(
                           child: IgnorePointer(
@@ -832,20 +806,21 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
                           ),
                         ),
 
-                      // Connection lines
                       Positioned.fill(
                         child: IgnorePointer(
                           child: FadeTransition(
-                            // Lines fade OUT while completed picture fades IN.
                             opacity: ReverseAnimation(_pictureFade),
                             child: CustomPaint(
                               painter: _ConnectDotsPainter(
                                 dotPositions: _dotPixelPositions,
                                 completedConnections: _completedConnections,
-                                dragPosition: _isDragging ? _dragPosition : null,
+                                dragPosition: _isDragging
+                                    ? _dragPosition
+                                    : null,
                                 activeDotIndex: _activeDotIndex,
                                 lineColor: PuzzleColorTheme.sunnyhue,
-                                dragLineColor: PuzzleColorTheme.darkdesaturatedblue
+                                dragLineColor: PuzzleColorTheme
+                                    .darkdesaturatedblue
                                     .withValues(alpha: 0.55),
                               ),
                             ),
@@ -853,7 +828,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
                         ),
                       ),
 
-                      // Numbered dots
                       ..._buildDotWidgets(),
                     ],
                   ),
@@ -874,7 +848,9 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       final isActive = index == _activeDotIndex && !_roundComplete;
       final isWrong = _wrongDotIndex == index;
       final isBouncing = _bounceDotIndex == index;
-      final isCompleted = index < _activeDotIndex || (index == _activeDotIndex && _roundComplete);
+      final isCompleted =
+          index < _activeDotIndex ||
+          (index == _activeDotIndex && _roundComplete);
 
       Widget dot = _ConnectDotMarker(
         number: index + 1,
@@ -911,8 +887,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     });
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
-
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
@@ -920,7 +894,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => CopyPatternScreen(level: widget.level),
+            builder: (context) => CopyPatternScreen(level: widget.level + 1),
           ),
         );
       },
@@ -939,10 +913,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dot marker widget
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _ConnectDotMarker extends StatelessWidget {
   final int number;
   final bool isActive;
@@ -959,7 +929,9 @@ class _ConnectDotMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color bgColor = Colors.white.withValues(alpha: 0.92);
-    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.35);
+    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
+      alpha: 0.35,
+    );
     Color textColor = PuzzleColorTheme.darkdesaturatedblue;
 
     if (isCompleted) {
@@ -977,9 +949,6 @@ class _ConnectDotMarker extends StatelessWidget {
     }
 
     return Container(
-      // Visual circle is smaller than the actual touch target — the touch
-      // tolerance radius used for hit detection is defined separately in
-      // _dotHitRadius, generously larger than this 52px visual size.
       width: 52,
       height: 52,
       decoration: BoxDecoration(
@@ -1007,10 +976,6 @@ class _ConnectDotMarker extends StatelessWidget {
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CustomPainter — permanent connection lines + live drag line
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ConnectDotsPainter extends CustomPainter {
   final List<Offset> dotPositions;
@@ -1043,9 +1008,7 @@ class _ConnectDotsPainter extends CustomPainter {
       if (dotPositions.isEmpty) break;
 
       final startIndex = i;
-
-      final endIndex =
-          (i + 1) % dotPositions.length;
+      final endIndex = (i + 1) % dotPositions.length;
 
       if (startIndex >= dotPositions.length) {
         break;
@@ -1058,7 +1021,6 @@ class _ConnectDotsPainter extends CustomPainter {
       );
     }
 
-    // Draw the live drag line from the active dot to the current pointer.
     if (dragPosition != null && activeDotIndex < dotPositions.length) {
       final dragPaint = Paint()
         ..color = dragLineColor
@@ -1078,13 +1040,9 @@ class _ConnectDotsPainter extends CustomPainter {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CustomPainter — small looping intro preview (1 → 2 → 3)
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _IntroPreviewPainter extends CustomPainter {
-  final List<Offset> dots; // normalized 0.0–1.0
-  final double progress; // 0.0–1.0, loops
+  final List<Offset> dots;
+  final double progress;
   final Color lineColor;
   final Color dotColor;
 
@@ -1099,7 +1057,9 @@ class _IntroPreviewPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (dots.isEmpty) return;
 
-    final pixelDots = dots.map((d) => Offset(d.dx * size.width, d.dy * size.height)).toList();
+    final pixelDots = dots
+        .map((d) => Offset(d.dx * size.width, d.dy * size.height))
+        .toList();
 
     final linePaint = Paint()
       ..color = lineColor
@@ -1109,8 +1069,6 @@ class _IntroPreviewPainter extends CustomPainter {
 
     final dotPaint = Paint()..color = dotColor;
 
-    // progress 0.0–0.5 draws segment 1→2, 0.5–1.0 draws segment 2→3, then
-    // loops back to the start (repeat()).
     if (progress < 0.5) {
       final t = (progress / 0.5).clamp(0.0, 1.0);
       final end = Offset.lerp(pixelDots[0], pixelDots[1], t)!;

@@ -29,7 +29,12 @@ class ForestMailDeliveryGame extends StatefulWidget {
 }
 
 class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
-    with TickerProviderStateMixin, GameLoadingMixin, ForestAudioMixin, TofiReactionMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin,
+        ForestAudioMixin,
+        TofiReactionMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => _player;
 
@@ -59,9 +64,12 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _bgImage = 'assets/images/backgrounds/bg_forest_3houses.png';
-  static const String _envelopImage = 'assets/images/objects/forest/envelope.png';
-  static const String _mailboxImage = 'assets/images/objects/forest/mailbox.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_forest_3houses.png';
+  static const String _envelopImage =
+      'assets/images/objects/forest/envelope.png';
+  static const String _mailboxImage =
+      'assets/images/objects/forest/mailbox.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   // Tagalog
@@ -240,7 +248,11 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
   // ── COMPLETION ───────────────────────────────────────────────────────
 
   Future<void> _completeGame() async {
-    await ForestProgressService.instance.markLevelComplete(widget.level);
+    ForestProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
 
     if (!mounted) return;
 
@@ -256,18 +268,16 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await ForestDatabaseService.saveGameData(
-        gameId: 'forest_mail_delivery',
-        activityName: 'Forest Mail Delivery',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
-      debugPrint("Database Error saving Forest Mail Delivery metrics: $e");
-    }
+    ForestDatabaseService.saveGameData(
+      gameId: 'forest_mail_delivery',
+      activityName: 'Forest Mail Delivery',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
 
     if (!mounted) return;
     _showGoodJob();
@@ -591,7 +601,7 @@ class _ParcelCard extends StatelessWidget {
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   CameraController? aiCameraController;
+  Future<void>? _cameraInitFuture;
   Timer? _analysisTimer;
   bool isCameraInitialized = false;
   bool isFaceDetected = false;
@@ -32,10 +33,10 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   final String pythonServerUrl = 'http://13.68.159.132:8080/analyze';
   final String pythonResetUrl = 'http://13.68.159.132:8080/reset_calibration';
 
-  /// If the analysis server is slow or unreachable, give up on that request
-  /// instead of hanging (and piling up uploads). A timeout takes the same
-  /// path as any network error, so the game is never held up by it.
   final Duration _serverTimeout = const Duration(seconds: 8);
+
+  bool _isCapturing = false;
+  static Future<void>? _cameraReleaseFuture;
 
   // ── Face-aware tutorial audio ────────────────────────────────────────────
   Completer<void>? _activeVoiceInterrupt;
@@ -43,10 +44,10 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   Completer<void>? _faceReturnGate;
 
   Future<void> playVoiceRestartingOnFaceLoss(
-      AudioPlayer player,
-      String asset, {
-        Duration timeout = const Duration(seconds: 20),
-      }) async {
+    AudioPlayer player,
+    String asset, {
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
     while (mounted && !_isCameraDisposed) {
       // Don't start a tutorial clip while the lighting card is waiting.
       final pending = _faceReturnGate;
@@ -112,10 +113,21 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
     isFaceDetected = false;
     hasCapturedFirstFrame = false;
     sessionEmotions = [];
+
+    // Let the previous screen's camera fully let go of the hardware first
+    // (capped, so a stuck release can never block this screen forever).
+    final pendingRelease = _cameraReleaseFuture;
+    if (pendingRelease != null) {
+      try {
+        await pendingRelease.timeout(const Duration(seconds: 3));
+      } catch (_) {}
+    }
+    if (_isCameraDisposed) return;
+
     try {
       final cameras = await availableCameras();
       final frontCamera = cameras.firstWhere(
-            (c) => c.lensDirection == CameraLensDirection.front,
+        (c) => c.lensDirection == CameraLensDirection.front,
       );
 
       aiCameraController = CameraController(
@@ -124,7 +136,8 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         enableAudio: false,
       );
 
-      await aiCameraController!.initialize();
+      _cameraInitFuture = aiCameraController!.initialize();
+      await _cameraInitFuture;
       if (_isCameraDisposed) return;
       if (mounted) {
         setState(() {
@@ -173,6 +186,8 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
       return;
     }
     if (aiCameraController!.value.isTakingPicture) return;
+    if (_isCapturing) return;
+    _isCapturing = true;
 
     File? imageFile;
     try {
@@ -234,7 +249,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
 
         final isUsableReading =
             detectedEmotion != "NO FACE DETECTED" &&
-                !detectedEmotion.startsWith("CALIBRATING");
+            !detectedEmotion.startsWith("CALIBRATING");
         if (isUsableReading) {
           sessionEmotions.add(detectedEmotion);
           if (!_hasFiredCalibrationComplete) {
@@ -266,6 +281,8 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           onCalibrationComplete?.call();
         }
       }
+    } finally {
+      _isCapturing = false;
     }
   }
 
@@ -282,7 +299,29 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
     releaseFaceGate();
     _analysisTimer?.cancel();
     final controller = aiCameraController;
+    final initFuture = _cameraInitFuture;
     aiCameraController = null;
-    controller?.dispose();
+    _cameraInitFuture = null;
+    if (controller == null) return;
+
+    _cameraReleaseFuture = () async {
+      if (initFuture != null) {
+        try {
+          await initFuture;
+        } catch (_) {
+          return;
+        }
+      }
+
+      var waited = 0;
+      while (_isCapturing && waited < 3000) {
+        await Future.delayed(const Duration(milliseconds: 50));
+        waited += 50;
+      }
+
+      try {
+        await controller.dispose();
+      } catch (_) {}
+    }();
   }
 }

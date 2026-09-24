@@ -237,18 +237,16 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await LagoonDatabaseService.saveGameData(
-        gameId: 'lagoon_season_scene_tap',
-        activityName: 'Season Scene Tap',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
+    LagoonDatabaseService.saveGameData(
+      gameId: 'lagoon_season_scene_tap',
+      activityName: 'Season Scene Tap',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
-    }
+    });
 
     if (mounted) {
       setState(() => _showWinDialog = true);

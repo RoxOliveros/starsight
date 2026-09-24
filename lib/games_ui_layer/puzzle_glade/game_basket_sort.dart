@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,12 +18,7 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_size_sort.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
 
 const _kAllObjects = [
   'compass',
@@ -35,10 +35,6 @@ const _kAllObjects = [
 
 const int _kTotalRounds = 5;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 class BasketSortScreen extends StatefulWidget {
   final int level;
 
@@ -49,17 +45,27 @@ class BasketSortScreen extends StatefulWidget {
 }
 
 class _BasketSortScreenState extends State<BasketSortScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<BasketSortScreen>, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<BasketSortScreen>,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/basket_sort_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/basket_sort_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/basket_sort_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/basket_sort_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/basket_sort_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/basket_sort_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -70,16 +76,13 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
 
-  /// The two object types used as baskets this round
   late String _basketObjectA;
   late String _basketObjectB;
   String? _basketObjectC;
 
-  /// Queue of object names to sort (4 items: 2×A + 2×B, shuffled)
   late List<String> _itemQueue;
   int _currentItemIndex = 0;
 
-  /// How many items have been correctly placed per basket
   int _placedA = 0;
   int _placedB = 0;
   int _placedC = 0;
@@ -90,7 +93,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
   int _basketCountForRound(int round) => round >= 4 ? 3 : 2;
 
-  /// Flash state for wrong-drop highlight
   bool _flashA = false;
   bool _flashB = false;
   bool _flashC = false;
@@ -98,7 +100,9 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   bool _roundComplete = false;
   bool _showWinDialog = false;
 
-  /// Whether the current item is being held / dragged
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   bool _itemHeld = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
@@ -107,31 +111,20 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   AudioPlayer? _introPlayer;
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared float
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _itemDanceCtrl;
   late Animation<double> _itemDance;
-
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
-
-  // Round fade
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
-
-  // Item entrance (bounce in from top)
   late AnimationController _itemEnterCtrl;
   late Animation<double> _itemEnterAnim;
   late Animation<double> _itemEnterFade;
 
-  // Correct-drop bounce on basket
   late AnimationController _bounceACtrl;
   late Animation<double> _bounceAAnim;
   late AnimationController _bounceBCtrl;
@@ -139,24 +132,37 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   late AnimationController _bounceCCtrl;
   late Animation<double> _bounceCAnim;
 
-  // Round complete pulse
   late AnimationController _completePulseCtrl;
-
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
-    try { _sfxPlayer.dispose(); } catch (_) {}
-    try { _completePlayer.dispose(); } catch (_) {}
-    try { _introPlayer?.dispose(); } catch (_) {}
+    disposeAiCamera();
+    try {
+      _sfxPlayer.dispose();
+    } catch (_) {}
+    try {
+      _completePlayer.dispose();
+    } catch (_) {}
+    try {
+      _introPlayer?.dispose();
+    } catch (_) {}
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _itemDanceCtrl.dispose();
@@ -170,8 +176,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     OrientationService.setLandscape();
     super.dispose();
   }
-
-  // ── Animation init ─────────────────────────────────────────────────────────
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
@@ -257,8 +261,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     );
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
@@ -292,15 +294,13 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     } finally {
       try {
         await player.stop();
-      } catch (_) {}     // ← ADD: swallow "already disposed/created" errors
+      } catch (_) {}
       try {
         await player.dispose();
-      } catch (_) {}     // ← ADD: same guard here, dispose can throw too
+      } catch (_) {}
       if (_introPlayer == player) _introPlayer = null;
     }
   }
-
-  // ── Round setup ────────────────────────────────────────────────────────────
 
   void _startRound() {
     final rng = Random();
@@ -310,10 +310,9 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
     _basketObjectA = shuffled[0];
     _basketObjectB = shuffled[1];
-    _basketObjectC = basketCount == 3 ? shuffled[2] : null; // CHANGED
+    _basketObjectC = basketCount == 3 ? shuffled[2] : null;
 
     if (basketCount == 3) {
-      // Randomized 2-4 per basket, like Lvl13
       _countA = rng.nextInt(3) + 2;
       _countB = rng.nextInt(3) + 2;
       _countC = rng.nextInt(3) + 2;
@@ -324,7 +323,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
         ...List.generate(_countC, (_) => _basketObjectC!),
       ]..shuffle(rng);
     } else {
-      // Existing 2-basket split
       _countA = rng.nextInt(3) + 1;
       _countB = 4 - _countA;
       _countC = 0;
@@ -338,24 +336,22 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     _currentItemIndex = 0;
     _placedA = 0;
     _placedB = 0;
-    _placedC = 0; // ADD
+    _placedC = 0;
     _flashA = false;
     _flashB = false;
-    _flashC = false; // ADD
+    _flashC = false;
     _roundComplete = false;
     _itemHeld = false;
 
     _bounceACtrl.reset();
     _bounceBCtrl.reset();
-    _bounceCCtrl.reset(); // ADD
+    _bounceCCtrl.reset();
     _completePulseCtrl.stop();
     _completePulseCtrl.reset();
     _enterCtrl.forward(from: 0);
 
     _itemEnterCtrl.forward(from: 0);
   }
-
-  // ── Drop logic ─────────────────────────────────────────────────────────────
 
   Future<void> _dropOnBasket(String basketObject) async {
     if (_roundComplete) return;
@@ -365,9 +361,12 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     final isCorrect = currentItem == basketObject;
 
     if (isCorrect) {
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', ''))).catchError((e) {
-        debugPrint('SFX error: $e');
-      });
+      _tapTracker.recordCorrectTap();
+      _sfxPlayer
+          .play(AssetSource(_audioWrong.replaceFirst('assets/', '')))
+          .catchError((e) {
+            debugPrint('SFX error: $e');
+          });
 
       setState(() {
         if (basketObject == _basketObjectA) {
@@ -376,7 +375,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
         } else if (basketObject == _basketObjectB) {
           _placedB++;
           _bounceBCtrl.forward(from: 0);
-        } else { // ADD — basket C branch
+        } else {
           _placedC++;
           _bounceCCtrl.forward(from: 0);
         }
@@ -385,14 +384,15 @@ class _BasketSortScreenState extends State<BasketSortScreen>
       });
 
       showRoxieReaction(RoxieState.correct);
-      // Check round complete
       if (_currentItemIndex >= _itemQueue.length) {
         await Future.delayed(const Duration(milliseconds: 300));
         setState(() => _roundComplete = true);
         _completePulseCtrl.repeat(reverse: true);
-        _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', ''))).catchError((e) {
-          debugPrint('SFX error: $e');
-        });
+        _sfxPlayer
+            .play(AssetSource(_audioSuccess.replaceFirst('assets/', '')))
+            .catchError((e) {
+              debugPrint('SFX error: $e');
+            });
         await Future.delayed(const Duration(milliseconds: 1400));
 
         if (_round >= _kTotalRounds) {
@@ -408,8 +408,13 @@ class _BasketSortScreenState extends State<BasketSortScreen>
           await completer.future.timeout(const Duration(seconds: 10));
           await sub.cancel();
 
-          await PuzzleProgressService.instance.markLevelComplete(widget.level);
-          if (mounted) setState(() => _showWinDialog = true);
+          PuzzleProgressService.instance
+              .markLevelComplete(widget.level)
+              .catchError((e) {
+                debugPrint("Database Error marking level complete: $e");
+              });
+
+          await _saveDataAndShowWinDialog();
         } else {
           await _enterCtrl.reverse();
           if (mounted) {
@@ -423,6 +428,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
         _itemEnterCtrl.forward(from: 0);
       }
     } else {
+      _tapTracker.recordMistake();
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
       setState(() {
         _itemHeld = false;
@@ -447,63 +453,89 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_basket_sort',
+      activityName: 'Basket Sort',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
-          Stack(
-            children: [
-              Positioned.fill(
-                child: Stack(
-                  children: [
-                    Image.asset(
-                      _bgImage,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
-                    Container(color: Colors.black.withValues(alpha: 0.15)),
-                  ],
-                ),
-              ),
-
-              _screenPhase == _ScreenPhase.intro
-                  ? _buildIntroLayer()
-                  : Stack(
+        loadingScreen: LoadingScreen.puzzleGlade(),
+        gameBuilder: () => Stack(
+          children: [
+            Positioned.fill(
+              child: Stack(
                 children: [
-                  FadeTransition(
-                    opacity: _gameFade,
-                    child: _buildGameLayer(),
+                  Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
                   ),
-                  buildRoxie(context),
+                  Container(color: Colors.black.withValues(alpha: 0.15)),
                 ],
               ),
+            ),
 
-              Positioned(top: 25, left: 25, child: PuzzleXButton()),
+            _screenPhase == _ScreenPhase.intro
+                ? _buildIntroLayer()
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameLayer(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
 
-              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-            ],
-          ),
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+          ],
+        ),
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-          child:Stack(
+          child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -557,7 +589,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   }
 
   Widget _buildIntroDancingItems() {
-    // Show a couple of sample objects dancing to hint at the game
     final sampleObjects = ['star', 'compass', 'jar', 'telescope'];
 
     return AnimatedBuilder(
@@ -609,10 +640,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
-
   Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _enterAnim,
@@ -620,11 +647,13 @@ class _BasketSortScreenState extends State<BasketSortScreen>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-            child:
-            Stack(
+            child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -646,7 +675,9 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final reservedWidth = basketCount == 3 ? constraints.maxWidth * 0.13 : 0.0;
+        final reservedWidth = basketCount == 3
+            ? constraints.maxWidth * 0.13
+            : 0.0;
 
         return Row(
           children: [
@@ -699,8 +730,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     );
   }
 
-  // ── Current item in center ─────────────────────────────────────────────────
-
   Widget _buildCenterItem() {
     if (_currentItemIndex >= _itemQueue.length) {
       return const SizedBox(width: 80);
@@ -734,7 +763,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
           child: _buildItemTile(currentObject, size: 80),
         ),
         child: GestureDetector(
-          // Tap to select, then tap a basket to place
           onTap: () => setState(() => _itemHeld = !_itemHeld),
           child: _buildItemTile(currentObject, size: 80, isHeld: _itemHeld),
         ),
@@ -757,7 +785,9 @@ class _BasketSortScreenState extends State<BasketSortScreen>
             style: TextStyle(
               fontFamily: PuzzleAppTextStyles.fredoka,
               fontSize: 14,
-              color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.65),
+              color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                alpha: 0.65,
+              ),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -808,8 +838,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     );
   }
 
-  // ── Basket ─────────────────────────────────────────────────────────────────
-
   Widget _buildBasket({
     required String objectName,
     required int placedCount,
@@ -833,7 +861,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Object label image
                   Stack(
                     alignment: Alignment.center,
                     children: [
@@ -844,7 +871,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
                         errorBuilder: (_, __, ___) =>
                             const Text('🧺', style: TextStyle(fontSize: 40)),
                       ),
-                      // Small label badge at top
                       Positioned(
                         top: 0,
                         child: Container(
@@ -868,7 +894,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
                           ),
                         ),
                       ),
-                      // Placed items shown inside basket
                       if (placedCount > 0)
                         Positioned(
                           bottom: 18,
@@ -901,18 +926,12 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     if (count <= 2) {
       return row(count);
     } else {
-      // 3: 1 above, 2 below
       return Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          row(count - 2), // top
-          row(2),         // bottom
-        ],
+        children: [row(count - 2), row(2)],
       );
     }
   }
-
-  // ── Win overlay ────────────────────────────────────────────────────────────
 
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
@@ -926,18 +945,17 @@ class _BasketSortScreenState extends State<BasketSortScreen>
         );
       },
       onRestart: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => BasketSortScreen(level: widget.level),
-          ),
-        );
+        setState(() {
+          _round = 1;
+          _showWinDialog = false;
+          _hasSavedResult = false;
+          _tapTracker.startSession();
+        });
+        _startRound();
       },
       onBack: () {
         Navigator.pop(context);
       },
     );
   }
-
-
 }

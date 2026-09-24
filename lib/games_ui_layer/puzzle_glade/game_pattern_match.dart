@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,12 +18,7 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_memory_match.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
 
 const _kTotalRounds = 5;
 
@@ -43,20 +43,12 @@ const _hardPatternTemplates = [
   [0, 1, 1, 0, 1, 1, 0],
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Data model
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _StarColor {
   final String label;
   final Color color;
 
   const _StarColor({required this.label, required this.color});
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class PatternMatchScreen extends StatefulWidget {
   final int level;
@@ -68,13 +60,17 @@ class PatternMatchScreen extends StatefulWidget {
 }
 
 class _PatternMatchScreenState extends State<PatternMatchScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin {
   final AudioPlayer _roxiePlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
-  // ── Asset config ───────────────────────────────────────────────────────────
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
@@ -85,13 +81,10 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
       'assets/audio/puzzle_glade/pattern_match_instruction.wav';
   static const String _audioComplete =
       'assets/audio/puzzle_glade/pattern_match_complete.wav';
-
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
 
-  // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
 
-  // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
   late List<_StarColor> _sequenceColors;
   late _StarColor _answerColor;
@@ -101,47 +94,48 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   bool _roundComplete = false;
   bool _showWinDialog = false;
 
-  // ── Audio ──────────────────────────────────────────────────────────────────
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   final AudioPlayer _bgPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
 
-  // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _starDanceCtrl;
   late Animation<double> _starDance;
   late AnimationController _speechBubbleCtrl;
-
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
-
-  // Round
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
   late AnimationController _bounceCtrl;
   late Animation<double> _bounceAnim;
   late AnimationController _celebCtrl;
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
-
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _roxiePlayer.dispose();
     _bgPlayer.dispose();
     _sfxPlayer.dispose();
@@ -157,8 +151,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     OrientationService.setLandscape();
     super.dispose();
   }
-
-  // ── Animation init ─────────────────────────────────────────────────────────
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
@@ -220,20 +212,17 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     );
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
     _roxieSlideCtrl.forward();
-
     _speechBubbleCtrl.forward(from: 0);
+
     await _playBgAudio(_audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
-
     _gameEnterCtrl.forward();
     _buildRound();
     if (mounted) {
@@ -259,8 +248,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
       await sub?.cancel();
     }
   }
-
-  // ── Round setup ────────────────────────────────────────────────────────────
 
   void _buildRound() {
     final rng = Random();
@@ -304,18 +291,17 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     );
   }
 
-  // ── Choice tap ─────────────────────────────────────────────────────────────
-
   Future<void> _onChoiceTapped(_StarColor tapped) async {
     if (_roundComplete || _wrongFlash || _rightFlash) return;
 
     if (tapped == _answerColor) {
+      _tapTracker.recordCorrectTap();
       setState(() {
         _rightFlash = true;
         _roundComplete = true;
       });
 
-      unawaited(showRoxieReaction(RoxieState.correct));
+      showRoxieReaction(RoxieState.correct);
 
       _bounceCtrl.forward(from: 0);
       _celebCtrl.forward(from: 0);
@@ -337,9 +323,12 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
 
-        await PuzzleProgressService.instance.markLevelComplete(2);
-
-        if (mounted) setState(() => _showWinDialog = true);
+        PuzzleProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
+        await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
         setState(() {
@@ -348,17 +337,37 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         });
       }
     } else {
+      _tapTracker.recordMistake();
       setState(() {
         _wrongFlash = true;
       });
-      unawaited(showRoxieReaction(RoxieState.wrong));
+      showRoxieReaction(RoxieState.wrong);
 
       await Future.delayed(const Duration(milliseconds: 700));
       if (mounted) setState(() => _wrongFlash = false);
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_pattern_match',
+      activityName: 'Pattern Match',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -367,7 +376,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         loadingScreen: LoadingScreen.puzzleGlade(),
         gameBuilder: () => Stack(
           children: [
-            // Background
             Positioned.fill(
               child: Stack(
                 children: [
@@ -389,16 +397,20 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
 
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
         ),
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
@@ -452,8 +464,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
                     _characterImage,
                     height: roxieH,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        Text('🐰', style: TextStyle(fontSize: roxieH * 0.5)),
                   ),
                 ),
               ),
@@ -465,7 +475,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   }
 
   Widget _buildIntroDancingStars() {
-    // Show a little A-B-A-B pattern preview to hint at the game
     final previewColors = [
       const Color(0xFFE05A5A),
       const Color(0xFF4C7FBE),
@@ -545,8 +554,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
                             height: 42,
                             color: previewColors[i],
                             colorBlendMode: BlendMode.modulate,
-                            errorBuilder: (_, __, ___) =>
-                                Text('⭐', style: TextStyle(fontSize: 28)),
                           ),
                         ),
                       ),
@@ -557,10 +564,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
       },
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildGameLayer() {
     return FadeTransition(
@@ -602,8 +605,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
       ],
     );
   }
-
-  // ── Sequence row ───────────────────────────────────────────────────────────
 
   Widget _buildSequenceRow() {
     return Container(
@@ -684,8 +685,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     );
   }
 
-  // ── Choices row ────────────────────────────────────────────────────────────
-
   Widget _buildChoicesRow() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -743,8 +742,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     );
   }
 
-  // ── Star widget ────────────────────────────────────────────────────────────
-
   Widget _starWidget(Color tint, double size) {
     return Image.asset(
       'assets/images/objects/puzzle/star.png',
@@ -752,17 +749,12 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
       height: size,
       color: tint,
       colorBlendMode: BlendMode.srcIn,
-      errorBuilder: (_, __, ___) =>
-          Text('⭐', style: TextStyle(fontSize: size * 0.65)),
     );
   }
-
-  // ── Win overlay ────────────────────────────────────────────────────────────
 
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-
       onNext: () {
         Navigator.pushReplacement(
           context,
@@ -772,12 +764,13 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         );
       },
       onRestart: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PatternMatchScreen(level: widget.level),
-          ),
-        );
+        setState(() {
+          _round = 1;
+          _showWinDialog = false;
+          _hasSavedResult = false;
+          _tapTracker.startSession();
+        });
+        _buildRound();
       },
       onBack: () {
         Navigator.pop(context);
@@ -785,10 +778,6 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _PulseWidget
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _PulseWidget extends StatefulWidget {
   final Widget child;

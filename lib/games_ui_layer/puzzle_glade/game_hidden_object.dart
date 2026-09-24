@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_audio_helper.dart';
-import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
-import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/puzzle_progress_service.dart';
+import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
+import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -14,27 +19,15 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_rotate_shape.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
 
 const int _kTotalRounds = 5;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Object pool
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Each item carries a "colorFamily"/"shapeFamily" tag so harder rounds can
-// pick visually-similar distractors (e.g. ball/balloon/apple all round+red)
-// to make the target less obvious.
 class _HiddenObjectItem {
   final String id;
   final String name;
   final String asset;
-  final String emoji; // fallback if the asset can't be loaded
+  final String emoji;
   final String colorFamily;
   final String shapeFamily;
 
@@ -49,17 +42,94 @@ class _HiddenObjectItem {
 }
 
 const List<_HiddenObjectItem> _objectPool = [
-  _HiddenObjectItem(id: 'compass', name: 'Compass', asset: 'assets/images/objects/puzzle/compass.png', emoji: '🧭', colorFamily: 'brass', shapeFamily: 'round'),
-  _HiddenObjectItem(id: 'map', name: 'Map', asset: 'assets/images/objects/puzzle/map.png', emoji: '🗺️', colorFamily: 'tan', shapeFamily: 'rectangle'),
-  _HiddenObjectItem(id: 'notebook', name: 'Notebook', asset: 'assets/images/objects/puzzle/notebook.png', emoji: '📓', colorFamily: 'brown', shapeFamily: 'rectangle'),
-  _HiddenObjectItem(id: 'flag', name: 'Flag', asset: 'assets/images/objects/puzzle/flag.png', emoji: '🚩', colorFamily: 'red', shapeFamily: 'long'),
-  _HiddenObjectItem(id: 'pen', name: 'Pen', asset: 'assets/images/objects/puzzle/pen.png', emoji: '🖊️', colorFamily: 'brown', shapeFamily: 'long'),
-  _HiddenObjectItem(id: 'jar', name: 'Jar', asset: 'assets/images/objects/puzzle/jar.png', emoji: '🏺', colorFamily: 'tan', shapeFamily: 'round'),
-  _HiddenObjectItem(id: 'puzzle_piece', name: 'Puzzle Piece', asset: 'assets/images/objects/puzzle/puzzle_piece.png', emoji: '🧩', colorFamily: 'blue', shapeFamily: 'diamond'),
-  _HiddenObjectItem(id: 'star', name: 'Star', asset: 'assets/images/objects/puzzle/star.png', emoji: '⭐', colorFamily: 'yellow', shapeFamily: 'star'),
-  _HiddenObjectItem(id: 'lamp', name: 'Lamp', asset: 'assets/images/objects/puzzle/lamp.png', emoji: '🏮', colorFamily: 'brass', shapeFamily: 'round'),
-  _HiddenObjectItem(id: 'magnifying_glass', name: 'Magnifying Glass', asset: 'assets/images/objects/puzzle/magnifying_glass.png', emoji: '🔍', colorFamily: 'brass', shapeFamily: 'round'),
-  _HiddenObjectItem(id: 'telescope', name: 'Telescope', asset: 'assets/images/objects/puzzle/telescope.png', emoji: '🔭', colorFamily: 'brass', shapeFamily: 'long'),
+  _HiddenObjectItem(
+    id: 'compass',
+    name: 'Compass',
+    asset: 'assets/images/objects/puzzle/compass.png',
+    emoji: '🧭',
+    colorFamily: 'brass',
+    shapeFamily: 'round',
+  ),
+  _HiddenObjectItem(
+    id: 'map',
+    name: 'Map',
+    asset: 'assets/images/objects/puzzle/map.png',
+    emoji: '🗺️',
+    colorFamily: 'tan',
+    shapeFamily: 'rectangle',
+  ),
+  _HiddenObjectItem(
+    id: 'notebook',
+    name: 'Notebook',
+    asset: 'assets/images/objects/puzzle/notebook.png',
+    emoji: '📓',
+    colorFamily: 'brown',
+    shapeFamily: 'rectangle',
+  ),
+  _HiddenObjectItem(
+    id: 'flag',
+    name: 'Flag',
+    asset: 'assets/images/objects/puzzle/flag.png',
+    emoji: '🚩',
+    colorFamily: 'red',
+    shapeFamily: 'long',
+  ),
+  _HiddenObjectItem(
+    id: 'pen',
+    name: 'Pen',
+    asset: 'assets/images/objects/puzzle/pen.png',
+    emoji: '🖊️',
+    colorFamily: 'brown',
+    shapeFamily: 'long',
+  ),
+  _HiddenObjectItem(
+    id: 'jar',
+    name: 'Jar',
+    asset: 'assets/images/objects/puzzle/jar.png',
+    emoji: '🏺',
+    colorFamily: 'tan',
+    shapeFamily: 'round',
+  ),
+  _HiddenObjectItem(
+    id: 'puzzle_piece',
+    name: 'Puzzle Piece',
+    asset: 'assets/images/objects/puzzle/puzzle_piece.png',
+    emoji: '🧩',
+    colorFamily: 'blue',
+    shapeFamily: 'diamond',
+  ),
+  _HiddenObjectItem(
+    id: 'star',
+    name: 'Star',
+    asset: 'assets/images/objects/puzzle/star.png',
+    emoji: '⭐',
+    colorFamily: 'yellow',
+    shapeFamily: 'star',
+  ),
+  _HiddenObjectItem(
+    id: 'lamp',
+    name: 'Lamp',
+    asset: 'assets/images/objects/puzzle/lamp.png',
+    emoji: '🏮',
+    colorFamily: 'brass',
+    shapeFamily: 'round',
+  ),
+  _HiddenObjectItem(
+    id: 'magnifying_glass',
+    name: 'Magnifying Glass',
+    asset: 'assets/images/objects/puzzle/magnifying_glass.png',
+    emoji: '🔍',
+    colorFamily: 'brass',
+    shapeFamily: 'round',
+  ),
+  _HiddenObjectItem(
+    id: 'telescope',
+    name: 'Telescope',
+    asset: 'assets/images/objects/puzzle/telescope.png',
+    emoji: '🔭',
+    colorFamily: 'brass',
+    shapeFamily: 'long',
+  ),
 ];
 
 class _GrassTuft {
@@ -76,12 +146,11 @@ class _GrassTuft {
   });
 }
 
-// A pool item placed somewhere in the scene for the current round.
 class _PlacedObject {
   final _HiddenObjectItem item;
-  final Offset topLeft; // within the scene's local coordinate space
+  final Offset topLeft;
   final double size;
-  final double rotation; // small cosmetic tilt
+  final double rotation;
 
   const _PlacedObject({
     required this.item,
@@ -90,10 +159,6 @@ class _PlacedObject {
     required this.rotation,
   });
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class HiddenObjectScreen extends StatefulWidget {
   final int level;
@@ -105,18 +170,30 @@ class HiddenObjectScreen extends StatefulWidget {
 }
 
 class _HiddenObjectScreenState extends State<HiddenObjectScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<HiddenObjectScreen>, GameLoadingMixin, PuzzleAudioMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<HiddenObjectScreen>,
+        GameLoadingMixin,
+        PuzzleAudioMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _roxieSfxPlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle_grass.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_puzzle_grass.png';
   static const String _grassImage = 'assets/images/objects/puzzle/grass.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/hidden_object_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/hidden_object_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/hidden_object_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/hidden_object_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/hidden_object_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/hidden_object_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -132,45 +209,48 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   DateTime? _lastWrongFeedback;
   bool _showWinDialog = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _roxieSfxPlayer = AudioPlayer(); // dedicated player for RoxieReactionMixin
+  final AudioPlayer _roxieSfxPlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _magnifierCtrl;
   late Animation<double> _magnifier;
   late AnimationController _speechBubbleCtrl;
-
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
-
-  // Round
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
-
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _bgPlayer.dispose();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
@@ -185,8 +265,6 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     super.dispose();
   }
 
-  // ── Animation init ─────────────────────────────────────────────────────────
-
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
       vsync: this,
@@ -199,8 +277,8 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-    );
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -210,7 +288,10 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
-    _magnifier = CurvedAnimation(parent: _magnifierCtrl, curve: Curves.easeInOut);
+    _magnifier = CurvedAnimation(
+      parent: _magnifierCtrl,
+      curve: Curves.easeInOut,
+    );
 
     _speechBubbleCtrl = AnimationController(
       vsync: this,
@@ -229,8 +310,6 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     );
     _enterAnim = CurvedAnimation(parent: _enterCtrl, curve: Curves.easeOut);
   }
-
-  // ── Intro flow ─────────────────────────────────────────────────────────────
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
@@ -266,11 +345,6 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     }
   }
 
-  // ── Difficulty ─────────────────────────────────────────────────────────────
-
-  // (objectCount, similarDistractorCount, targetSizeFactor) per round —
-  // more objects, more look-alike distractors, and a smaller target as
-  // rounds progress.
   (int, int, double) _sceneConfigForRound(int round) {
     switch (round) {
       case 1:
@@ -286,33 +360,48 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     }
   }
 
-  // ── Round setup ────────────────────────────────────────────────────────────
-
   void _startRound() {
     final rng = Random();
-    final (objectCount, similarCount, targetSizeFactor) = _sceneConfigForRound(_round);
+    final (objectCount, similarCount, targetSizeFactor) = _sceneConfigForRound(
+      _round,
+    );
 
     final pool = List<_HiddenObjectItem>.from(_objectPool)..shuffle(rng);
     final target = pool.first;
 
-    final similar = _objectPool
-        .where((o) => o.id != target.id && (o.colorFamily == target.colorFamily || o.shapeFamily == target.shapeFamily))
-        .toList()
-      ..shuffle(rng);
+    final similar =
+        _objectPool
+            .where(
+              (o) =>
+                  o.id != target.id &&
+                  (o.colorFamily == target.colorFamily ||
+                      o.shapeFamily == target.shapeFamily),
+            )
+            .toList()
+          ..shuffle(rng);
     final chosenSimilar = similar.take(similarCount).toList();
 
-    final remainingSlots = (objectCount - 1 - chosenSimilar.length).clamp(0, _objectPool.length);
+    final remainingSlots = (objectCount - 1 - chosenSimilar.length).clamp(
+      0,
+      _objectPool.length,
+    );
     final usedIds = {target.id, ...chosenSimilar.map((o) => o.id)};
     final fillers = _objectPool.where((o) => !usedIds.contains(o.id)).toList()
       ..shuffle(rng);
     final chosenFillers = fillers.take(remainingSlots).toList();
 
-    final sceneItems = [target, ...chosenSimilar, ...chosenFillers]..shuffle(rng);
+    final sceneItems = [target, ...chosenSimilar, ...chosenFillers]
+      ..shuffle(rng);
 
     setState(() {
       _targetItem = target;
-      _sceneObjects = _layoutScene(sceneItems, targetSizeFactor, target.id, rng);
-      _grassTufts = _generateGrassTufts(_sceneObjects, rng); // ← add this
+      _sceneObjects = _layoutScene(
+        sceneItems,
+        targetSizeFactor,
+        target.id,
+        rng,
+      );
+      _grassTufts = _generateGrassTufts(_sceneObjects, rng);
       _wrongObjectId = null;
       _foundObjectId = null;
       _isCompleting = false;
@@ -321,54 +410,61 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     _enterCtrl.forward(from: 0);
   }
 
-  List<_GrassTuft> _generateGrassTufts(List<_PlacedObject> objects, Random rng) {
+  List<_GrassTuft> _generateGrassTufts(
+    List<_PlacedObject> objects,
+    Random rng,
+  ) {
     final tufts = <_GrassTuft>[];
 
-    // Tufts nestled around the base of each placed object
     for (final obj in objects) {
-      final tuftCount = 2 + rng.nextInt(2); // 2–3 per object
+      final tuftCount = 2 + rng.nextInt(2);
       for (int i = 0; i < tuftCount; i++) {
         final tuftSize = obj.size * (0.28 + rng.nextDouble() * 0.18);
-        final dx = (obj.topLeft.dx + rng.nextDouble() * obj.size - tuftSize * 0.3)
-            .clamp(0.0, 1000.0 - tuftSize);
-        final dy = (obj.topLeft.dy + obj.size * (0.62 + rng.nextDouble() * 0.32) - tuftSize * 0.3)
-            .clamp(0.0, 600.0 - tuftSize);
-        tufts.add(_GrassTuft(
-          topLeft: Offset(dx, dy),
-          size: tuftSize,
-          rotation: (rng.nextDouble() - 0.5) * 0.6,
-          opacity: 0.85 + rng.nextDouble() * 0.15,
-        ));
+        final dx =
+            (obj.topLeft.dx + rng.nextDouble() * obj.size - tuftSize * 0.3)
+                .clamp(0.0, 1000.0 - tuftSize);
+        final dy =
+            (obj.topLeft.dy +
+                    obj.size * (0.62 + rng.nextDouble() * 0.32) -
+                    tuftSize * 0.3)
+                .clamp(0.0, 600.0 - tuftSize);
+        tufts.add(
+          _GrassTuft(
+            topLeft: Offset(dx, dy),
+            size: tuftSize,
+            rotation: (rng.nextDouble() - 0.5) * 0.6,
+            opacity: 0.85 + rng.nextDouble() * 0.15,
+          ),
+        );
       }
     }
 
-    // A few loose tufts scattered across the whole scene for extra texture
     final extraCount = 6 + rng.nextInt(4);
     for (int i = 0; i < extraCount; i++) {
       final tuftSize = 40.0 + rng.nextDouble() * 30.0;
-      tufts.add(_GrassTuft(
-        topLeft: Offset(
-          rng.nextDouble() * (1000.0 - tuftSize),
-          rng.nextDouble() * (600.0 - tuftSize),
+      tufts.add(
+        _GrassTuft(
+          topLeft: Offset(
+            rng.nextDouble() * (1000.0 - tuftSize),
+            rng.nextDouble() * (600.0 - tuftSize),
+          ),
+          size: tuftSize,
+          rotation: (rng.nextDouble() - 0.5) * 0.6,
+          opacity: 0.7 + rng.nextDouble() * 0.2,
         ),
-        size: tuftSize,
-        rotation: (rng.nextDouble() - 0.5) * 0.6,
-        opacity: 0.7 + rng.nextDouble() * 0.2,
-      ));
+      );
     }
 
     return tufts;
   }
 
-  // Places items on a jittered grid sized to fit exactly `items.length`
-  // cells, so objects never overlap however many there are.
   List<_PlacedObject> _layoutScene(
-      List<_HiddenObjectItem> items,
-      double targetSizeFactor,
-      String targetId,
-      Random rng,
-      ) {
-    const sceneWidth = 1000.0; // normalized space, rescaled to real pixels at paint time
+    List<_HiddenObjectItem> items,
+    double targetSizeFactor,
+    String targetId,
+    Random rng,
+  ) {
+    const sceneWidth = 1000.0;
     const sceneHeight = 600.0;
     final aspect = sceneWidth / sceneHeight;
 
@@ -378,12 +474,12 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     final cellH = sceneHeight / gridRows;
     final baseSize = min(cellW, cellH) * 0.78;
 
-    final cellIndices = List<int>.generate(gridCols * gridRows, (i) => i)..shuffle(rng);
-    // more cells needed than exist once density is reduced — allow repeats so
-    // items double up on the same cell and stack/overlap
+    final cellIndices = List<int>.generate(gridCols * gridRows, (i) => i)
+      ..shuffle(rng);
+
     final chosenCells = List<int>.generate(
       items.length,
-          (i) => cellIndices[i % cellIndices.length],
+      (i) => cellIndices[i % cellIndices.length],
     );
 
     final placed = <_PlacedObject>[];
@@ -393,26 +489,34 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
       final cell = chosenCells[i];
       final row = cell ~/ gridCols;
       final col = cell % gridCols;
-      // jitter range extended beyond the cell itself so neighboring/same-cell
-      // objects overlap instead of sitting in neat isolated slots
+
       final maxJitterX = max(0.0, cellW * 1.4 - size);
       final maxJitterY = max(0.0, cellH * 1.4 - size);
-      final x = (col * cellW - cellW * 0.2 + rng.nextDouble() * maxJitterX).clamp(0.0, sceneWidth - size);
-      final y = (row * cellH - cellH * 0.2 + rng.nextDouble() * maxJitterY).clamp(0.0, sceneHeight - size);
+      final x = (col * cellW - cellW * 0.2 + rng.nextDouble() * maxJitterX)
+          .clamp(0.0, sceneWidth - size);
+      final y = (row * cellH - cellH * 0.2 + rng.nextDouble() * maxJitterY)
+          .clamp(0.0, sceneHeight - size);
       final rotation = (rng.nextDouble() - 0.5) * 0.35;
 
-      placed.add(_PlacedObject(item: item, topLeft: Offset(x, y), size: size, rotation: rotation));
+      placed.add(
+        _PlacedObject(
+          item: item,
+          topLeft: Offset(x, y),
+          size: size,
+          rotation: rotation,
+        ),
+      );
     }
     return placed;
   }
 
-  // ── Tap handling ───────────────────────────────────────────────────────────
-
   void _handleObjectTap(_PlacedObject obj) {
     if (_isCompleting) return;
     if (obj.item.id == _targetItem.id) {
+      _tapTracker.recordCorrectTap();
       _handleCorrectTap(obj);
     } else {
+      _tapTracker.recordMistake();
       _handleWrongTap(obj);
     }
   }
@@ -420,12 +524,13 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   void _handleWrongTap(_PlacedObject obj) {
     final now = DateTime.now();
     if (_lastWrongFeedback != null &&
-        now.difference(_lastWrongFeedback!) < const Duration(milliseconds: 500)) {
-      return; // debounce rapid mis-taps
+        now.difference(_lastWrongFeedback!) <
+            const Duration(milliseconds: 500)) {
+      return;
     }
     _lastWrongFeedback = now;
 
-    unawaited(showRoxieReaction(RoxieState.wrong));
+    showRoxieReaction(RoxieState.wrong);
     setState(() => _wrongObjectId = obj.item.id);
     Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) setState(() => _wrongObjectId = null);
@@ -437,7 +542,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
       _isCompleting = true;
       _foundObjectId = obj.item.id;
     });
-    unawaited(showRoxieReaction(RoxieState.correct));
+    showRoxieReaction(RoxieState.correct);
     await Future.delayed(const Duration(milliseconds: 900));
     await _advanceRound();
   }
@@ -468,12 +573,34 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     await completer.future.timeout(const Duration(seconds: 10));
     await sub.cancel();
 
-    await PuzzleProgressService.instance.markLevelComplete(widget.level);
-
-    if (mounted) setState(() => _showWinDialog = true);
+    PuzzleProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
+    await _saveDataAndShowWinDialog();
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_hidden_object',
+      activityName: 'Hidden Object',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -498,25 +625,30 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
             _screenPhase == _ScreenPhase.intro
                 ? _buildIntroLayer()
                 : Stack(
-              children: [
-                FadeTransition(
-                  opacity: _gameFade,
-                  child: _buildGameLayer(),
-                ),
-                buildRoxie(context),
-              ],
-            ),
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameLayer(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
         ),
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
@@ -526,7 +658,10 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -596,12 +731,17 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
             alignment: Alignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 22,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.30),
+                    color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                      alpha: 0.30,
+                    ),
                     width: 2.5,
                   ),
                   boxShadow: [
@@ -615,15 +755,18 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: previewItems
-                      .map((e) => Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Image.asset(
-                      e,
-                      width: 42,
-                      height: 42,
-                      fit: BoxFit.contain,
-                    ),
-                  )).toList(),
+                      .map(
+                        (e) => Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Image.asset(
+                            e,
+                            width: 42,
+                            height: 42,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
               Transform.translate(
@@ -636,10 +779,6 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
       },
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildGameLayer() {
     return FadeTransition(
@@ -655,7 +794,10 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
                   alignment: Alignment.center,
                   child: _buildFindInstruction(),
                 ),
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -705,7 +847,8 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
             width: 32,
             height: 32,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Text(_targetItem.emoji, style: const TextStyle(fontSize: 26)),
+            errorBuilder: (_, __, ___) =>
+                Text(_targetItem.emoji, style: const TextStyle(fontSize: 26)),
           ),
           const SizedBox(width: 6),
           Text(
@@ -737,7 +880,6 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
       builder: (context, constraints) {
         final maxW = constraints.maxWidth * 0.92;
         final maxH = constraints.maxHeight * 0.92;
-        // Keep the same 1000x600 aspect ratio the layout used when placing objects.
         const sceneAspect = 1000.0 / 600.0;
         double sceneWidth = maxW;
         double sceneHeight = sceneWidth / sceneAspect;
@@ -771,15 +913,12 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
       top: tuft.topLeft.dy * scale,
       width: tuft.size * scale,
       height: tuft.size * scale,
-      child: IgnorePointer( // never blocks the object tap underneath
+      child: IgnorePointer(
         child: Opacity(
           opacity: tuft.opacity,
           child: Transform.rotate(
             angle: tuft.rotation,
-            child: Image.asset(
-              _grassImage,
-              fit: BoxFit.contain,
-            ),
+            child: Image.asset(_grassImage, fit: BoxFit.contain),
           ),
         ),
       ),
@@ -807,15 +946,17 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
             child: Container(
               decoration: isFound
                   ? BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: PuzzleColorTheme.goldenyellow.withValues(alpha: 0.8),
-                    blurRadius: 18,
-                    spreadRadius: 4,
-                  ),
-                ],
-              )
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: PuzzleColorTheme.goldenyellow.withValues(
+                            alpha: 0.8,
+                          ),
+                          blurRadius: 18,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    )
                   : null,
               child: Image.asset(
                 obj.item.asset,
@@ -834,12 +975,10 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     );
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
-
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
+
       onNext: () {
         Navigator.pushReplacement(
           context,
@@ -849,12 +988,13 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
         );
       },
       onRestart: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => HiddenObjectScreen(level: widget.level),
-          ),
-        );
+        setState(() {
+          _round = 1;
+          _showWinDialog = false;
+          _hasSavedResult = false;
+          _tapTracker.startSession();
+        });
+        _startRound();
       },
       onBack: () {
         Navigator.pop(context);

@@ -240,18 +240,16 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     List<String> finalEmotions = stopAiCamera();
 
     // 2. Save raw data silently
-    try {
-      await ForestDatabaseService.saveGameData(
-        gameId: 'letter_pop_${widget.letter.toLowerCase()}',
-        activityName: "Alphabet Pop (${widget.letter.toUpperCase()})",
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
-      debugPrint("Error saving metrics: $e");
-    }
+    ForestDatabaseService.saveGameData(
+      gameId: 'letter_pop_${widget.letter.toLowerCase()}',
+      activityName: "Alphabet Pop (${widget.letter.toUpperCase()})",
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
 
     // 3. Now show the normal win dialog
     _showApplause();

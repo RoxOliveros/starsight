@@ -186,18 +186,16 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await LagoonDatabaseService.saveGameData(
-        gameId: 'lagoon_soft_hard',
-        activityName: 'Soft & Hard Game',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
+    LagoonDatabaseService.saveGameData(
+      gameId: 'lagoon_soft_hard',
+      activityName: 'Soft & Hard Game',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
-    }
+    });
 
     if (mounted) {
       setState(() => _showVictoryOverlay = true);

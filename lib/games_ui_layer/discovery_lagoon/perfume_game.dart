@@ -332,20 +332,22 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await LagoonDatabaseService.saveGameData(
-        gameId: 'lagoon_perfume_game',
-        activityName: 'Perfume Game',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
-      debugPrint("Database Error saving Perfume Game metrics: $e");
-    }
-    await LagoonProgressService.instance.markLevelComplete(2);
+    LagoonDatabaseService.saveGameData(
+      gameId: 'lagoon_perfume_game',
+      activityName: 'Perfume Game',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
 
+    LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
     if (mounted) {
       setState(() {
         _showGoodJob = true;
