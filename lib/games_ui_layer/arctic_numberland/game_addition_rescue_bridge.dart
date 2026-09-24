@@ -34,8 +34,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   AudioPlayer get domaPlayer => _voicePlayer;
 
   // ── Asset paths (swap to match your project) ────────────────────────────
-  static const String _iceAssetBase = 'assets/images/objects/arctic/ice_';
-  static const String _iceAsset = 'assets/images/objects/arctic/ice_1.png';
+  static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_river.png';
   static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _babyFoxAsset = 'assets/images/characters/baby_arctic_fox.png';
@@ -51,26 +50,24 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   static const int _totalRounds = 5;
   static const double _maxTiltRadians = 0.30;
 
-  /// Addition facts kept to sums of 5 or less, matching the visual/counting
-  /// range of the rest of Arctic Numberland.
   static const List<List<int>> _factPool = [
-    [1, 1], // 1+1=2
-    [1, 2], // 1+2=3
-    [2, 1], // 2+1=3
-    [1, 3], // 1+3=4
-    [2, 2], // 2+2=4
-    [1, 4], // 1+4=5
-    [2, 3], // 2+3=5
-    [3, 2], // 3+2=5
-    [3, 1], // 3+1=4
+    [1, 1],
+    [1, 2],
+    [2, 1],
+    [1, 3],
+    [2, 2],
+    [1, 4],
+    [2, 3],
+    [3, 2],
+    [3, 1],
   ];
 
   static const List<List<double>> _pupScatter = [
-    [-26, 0, 1.15],
-    [140, 50, 0.85],
-    [0, 60, 1.0],
-    [80, 118, 0.75],
-    [60, 50, 1.05],
+    [0.18, 0.08, 1.10],
+    [0.65, 0.12, 0.85],
+    [0.38, 0.38, 1.00],
+    [0.15, 0.68, 0.80],
+    [0.62, 0.62, 1.05],
   ];
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
@@ -128,11 +125,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   Offset? _crossingStart;
   Offset? _crossingMid;
   Offset? _crossingEnd;
-
-  String _crystalAssetForValue(int value) {
-    final clamped = value.clamp(1, 5);
-    return '$_iceAssetBase$clamped.png';
-  }
 
   @override
   void initState() {
@@ -363,7 +355,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       List<String> finalEmotions = stopAiCamera();
 
       try {
-        await ArcticDatabaseService.saveGameData(
+        ArcticDatabaseService.saveGameData(
           gameId: 'arctic_numberland_${widget.level}',
           mistakes: _tapTracker.mistakeCount,
           emotions: finalEmotions,
@@ -372,7 +364,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         debugPrint("Database Error saving Arctic metrics: $e");
       }
 
-      await ArcticProgressService.instance.markLevelComplete(widget.level);
+      ArcticProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
       setState(() => _showWinDialog = true);
     } else {
@@ -486,6 +478,19 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           padding: const EdgeInsets.only(top: 5),
           child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
         ),
+        // X button
+        Positioned(
+          top: 25,
+          left: 25,
+          child: ArcticXButton(),
+        ),
+
+        // Level badge
+        Positioned(
+          top: 25,
+          right: 25,
+          child: ArcticLevelBadge(level: widget.level),
+        ),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
@@ -525,59 +530,56 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   // ── Intro / story setup ──────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
+    final screenW = MediaQuery.of(context).size.width;
+
     return Stack(
       children: [
-        Positioned(top: 25, left: 25, child: ArcticXButton()),
+        // Doma
         Positioned(
-          top: 25,
-          right: 25,
-          child: ArcticLevelBadge(level: widget.level),
+          left: screenW * 0.08,
+          top: screenH * 0.18,
+          child: AnimatedBuilder(
+            animation: _domaFloatCtrl,
+            builder: (_, child) {
+              final floatY = Tween<double>(
+                begin: -6,
+                end: 6,
+              ).evaluate(
+                CurvedAnimation(
+                  parent: _domaFloatCtrl,
+                  curve: Curves.easeInOut,
+                ),
+              );
+
+              return Transform.translate(
+                offset: Offset(0, floatY),
+                child: child,
+              );
+            },
+            child: Image.asset(
+              _characterImage,
+              height: screenH * 0.65,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Text(
+                '🐧',
+                style: TextStyle(fontSize: 70),
+              ),
+            ),
+          ),
         ),
-        Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Expanded(
-                flex: 4,
-                child: AnimatedBuilder(
-                  animation: _domaFloatCtrl,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(
-                      0,
-                      Tween<double>(begin: -6, end: 6).evaluate(
-                        CurvedAnimation(
-                          parent: _domaFloatCtrl,
-                          curve: Curves.easeInOut,
-                        ),
-                      ),
-                    ),
-                    child: child,
-                  ),
-                  child: Image.asset(
-                    _characterImage,
-                    height: screenH * 0.7,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        const Text('🐧', style: TextStyle(fontSize: 70)),
-                  ),
-                ),
-              ),
-              Expanded(
-                flex: 5,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
-                      _babyFoxAsset,
-                      height: screenH * 0.4,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          const Text('🦭', style: TextStyle(fontSize: 70)),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+
+        // Baby fox
+        Positioned(
+          right: screenW * 0.10,
+          top: screenH * 0.28,
+          child: Image.asset(
+            _babyFoxAsset,
+            height: screenH * 0.38,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Text(
+              '🦊',
+              style: TextStyle(fontSize: 70),
+            ),
           ),
         ),
       ],
@@ -596,58 +598,65 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           children: [
             Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
-                  child: Stack(
-                    alignment: Alignment.topCenter,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: ArcticXButton(),
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: ArcticLevelBadge(level: widget.level),
-                      ),
-                    ],
-                  ),
-                ),
+                // MAIN GAME AREA
                 Expanded(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Expanded(flex: 3, child: _buildIceFloe(h)),
+                      Expanded(
+                        flex: 3,
+                        child: _buildIceFloe(h),
+                      ),
+
                       Expanded(
                         flex: 5,
                         child: ScaleTransition(
                           scale: _sceneEnter,
                           child: LayoutBuilder(
-                            builder: (context, sceneConstraints) =>
-                                _buildScaleScene(sceneConstraints.maxWidth, h),
+                            builder: (context, sceneConstraints) {
+                              return _buildScaleScene(
+                                sceneConstraints.maxWidth,
+                                h,
+                              );
+                            },
                           ),
                         ),
                       ),
+
                       Expanded(
                         flex: 3,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(height: 70),
-                            _buildSafeCamp(h),
-                            const Spacer(),
-                            _buildWeightTray(h),
-                          ],
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              bottom: h * 0.08,
+                              right: 20,
+                            ),
+                            child: _buildSafeCamp(h),
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
+
                 Padding(
-                  padding: const EdgeInsets.only(top: 0, bottom: 5),
+                  padding: const EdgeInsets.only(
+                    left: 60,
+                    right: 60,
+                  ),
+                  child: _buildWeightTray(h),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.only(
+                    bottom: 15,
+                  ),
                   child: _buildRoundIndicator(),
                 ),
               ],
             ),
+
             _buildPupCrossing(w, h),
           ],
         );
@@ -655,7 +664,6 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     );
   }
 
-  /// Full-width overlay: animates the rescued pup walking from the ice floe
   Widget _buildPupCrossing(double w, double h) {
     if (!_pupCrossing) return const SizedBox.shrink();
 
@@ -698,24 +706,38 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
   // ── Ice floe with waiting pups ───────────────────────────────────────────
   Widget _buildIceFloe(double h) {
-    final baseSize = (h * 0.18);
+    final baseSize = h * 0.18;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.topCenter,
-      children: [
-        SizedBox(
-          height: h * 0.9,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final areaW = constraints.maxWidth;
+        final areaH = constraints.maxHeight;
+
+        return Padding(
+          padding: const EdgeInsets.only(
+            top: 80,
+            left: 30,
+          ),
           child: Stack(
             clipBehavior: Clip.none,
             children: List.generate(_totalRounds, (i) {
-              final hidden = i < _rescuedCount || i == _crossingIndex;
-              final scatter = _pupScatter[i % _pupScatter.length];
+              final hidden =
+                  i < _rescuedCount || i == _crossingIndex;
+
+              final scatter =
+              _pupScatter[i % _pupScatter.length];
+
               final pupSize = baseSize * scatter[2];
 
+              final left =
+                  (areaW * scatter[0]) - (pupSize / 2);
+
+              final top =
+                  (areaH * scatter[1]) - (pupSize / 2);
+
               return Positioned(
-                left: (h * 0.22) + scatter[0] - pupSize / 2,
-                top: scatter[1],
+                left: left,
+                top: top,
                 child: AnimatedOpacity(
                   key: _pupKeys[i],
                   opacity: hidden ? 0 : 1,
@@ -723,15 +745,20 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                   child: Image.asset(
                     _babyFoxAsset,
                     height: pupSize,
-                    errorBuilder: (_, __, ___) =>
-                        Text('🦭', style: TextStyle(fontSize: pupSize * 0.7)),
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Text(
+                      '🦊',
+                      style: TextStyle(
+                        fontSize: pupSize * 0.7,
+                      ),
+                    ),
                   ),
                 ),
               );
             }),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -746,7 +773,8 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     final beamWidth = ((w - panSize) * beamLengthFactor).clamp(150.0, w - 8);
     final balanced = _currentTotal == _target;
 
-    return Center(
+    return Align(
+      alignment: Alignment.bottomCenter,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -773,10 +801,9 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                 width: beamWidth + panSize,
                 height: panSize * 2.3,
                 child: Stack(
-                  clipBehavior: Clip.none, // ← add this
+                  clipBehavior: Clip.none,
                   alignment: Alignment.bottomCenter,
                   children: [
-                    // rotating beam with pans
                     Positioned(
                       bottom: panSize * 0.4,
                       child: AnimatedRotation(
@@ -805,12 +832,12 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                               ),
                               Positioned(
                                 left: 0,
-                                top: -panSize * 0.22,
+                                top: -panSize * 0.35,
                                 child: _buildLeftPan(panSize),
                               ),
                               Positioned(
                                 right: 0,
-                                top: -panSize * 0.22,
+                                top: -panSize * 0.35,
                                 child: _buildRightPan(panSize),
                               ),
                             ],
@@ -828,19 +855,24 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     );
   }
 
-  /// Fixed "target load" area showing the addition problem.
   Widget _buildLeftPan(double size) {
     return Container(
-      width: size * 1.9,
-      height: size * 0.8,
+      constraints: BoxConstraints(
+        minWidth: size * 1.6,
+        minHeight: size * 0.95,
+        maxWidth: size * 2.8,
+      ),
       padding: EdgeInsets.symmetric(
-        horizontal: size * 0.12,
-        vertical: size * 0.04,
+        horizontal: size * 0.10,
+        vertical: size * 0.10,
       ),
       decoration: BoxDecoration(
         color: ArcticColorTheme.cotton.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white, width: 3),
+        border: Border.all(
+          color: Colors.white,
+          width: 3,
+        ),
         boxShadow: [
           BoxShadow(
             color: ArcticColorTheme.pictonblue.withValues(alpha: 0.001),
@@ -849,103 +881,182 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           ),
         ],
       ),
-      child: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _addendGroup(_addendA, size),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                '+',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontSize: size * 0.2,
-                  fontWeight: FontWeight.bold,
-                  color: ArcticColorTheme.cadetblue,
-                  shadows: const [Shadow(color: Colors.white, blurRadius: 4)],
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _addendGroup(_addendA, size),
+
+          SizedBox(width: size * 0.12),
+
+          Text(
+            '+',
+            style: TextStyle(
+              fontFamily: ArcticAppTextStyles.fredoka,
+              fontSize: size * 0.28,
+              fontWeight: FontWeight.bold,
+              color: ArcticColorTheme.cadetblue,
+              shadows: const [
+                Shadow(
+                  color: Colors.white,
+                  blurRadius: 4,
                 ),
-              ),
+              ],
             ),
-            _addendGroup(_addendB, size),
-          ],
-        ),
+          ),
+
+          SizedBox(width: size * 0.12),
+
+          _addendGroup(_addendB, size),
+        ],
       ),
     );
   }
 
-  /// A cluster of ice crystals with its count shown underneath.
   Widget _addendGroup(int count, double size) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Wrap(
-          spacing: 2,
-          runSpacing: 2,
+          spacing: size * 0.04,
+          runSpacing: size * 0.04,
           alignment: WrapAlignment.center,
-          children: List.generate(count, (_) => _miniCrystal(size * 0.26)),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          '$count',
-          style: TextStyle(
-            fontFamily: ArcticAppTextStyles.fredoka,
-            fontSize: size * 0.22,
-            fontWeight: FontWeight.bold,
-            color: ArcticColorTheme.cadetblue,
-            shadows: const [Shadow(color: Colors.white, blurRadius: 4)],
+          children: List.generate(
+            count,
+                (_) => _miniCrystal(
+              size * 0.35,
+            ),
           ),
         ),
       ],
     );
   }
 
-  /// Drop target area where the player loads numbered weights.
   Widget _buildRightPan(double size) {
-    return DragTarget<int>(
-      onWillAcceptWithDetails: (details) =>
-          !_resolvingRound && !_weightUsed[details.data],
-      onAcceptWithDetails: (details) => _onWeightDropped(details.data),
-      builder: (context, candidateData, rejectedData) {
-        return SizedBox(
-          width: size * 1.2,
-          height: size * 0.8,
-          child: _panLoad.isEmpty
-              ? Container(
-                  width: size * 1.6,
-                  height: size * 0.8,
-                  decoration: BoxDecoration(
-                    color: ArcticColorTheme.cotton.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: ArcticColorTheme.slateblue.withValues(alpha: 0.35),
-                      width: 2,
-                    ),
-                  ),
-                )
-              : Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Transform.translate(
-                    offset: Offset(0, size * 0.10),
-                    child: Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      alignment: WrapAlignment.center,
-                      children: _panLoad.map((idx) {
-                        return GestureDetector(
-                          onTap: () => _onWeightRemoved(idx),
-                          child: _weightChipVisual(
-                            _weightPool[idx],
-                            size * 0.48,
-                          ),
-                        );
-                      }).toList(),
-                    ),
+    final panWidth = size * 1.8;
+    final panHeight = size * 0.95;
+
+    return SizedBox(
+      width: panWidth,
+      height: panHeight,
+      child: DragTarget<int>(
+        hitTestBehavior: HitTestBehavior.opaque,
+
+        onWillAcceptWithDetails: (details) =>
+        !_resolvingRound &&
+            !_weightUsed[details.data],
+
+        onAcceptWithDetails: (details) =>
+            _onWeightDropped(details.data),
+
+        builder: (context, candidateData, rejectedData) {
+          final isHovering = candidateData.isNotEmpty;
+
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+
+            width: panWidth,
+            height: panHeight,
+
+            alignment: Alignment.center,
+
+            decoration: BoxDecoration(
+              color: ArcticColorTheme.cotton.withValues(
+                alpha: isHovering ? 0.95 : 0.8,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: ArcticColorTheme.slateblue.withValues(
+                  alpha: isHovering ? 0.7 : 0.35,
+                ),
+                width: isHovering ? 3 : 2,
+              ),
+            ),
+
+            child: _panLoad.isEmpty
+                ? const SizedBox.shrink()
+                : SizedBox.expand(
+              child: Center(
+                child: Transform.translate(
+                  offset: Offset(0, size * 0.07),
+                  child: Wrap(
+                    spacing: size * 0.08,
+                    runSpacing: size * 0.08,
+                    alignment: WrapAlignment.center,
+                    runAlignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: _panLoad.map((idx) {
+                      return GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: () => _onWeightRemoved(idx),
+                        child: _panWeightVisual(
+                          _weightPool[idx],
+                          size * 0.92,
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
-        );
-      },
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _panWeightVisual(int value, double size) {
+    final crystalSize = size * 0.38;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Ice group
+        Wrap(
+          spacing: size * 0.04,
+          runSpacing: size * 0.04,
+          alignment: WrapAlignment.center,
+          runAlignment: WrapAlignment.center,
+          children: List.generate(
+            value,
+                (_) => Image.asset(
+              _iceAsset,
+              width: crystalSize,
+              height: crystalSize,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+
+        // Number badge
+        Positioned(
+          right: -size * 0.08,
+          top: -size * 0.08,
+          child: Container(
+            width: size * 0.32,
+            height: size * 0.32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: ArcticColorTheme.pictonblue,
+              border: Border.all(
+                color: Colors.white,
+                width: 2,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '$value',
+              style: TextStyle(
+                fontFamily: ArcticAppTextStyles.fredoka,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: size * 0.18,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -954,63 +1065,71 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       _iceAsset,
       width: size,
       height: size,
-      errorBuilder: (_, __, ___) =>
-          Text('🧊', style: TextStyle(fontSize: size)),
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => Text(
+        '🧊',
+        style: TextStyle(fontSize: size),
+      ),
     );
   }
 
   Widget _weightChipVisual(int value, double size) {
-    return SizedBox(
-      width: size,
-      height: size,
+    final crystalSize = value <= 2
+        ? size * 0.48
+        : size * 0.38;
+
+    return Container(
+      constraints: BoxConstraints(
+        minWidth: size,
+        maxWidth: size * 1.45,
+        minHeight: size * 0.80,
+      ),
+      padding: EdgeInsets.all(size * 0.06),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Positioned.fill(
-            child: Image.asset(
-              _crystalAssetForValue(value),
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFFEAF8FD),
-                      Color(0xFF9FDCEF),
-                      Color(0xFF48CAE4),
-                    ],
-                    stops: [0.0, 0.55, 1.0],
-                  ),
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$value',
-                  style: TextStyle(
-                    fontFamily: ArcticAppTextStyles.fredoka,
-                    color: ArcticColorTheme.cadetblue,
-                    fontWeight: FontWeight.bold,
-                    fontSize: size * 0.5,
+          Center(
+            child: Wrap(
+              spacing: size * 0.03,
+              runSpacing: size * 0.03,
+              alignment: WrapAlignment.center,
+              runAlignment: WrapAlignment.center,
+              children: List.generate(
+                value,
+                    (_) => Image.asset(
+                  _iceAsset,
+                  width: crystalSize,
+                  height: crystalSize,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Text(
+                    '🧊',
+                    style: TextStyle(
+                      fontSize: crystalSize,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
+
+          // Number indicator
           Positioned(
             right: -4,
             top: -4,
             child: Container(
-              width: size * 0.36,
-              height: size * 0.36,
+              width: size * 0.34,
+              height: size * 0.34,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: ArcticColorTheme.pictonblue,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(
+                  color: Colors.white,
+                  width: 2,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
+                    color: ArcticColorTheme.pictonblue
+                        .withValues(alpha: 0.4),
                     blurRadius: 4,
                   ),
                 ],
@@ -1022,7 +1141,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                   fontFamily: ArcticAppTextStyles.fredoka,
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: size * 0.22,
+                  fontSize: size * 0.20,
                 ),
               ),
             ),
@@ -1034,68 +1153,100 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
   // ── Weight tray ───────────────────────────────────────────────────────────
   Widget _buildWeightTray(double h) {
-    final chipSize = (h * 0.15);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const itemGap = 8.0;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        alignment: WrapAlignment.center,
-        children: List.generate(_weightPool.length, (i) {
-          final used = _weightUsed[i];
-          final chip = _weightChipVisual(_weightPool[i], chipSize);
+        final availableWidth = constraints.maxWidth - (itemGap * (_weightPool.length - 1));
+        final maxChipFromWidth = availableWidth / (_weightPool.length * 1.45);
+        final chipSize = min(h * 0.25, maxChipFromWidth,);
 
-          if (used) {
-            return Opacity(opacity: 0.25, child: chip);
-          }
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: List.generate(_weightPool.length, (i) {
+            final used = _weightUsed[i];
 
-          return Draggable<int>(
-            data: i,
-            feedback: Material(
-              color: Colors.transparent,
-              child: _weightChipVisual(_weightPool[i], chipSize * 1.15),
-            ),
-            childWhenDragging: Opacity(opacity: 0.3, child: chip),
-            child: chip,
-          );
-        }),
-      ),
+            final chip = _weightChipVisual(
+              _weightPool[i],
+              chipSize,
+            );
+
+            final choice = used
+                ? Opacity(
+              opacity: 0.25,
+              child: chip,
+            )
+                : Draggable<int>(
+              data: i,
+              feedback: Material(
+                color: Colors.transparent,
+                child: _weightChipVisual(
+                  _weightPool[i],
+                  chipSize * 1.10,
+                ),
+              ),
+              childWhenDragging: Opacity(
+                opacity: 0.3,
+                child: chip,
+              ),
+              child: chip,
+            );
+
+            return Padding(
+              padding: EdgeInsets.only(
+                right: i < _weightPool.length - 1
+                    ? itemGap
+                    : 0,
+              ),
+              child: choice,
+            );
+          }),
+        );
+      },
     );
   }
 
   // ── Safe camp (rescued pups) ─────────────────────────────────────────────
   Widget _buildSafeCamp(double h) {
-    final pupSize = (h * 0.14);
+    final pupSize = h * 0.14;
 
-    return Column(
-      key: _campAnchorKey, // ← add
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Wrap(
-          spacing: 4,
-          runSpacing: 4,
+    return SizedBox(
+      key: _campAnchorKey,
+      width: h * 0.50,
+      height: h * 0.34,
+      child: Center(
+        child: Wrap(
+          spacing: 6,
+          runSpacing: 6,
           alignment: WrapAlignment.center,
+          runAlignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: List.generate(_rescuedCount, (i) {
             final isNewest = i == _rescuedCount - 1;
+
             return ScaleTransition(
               scale: isNewest
                   ? CurvedAnimation(
-                      parent: _campPupCtrl,
-                      curve: Curves.elasticOut,
-                    )
+                parent: _campPupCtrl,
+                curve: Curves.elasticOut,
+              )
                   : const AlwaysStoppedAnimation(1.0),
               child: Image.asset(
                 _babyFoxAsset,
                 height: pupSize,
-                errorBuilder: (_, __, ___) =>
-                    Text('🦭', style: TextStyle(fontSize: pupSize * 0.7)),
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Text(
+                  '🦊',
+                  style: TextStyle(
+                    fontSize: pupSize * 0.7,
+                  ),
+                ),
               ),
             );
           }),
         ),
-      ],
+      ),
     );
   }
 
