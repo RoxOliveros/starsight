@@ -39,14 +39,21 @@ class SignboardMathGame extends StatefulWidget {
 }
 
 class _SignboardMathGameState extends State<SignboardMathGame>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, ArcticAudioMixin  {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        ArcticAudioMixin,
+        AiCameraMixin<SignboardMathGame> {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
   // ── Asset paths ────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _signboardAsset = 'assets/images/objects/arctic/snowy_signboard_bigger.png';
+  static const String _domaImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _signboardAsset =
+      'assets/images/objects/arctic/snowy_signboard_bigger.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const List<String> _clusterAssets = [
@@ -69,7 +76,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   static const String _audioRoundPromptSub =
       '$_audioBase/signboard_sub_instruction.wav';
   static const String _audioBury = 'assets/audio/sound_effects/erase.wav';
-  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioBubblePop =
+      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioWin = '$_audioBase/signboard_win.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
@@ -197,9 +205,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
-    await Future.delayed(
-      const Duration(milliseconds: 300),
-    );
+    await Future.delayed(const Duration(milliseconds: 300));
 
     await _playVoice(_audioIntro);
 
@@ -250,9 +256,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   Future<void> _playRoundPromptAndUnlock() async {
     _canInteract = false;
 
-    await Future.delayed(
-      const Duration(milliseconds: 500),
-    );
+    await Future.delayed(const Duration(milliseconds: 500));
 
     if (!mounted) return;
 
@@ -277,27 +281,20 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     return [...distractors.take(2), target]..shuffle(rng);
   }
 
-  void _handleEraseAt(
-      Offset localPosition,
-      double rowWidth,
-      ) {
+  void _handleEraseAt(Offset localPosition, double rowWidth) {
     if (!_canInteract ||
         _resolvingRound ||
         _spec.type != _RoundType.subtraction) {
       return;
     }
 
-    final erasedCount =
-        _buried.where((isBuried) => isBuried).length;
+    final erasedCount = _buried.where((isBuried) => isBuried).length;
 
     if (erasedCount >= _spec.b) return;
 
     final slotWidth = rowWidth / _spec.a;
 
-    final index =
-    (localPosition.dx / slotWidth)
-        .floor()
-        .clamp(0, _spec.a - 1);
+    final index = (localPosition.dx / slotWidth).floor().clamp(0, _spec.a - 1);
 
     if (_buried[index]) return;
 
@@ -310,9 +307,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   }
 
   Future<void> _onPieceDropped(int choiceIndex) async {
-    if (!_canInteract ||
-        _resolvingRound ||
-        _placedChoiceIndex != null) {
+    if (!_canInteract || _resolvingRound || _placedChoiceIndex != null) {
       return;
     }
 
@@ -565,7 +560,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                     ),
                   ),
 
-                  Padding(padding: EdgeInsetsGeometry.only(right: 40),
+                  Padding(
+                    padding: EdgeInsetsGeometry.only(right: 40),
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: _buildChoicesColumn(h),
@@ -608,15 +604,10 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                 decoration: BoxDecoration(
                   color: ArcticColorTheme.cotton,
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 3,
-                  ),
+                  border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: 0.18,
-                      ),
+                      color: Colors.black.withValues(alpha: 0.18),
                       blurRadius: 6,
                       offset: const Offset(0, 3),
                     ),
@@ -641,13 +632,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
               fit: BoxFit.fill,
               errorBuilder: (_, __, ___) => Container(
                 decoration: BoxDecoration(
-                  color: ArcticColorTheme.cotton
-                      .withValues(alpha: 0.92),
+                  color: ArcticColorTheme.cotton.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 4,
-                  ),
+                  border: Border.all(color: Colors.white, width: 4),
                 ),
               ),
             ),
@@ -668,9 +655,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                     child: _spec.type == _RoundType.addition
                         ? _buildAdditionClusters(itemSize)
                         : _buildSubtractionClusterWithBury(
-                      boardWidth * 0.7,
-                      itemSize,
-                    ),
+                            boardWidth * 0.7,
+                            itemSize,
+                          ),
                   ),
                 ),
                 _buildTagSlot(itemSize),
@@ -734,16 +721,10 @@ class _SignboardMathGameState extends State<SignboardMathGame>
             width: effectiveWidth,
             child: GestureDetector(
               onPanDown: (details) =>
-                  _handleEraseAt(
-                    details.localPosition,
-                    effectiveWidth,
-                  ),
+                  _handleEraseAt(details.localPosition, effectiveWidth),
 
               onPanUpdate: (details) =>
-                  _handleEraseAt(
-                    details.localPosition,
-                    effectiveWidth,
-                  ),
+                  _handleEraseAt(details.localPosition, effectiveWidth),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: List.generate(_spec.a, (i) {
@@ -792,9 +773,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) =>
-      _canInteract &&
-          !_resolvingRound &&
-          _placedChoiceIndex == null,
+          _canInteract && !_resolvingRound && _placedChoiceIndex == null,
       onAcceptWithDetails: (details) => _onPieceDropped(details.data),
       builder: (context, candidateData, rejectedData) {
         final highlight = candidateData.isNotEmpty;
@@ -861,13 +840,14 @@ class _SignboardMathGameState extends State<SignboardMathGame>
           child: placed
               ? Opacity(opacity: 0.15, child: piece)
               : Draggable<int>(
-            data: i,
-            maxSimultaneousDrags:
-            _canInteract && !_resolvingRound ? 1 : 0,
-            feedback: Material(color: Colors.transparent, child: piece),
-            childWhenDragging: Opacity(opacity: 0.3, child: piece),
-            child: piece,
-          ),
+                  data: i,
+                  maxSimultaneousDrags: _canInteract && !_resolvingRound
+                      ? 1
+                      : 0,
+                  feedback: Material(color: Colors.transparent, child: piece),
+                  childWhenDragging: Opacity(opacity: 0.3, child: piece),
+                  child: piece,
+                ),
         );
       }),
     );
