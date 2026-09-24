@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,15 +18,9 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_connect_the_dots_screen.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
 
-// ── Game phases ────────────────────────────────────────────────────────────
 enum _GamePhase { showing, guessing, correct, wrong }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
 
 const _kAllObjects = [
   'compass',
@@ -39,10 +38,6 @@ const _kAllObjects = [
 const int _kTotalRounds = 5;
 const int _kShowSecondsBase = 4;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 class WhatsMissingScreen extends StatefulWidget {
   final int level;
 
@@ -53,17 +48,27 @@ class WhatsMissingScreen extends StatefulWidget {
 }
 
 class _WhatsMissingScreenState extends State<WhatsMissingScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/whats_missing_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/whats_missing_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/whats_missing_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/whats_missing_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/whats_missing_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/whats_missing_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -78,23 +83,17 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   int _objectCountForRound(int round) => round >= 4 ? 2 : 1;
   int _showSecondsForRound(int round) => round >= 4 ? 6 : _kShowSecondsBase;
 
-  /// The 3 objects shown this round
   late List<String> _shownObjects;
-
-  /// The object that was removed
   late String _missingObject;
-
-  /// 2 choices: one correct, one wrong
   late List<String> _choices;
-
-  /// Countdown timer value
   int _countdown = _kShowSecondsBase;
   Timer? _countdownTimer;
 
   bool _showWinDialog = false;
-
-  /// Which choice was tapped (for feedback highlight)
   String? _tappedChoice;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -102,51 +101,43 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   AudioPlayer? _introPlayer;
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared float
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _itemDanceCtrl;
   late Animation<double> _itemDance;
-
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
-
-  // Round fade
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
-
-  // Missing slot pulse
   late AnimationController _missingPulseCtrl;
   late Animation<double> _missingPulseAnim;
-
-  // Countdown ring
   late AnimationController _countdownRingCtrl;
-
-  // Choice feedback bounce
   late AnimationController _correctBounceCtrl;
   late Animation<double> _correctBounceAnim;
-
-  // Round complete pulse
   late AnimationController _completePulseCtrl;
-
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _countdownTimer?.cancel();
     _introPlayer?.stop();
     _introPlayer?.dispose();
@@ -164,8 +155,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     OrientationService.setLandscape();
     super.dispose();
   }
-
-  // ── Animation init ─────────────────────────────────────────────────────────
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
@@ -234,18 +223,16 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     );
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;                       
+    if (!mounted) return;
     _roxieSlideCtrl.forward();
 
     await _playAudio(_audioIntro);
     if (!mounted) return;
 
     await Future.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;                       
+    if (!mounted) return;
 
     _gameEnterCtrl.forward();
     _startRound();
@@ -278,25 +265,22 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     }
   }
 
-  // ── Round setup ────────────────────────────────────────────────────────────
-
   void _startRound() {
     final rng = Random();
     final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
 
-    final objectCount = _objectCountForRound(_round); 
-    final showSeconds = _showSecondsForRound(_round); 
+    final objectCount = _objectCountForRound(_round);
+    final showSeconds = _showSecondsForRound(_round);
 
     _shownObjects = shuffled.sublist(0, objectCount);
+    _missingObject = _shownObjects[rng.nextInt(objectCount)];
 
-    _missingObject = _shownObjects[rng.nextInt(objectCount)]; 
-
-    final distractors = shuffled.sublist(objectCount); 
+    final distractors = shuffled.sublist(objectCount);
     final wrongChoice = distractors[rng.nextInt(distractors.length)];
     _choices = [_missingObject, wrongChoice]..shuffle(rng);
 
     _tappedChoice = null;
-    _countdown = showSeconds; 
+    _countdown = showSeconds;
     _gamePhase = _GamePhase.showing;
 
     _missingPulseCtrl.stop();
@@ -306,11 +290,9 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     _completePulseCtrl.reset();
     _enterCtrl.forward(from: 0);
 
-    // Start countdown ring animation — rebuild duration for this round's difficulty
-    _countdownRingCtrl.duration = Duration(seconds: showSeconds); 
+    _countdownRingCtrl.duration = Duration(seconds: showSeconds);
     _countdownRingCtrl.forward(from: 0);
 
-    // Start countdown timer
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
@@ -324,14 +306,12 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
       }
     });
   }
-  
+
   void _revealMissing() {
     if (!mounted) return;
     setState(() => _gamePhase = _GamePhase.guessing);
     _missingPulseCtrl.repeat(reverse: true);
   }
-
-  // ── Guess logic ────────────────────────────────────────────────────────────
 
   Future<void> _onChoiceTapped(String choice) async {
     if (_gamePhase != _GamePhase.guessing) return;
@@ -344,7 +324,9 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     });
 
     if (isCorrect) {
-      if (mounted) _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', ''))); // CHANGED — guard
+      _tapTracker.recordCorrectTap();
+      if (mounted)
+        _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
 
       _correctBounceCtrl.forward(from: 0);
       _missingPulseCtrl.stop();
@@ -369,8 +351,7 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
         await sub.cancel();
         if (!mounted) return;
 
-        await PuzzleProgressService.instance.markLevelComplete(8);
-        if (mounted) setState(() => _showWinDialog = true);
+        await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
         if (mounted) {
@@ -379,7 +360,9 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
         }
       }
     } else {
-      if (mounted) _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', ''))); // CHANGED — guard
+      _tapTracker.recordMistake();
+      if (mounted)
+        _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
 
       showRoxieReaction(RoxieState.wrong);
 
@@ -393,29 +376,54 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_whats_missing',
+      activityName: "What's Missing?",
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    PuzzleProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
-            Stack(
-              children: [
-          Positioned.fill(
-            child: Stack(
-              children: [
-                Image.asset(
-                  _bgImage,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-                Container(color: Colors.black.withValues(alpha: 0.15)),
-              ],
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.puzzleGlade(),
+        gameBuilder: () => Stack(
+          children: [
+            Positioned.fill(
+              child: Stack(
+                children: [
+                  Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                ],
+              ),
             ),
-          ),
-          _screenPhase == _ScreenPhase.intro
+            _screenPhase == _ScreenPhase.intro
                 ? _buildIntroLayer()
                 : Stack(
                     children: [
@@ -427,28 +435,35 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
                     ],
                   ),
 
-                Positioned(top: 25, left: 25, child: PuzzleXButton()),
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-          if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-        ],
-      ),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+          ],
         ),
+      ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-          child:Stack(
+          child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -513,7 +528,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
             crossAxisAlignment: CrossAxisAlignment.center,
             children: List.generate(sampleObjects.length, (i) {
               final angle = _itemDance.value * ((i % 2 == 0) ? 1 : -1);
-              // middle one shown as question mark to hint the game
               final isMiddle = i == 1;
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -524,7 +538,9 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
                     height: 76,
                     decoration: BoxDecoration(
                       color: isMiddle
-                          ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.25)
+                          ? PuzzleColorTheme.goldenyellow.withValues(
+                              alpha: 0.25,
+                            )
                           : Colors.white.withValues(alpha: 0.88),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
@@ -573,10 +589,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
-
   Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _enterAnim,
@@ -584,11 +596,13 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-            child:
-            Stack(
+            child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -624,14 +638,11 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     );
   }
 
-  // ── Object display ─────────────────────────────────────────────────────────
-
   Widget _buildObjectDisplay() {
-    final objectCount = _objectCountForRound(_round); 
+    final objectCount = _objectCountForRound(_round);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Phase label
         Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
@@ -655,10 +666,9 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
             ),
           ),
         ),
-        // Object tiles row
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(objectCount, (i) { 
+          children: List.generate(objectCount, (i) {
             final obj = _shownObjects[i];
             final isMissing =
                 _gamePhase != _GamePhase.showing && obj == _missingObject;
@@ -671,7 +681,7 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
       ],
     );
   }
-  
+
   Widget _buildObjectTile(String objectName) {
     return Container(
       width: 96,
@@ -734,8 +744,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     );
   }
 
-  // ── Right panel: countdown or choices ─────────────────────────────────────
-
   Widget _buildRightPanel() {
     if (_gamePhase == _GamePhase.showing) {
       return _buildCountdown();
@@ -744,7 +752,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   }
 
   Widget _buildCountdown() {
-    // Pick color based on urgency
     final Color ringColor = _countdown <= 1
         ? const Color(0xFFE05A5A)
         : _countdown <= 2
@@ -884,12 +891,9 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     return tile;
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
-
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
       onNext: () {
         Navigator.pushReplacement(
           context,

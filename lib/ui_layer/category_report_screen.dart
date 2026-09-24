@@ -3,6 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/CategorySummaryService.dart';
+import '../business_layer/forest_progress_service.dart';
+import '../business_layer/arctic_progress_service.dart';
+import '../business_layer/lagoon_progress_service.dart';
+import '../business_layer/puzzle_progress_service.dart';
 import 'parents_area_screen.dart'; // lowercase
 
 class CategoryReportScreen extends StatefulWidget {
@@ -263,10 +267,25 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         }
       }
 
-      // Alphabet Forest requires 5, Arctic Numberland requires 10
-      int totalCategoryGames = (widget.categoryId == 'alphabet_forest')
-          ? 5
-          : 20;
+      int totalCategoryGames;
+      switch (widget.categoryId) {
+        case 'alphabet_forest':
+          totalCategoryGames = ForestProgressService.totalLevels;
+          break;
+        case 'arctic_numberland':
+          totalCategoryGames = ArcticProgressService.totalLevels;
+          break;
+        case 'discovery_lagoon':
+          totalCategoryGames = LagoonProgressService.totalLevels;
+          break;
+        case 'puzzle_glade':
+          totalCategoryGames = PuzzleProgressService.totalLevels;
+          break;
+        default:
+          // Unknown category id - fall back to what was actually played
+          // rather than a guessed total.
+          totalCategoryGames = playedGameIds.length;
+      }
 
       Map<String, dynamic> summaryMap =
           await CategorySummaryService.generateCategoryReport(

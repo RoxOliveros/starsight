@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,36 +18,17 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_basket_sort.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-const _kAllObjects = [
-  'compass',
-  'jar',
-  'map',
-  'notebook',
-  'puzzle_piece',
-];
+const _kAllObjects = ['compass', 'jar', 'map', 'notebook', 'puzzle_piece'];
 
 const int _kTotalRounds = 5;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Data model
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _Piece {
   final int id;
 
   _Piece({required this.id});
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class PuzzleObjectScreen extends StatefulWidget {
   final int level;
@@ -54,17 +40,27 @@ class PuzzleObjectScreen extends StatefulWidget {
 }
 
 class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<PuzzleObjectScreen>, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<PuzzleObjectScreen>,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/puzzle_object_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/puzzle_object_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/puzzle_object_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/puzzle_object_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/puzzle_object_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/puzzle_object_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -83,29 +79,25 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
   bool _showWinDialog = false;
   late List<int> _correctMapping;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _pieceDanceCtrl;
   late Animation<double> _pieceDance;
   late AnimationController _speechBubbleCtrl;
-
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
 
-  // Round
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
   late AnimationController _bounceCtrl;
@@ -120,26 +112,34 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
   }
 
   double _boardSlotSize(int round) {
-    const boardSize = 220.0;      // matches _buildPuzzleBoard's width/height
-    const boardPadding = 10.0;    // matches Padding(all(10)) around the GridView
+    const boardSize = 220.0;
+    const boardPadding = 10.0;
     final gridSize = _gridSizeForRound(round);
     return (boardSize - boardPadding * 2) / gridSize;
   }
 
   final Set<String> _usedObjects = {};
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
-
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _bgPlayer.dispose();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
@@ -154,8 +154,6 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     OrientationService.setLandscape();
     super.dispose();
   }
-
-  // ── Animation init ─────────────────────────────────────────────────────────
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
@@ -219,8 +217,6 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     );
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
@@ -257,12 +253,12 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     }
   }
 
-  // ── Round setup ────────────────────────────────────────────────────────────
-
   void _startRound() {
     final rng = Random();
 
-    var available = _kAllObjects.where((o) => !_usedObjects.contains(o)).toList();
+    var available = _kAllObjects
+        .where((o) => !_usedObjects.contains(o))
+        .toList();
     if (available.isEmpty) {
       _usedObjects.clear();
       available = List<String>.from(_kAllObjects);
@@ -275,8 +271,10 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
 
     _correctMapping = List.generate(pieceCount, (i) => i)..shuffle(rng);
 
-    _trayPieces = List.generate(pieceCount, (i) => _Piece(id: _correctMapping[i]))
-      ..shuffle(rng);
+    _trayPieces = List.generate(
+      pieceCount,
+      (i) => _Piece(id: _correctMapping[i]),
+    )..shuffle(rng);
 
     _slotContents = List.filled(pieceCount, -1);
     _slotHighlight = List.filled(pieceCount, false);
@@ -288,8 +286,6 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     _completePulseCtrl.reset();
     _enterCtrl.forward(from: 0);
   }
-
-  // ── Piece interaction ──────────────────────────────────────────────────────
 
   void _pickUpPiece(int pieceId) {
     if (_roundComplete) return;
@@ -306,6 +302,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     }
 
     if (incoming == _correctMapping[slotIndex]) {
+      _tapTracker.recordCorrectTap();
       setState(() {
         _slotContents[slotIndex] = incoming;
         _trayPieces.removeWhere((p) => p.id == incoming);
@@ -316,26 +313,26 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
       _bounceCtrl.forward(from: 0);
 
-      unawaited(showRoxieReaction(RoxieState.correct));
+      showRoxieReaction(RoxieState.correct);
 
       if (_slotContents.every((s) => s != -1)) {
         await Future.delayed(const Duration(milliseconds: 300));
-        if (!mounted) return;                        // <-- add
+        if (!mounted) return;
         setState(() => _roundComplete = true);
 
-        unawaited(showRoxieReaction(RoxieState.correct));
+        showRoxieReaction(RoxieState.correct);
 
         _completePulseCtrl.repeat(reverse: true);
 
         _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
 
         await Future.delayed(const Duration(milliseconds: 1400));
-        if (!mounted) return;                        // <-- add
+        if (!mounted) return;
 
         if (_round >= _kTotalRounds) {
           await _bgPlayer.stop();
           await _sfxPlayer.stop();
-          if (!mounted) return;                       // <-- add
+          if (!mounted) return;
 
           final completer = Completer<void>();
           final sub = _completePlayer.onPlayerComplete.listen((_) {
@@ -346,11 +343,15 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
           );
           await completer.future.timeout(const Duration(seconds: 10));
           await sub.cancel();
-          if (!mounted) return;                        // <-- add
+          if (!mounted) return;
 
-          await PuzzleProgressService.instance.markLevelComplete(widget.level);
+          PuzzleProgressService.instance
+              .markLevelComplete(widget.level)
+              .catchError((e) {
+                debugPrint("Database Error marking level complete: $e");
+              });
 
-          if (mounted) setState(() => _showWinDialog = true);
+          await _saveDataAndShowWinDialog();
         } else {
           await _enterCtrl.reverse();
           if (mounted) {
@@ -362,9 +363,9 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
         }
       }
     } else {
-      // ❌ Wrong slot
+      _tapTracker.recordMistake();
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
-      unawaited(showRoxieReaction(RoxieState.wrong));
+      showRoxieReaction(RoxieState.wrong);
       setState(() {
         _slotHighlight[slotIndex] = true;
         _heldPieceId = -1;
@@ -374,29 +375,48 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_object_screen',
+      activityName: 'Puzzle Object',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
-            Stack(
-              children: [
-          Positioned.fill(
-            child: Stack(
-              children: [
-                Image.asset(
-                  _bgImage,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-                Container(color: Colors.black.withValues(alpha: 0.15)),
-              ],
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.puzzleGlade(),
+        gameBuilder: () => Stack(
+          children: [
+            Positioned.fill(
+              child: Stack(
+                children: [
+                  Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                ],
+              ),
             ),
-          ),
-          _screenPhase == _ScreenPhase.intro
+            _screenPhase == _ScreenPhase.intro
                 ? _buildIntroLayer()
                 : Stack(
                     children: [
@@ -409,28 +429,35 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
                     ],
                   ),
 
-                Positioned(top: 25, left: 25, child: PuzzleXButton()),
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-          if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-        ],
-      ),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+          ],
         ),
+      ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-          child:Stack(
+          child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -483,11 +510,8 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     );
   }
 
-  /// Intro preview: 4 jigsaw-style tiles dancing, mirroring the shadow-dance
-  /// pattern from ShadowMatch but themed for the jigsaw puzzle.
   Widget _buildIntroDancingPieces() {
     const previewObject = 'puzzle_piece';
-    // Quadrant labels matching the 2×2 board layout
     final quadrants = [
       {'col': 0, 'row': 0},
       {'col': 1, 'row': 0},
@@ -558,10 +582,6 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
-
   Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _enterAnim,
@@ -569,11 +589,13 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-            child:
-            Stack(
+            child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -598,8 +620,6 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     );
   }
 
-  // ── Puzzle board ───────────────────────────────────────────────────────────
-
   Widget _buildPuzzleBoard() {
     return Container(
       width: 220,
@@ -621,7 +641,6 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
       ),
       child: Stack(
         children: [
-          // Ghost hint image
           Positioned.fill(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -635,14 +654,13 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
               ),
             ),
           ),
-          // drop slots
           Padding(
             padding: const EdgeInsets.all(10),
             child: GridView.builder(
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: _slotContents.length, // was: 4
+              itemCount: _slotContents.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: _gridSizeForRound(_round), // was: _kGridSize (const)
+                crossAxisCount: _gridSizeForRound(_round),
                 mainAxisSpacing: 0,
                 crossAxisSpacing: 0,
               ),
@@ -691,7 +709,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
               ),
             ),
             child: filled
-                ? ClipRect(child: _buildPlacedPieceTile(slotIndex))   // wrap with ClipRect
+                ? ClipRect(child: _buildPlacedPieceTile(slotIndex))
                 : const SizedBox.shrink(),
           ),
         );
@@ -740,7 +758,6 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     return tile;
   }
 
-  // ── Tray ───────────────────────────────────────────────────────────────────
   Widget _buildTray() {
     const trayPadding = 5.0;
     const spacing = 8.0;
@@ -754,7 +771,10 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
 
     return Container(
       width: trayWidth,
-      padding: const EdgeInsets.symmetric(horizontal: trayPadding, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: trayPadding,
+        vertical: 12,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(28),
@@ -772,22 +792,20 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
-            _buildTrayGrid(pieceCount, gridSize, slotSize, spacing),
-        ],
+        children: [_buildTrayGrid(pieceCount, gridSize, slotSize, spacing)],
       ),
     );
   }
 
   Widget _buildTrayGrid(
-      int pieceCount,
-      int gridSize,
-      double slotSize,
-      double spacing,
-      ) {
+    int pieceCount,
+    int gridSize,
+    double slotSize,
+    double spacing,
+  ) {
     final tiles = List.generate(pieceCount, (id) {
       final piece = _trayPieces.cast<_Piece?>().firstWhere(
-            (p) => p!.id == id,
+        (p) => p!.id == id,
         orElse: () => null,
       );
       if (piece == null) {
@@ -797,7 +815,9 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
           decoration: BoxDecoration(
             color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.05),
             border: Border.all(
-              color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
+              color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                alpha: 0.10,
+              ),
               width: 2,
             ),
           ),
@@ -806,7 +826,6 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
       return _buildTrayPiece(piece, slotSize);
     });
 
-    // Chunk the flat tile list into rows of exactly `gridSize` items.
     final rows = <Widget>[];
     for (int i = 0; i < tiles.length; i += gridSize) {
       final rowTiles = tiles.sublist(
@@ -815,7 +834,9 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
       );
       rows.add(
         Padding(
-          padding: EdgeInsets.only(bottom: i + gridSize < tiles.length ? spacing : 0),
+          padding: EdgeInsets.only(
+            bottom: i + gridSize < tiles.length ? spacing : 0,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -857,13 +878,13 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     );
   }
 
-  Widget _buildTrayPiece(_Piece piece, double size) { // CHANGED — added size param
+  Widget _buildTrayPiece(_Piece piece, double size) {
     final isHeld = _heldPieceId == piece.id;
 
     final pieceWidget = AnimatedContainer(
       duration: const Duration(milliseconds: 160),
-      width: size,   // was: cellSize from LayoutBuilder
-      height: size,  // was: cellSize from LayoutBuilder
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: isHeld
             ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.28)
@@ -876,19 +897,21 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
         ),
         boxShadow: isHeld
             ? [
-          BoxShadow(
-            color: PuzzleColorTheme.sunnyhue.withValues(alpha: 0.35),
-            blurRadius: 10,
-            spreadRadius: 1,
-          ),
-        ]
+                BoxShadow(
+                  color: PuzzleColorTheme.sunnyhue.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ]
             : [
-          BoxShadow(
-            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+                BoxShadow(
+                  color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                    alpha: 0.09,
+                  ),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: _buildPieceContent(piece.id, size: size),
     );
@@ -935,12 +958,9 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     );
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
-
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
       onNext: () {
         Navigator.pushReplacement(
           context,
@@ -950,12 +970,13 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
         );
       },
       onRestart: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PuzzleObjectScreen(level: widget.level),
-          ),
-        );
+        setState(() {
+          _round = 1;
+          _showWinDialog = false;
+          _hasSavedResult = false;
+          _tapTracker.startSession();
+        });
+        _startRound();
       },
       onBack: () {
         Navigator.pop(context);

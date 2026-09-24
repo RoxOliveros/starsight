@@ -33,10 +33,10 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   final String pythonServerUrl = 'http://13.68.159.132:8080/analyze';
   final String pythonResetUrl = 'http://13.68.159.132:8080/reset_calibration';
 
-  /// If the analysis server is slow or unreachable, give up on that request
-  /// instead of hanging (and piling up uploads). A timeout takes the same
-  /// path as any network error, so the game is never held up by it.
   final Duration _serverTimeout = const Duration(seconds: 8);
+
+  bool _isCapturing = false;
+  static Future<void>? _cameraReleaseFuture;
 
   // ── Face-aware tutorial audio ────────────────────────────────────────────
   Completer<void>? _activeVoiceInterrupt;
@@ -113,6 +113,17 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
     isFaceDetected = false;
     hasCapturedFirstFrame = false;
     sessionEmotions = [];
+
+    // Let the previous screen's camera fully let go of the hardware first
+    // (capped, so a stuck release can never block this screen forever).
+    final pendingRelease = _cameraReleaseFuture;
+    if (pendingRelease != null) {
+      try {
+        await pendingRelease.timeout(const Duration(seconds: 3));
+      } catch (_) {}
+    }
+    if (_isCameraDisposed) return;
+
     try {
       final cameras = await availableCameras();
       final frontCamera = cameras.firstWhere(
@@ -175,6 +186,8 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
       return;
     }
     if (aiCameraController!.value.isTakingPicture) return;
+    if (_isCapturing) return;
+    _isCapturing = true;
 
     File? imageFile;
     try {
@@ -268,6 +281,8 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           onCalibrationComplete?.call();
         }
       }
+    } finally {
+      _isCapturing = false;
     }
   }
 
@@ -289,7 +304,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
     _cameraInitFuture = null;
     if (controller == null) return;
 
-    () async {
+    _cameraReleaseFuture = () async {
       if (initFuture != null) {
         try {
           await initFuture;
@@ -297,10 +312,16 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           return;
         }
       }
+
+      var waited = 0;
+      while (_isCapturing && waited < 3000) {
+        await Future.delayed(const Duration(milliseconds: 50));
+        waited += 50;
+      }
+
       try {
         await controller.dispose();
-      } catch (_) {
-      }
+      } catch (_) {}
     }();
   }
 }

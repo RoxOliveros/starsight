@@ -1,25 +1,24 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:StarSight/games_ui_layer/puzzle_glade/game_shadow_match.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
-import 'game_shadow_match.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
 
 const List<List<String>> _kRoundObjectPools = [
   ['apple', 'banana', 'ball'],
@@ -31,10 +30,6 @@ const List<List<String>> _kRoundObjectPools = [
 
 const int _kTotalRounds = 5;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 class FindThePairScreen extends StatefulWidget {
   final int level;
 
@@ -45,18 +40,28 @@ class FindThePairScreen extends StatefulWidget {
 }
 
 class _FindThePairScreenState extends State<FindThePairScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<FindThePairScreen>, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<FindThePairScreen>,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/find_the_pair_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/find_the_pair_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/find_the_pair_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/find_the_pair_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -73,6 +78,9 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   bool _roundComplete = false;
   bool _showWinDialog = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -80,23 +88,16 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _previewPulseCtrl;
   late Animation<double> _previewPulse;
   late AnimationController _speechBubbleCtrl;
-
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
 
-  // Round
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
   late AnimationController _selectCtrl;
@@ -108,18 +109,27 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   late AnimationController _revealCtrl;
   late Animation<double> _revealAnim;
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
-
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
+
     _bgPlayer.stop();
     _sfxPlayer.stop();
     _completePlayer.stop();
@@ -142,11 +152,8 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     _revealCtrl.dispose();
 
     OrientationService.setLandscape();
-
     super.dispose();
   }
-
-  // ── Animation init ─────────────────────────────────────────────────────────
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
@@ -196,9 +203,10 @@ class _FindThePairScreenState extends State<FindThePairScreen>
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _selectAnim = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _selectCtrl, curve: Curves.easeOut),
-    );
+    _selectAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.08,
+    ).animate(CurvedAnimation(parent: _selectCtrl, curve: Curves.easeOut));
 
     _bounceCtrl = AnimationController(
       vsync: this,
@@ -227,31 +235,22 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     _revealAnim = CurvedAnimation(parent: _revealCtrl, curve: Curves.easeIn);
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-
     if (!mounted) return;
 
     _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
 
     await _playBgAudio(_audioIntro);
-
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
     _gameEnterCtrl.forward();
 
     _startRound();
-
-    if (!mounted) return;
-
-    setState(() => _screenPhase = _ScreenPhase.game);
-
+    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
     await _playBgAudio(_audioInstructions);
-
     if (!mounted) return;
   }
 
@@ -271,33 +270,21 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     }
   }
 
-  // ── Round setup ────────────────────────────────────────────────────────────
-
   void _startRound() {
     if (!mounted) return;
 
     final rng = Random();
     final pool = _kRoundObjectPools[_round - 1];
 
-    final available =
-    pool.where((o) => !_usedMatches.contains(o)).toList();
+    final available = pool.where((o) => !_usedMatches.contains(o)).toList();
+    final matchCandidates = available.isNotEmpty ? available : pool;
 
-    final matchCandidates =
-    available.isNotEmpty ? available : pool;
-
-    _matchingObject =
-    matchCandidates[rng.nextInt(matchCandidates.length)];
-
+    _matchingObject = matchCandidates[rng.nextInt(matchCandidates.length)];
     _usedMatches.add(_matchingObject);
 
-    final distractors =
-    pool.where((o) => o != _matchingObject).toList();
+    final distractors = pool.where((o) => o != _matchingObject).toList();
 
-    _choices = [
-      ...distractors,
-      _matchingObject,
-      _matchingObject,
-    ]..shuffle(rng);
+    _choices = [...distractors, _matchingObject, _matchingObject]..shuffle(rng);
 
     _firstSelectedIndex = null;
     _secondSelectedIndex = null;
@@ -311,8 +298,6 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     _revealCtrl.reset();
     _enterCtrl.forward(from: 0);
   }
-
-  // ── Tap handling ───────────────────────────────────────────────────────────
 
   Future<void> _onObjectTapped(int index) async {
     if (_roundComplete || _wrongFlash) return;
@@ -330,6 +315,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     setState(() => _secondSelectedIndex = index);
 
     if (isMatch) {
+      _tapTracker.recordCorrectTap();
       setState(() => _roundComplete = true);
 
       _bounceCtrl.forward(from: 0);
@@ -364,11 +350,14 @@ class _FindThePairScreenState extends State<FindThePairScreen>
 
         if (!mounted) return;
 
-        await PuzzleProgressService.instance.markLevelComplete(widget.level);
+        PuzzleProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
 
         if (!mounted) return;
-
-        setState(() => _showWinDialog = true);
+        await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
 
@@ -380,6 +369,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
         });
       }
     } else {
+      _tapTracker.recordMistake();
       unawaited(showRoxieReaction(RoxieState.wrong));
 
       setState(() {
@@ -402,7 +392,26 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_find_pair',
+      activityName: 'Find The Pair',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -438,16 +447,20 @@ class _FindThePairScreenState extends State<FindThePairScreen>
 
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
         ),
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
@@ -457,7 +470,10 @@ class _FindThePairScreenState extends State<FindThePairScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -498,6 +514,8 @@ class _FindThePairScreenState extends State<FindThePairScreen>
                     _characterImage,
                     height: roxieH,
                     fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        Text('🐰', style: TextStyle(fontSize: roxieH * 0.5)),
                   ),
                 ),
               ),
@@ -530,8 +548,9 @@ class _FindThePairScreenState extends State<FindThePairScreen>
               border: Border.all(
                 color: isMatch
                     ? PuzzleColorTheme.sunnyhue
-                    : PuzzleColorTheme.darkdesaturatedblue
-                    .withValues(alpha: 0.30),
+                    : PuzzleColorTheme.darkdesaturatedblue.withValues(
+                        alpha: 0.30,
+                      ),
                 width: isMatch ? 3 : 2.5,
               ),
               boxShadow: [
@@ -553,10 +572,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
           );
 
           if (isMatch) {
-            card = ScaleTransition(
-              scale: _previewPulse,
-              child: card,
-            );
+            card = ScaleTransition(scale: _previewPulse, child: card);
           }
 
           return card;
@@ -564,10 +580,6 @@ class _FindThePairScreenState extends State<FindThePairScreen>
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildGameLayer() {
     return FadeTransition(
@@ -579,7 +591,10 @@ class _FindThePairScreenState extends State<FindThePairScreen>
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -600,8 +615,6 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     return Center(child: _buildObjectGrid());
   }
 
-  // ── Grid helper ────────────────────────────────────────────────────────────
-
   Widget _buildObjectGrid() {
     final int cols;
     if (_choices.length <= 4) {
@@ -615,7 +628,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     for (int i = 0; i < _choices.length; i += cols) {
       final rowIndices = List.generate(
         min(cols, _choices.length - i),
-            (j) => i + j,
+        (j) => i + j,
       );
       rows.add(
         Padding(
@@ -642,11 +655,14 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     final object = _choices[index];
     final isFirstSelected = index == _firstSelectedIndex && !_roundComplete;
     final isWrongTap = _wrongFlash && index == _wrongIndex;
-    final isMatchedPair = _roundComplete &&
+    final isMatchedPair =
+        _roundComplete &&
         (index == _firstSelectedIndex || index == _secondSelectedIndex);
     final isDimmed = _roundComplete && !isMatchedPair;
 
-    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28);
+    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
+      alpha: 0.28,
+    );
     Color bgColor = Colors.white.withValues(alpha: 0.85);
 
     if (isFirstSelected) {
@@ -666,7 +682,9 @@ class _FindThePairScreenState extends State<FindThePairScreen>
       width: 72,
       height: 72,
       fit: BoxFit.contain,
-      color: isDimmed ? PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25) : null,
+      color: isDimmed
+          ? PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25)
+          : null,
       colorBlendMode: isDimmed ? BlendMode.modulate : null,
     );
 
@@ -686,8 +704,12 @@ class _FindThePairScreenState extends State<FindThePairScreen>
           boxShadow: [
             BoxShadow(
               color: isMatchedPair
-                  ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.35 * _revealAnim.value)
-                  : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+                  ? PuzzleColorTheme.goldenyellow.withValues(
+                      alpha: 0.35 * _revealAnim.value,
+                    )
+                  : PuzzleColorTheme.darkdesaturatedblue.withValues(
+                      alpha: 0.09,
+                    ),
               blurRadius: isMatchedPair ? 16 : 10,
               spreadRadius: isMatchedPair ? 1 : 0,
               offset: const Offset(0, 4),
@@ -714,18 +736,12 @@ class _FindThePairScreenState extends State<FindThePairScreen>
       );
     }
 
-    return GestureDetector(
-      onTap: () => _onObjectTapped(index),
-      child: card,
-    );
+    return GestureDetector(onTap: () => _onObjectTapped(index), child: card);
   }
-
-  // ── Win overlay ────────────────────────────────────────────────────────────
 
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
       onNext: () {
         Navigator.pushReplacement(
           context,

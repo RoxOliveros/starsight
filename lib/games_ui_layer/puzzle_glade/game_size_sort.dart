@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,12 +18,7 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_whats_missing.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
 
 const _kAllObjects = [
   'compass',
@@ -43,13 +43,9 @@ const _kSizeLabels4 = ['Tiny', 'Small', 'Medium', 'Large'];
 
 const double _kSlotSize = 120.0;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Data model
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _SizeItem {
   final String objectName;
-  final int sizeIndex; // 0=small, 1=medium, 2=large
+  final int sizeIndex;
   final double displaySize;
 
   const _SizeItem({
@@ -58,10 +54,6 @@ class _SizeItem {
     required this.displaySize,
   });
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class SizeSortScreen extends StatefulWidget {
   final int level;
@@ -73,17 +65,27 @@ class SizeSortScreen extends StatefulWidget {
 }
 
 class _SizeSortScreenState extends State<SizeSortScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<SizeSortScreen>, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<SizeSortScreen>,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/size_sort_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/size_sort_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/size_sort_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/size_sort_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/size_sort_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/size_sort_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -95,10 +97,11 @@ class _SizeSortScreenState extends State<SizeSortScreen>
   int _round = 1;
 
   int _itemCountForRound(int round) => round >= 4 ? 4 : 3;
-  List<double> get _sizesForRound => _itemCountForRound(_round) == 4 ? _kSizes4 : _kSizes3;
-  List<String> get _labelsForRound => _itemCountForRound(_round) == 4 ? _kSizeLabels4 : _kSizeLabels3;
+  List<double> get _sizesForRound =>
+      _itemCountForRound(_round) == 4 ? _kSizes4 : _kSizes3;
+  List<String> get _labelsForRound =>
+      _itemCountForRound(_round) == 4 ? _kSizeLabels4 : _kSizeLabels3;
 
-  /// The object used this round
   late String _currentObject;
 
   List<_SizeItem?> _slots = [null, null, null];
@@ -107,49 +110,48 @@ class _SizeSortScreenState extends State<SizeSortScreen>
   bool _roundComplete = false;
   bool _showWinDialog = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared float
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _itemDanceCtrl;
   late Animation<double> _itemDance;
-
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
-
-  // Round fade
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
-
-  // Slot bounce controllers (one per slot)
   late List<AnimationController> _slotBounceCtrl;
   late List<Animation<double>> _slotBounceAnim;
-
-  // Round complete pulse
   late AnimationController _completePulseCtrl;
-
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -164,8 +166,6 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     OrientationService.setLandscape();
     super.dispose();
   }
-
-  // ── Animation init ─────────────────────────────────────────────────────────
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
@@ -229,22 +229,20 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     );
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return; 
+    if (!mounted) return;
     _roxieSlideCtrl.forward();
 
     await _playAudio(_audioIntro);
-    if (!mounted) return; 
+    if (!mounted) return;
     await Future.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return; 
+    if (!mounted) return;
 
     _gameEnterCtrl.forward();
     _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
-    if (!mounted) return; 
+    if (!mounted) return;
     await _playAudio(_audioInstructions);
   }
 
@@ -267,8 +265,6 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     }
   }
 
-  // ── Round setup ────────────────────────────────────────────────────────────
-
   void _startRound() {
     final rng = Random();
     final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
@@ -281,13 +277,16 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     do {
       items = List.generate(
         itemCount,
-            (i) => _SizeItem(
+        (i) => _SizeItem(
           objectName: _currentObject,
           sizeIndex: i,
           displaySize: sizes[i],
         ),
       )..shuffle(rng);
-    } while (List.generate(itemCount, (i) => items[i].sizeIndex == i).every((b) => b));
+    } while (List.generate(
+      itemCount,
+      (i) => items[i].sizeIndex == i,
+    ).every((b) => b));
 
     _slots = List.generate(itemCount, (i) => items[i]);
     _flashSlot = List.filled(itemCount, false);
@@ -300,8 +299,6 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     _completePulseCtrl.reset();
     _enterCtrl.forward(from: 0);
   }
-
-  // ── Drop logic ─────────────────────────────────────────────────────────────
 
   void _onDragAccepted(int toSlot, int fromSlot) async {
     if (_roundComplete) return;
@@ -317,23 +314,30 @@ class _SizeSortScreenState extends State<SizeSortScreen>
 
     _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
 
+    if (_slots[toSlot]?.sizeIndex == toSlot) {
+      _tapTracker.recordCorrectTap();
+    } else {
+      _tapTracker.recordMistake();
+    }
+
     final sorted = List.generate(
       _slots.length,
-          (i) => _slots[i]?.sizeIndex == i,
+      (i) => _slots[i]?.sizeIndex == i,
     ).every((b) => b);
+
     if (sorted) {
       await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return; 
+      if (!mounted) return;
       setState(() => _roundComplete = true);
       _completePulseCtrl.repeat(reverse: true);
       _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
       showRoxieReaction(RoxieState.correct);
       await Future.delayed(const Duration(milliseconds: 1400));
-      if (!mounted) return; 
+      if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
         await _sfxPlayer.stop();
-        if (!mounted) return; 
+        if (!mounted) return;
         final completer = Completer<void>();
         final sub = _completePlayer.onPlayerComplete.listen((_) {
           if (!completer.isCompleted) completer.complete();
@@ -343,9 +347,15 @@ class _SizeSortScreenState extends State<SizeSortScreen>
         );
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
-        if (!mounted) return; 
-        await PuzzleProgressService.instance.markLevelComplete(7);
-        if (mounted) setState(() => _showWinDialog = true);
+        if (!mounted) return;
+
+        PuzzleProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
+
+        await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
         if (mounted) {
@@ -358,62 +368,88 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_size_sort',
+      activityName: 'Size Sort',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
-          Stack(
-            children: [
-              Positioned.fill(
-                child: Stack(
-                  children: [
-                    Image.asset(
-                      _bgImage,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
-                    Container(color: Colors.black.withValues(alpha: 0.15)),
-                  ],
-                ),
-              ),
-              _screenPhase == _ScreenPhase.intro
-                  ? _buildIntroLayer()
-                  : Stack(
+        loadingScreen: LoadingScreen.puzzleGlade(),
+        gameBuilder: () => Stack(
+          children: [
+            Positioned.fill(
+              child: Stack(
                 children: [
-                  FadeTransition(
-                    opacity: _gameFade,
-                    child: _buildGameLayer(),
+                  Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
                   ),
-                  buildRoxie(context),
+                  Container(color: Colors.black.withValues(alpha: 0.15)),
                 ],
               ),
+            ),
+            _screenPhase == _ScreenPhase.intro
+                ? _buildIntroLayer()
+                : Stack(
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameLayer(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
 
-              Positioned(top: 25, left: 25, child: PuzzleXButton()),
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-            ],
-          ),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+          ],
+        ),
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-          child:Stack(
+          child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -467,7 +503,6 @@ class _SizeSortScreenState extends State<SizeSortScreen>
   }
 
   Widget _buildIntroDancingItems() {
-    // Show the same object in 3 different sizes dancing
     const previewObject = 'star';
 
     return AnimatedBuilder(
@@ -521,10 +556,6 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
-
   Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _enterAnim,
@@ -532,11 +563,13 @@ class _SizeSortScreenState extends State<SizeSortScreen>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-            child:
-            Stack(
+            child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -557,20 +590,18 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     return Center(child: _buildShelfRow());
   }
 
-  // ── Shelf row ──────────────────────────────────────────────────────────────
-
   Widget _buildShelfRow() {
-    final itemCount = _itemCountForRound(_round); 
+    final itemCount = _itemCountForRound(_round);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
-          children: List.generate(itemCount, (i) => _buildSlot(i)), // CHANGED — was 3
+          children: List.generate(itemCount, (i) => _buildSlot(i)),
         ),
         Container(
-          width: itemCount == 4 ? 500 : 400, // CHANGED — was fixed 400
+          width: itemCount == 4 ? 500 : 400,
           height: 14,
           decoration: BoxDecoration(
             color: const Color(0xFFB5845A),
@@ -582,10 +613,10 @@ class _SizeSortScreenState extends State<SizeSortScreen>
   }
 
   Widget _buildSlot(int slotIndex) {
-    final slotSize = _kSlotSize; // CHANGED — was _kSlotSizes[slotIndex]
-    final label = _labelsForRound[slotIndex]; // CHANGED — was _kSizeLabels[slotIndex]
+    final slotSize = _kSlotSize;
+    final label = _labelsForRound[slotIndex];
     final placedItem = _slots[slotIndex];
-    final sizes = _sizesForRound; 
+    final sizes = _sizesForRound;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -699,13 +730,13 @@ class _SizeSortScreenState extends State<SizeSortScreen>
                     padding: const EdgeInsets.all(8),
                     child: placedItem != null
                         ? Center(
-                      child: Image.asset(
-                        'assets/images/objects/puzzle/${placedItem.objectName}.png',
-                        width: sizes[placedItem.sizeIndex],
-                        height: sizes[placedItem.sizeIndex],
-                        fit: BoxFit.contain,
-                      ),
-                    )
+                            child: Image.asset(
+                              'assets/images/objects/puzzle/${placedItem.objectName}.png',
+                              width: sizes[placedItem.sizeIndex],
+                              height: sizes[placedItem.sizeIndex],
+                              fit: BoxFit.contain,
+                            ),
+                          )
                         : const SizedBox.shrink(),
                   ),
                 );
@@ -717,12 +748,9 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     );
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
-
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
       onNext: () {
         Navigator.pushReplacement(
           context,
@@ -732,12 +760,13 @@ class _SizeSortScreenState extends State<SizeSortScreen>
         );
       },
       onRestart: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SizeSortScreen(level: widget.level),
-          ),
-        );
+        setState(() {
+          _round = 1;
+          _showWinDialog = false;
+          _hasSavedResult = false;
+          _tapTracker.startSession();
+        });
+        _startRound();
       },
       onBack: () {
         Navigator.pop(context);

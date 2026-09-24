@@ -23,6 +23,8 @@ import '../../games_ui_layer/puzzle_glade/game_what_goes_together_screen.dart';
 import '../../games_ui_layer/puzzle_glade/game_whats_missing.dart';
 import '../../games_ui_layer/puzzle_glade/game_which_belongs_here.dart';
 import '../loading_screen.dart';
+import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'puzzle_buttons.dart';
 import 'puzzle_theme.dart';
 
@@ -69,7 +71,32 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
     setState(() => _unlockedLevel = unlocked);
   }
 
+  static String? _puzzleCalibratedSessionId;
+
+  /// Shows the camera calibration overlay once, before the first level opens.
+  Future<void> _ensurePuzzleCalibrated() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    if (_puzzleCalibratedSessionId == uid) return;
+    _puzzleCalibratedSessionId = uid;
+
+    await Navigator.push(
+      context,
+
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            CalibrationScreen(
+              childSessionId: uid,
+              onCalibrationDone: () => Navigator.pop(context),
+            ),
+      ),
+    );
+  }
+
   Future<void> _openLevel(Widget screen) async {
+    await _ensurePuzzleCalibrated();
+    if (!mounted) return;
+
     final nextScreen = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
@@ -93,9 +120,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoadingProgress) {
-      return Scaffold(
-        body: LoadingScreen.puzzleGlade(),
-      );
+      return Scaffold(body: LoadingScreen.puzzleGlade());
     }
 
     return Scaffold(
@@ -189,7 +214,8 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
                                 color: PuzzleColorTheme.darkdesaturatedblue,
                                 borderRadius: BorderRadius.circular(25),
                                 border: Border.all(
-                                  color: PuzzleColorTheme.verydarkdesaturatedblue,
+                                  color:
+                                      PuzzleColorTheme.verydarkdesaturatedblue,
                                   width: 5,
                                 ),
                                 boxShadow: [

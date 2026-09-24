@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,85 +18,39 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_same_or_different.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _OddOneOutQuestion {
   final List<String> objects;
   final String oddObject;
 
-  const _OddOneOutQuestion({
-    required this.objects,
-    required this.oddObject,
-  });
+  const _OddOneOutQuestion({required this.objects, required this.oddObject});
 }
 
 const List<_OddOneOutQuestion> _kQuestions = [
-  // Round 1 – Food vs Toy
   _OddOneOutQuestion(
-    objects: [
-      'apple',
-      'banana',
-      'orange',
-      'ball',
-    ],
+    objects: ['apple', 'banana', 'orange', 'ball'],
     oddObject: 'ball',
   ),
-
-  // Round 2 – Animals vs Vehicle
   _OddOneOutQuestion(
-    objects: [
-      'dog',
-      'cat',
-      'rabbit',
-      'car',
-    ],
+    objects: ['dog', 'cat', 'rabbit', 'car'],
     oddObject: 'car',
   ),
-
-  // Round 3 – Transportation vs Nature
   _OddOneOutQuestion(
-    objects: [
-      'car',
-      'bus',
-      'train',
-      'flower',
-    ],
+    objects: ['car', 'bus', 'train', 'flower'],
     oddObject: 'flower',
   ),
-
-  // Round 4 – School / Learning vs Food
   _OddOneOutQuestion(
-    objects: [
-      'pen',
-      'notebook',
-      'book',
-      'banana',
-    ],
+    objects: ['pen', 'notebook', 'book', 'banana'],
     oddObject: 'banana',
   ),
-
-  // Round 5 – Nature vs Vehicle
   _OddOneOutQuestion(
-    objects: [
-      'flower',
-      'tree',
-      'leaf',
-      'car',
-    ],
+    objects: ['flower', 'tree', 'leaf', 'car'],
     oddObject: 'car',
   ),
 ];
 
 const int _kTotalRounds = 5;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class OddOneOutScreen extends StatefulWidget {
   final int level;
@@ -103,22 +62,28 @@ class OddOneOutScreen extends StatefulWidget {
 }
 
 class _OddOneOutScreenState extends State<OddOneOutScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<OddOneOutScreen>, GameLoadingMixin {
-  // IMPORTANT: roxiePlayer must point at its own dedicated AudioPlayer
-  // instance, never be aliased to _sfxPlayer — aliasing causes
-  // RoxieReactionMixin's audio to interrupt/steal correct/wrong SFX
-  // playback (the bug fixed in Shape Fit and Maze Path).
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<OddOneOutScreen>,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/odd_one_out_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/odd_one_out_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/odd_one_out_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/odd_one_out_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/odd_one_out_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/odd_one_out_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -126,12 +91,15 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
   late String _oddObject;
-  late List<String> _choices; // 4 objects: 3 grouped + 1 odd, randomized order
+  late List<String> _choices;
   bool _wrongFlash = false;
   bool _roundComplete = false;
   int? _tappedIndex;
   int? _wrongIndex;
   bool _showWinDialog = false;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -140,11 +108,7 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
@@ -152,11 +116,9 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   late Animation<double> _previewPulse;
   late AnimationController _speechBubbleCtrl;
 
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
 
-  // Round
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
   late AnimationController _bounceCtrl;
@@ -166,18 +128,26 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   late AnimationController _revealCtrl;
   late Animation<double> _revealAnim;
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
-
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _bgPlayer.dispose();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
@@ -194,8 +164,6 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     OrientationService.setLandscape();
     super.dispose();
   }
-
-  // ── Animation init ─────────────────────────────────────────────────────────
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
@@ -268,20 +236,17 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     _revealAnim = CurvedAnimation(parent: _revealCtrl, curve: Curves.easeIn);
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
     _roxieSlideCtrl.forward();
-
     _speechBubbleCtrl.forward(from: 0);
+
     await _playBgAudio(_audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
-
     _gameEnterCtrl.forward();
     _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
@@ -304,15 +269,11 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     }
   }
 
-  // ── Round setup ────────────────────────────────────────────────────────────
-
   void _startRound() {
     final rng = Random();
     final question = _kQuestions[_round - 1];
 
     _oddObject = question.oddObject;
-
-    // Randomize the position of the odd object every round.
     _choices = List<String>.from(question.objects)..shuffle(rng);
 
     _wrongFlash = false;
@@ -326,14 +287,11 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     _enterCtrl.forward(from: 0);
   }
 
-  // ── Tap handling ───────────────────────────────────────────────────────────
-
   Future<void> _onObjectTapped(String tapped, int index) async {
-    // Block taps while a round is already won or a wrong-answer animation
-    // is playing, but otherwise always allow another attempt.
     if (_roundComplete || _wrongFlash) return;
 
     if (tapped == _oddObject) {
+      _tapTracker.recordCorrectTap();
       setState(() {
         _tappedIndex = index;
         _roundComplete = true;
@@ -358,9 +316,12 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
         await completer.future.timeout(const Duration(seconds: 10));
         await sub.cancel();
 
-        await PuzzleProgressService.instance.markLevelComplete(widget.level);
-
-        if (mounted) setState(() => _showWinDialog = true);
+        PuzzleProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
+        await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
         setState(() {
@@ -369,6 +330,7 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
         });
       }
     } else {
+      _tapTracker.recordMistake();
       unawaited(showRoxieReaction(RoxieState.wrong));
       setState(() {
         _wrongFlash = true;
@@ -385,7 +347,26 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_odd_one_out',
+      activityName: 'Odd One Out',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -419,16 +400,21 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
                     ],
                   ),
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
         ),
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
@@ -438,7 +424,10 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -489,14 +478,8 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     );
   }
 
-  /// Small non-interactive demo grid showing 3 explorer tools + 1 pulsing
-  /// wildcard, teaching the "spot the different one" mechanic before play.
   Widget _buildIntroPreview() {
-    const previewGroup = [
-      'apple',
-      'banana',
-      'orange',
-    ];
+    const previewGroup = ['apple', 'banana', 'orange'];
     const previewOdd = 'ball';
 
     final previewItems = [...previewGroup, previewOdd];
@@ -519,8 +502,9 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
               border: Border.all(
                 color: isOdd
                     ? PuzzleColorTheme.sunnyhue
-                    : PuzzleColorTheme.darkdesaturatedblue
-                    .withValues(alpha: 0.30),
+                    : PuzzleColorTheme.darkdesaturatedblue.withValues(
+                        alpha: 0.30,
+                      ),
                 width: isOdd ? 3 : 2.5,
               ),
               boxShadow: [
@@ -542,10 +526,7 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
           );
 
           if (isOdd) {
-            card = ScaleTransition(
-              scale: _previewPulse,
-              child: card,
-            );
+            card = ScaleTransition(scale: _previewPulse, child: card);
           }
 
           return card;
@@ -553,10 +534,6 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildGameLayer() {
     return FadeTransition(
@@ -568,7 +545,10 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -609,7 +589,9 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     final isCorrectTap = _roundComplete && isOdd;
     final isDimmed = _roundComplete && !isOdd;
 
-    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28);
+    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
+      alpha: 0.28,
+    );
     Color bgColor = Colors.white.withValues(alpha: 0.85);
 
     if (isWrongTap) {
@@ -626,7 +608,9 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       width: 72,
       height: 72,
       fit: BoxFit.contain,
-      color: isDimmed ? PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25) : null,
+      color: isDimmed
+          ? PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25)
+          : null,
       colorBlendMode: isDimmed ? BlendMode.modulate : null,
     );
 
@@ -670,27 +654,26 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     );
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
-
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
       onNext: () {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => SameOrDifferentScreen(level: widget.level + 1),
+            builder: (context) =>
+                SameOrDifferentScreen(level: widget.level + 1),
           ),
         );
       },
       onRestart: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => OddOneOutScreen(level: widget.level),
-          ),
-        );
+        setState(() {
+          _round = 1;
+          _showWinDialog = false;
+          _hasSavedResult = false;
+          _tapTracker.startSession();
+        });
+        _startRound();
       },
       onBack: () {
         Navigator.pop(context);

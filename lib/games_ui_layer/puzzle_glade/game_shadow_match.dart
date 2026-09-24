@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,12 +18,7 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_puzzle_object.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
 
 const _kAllObjects = [
   'compass',
@@ -35,10 +35,6 @@ const _kAllObjects = [
 
 const int _kTotalRounds = 5;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 class ShadowMatchScreen extends StatefulWidget {
   final int level;
 
@@ -49,23 +45,27 @@ class ShadowMatchScreen extends StatefulWidget {
 }
 
 class _ShadowMatchScreenState extends State<ShadowMatchScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<ShadowMatchScreen>, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<ShadowMatchScreen>,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  // Tagalog
-  static const String _audioIntro = 'assets/audio/puzzle_glade/shadow_match_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/shadow_match_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/shadow_match_complete.wav';
-
-  // English
-  // static const String _audioIntroEng = 'assets/audio/puzzle_glade/shadow_match_intro_eng.wav';
-  // static const String _audioInstructionsEng = 'assets/audio/puzzle_glade/shadow_match_instruction_eng.wav';
-  // static const String _audioCompleteEng = 'assets/audio/puzzle_glade/shadow_match_complete_eng.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/shadow_match_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/shadow_match_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/shadow_match_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -79,29 +79,25 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   int? _tappedIndex;
   bool _showWinDialog = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _shadowDanceCtrl;
   late Animation<double> _shadowDance;
   late AnimationController _speechBubbleCtrl;
-
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
 
-  // Round
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
   late AnimationController _pulseCtrl;
@@ -111,18 +107,27 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   late AnimationController _revealCtrl;
   late Animation<double> _revealAnim;
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
-
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
+
     _bgPlayer.dispose();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
@@ -138,8 +143,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     OrientationService.setLandscape();
     super.dispose();
   }
-
-  // ── Animation init ─────────────────────────────────────────────────────────
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
@@ -210,8 +213,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     _revealAnim = CurvedAnimation(parent: _revealCtrl, curve: Curves.easeIn);
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     _roxieSlideCtrl.forward();
@@ -247,8 +248,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     return round >= 4 ? 3 : 2;
   }
 
-  // ── Round setup ────────────────────────────────────────────────────────────
-
   void _startRound() {
     final rng = Random();
     final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
@@ -266,12 +265,11 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     _enterCtrl.forward(from: 0);
   }
 
-  // ── Choice tap ─────────────────────────────────────────────────────────────
-
   Future<void> _onChoiceDropped(String tapped, int index) async {
     if (_roundComplete || _wrongFlash) return;
 
     if (tapped == _answerObject) {
+      _tapTracker.recordCorrectTap();
       _pulseCtrl.stop();
       setState(() {
         _tappedIndex = index;
@@ -298,8 +296,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
         await sub.cancel();
 
         PuzzleProgressService.instance.markLevelComplete(widget.level);
-
-        if (mounted) setState(() => _showWinDialog = true);
+        await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
         setState(() {
@@ -308,6 +305,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
         });
       }
     } else {
+      _tapTracker.recordMistake();
       unawaited(showRoxieReaction(RoxieState.wrong));
       setState(() {
         _tappedIndex = index;
@@ -323,29 +321,48 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_shadow_match',
+      activityName: 'Shadow Match',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
-            Stack(
-              children: [
-          Positioned.fill(
-            child: Stack(
-              children: [
-                Image.asset(
-                  _bgImage,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-                Container(color: Colors.black.withValues(alpha: 0.15)),
-              ],
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.puzzleGlade(),
+        gameBuilder: () => Stack(
+          children: [
+            Positioned.fill(
+              child: Stack(
+                children: [
+                  Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                ],
+              ),
             ),
-          ),
-          _screenPhase == _ScreenPhase.intro
+            _screenPhase == _ScreenPhase.intro
                 ? _buildIntroLayer()
                 : Stack(
                     children: [
@@ -358,18 +375,22 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
                     ],
                   ),
 
-                Positioned(top: 25, left: 25, child: PuzzleXButton()),
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-          if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-        ],
-      ),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+          ],
         ),
+      ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
@@ -379,7 +400,10 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -496,10 +520,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
-
   Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _enterAnim,
@@ -507,11 +527,13 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-            child:
-            Stack(
+            child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -540,8 +562,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     );
   }
 
-  // ── Silhouette card ────────────────────────────────────────────────────────
-
   Widget _buildSilhouetteCard() {
     return DragTarget<String>(
       onWillAcceptWithDetails: (details) => !_roundComplete,
@@ -560,12 +580,16 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
             border: Border.all(
               color: isHovering
                   ? PuzzleColorTheme.sunnyhue
-                  : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.35),
+                  : PuzzleColorTheme.darkdesaturatedblue.withValues(
+                      alpha: 0.35,
+                    ),
               width: isHovering ? 3.5 : 2.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                  alpha: 0.10,
+                ),
                 blurRadius: 14,
                 offset: const Offset(0, 5),
               ),
@@ -610,8 +634,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     );
   }
 
-  // ── Choices ────────────────────────────────────────────────────────────────
-
   Widget _buildChoicesRow() {
     return Wrap(
       spacing: 14,
@@ -619,7 +641,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
       alignment: WrapAlignment.center,
       children: List.generate(
         _choices.length,
-            (i) => KeyedSubtree(
+        (i) => KeyedSubtree(
           key: ValueKey(_choices[i]),
           child: _buildChoiceButton(i),
         ),
@@ -652,7 +674,9 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
           ),
           boxShadow: [
             BoxShadow(
-              color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+              color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                alpha: 0.09,
+              ),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -668,7 +692,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
       borderColor = PuzzleColorTheme.sunnyhue;
       bgColor = PuzzleColorTheme.goldenyellow.withValues(alpha: 0.28);
     }
-
 
     Widget child = Image.asset(
       'assets/images/objects/puzzle/$object.png',
@@ -703,10 +726,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
       key: ValueKey(object),
       data: object,
       maxSimultaneousDrags: (_roundComplete || _wrongFlash) ? 0 : 1,
-      feedback: Material(
-        color: Colors.transparent,
-        child: child,
-      ),
+      feedback: Material(color: Colors.transparent, child: child),
       childWhenDragging: Container(
         width: 82,
         height: 82,
@@ -722,12 +742,9 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     );
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
-
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
       onNext: () {
         Navigator.pushReplacement(
           context,

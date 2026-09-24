@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/game_shadow_match.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,7 +18,6 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
 
 enum _IntroPhase { playingIntro, playingWelcome, done }
@@ -28,19 +32,30 @@ class StarColorSortScreen extends StatefulWidget {
 }
 
 class _StarColorSortScreenState extends State<StarColorSortScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _player;
 
-  // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _audioIntro = 'assets/audio/puzzle_glade/star_sort_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/star_sort_instruction.wav';
-  static const String _audioGameComplete = 'assets/audio/puzzle_glade/star_sort_complete.wav';
+  final GameTapTracker _tapTracker = GameTapTracker();
 
-  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  // ── Asset config ───────────────────────────────────────────────────────────
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/star_sort_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/star_sort_instruction.wav';
+  static const String _audioGameComplete =
+      'assets/audio/puzzle_glade/star_sort_complete.wav';
+
+  static const String _audioCorrect =
+      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
 
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
   static const String _jarImage = 'assets/images/objects/puzzle/jar_bnw.png';
@@ -104,34 +119,37 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   bool _roundComplete = false;
   bool _showWinDialog = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _player = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _jarDanceCtrl;
   late Animation<double> _jarDance;
   late AnimationController _speechBubbleCtrl;
-
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
-
-  // Round
   late AnimationController _celebCtrl;
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     _startRound();
     finishLoading(_startIntroFlow);
@@ -139,6 +157,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _player.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
@@ -150,7 +169,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     super.dispose();
   }
 
-  // ── Animation init ─────────────────────────────────────────────────────────
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
       vsync: this,
@@ -196,7 +214,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     );
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
@@ -213,7 +230,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
 
-    // Transition to game
     _setIntroPhase(_IntroPhase.done);
     if (mounted) {
       setState(() {
@@ -246,7 +262,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     if (!mounted) return;
   }
 
-  // ── Round logic ────────────────────────────────────────────────────────────
   void _startRound() {
     final rng = Random();
     final shuffled = List<_JarPair>.from(_allPairs)..shuffle(rng);
@@ -289,6 +304,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     final correct = ball.jarIndex == jarIndex;
 
     if (correct) {
+      _tapTracker.recordCorrectTap();
       setState(() {
         _poolBalls.remove(ball);
         if (jarIndex == 0) {
@@ -310,30 +326,21 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
       if (allFilled) {
         _player.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
-
-        // small delay so success feels “acknowledged”
         await Future.delayed(const Duration(milliseconds: 300));
 
         setState(() => _roundComplete = true);
         _celebCtrl.forward(from: 0);
 
-        // give time for celebration sound to land before transition
         await Future.delayed(const Duration(milliseconds: 1200));
 
         if (_round >= _totalRounds) {
           await Future.delayed(const Duration(milliseconds: 300));
-
           await _player.play(
             AssetSource(_audioGameComplete.replaceFirst('assets/', '')),
           );
-
           await Future.delayed(const Duration(milliseconds: 800));
 
-          await PuzzleProgressService.instance.markLevelComplete(1);
-
-          if (mounted) {
-            setState(() => _showWinDialog = true);
-          }
+          await _saveDataAndShowWinDialog();
         } else {
           setState(() {
             _round++;
@@ -342,6 +349,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
         }
       }
     } else {
+      _tapTracker.recordMistake();
       setState(() {
         if (jarIndex == 0) {
           _wrongFlashA = true;
@@ -363,7 +371,32 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_star_color_sort',
+      activityName: 'Star Color Sort',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    PuzzleProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -380,8 +413,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
                     width: double.infinity,
                     height: double.infinity,
                   ),
-
-                  // soft fade overlay
                   Container(color: Colors.black.withValues(alpha: 0.15)),
                 ],
               ),
@@ -392,6 +423,14 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
         ),
@@ -399,9 +438,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
   Widget _buildIntroLayer() {
     return Column(
       children: [
@@ -420,10 +456,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
         Expanded(
           child: Row(
             children: [
-              // LEFT — Roxie sliding in
               Expanded(flex: 4, child: _buildIntroRoxie()),
-
-              // RIGHT — Dancing jars showcase
               Expanded(flex: 6, child: _buildIntroDancingJars()),
             ],
           ),
@@ -490,7 +523,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Floating colored star only
                     Image.asset(
                       _starImage,
                       width: 58,
@@ -500,10 +532,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
                       errorBuilder: (_, __, ___) =>
                           const Text('⭐', style: TextStyle(fontSize: 42)),
                     ),
-
                     const SizedBox(height: 6),
-
-                    // Color name below
                     Text(
                       pair.label,
                       style: TextStyle(
@@ -526,12 +555,8 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
   Widget _buildGameLayer() {
     return Stack(
-      // ← wrap in Stack
       children: [
         Column(
           children: [
@@ -664,7 +689,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Color label above jar
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -729,7 +753,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
                         ),
                       ),
                     ),
-                  // Full checkmark
                   if (isFull)
                     Positioned(
                       top: 4,
@@ -775,21 +798,15 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     } else if (count == 4) {
       return Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          row(contents.sublist(0, 1)), // 1 above
-          row(contents.sublist(1, 4)), // 3 below
-        ],
+        children: [row(contents.sublist(0, 1)), row(contents.sublist(1, 4))],
       );
     } else {
-      // 5 or 6
       final topCount = count - 3;
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          row(
-            contents.sublist(0, topCount),
-          ), // 2 above (for 5), 3 above (for 6)
-          row(contents.sublist(topCount, count)), // 3 below
+          row(contents.sublist(0, topCount)),
+          row(contents.sublist(topCount, count)),
         ],
       );
     }
@@ -819,11 +836,9 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     );
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-
       onNext: () {
         Navigator.pushReplacement(
           context,
@@ -847,9 +862,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Data models
-// ─────────────────────────────────────────────────────────────────────────────
 class _JarPair {
   final String label;
   final Color jarColor;

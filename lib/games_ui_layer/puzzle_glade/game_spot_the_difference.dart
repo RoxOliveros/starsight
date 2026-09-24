@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/game_pattern_match.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,12 +18,7 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, playing }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
 
 const _kAllObjects = [
   'compass',
@@ -34,20 +34,11 @@ const _kAllObjects = [
 ];
 
 const int _kTotalRounds = 5;
-const int _kGridSize = 4; // 2x2 grid = 4 objects per scene
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Data model for a round
-// ─────────────────────────────────────────────────────────────────────────────
+const int _kGridSize = 4;
 
 class _RoundData {
-  /// Objects shown on the LEFT (original) panel — 4 items, 2x2
   final List<String> leftObjects;
-
-  /// Objects shown on the RIGHT (modified) panel — same except one slot differs
   final List<String> rightObjects;
-
-  /// Index (0–3) of the slot that is different
   final int diffIndex;
 
   const _RoundData({
@@ -57,45 +48,49 @@ class _RoundData {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 class SpotDifferenceScreen extends StatefulWidget {
   final int level;
 
   const SpotDifferenceScreen({super.key, required this.level});
 
   @override
-  State<SpotDifferenceScreen> createState() =>
-      _SpotDifferenceScreenState();
+  State<SpotDifferenceScreen> createState() => _SpotDifferenceScreenState();
 }
 
 class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/spot_the_difference_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/spot_the_difference_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/spot_the_difference_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/spot_the_difference_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/spot_the_difference_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/spot_the_difference_complete.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   _ScreenPhase _phase = _ScreenPhase.intro;
   int _round = 1;
   late _RoundData _currentRound;
 
-  /// Which cell is highlighted as correct (null = none yet)
   int? _highlightedCorrectIndex;
-
-  /// Which cell was tapped wrong (null = none) — triggers shake
   int? _wrongTappedIndex;
 
   bool _showWinDialog = false;
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -112,22 +107,29 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
   late Animation<double> _roundFade;
   late AnimationController _correctGlowCtrl;
 
-  // Per-cell shake for wrong tap (8 cells total: 4 left + 4 right)
   late List<AnimationController> _cellShakeCtrl;
   late List<Animation<double>> _cellShakeAnim;
-
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -141,8 +143,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     OrientationService.setLandscape();
     super.dispose();
   }
-
-  // ── Animation init ─────────────────────────────────────────────────────────
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
@@ -183,7 +183,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
       duration: const Duration(milliseconds: 700),
     );
 
-    // 8 shake controllers: index 0–3 = left panel cells, 4–7 = right panel cells
     _cellShakeCtrl = List.generate(
       8,
       (_) => AnimationController(
@@ -201,15 +200,13 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
         .toList();
   }
 
-  // ── Intro flow ─────────────────────────────────────────────────────────────
-
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;                    
+    if (!mounted) return;
 
     _roxieSlideCtrl.forward();
     await _playAudio(_audioIntro);
-    if (!mounted) return;                    
+    if (!mounted) return;
 
     _gameEnterCtrl.forward();
     await Future.delayed(const Duration(milliseconds: 650));
@@ -237,23 +234,19 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     } finally {
       try {
         await player.stop();
-      } catch (_) {}      
+      } catch (_) {}
       try {
         await player.dispose();
-      } catch (_) {}      
+      } catch (_) {}
     }
   }
-
-  // ── Round setup ────────────────────────────────────────────────────────────
 
   void _buildRound() {
     final rng = Random();
     final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
 
-    // Pick 4 objects for the base scene
     final base = shuffled.take(_kGridSize).toList();
 
-    // Pick the diff index (0–3) and replacement object
     final diffIndex = rng.nextInt(_kGridSize);
     final replacement = shuffled
         .skip(_kGridSize)
@@ -278,16 +271,14 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     _correctGlowCtrl.reset();
   }
 
-  // ── Tap logic ──────────────────────────────────────────────────────────────
-
-  /// [panel] 0 = left, 1 = right; [cellIndex] 0–3
   void _onCellTapped(int panel, int cellIndex) async {
     if (_phase != _ScreenPhase.playing) return;
-    if (_highlightedCorrectIndex != null) return; // already answered
+    if (_highlightedCorrectIndex != null) return;
 
     final isCorrect = cellIndex == _currentRound.diffIndex;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap();
       showRoxieReaction(RoxieState.correct);
 
       setState(() => _highlightedCorrectIndex = cellIndex);
@@ -299,7 +290,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
       _correctGlowCtrl.reset();
 
       if (_round >= _kTotalRounds) {
-        // All rounds done
+        await _sfxPlayer.stop();
         final completer = Completer<void>();
         final sub = _completePlayer.onPlayerComplete.listen((_) {
           if (!completer.isCompleted) completer.complete();
@@ -309,10 +300,14 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
         );
         await completer.future.timeout(const Duration(seconds: 15));
         await sub.cancel();
-        await PuzzleProgressService.instance.markLevelComplete(17);
-        if (mounted) setState(() => _showWinDialog = true);
+
+        PuzzleProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
+        await _saveDataAndShowWinDialog();
       } else {
-        // Next round
         await _roundEnterCtrl.reverse();
         if (!mounted) return;
         setState(() {
@@ -323,9 +318,9 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
         _roundEnterCtrl.forward(from: 0);
       }
     } else {
+      _tapTracker.recordMistake();
       showRoxieReaction(RoxieState.wrong);
 
-      // shakeIndex: panel 0 → indices 0–3, panel 1 → indices 4–7
       final shakeIndex = panel * _kGridSize + cellIndex;
       setState(() => _wrongTappedIndex = cellIndex);
       _cellShakeCtrl[shakeIndex].forward(from: 0).then((_) {
@@ -334,30 +329,48 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_spot_the_difference',
+      activityName: 'Spot The Difference',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
-            Stack(
-              children: [
-          // Background
-          Positioned.fill(
-            child: Stack(
-              children: [
-                Image.asset(
-                  _bgImage,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-                Container(color: Colors.black.withValues(alpha: 0.15)),
-              ],
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.puzzleGlade(),
+        gameBuilder: () => Stack(
+          children: [
+            Positioned.fill(
+              child: Stack(
+                children: [
+                  Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                ],
+              ),
             ),
-          ),
-          _phase == _ScreenPhase.intro
+            _phase == _ScreenPhase.intro
                 ? _buildIntroLayer()
                 : Stack(
                     children: [
@@ -369,28 +382,35 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
                     ],
                   ),
 
-                Positioned(top: 25, left: 25, child: PuzzleXButton()),
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-          if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-        ],
-      ),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+          ],
         ),
+      ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-          child:Stack(
+          child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -490,7 +510,9 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
             color: Colors.white.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.3),
+              color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                alpha: 0.3,
+              ),
               width: 2,
             ),
           ),
@@ -526,9 +548,8 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
                           )
                         : Icon(
                             Icons.image_outlined,
-                            color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                              alpha: 0.3,
-                            ),
+                            color: PuzzleColorTheme.darkdesaturatedblue
+                                .withValues(alpha: 0.3),
                             size: 20,
                           ),
                   );
@@ -541,10 +562,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
-
   Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _roundFade,
@@ -552,11 +569,13 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-            child:
-            Stack(
+            child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -579,7 +598,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Instruction label
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Text(
@@ -594,13 +612,11 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
             ),
           ),
         ),
-        // Two panels side by side
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _buildPanel(panelIndex: 0, objects: _currentRound.leftObjects),
-            // Divider
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
               child: Column(
@@ -630,8 +646,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
       ],
     );
   }
-
-  // ── Panel (2x2 grid) ───────────────────────────────────────────────────────
 
   Widget _buildPanel({required int panelIndex, required List<String> objects}) {
     return Container(
@@ -672,7 +686,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     final isHighlighted = _highlightedCorrectIndex != null && isTheDiff;
     final isWrongFlash = _wrongTappedIndex == cellIndex;
 
-    // shake index: left panel 0–3, right panel 4–7
     final shakeIndex = panelIndex * _kGridSize + cellIndex;
 
     return AnimatedBuilder(
@@ -707,7 +720,9 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
                     ? Colors.green
                     : isWrongFlash
                     ? Colors.red
-                    : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
+                    : PuzzleColorTheme.darkdesaturatedblue.withValues(
+                        alpha: 0.25,
+                      ),
                 width: isHighlighted || isWrongFlash ? 3 : 2,
               ),
               boxShadow: isHighlighted
@@ -744,7 +759,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
                 ),
               ),
             ),
-            // Checkmark badge when correct
             if (isHighlighted)
               Positioned(
                 top: 0,
@@ -769,12 +783,10 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     );
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
-
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
+
       onNext: () {
         Navigator.pushReplacement(
           context,

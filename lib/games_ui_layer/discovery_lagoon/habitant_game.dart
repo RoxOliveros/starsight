@@ -176,19 +176,21 @@ class _HabitantGameState extends State<HabitantGame> with AiCameraMixin {
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await LagoonDatabaseService.saveGameData(
-        gameId: 'lagoon_habitant_game',
-        activityName: 'Habitant Game',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
+    LagoonDatabaseService.saveGameData(
+      gameId: 'lagoon_habitant_game',
+      activityName: 'Habitant Game',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
-    }
-    await LagoonProgressService.instance.markLevelComplete(10);
+    });
+    LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
 
     if (mounted) {
       setState(() {

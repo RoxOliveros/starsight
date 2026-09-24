@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,12 +18,7 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_odd_one_out_screen.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Question model
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _GoesTogetherQuestion {
   final String targetObject;
@@ -31,18 +31,11 @@ class _GoesTogetherQuestion {
     required this.choices,
   });
 
-  /// Unique-ish key used to avoid repeating the exact same question
-  /// within a single playthrough.
   String get key => '$targetObject-$correctObject-${choices.join(",")}';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
 const int _kTotalRounds = 5;
 
-// Round 1 — very obvious pairs, clearly unrelated distractors.
 const List<_GoesTogetherQuestion> _kRound1Pool = [
   _GoesTogetherQuestion(
     targetObject: 'toothbrush',
@@ -61,7 +54,6 @@ const List<_GoesTogetherQuestion> _kRound1Pool = [
   ),
 ];
 
-// Round 2 — common, still very clear object pairs.
 const List<_GoesTogetherQuestion> _kRound2Pool = [
   _GoesTogetherQuestion(
     targetObject: 'pencil',
@@ -80,7 +72,6 @@ const List<_GoesTogetherQuestion> _kRound2Pool = [
   ),
 ];
 
-// Round 3 — slightly more thoughtful associations.
 const List<_GoesTogetherQuestion> _kRound3Pool = [
   _GoesTogetherQuestion(
     targetObject: 'bed',
@@ -99,7 +90,6 @@ const List<_GoesTogetherQuestion> _kRound3Pool = [
   ),
 ];
 
-// Round 4 — distractors are somewhat related or visually similar.
 const List<_GoesTogetherQuestion> _kRound4Pool = [
   _GoesTogetherQuestion(
     targetObject: 'pencil',
@@ -118,7 +108,6 @@ const List<_GoesTogetherQuestion> _kRound4Pool = [
   ),
 ];
 
-// Round 5 — more thoughtful, still unambiguous.
 const List<_GoesTogetherQuestion> _kRound5Pool = [
   _GoesTogetherQuestion(
     targetObject: 'plant',
@@ -145,10 +134,6 @@ const List<List<_GoesTogetherQuestion>> _kRoundQuestionPools = [
   _kRound5Pool,
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 class WhatGoesTogetherScreen extends StatefulWidget {
   final int level;
 
@@ -159,18 +144,28 @@ class WhatGoesTogetherScreen extends StatefulWidget {
 }
 
 class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<WhatGoesTogetherScreen>, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<WhatGoesTogetherScreen>,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/what_goes_together_intro.wav';
-  static const String _audioInstruction = 'assets/audio/puzzle_glade/what_goes_together_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/what_goes_together_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/what_goes_together_intro.wav';
+  static const String _audioInstruction =
+      'assets/audio/puzzle_glade/what_goes_together_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/what_goes_together_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -189,17 +184,16 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
   bool _showWinDialog = false;
   bool _instructionPlayed = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
@@ -207,11 +201,9 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
   late Animation<double> _previewPulse;
   late AnimationController _speechBubbleCtrl;
 
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
 
-  // Round
   late AnimationController _targetEnterCtrl;
   late Animation<double> _targetFade;
   late Animation<double> _targetScale;
@@ -221,18 +213,26 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
   late AnimationController _shakeCtrl;
   late Animation<double> _shakeAnim;
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
-
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _bgPlayer.stop();
     _completePlayer.stop();
     _roxiePlayer.stop();
@@ -252,11 +252,8 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     _shakeCtrl.dispose();
 
     OrientationService.setLandscape();
-
     super.dispose();
   }
-
-  // ── Animation init ─────────────────────────────────────────────────────────
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
@@ -269,8 +266,13 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
       duration: const Duration(milliseconds: 900),
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut));
-    _roxieFade = CurvedAnimation(parent: _roxieSlideCtrl, curve: const Interval(0, 0.4));
+        .animate(
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
+    _roxieFade = CurvedAnimation(
+      parent: _roxieSlideCtrl,
+      curve: const Interval(0, 0.4),
+    );
 
     _previewPulseCtrl = AnimationController(
       vsync: this,
@@ -295,10 +297,14 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
       vsync: this,
       duration: const Duration(milliseconds: 450),
     );
-    _targetFade = CurvedAnimation(parent: _targetEnterCtrl, curve: Curves.easeOut);
-    _targetScale = Tween<double>(begin: 0.92, end: 1.0).animate(
-      CurvedAnimation(parent: _targetEnterCtrl, curve: Curves.easeOut),
+    _targetFade = CurvedAnimation(
+      parent: _targetEnterCtrl,
+      curve: Curves.easeOut,
     );
+    _targetScale = Tween<double>(
+      begin: 0.92,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _targetEnterCtrl, curve: Curves.easeOut));
 
     _choicesEnterCtrl = AnimationController(
       vsync: this,
@@ -309,9 +315,10 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
-    _bounceAnim = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut),
-    );
+    _bounceAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.2,
+    ).animate(CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut));
 
     _shakeCtrl = AnimationController(
       vsync: this,
@@ -333,8 +340,6 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
       curve: Interval(start, end, curve: Curves.easeOut),
     );
   }
-
-  // ── Intro flow ─────────────────────────────────────────────────────────────
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
@@ -378,9 +383,6 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     }
   }
 
-  /// Plays once, the first time gameplay is reached — blocks answering
-  /// until it finishes. Does not repeat on later rounds since it's a
-  /// one-time "how to play" narration, not per-round narration.
   Future<void> _playInstructionAudio() async {
     if (!mounted || _instructionPlayed) return;
     _instructionPlayed = true;
@@ -402,15 +404,15 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     }
   }
 
-  // ── Round setup ────────────────────────────────────────────────────────────
-
   void _startRound() {
     if (!mounted) return;
 
     final rng = Random();
     final pool = _kRoundQuestionPools[_round - 1];
 
-    final available = pool.where((q) => !_usedQuestionKeys.contains(q.key)).toList();
+    final available = pool
+        .where((q) => !_usedQuestionKeys.contains(q.key))
+        .toList();
     final candidates = available.isNotEmpty ? available : pool;
 
     _question = candidates[rng.nextInt(candidates.length)];
@@ -430,14 +432,13 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     _choicesEnterCtrl.forward(from: 0);
   }
 
-  // ── Answer handling ────────────────────────────────────────────────────────
-
   Future<void> _onChoiceTapped(int index) async {
     if (_buttonsDisabled || _roundComplete) return;
 
     final isCorrect = index == _correctIndex;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap();
       setState(() {
         _selectedIndex = index;
         _buttonsDisabled = true;
@@ -473,11 +474,12 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
 
         if (!mounted) return;
 
-        await PuzzleProgressService.instance.markLevelComplete(widget.level);
-
-        if (!mounted) return;
-
-        setState(() => _showWinDialog = true);
+        PuzzleProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
+        await _saveDataAndShowWinDialog();
       } else {
         await _targetEnterCtrl.reverse();
 
@@ -490,6 +492,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
         _startRound();
       }
     } else {
+      _tapTracker.recordMistake();
       setState(() {
         _wrongIndex = index;
         _buttonsDisabled = true;
@@ -510,7 +513,26 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_what_goes_together',
+      activityName: 'What Goes Together',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -535,25 +557,30 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
             _screenPhase == _ScreenPhase.intro
                 ? _buildIntroLayer()
                 : Stack(
-              children: [
-                FadeTransition(
-                  opacity: _gameFade,
-                  child: _buildGameArea(),
-                ),
-                buildRoxie(context),
-              ],
-            ),
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameArea(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
         ),
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
@@ -563,7 +590,10 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -624,11 +654,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
             child: _buildPreviewObjectCard('toothbrush', highlighted: true),
           ),
           const SizedBox(height: 12),
-          Icon(
-            Icons.favorite,
-            color: PuzzleColorTheme.sunnyhue,
-            size: 28,
-          ),
+          Icon(Icons.favorite, color: PuzzleColorTheme.sunnyhue, size: 28),
           const SizedBox(height: 12),
           _buildPreviewObjectCard('toothpaste', highlighted: true),
         ],
@@ -661,10 +687,6 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
-
   Widget _buildGameArea() {
     return Column(
       children: [
@@ -673,7 +695,10 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -718,12 +743,16 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
                   color: Colors.white.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(28),
                   border: Border.all(
-                    color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+                    color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                      alpha: 0.28,
+                    ),
                     width: 2.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                        alpha: 0.09,
+                      ),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -760,7 +789,9 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     final isWrongTap = _wrongIndex == index;
     final isDimmed = _roundComplete && index != _selectedIndex;
 
-    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28);
+    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
+      alpha: 0.28,
+    );
     Color bgColor = Colors.white.withValues(alpha: 0.85);
 
     if (isCorrectSelected) {
@@ -776,7 +807,9 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
       '$_objectAssetPath/$object.png',
       width: 76,
       fit: BoxFit.contain,
-      color: isDimmed ? PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25) : null,
+      color: isDimmed
+          ? PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25)
+          : null,
       colorBlendMode: isDimmed ? BlendMode.modulate : null,
     );
 
@@ -820,24 +853,20 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     card = FadeTransition(
       opacity: entrance,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
-            .animate(entrance),
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.25),
+          end: Offset.zero,
+        ).animate(entrance),
         child: card,
       ),
     );
 
-    return GestureDetector(
-      onTap: () => _onChoiceTapped(index),
-      child: card,
-    );
+    return GestureDetector(onTap: () => _onChoiceTapped(index), child: card);
   }
-
-  // ── Win overlay ────────────────────────────────────────────────────────────
 
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
       onNext: () {
         Navigator.pushReplacement(
           context,
@@ -847,12 +876,13 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
         );
       },
       onRestart: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => WhatGoesTogetherScreen(level: widget.level),
-          ),
-        );
+        setState(() {
+          _round = 1;
+          _showWinDialog = false;
+          _hasSavedResult = false;
+          _tapTracker.startSession();
+        });
+        _startRound();
       },
       onBack: () {
         Navigator.pop(context);

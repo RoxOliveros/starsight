@@ -263,18 +263,16 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await LagoonDatabaseService.saveGameData(
-        gameId: 'lagoon_weather_tap_sort',
-        activityName: 'Weather Tap Sort',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
+    LagoonDatabaseService.saveGameData(
+      gameId: 'lagoon_weather_tap_sort',
+      activityName: 'Weather Tap Sort',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
-    }
+    });
 
     if (mounted) {
       _showSuccessDialog();
@@ -282,7 +280,11 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
   }
 
   void _showSuccessDialog() {
-    LagoonProgressService.instance.markLevelComplete(widget.level);
+    LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
     showDialog(
       context: context,
       barrierDismissible: false,

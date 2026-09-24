@@ -268,7 +268,11 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
       await playVoice(_audioWin);
       if (!mounted) return;
 
-      await ForestProgressService.instance.markLevelComplete(widget.level);
+      ForestProgressService.instance.markLevelComplete(widget.level).catchError(
+        (e) {
+          debugPrint("Database Error marking level complete: $e");
+        },
+      );
       if (!mounted) return;
 
       await _saveDataAndShowGoodJob();
@@ -291,18 +295,16 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await ForestDatabaseService.saveGameData(
-        gameId: 'forest_apple_tree',
-        activityName: 'Alphabet Apple Tree',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
+    ForestDatabaseService.saveGameData(
+      gameId: 'forest_apple_tree',
+      activityName: 'Alphabet Apple Tree',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
-    }
+    });
 
     if (!mounted) return;
     _showGoodJob();

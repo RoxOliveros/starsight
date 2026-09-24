@@ -258,18 +258,16 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await LagoonDatabaseService.saveGameData(
-        gameId: 'lagoon_weather_scene',
-        activityName: 'Weather Scene Builder',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
+    LagoonDatabaseService.saveGameData(
+      gameId: 'lagoon_weather_scene',
+      activityName: 'Weather Scene Builder',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
-    }
+    });
 
     if (mounted) {
       _showSuccessDialog();
@@ -277,7 +275,11 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
   }
 
   void _showSuccessDialog() {
-    LagoonProgressService.instance.markLevelComplete(widget.level);
+    LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -287,9 +289,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
 
         characterSizeFactor: 0.9,
-        onNext: () async {
-          await LagoonProgressService.instance.markLevelComplete(16);
-
+        onNext: () {
           if (context.mounted) {
             Navigator.pushReplacement(
               context,

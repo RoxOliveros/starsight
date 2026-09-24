@@ -459,7 +459,11 @@ class _FallenStickLetterBuilderGameState
     if (_currentRoundIndex >= _rounds.length - 1) {
       await playVoice(_audioWin);
       if (!mounted) return;
-      await ForestProgressService.instance.markLevelComplete(widget.level);
+      ForestProgressService.instance.markLevelComplete(widget.level).catchError(
+        (e) {
+          debugPrint("Database Error marking level complete: $e");
+        },
+      );
       if (!mounted) return;
       await _saveDataAndShowGoodJob();
       return;
@@ -480,19 +484,16 @@ class _FallenStickLetterBuilderGameState
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await ForestDatabaseService.saveGameData(
-        gameId: 'forest_stick_letter_builder',
-        activityName: 'Fallen Stick Letter Builder',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
+    ForestDatabaseService.saveGameData(
+      gameId: 'forest_stick_letter_builder',
+      activityName: 'Fallen Stick Letter Builder',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
-    }
-
+    });
     if (!mounted) return;
     _showGoodJob();
   }

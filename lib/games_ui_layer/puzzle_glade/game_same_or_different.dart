@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,12 +18,7 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_which_belongs_here.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Question model
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _SameOrDifferentQuestion {
   final String leftObject;
@@ -39,37 +39,60 @@ class _SameOrDifferentQuestion {
     required this.isSame,
   });
 
-  /// Unique-ish key used to avoid repeating the exact same question
-  /// within a single playthrough.
   String get key =>
       '$leftObject-$rightObject-$leftTint-$rightTint-$leftScale-$rightScale-$isSame';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
 const int _kTotalRounds = 5;
 
-// Round 1 — very obvious: identical object, identical everything.
 const List<_SameOrDifferentQuestion> _kRound1Pool = [
-  _SameOrDifferentQuestion(leftObject: 'apple', rightObject: 'apple', isSame: true),
-  _SameOrDifferentQuestion(leftObject: 'ball', rightObject: 'ball', isSame: true),
-  _SameOrDifferentQuestion(leftObject: 'flower', rightObject: 'flower', isSame: true),
+  _SameOrDifferentQuestion(
+    leftObject: 'apple',
+    rightObject: 'apple',
+    isSame: true,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'ball',
+    rightObject: 'ball',
+    isSame: true,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'flower',
+    rightObject: 'flower',
+    isSame: true,
+  ),
   _SameOrDifferentQuestion(leftObject: 'car', rightObject: 'car', isSame: true),
   _SameOrDifferentQuestion(leftObject: 'dog', rightObject: 'dog', isSame: true),
 ];
 
-// Round 2 — clearly different objects.
 const List<_SameOrDifferentQuestion> _kRound2Pool = [
-  _SameOrDifferentQuestion(leftObject: 'apple', rightObject: 'banana', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'dog', rightObject: 'bus', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'car', rightObject: 'tree', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'pen', rightObject: 'cat', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'flower', rightObject: 'book', isSame: false),
+  _SameOrDifferentQuestion(
+    leftObject: 'apple',
+    rightObject: 'banana',
+    isSame: false,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'dog',
+    rightObject: 'bus',
+    isSame: false,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'car',
+    rightObject: 'tree',
+    isSame: false,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'pen',
+    rightObject: 'cat',
+    isSame: false,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'flower',
+    rightObject: 'book',
+    isSame: false,
+  ),
 ];
 
-// Round 3 — same object, different color tint.
 const List<_SameOrDifferentQuestion> _kRound3Pool = [
   _SameOrDifferentQuestion(
     leftObject: 'ball',
@@ -101,7 +124,6 @@ const List<_SameOrDifferentQuestion> _kRound3Pool = [
   ),
 ];
 
-// Round 4 — same shape, different size.
 const List<_SameOrDifferentQuestion> _kRound4Pool = [
   _SameOrDifferentQuestion(
     leftObject: 'flower',
@@ -133,12 +155,27 @@ const List<_SameOrDifferentQuestion> _kRound4Pool = [
   ),
 ];
 
-// Round 5 — visually similar but different objects; look closely.
 const List<_SameOrDifferentQuestion> _kRound5Pool = [
-  _SameOrDifferentQuestion(leftObject: 'ball', rightObject: 'apple', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'book', rightObject: 'notebook', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'leaf', rightObject: 'tree', isSame: false),
-  _SameOrDifferentQuestion(leftObject: 'cat', rightObject: 'dog', isSame: false),
+  _SameOrDifferentQuestion(
+    leftObject: 'ball',
+    rightObject: 'apple',
+    isSame: false,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'book',
+    rightObject: 'notebook',
+    isSame: false,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'leaf',
+    rightObject: 'tree',
+    isSame: false,
+  ),
+  _SameOrDifferentQuestion(
+    leftObject: 'cat',
+    rightObject: 'dog',
+    isSame: false,
+  ),
 ];
 
 const List<List<_SameOrDifferentQuestion>> _kRoundQuestionPools = [
@@ -148,10 +185,6 @@ const List<List<_SameOrDifferentQuestion>> _kRoundQuestionPools = [
   _kRound4Pool,
   _kRound5Pool,
 ];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class SameOrDifferentScreen extends StatefulWidget {
   final int level;
@@ -163,19 +196,29 @@ class SameOrDifferentScreen extends StatefulWidget {
 }
 
 class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<SameOrDifferentScreen>, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<SameOrDifferentScreen>,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
   static const String _symbolAssetPath = 'assets/images/buttons';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/same_or_different_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/same_or_different_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/same_or_different_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/same_or_different_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/same_or_different_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/same_or_different_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -185,11 +228,14 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   late _SameOrDifferentQuestion _question;
   final Set<String> _usedQuestionKeys = {};
 
-  bool? _selectedAnswer; // true = SAME tapped, false = DIFFERENT tapped
+  bool? _selectedAnswer;
   bool _buttonsDisabled = false;
   bool _roundComplete = false;
   bool _wrongFlash = false;
   bool _showWinDialog = false;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -197,11 +243,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
@@ -209,11 +251,9 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   late Animation<double> _previewPulse;
   late AnimationController _speechBubbleCtrl;
 
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
 
-  // Round
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
   late AnimationController _bounceCtrl;
@@ -221,18 +261,26 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   late AnimationController _shakeCtrl;
   late Animation<double> _shakeAnim;
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
-
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _bgPlayer.stop();
     _completePlayer.stop();
     _roxiePlayer.stop();
@@ -255,8 +303,6 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     super.dispose();
   }
 
-  // ── Animation init ─────────────────────────────────────────────────────────
-
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
       vsync: this,
@@ -268,8 +314,13 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
       duration: const Duration(milliseconds: 900),
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut));
-    _roxieFade = CurvedAnimation(parent: _roxieSlideCtrl, curve: const Interval(0, 0.4));
+        .animate(
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
+    _roxieFade = CurvedAnimation(
+      parent: _roxieSlideCtrl,
+      curve: const Interval(0, 0.4),
+    );
 
     _previewPulseCtrl = AnimationController(
       vsync: this,
@@ -300,9 +351,10 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
-    _bounceAnim = Tween<double>(begin: 1.0, end: 1.18).animate(
-      CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut),
-    );
+    _bounceAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.18,
+    ).animate(CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut));
 
     _shakeCtrl = AnimationController(
       vsync: this,
@@ -315,8 +367,6 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
       TweenSequenceItem(tween: Tween(begin: -6.0, end: 0.0), weight: 1),
     ]).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.easeInOut));
   }
-
-  // ── Intro flow ─────────────────────────────────────────────────────────────
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
@@ -357,15 +407,15 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     }
   }
 
-  // ── Round setup ────────────────────────────────────────────────────────────
-
   void _startRound() {
     if (!mounted) return;
 
     final rng = Random();
     final pool = _kRoundQuestionPools[_round - 1];
 
-    final available = pool.where((q) => !_usedQuestionKeys.contains(q.key)).toList();
+    final available = pool
+        .where((q) => !_usedQuestionKeys.contains(q.key))
+        .toList();
     final candidates = available.isNotEmpty ? available : pool;
 
     _question = candidates[rng.nextInt(candidates.length)];
@@ -381,14 +431,13 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     _enterCtrl.forward(from: 0);
   }
 
-  // ── Answer handling ────────────────────────────────────────────────────────
-
   Future<void> _onAnswerSelected(bool answeredSame) async {
     if (_buttonsDisabled || _roundComplete) return;
 
     final isCorrect = answeredSame == _question.isSame;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap();
       setState(() {
         _selectedAnswer = answeredSame;
         _buttonsDisabled = true;
@@ -424,11 +473,12 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
 
         if (!mounted) return;
 
-        await PuzzleProgressService.instance.markLevelComplete(widget.level);
-
-        if (!mounted) return;
-
-        setState(() => _showWinDialog = true);
+        PuzzleProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
+        await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
 
@@ -440,7 +490,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
         });
       }
     } else {
-      // Wrong answer: flash, react, and let the child try again.
+      _tapTracker.recordMistake();
       setState(() {
         _selectedAnswer = answeredSame;
         _buttonsDisabled = true;
@@ -463,7 +513,26 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_same_or_different',
+      activityName: 'Same or Different',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -497,16 +566,21 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
                     ],
                   ),
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
         ),
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
@@ -516,7 +590,10 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -568,7 +645,6 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   }
 
   Widget _buildIntroPreview() {
-    // A single obvious "same" example to set expectations before round 1.
     return Center(
       child: ScaleTransition(
         scale: _previewPulse,
@@ -593,10 +669,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: PuzzleColorTheme.sunnyhue,
-          width: 3,
-        ),
+        border: Border.all(color: PuzzleColorTheme.sunnyhue, width: 3),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.10),
@@ -616,10 +689,6 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
-
   Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _enterAnim,
@@ -630,7 +699,10 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -703,7 +775,9 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     Color? tint,
     double scale = 1.0,
   }) {
-    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28);
+    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
+      alpha: 0.28,
+    );
     Color bgColor = Colors.white.withValues(alpha: 0.85);
 
     if (_roundComplete) {
@@ -809,27 +883,27 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     );
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
-
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
+
       onNext: () {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => WhichBelongsHereScreen(level: widget.level + 1),
+            builder: (context) =>
+                WhichBelongsHereScreen(level: widget.level + 1),
           ),
         );
       },
       onRestart: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SameOrDifferentScreen(level: widget.level),
-          ),
-        );
+        setState(() {
+          _round = 1;
+          _showWinDialog = false;
+          _hasSavedResult = false;
+          _tapTracker.startSession();
+        });
+        _startRound();
       },
       onBack: () {
         Navigator.pop(context);

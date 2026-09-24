@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_audio_helper.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -14,18 +19,10 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_maze_path.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, game }
 
-// ── Shape types ────────────────────────────────────────────────────────────
 enum ShapeType { circle, square, triangle, rectangle, star, heart }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Pairs of shapes that look similar to one another, used to raise difficulty
-// at higher levels by making sure at least one confusable pair is on screen.
 const List<List<ShapeType>> _kConfusablePairs = [
   [ShapeType.square, ShapeType.rectangle],
   [ShapeType.circle, ShapeType.heart],
@@ -42,10 +39,6 @@ const Map<ShapeType, Color> _kShapeColors = {
 
 const int _kTotalRounds = 5;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 class ShapeFitScreen extends StatefulWidget {
   final int level;
 
@@ -56,18 +49,29 @@ class ShapeFitScreen extends StatefulWidget {
 }
 
 class _ShapeFitScreenState extends State<ShapeFitScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<ShapeFitScreen>, GameLoadingMixin, PuzzleAudioMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<ShapeFitScreen>,
+        GameLoadingMixin,
+        PuzzleAudioMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/shape_fit_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/shape_fit_instruction.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/shape_fit_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/shape_fit_instruction.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/shape_fit_complete.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/shape_fit_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -82,7 +86,9 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
   ShapeType? _wrongPieceFlash;
   bool _showWinDialog = false;
 
-  // Small random tilt applied to pieces at higher levels for extra challenge.
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   final Map<ShapeType, double> _pieceTilt = {};
 
   // ── Audio ──────────────────────────────────────────────────────────────────
@@ -92,39 +98,38 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
-
-  // Shared
   late AnimationController _roxieFloatCtrl;
-
-  // Intro
   late AnimationController _roxieSlideCtrl;
   late Animation<Offset> _roxieSlide;
   late Animation<double> _roxieFade;
   late AnimationController _shapeDanceCtrl;
   late Animation<double> _shapeDance;
   late AnimationController _speechBubbleCtrl;
-
-  // Game transition
   late AnimationController _gameEnterCtrl;
   late Animation<double> _gameFade;
-
-  // Round
   late AnimationController _enterCtrl;
   late Animation<double> _enterAnim;
-
-
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _bgPlayer.dispose();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
@@ -139,8 +144,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     super.dispose();
   }
 
-  // ── Animation init ─────────────────────────────────────────────────────────
-
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
       vsync: this,
@@ -153,8 +156,8 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-    );
+          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+        );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -185,8 +188,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     );
     _enterAnim = CurvedAnimation(parent: _enterCtrl, curve: Curves.easeOut);
   }
-
-  // ── Intro flow ─────────────────────────────────────────────────────────────
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
@@ -222,8 +223,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     }
   }
 
-  // ── Difficulty ─────────────────────────────────────────────────────────────
-
   int _shapeCountForRound(int round) {
     switch (round) {
       case 1:
@@ -235,15 +234,13 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       case 4:
         return 5;
       default:
-        return 6; // round 5: all shape types
+        return 6;
     }
   }
 
   List<ShapeType> _pickShapesForRound(int round, int count) {
     final rng = Random();
     final all = List<ShapeType>.from(ShapeType.values)..shuffle(rng);
-
-    // Later rounds (and higher levels) get a guaranteed confusable pair.
     final bool harder = round >= 4 || widget.level >= 5;
 
     if (harder) {
@@ -258,8 +255,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
 
     return all.take(count).toList();
   }
-
-  // ── Round setup ────────────────────────────────────────────────────────────
 
   void _startRound() {
     final rng = Random();
@@ -283,14 +278,13 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     _enterCtrl.forward(from: 0);
   }
 
-  // ── Drop handling ──────────────────────────────────────────────────────────
-
   Future<void> _onPieceDropped(ShapeType piece, ShapeType slot) async {
     if (_placed.contains(slot)) return;
 
     if (piece == slot) {
+      _tapTracker.recordCorrectTap();
       setState(() => _placed.add(piece));
-      unawaited(showRoxieReaction(RoxieState.correct, playSound: false));
+      showRoxieReaction(RoxieState.correct, playSound: false);
       await playVoice(PuzzleAudioAssets.forShape(piece.name));
 
       if (_placed.length == _roundShapes.length) {
@@ -298,8 +292,9 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
         await _advanceRound();
       }
     } else {
+      _tapTracker.recordMistake();
       _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
-      unawaited(showRoxieReaction(RoxieState.wrong, playSound: true));
+      showRoxieReaction(RoxieState.wrong, playSound: true);
       setState(() {
         _wrongSlotFlash = slot;
         _wrongPieceFlash = piece;
@@ -316,7 +311,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
 
   Future<void> _advanceRound() async {
     if (_round >= _kTotalRounds) {
-      await _completeRound();
+      await _saveDataAndShowWinDialog();
       return;
     }
 
@@ -328,7 +323,22 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     });
   }
 
-  Future<void> _completeRound() async {
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_shape_fit',
+      activityName: 'Shape Fit',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
     await _bgPlayer.stop();
     await _sfxPlayer.stop();
 
@@ -342,12 +352,16 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     await completer.future.timeout(const Duration(seconds: 10));
     await sub.cancel();
 
-    await PuzzleProgressService.instance.markLevelComplete(widget.level);
+    PuzzleProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
 
-    if (mounted) setState(() => _showWinDialog = true);
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
   }
-
-  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -372,16 +386,24 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
             _screenPhase == _ScreenPhase.intro
                 ? _buildIntroLayer()
                 : Stack(
-              children: [
-                FadeTransition(
-                  opacity: _gameFade,
-                  child: _buildGameLayer(),
-                ),
-                buildRoxie(context),
-              ],
-            ),
+                    children: [
+                      FadeTransition(
+                        opacity: _gameFade,
+                        child: _buildGameLayer(),
+                      ),
+                      buildRoxie(context),
+                    ],
+                  ),
 
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
 
             if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
           ],
@@ -389,10 +411,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
@@ -402,7 +420,10 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -443,8 +464,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
                     _characterImage,
                     height: roxieH,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        Text('🐰', style: TextStyle(fontSize: roxieH * 0.5)),
                   ),
                 ),
               ),
@@ -478,7 +497,9 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
                     color: Colors.white.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.30),
+                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                        alpha: 0.30,
+                      ),
                       width: 2.5,
                     ),
                     boxShadow: [
@@ -507,10 +528,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
-
   Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _enterAnim,
@@ -521,7 +538,10 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -549,18 +569,18 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     );
   }
 
-  // ── Slots ──────────────────────────────────────────────────────────────────
-
   Widget _buildSlotsRow() {
     return Wrap(
       spacing: 18,
       runSpacing: 18,
       alignment: WrapAlignment.center,
       children: _slotOrder
-          .map((shape) => KeyedSubtree(
-        key: ValueKey('slot_$shape'),
-        child: _buildSlot(shape),
-      ))
+          .map(
+            (shape) => KeyedSubtree(
+              key: ValueKey('slot_$shape'),
+              child: _buildSlot(shape),
+            ),
+          )
           .toList(),
     );
   }
@@ -575,7 +595,9 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       builder: (context, candidateData, rejectedData) {
         final isHovering = candidateData.isNotEmpty && !isFilled;
 
-        Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.30);
+        Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
+          alpha: 0.30,
+        );
         Color bgColor = Colors.white.withValues(alpha: 0.55);
 
         if (isHovering) {
@@ -604,7 +626,9 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
             ),
             boxShadow: [
               BoxShadow(
-                color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                  alpha: 0.10,
+                ),
                 blurRadius: 12,
                 offset: const Offset(0, 5),
               ),
@@ -620,9 +644,10 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
                 painter: isFilled
                     ? _ShapePainter(shape: shape, color: _kShapeColors[shape]!)
                     : _ShapeOutlinePainter(
-                  shape: shape,
-                  color: PuzzleColorTheme.verydarkdesaturatedblue.withValues(alpha: 0.35),
-                ),
+                        shape: shape,
+                        color: PuzzleColorTheme.verydarkdesaturatedblue
+                            .withValues(alpha: 0.35),
+                      ),
               ),
             ),
           ),
@@ -631,18 +656,18 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     );
   }
 
-  // ── Pieces ─────────────────────────────────────────────────────────────────
-
   Widget _buildPiecesRow() {
     return Wrap(
       spacing: 18,
       runSpacing: 18,
       alignment: WrapAlignment.center,
       children: _pieceOrder
-          .map((shape) => KeyedSubtree(
-        key: ValueKey('piece_$shape'),
-        child: _buildPiece(shape),
-      ))
+          .map(
+            (shape) => KeyedSubtree(
+              key: ValueKey('piece_$shape'),
+              child: _buildPiece(shape),
+            ),
+          )
           .toList(),
     );
   }
@@ -653,7 +678,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     final tilt = _pieceTilt[shape] ?? 0.0;
 
     if (isPlaced) {
-      // Leaves a soft placeholder where the piece used to sit.
       return Container(
         width: 88,
         height: 88,
@@ -668,7 +692,9 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       );
     }
 
-    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28);
+    Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
+      alpha: 0.28,
+    );
     Color bgColor = Colors.white.withValues(alpha: 0.85);
     if (isWrong) {
       borderColor = const Color(0xFFE05A5A);
@@ -699,10 +725,12 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
 
     return Draggable<ShapeType>(
       data: shape,
-      feedback: Material(
-        color: Colors.transparent,
-        child: shapeVisual,
-      ),
+      onDragEnd: (details) {
+        if (!details.wasAccepted) {
+          _tapTracker.recordMistake();
+        }
+      },
+      feedback: Material(color: Colors.transparent, child: shapeVisual),
       childWhenDragging: Container(
         width: 88,
         height: 88,
@@ -720,12 +748,9 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     );
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
-
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
       onNext: () {
         Navigator.pushReplacement(
           context,
@@ -735,12 +760,13 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
         );
       },
       onRestart: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ShapeFitScreen(level: widget.level),
-          ),
-        );
+        setState(() {
+          _round = 1;
+          _showWinDialog = false;
+          _hasSavedResult = false;
+          _tapTracker.startSession();
+        });
+        _startRound();
       },
       onBack: () {
         Navigator.pop(context);
@@ -749,12 +775,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shape geometry
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Builds a [Path] for the given [shape] within the bounds of [size],
-/// anchored at the origin (0,0).
 Path _buildShapePath(ShapeType shape, Size size) {
   final w = size.width;
   final h = size.height;
@@ -762,26 +782,25 @@ Path _buildShapePath(ShapeType shape, Size size) {
   switch (shape) {
     case ShapeType.circle:
       return Path()..addOval(Rect.fromLTWH(0, 0, w, h));
-
     case ShapeType.square:
       final side = min(w, h);
       final dx = (w - side) / 2;
       final dy = (h - side) / 2;
-      return Path()
-        ..addRRect(RRect.fromRectAndRadius(
+      return Path()..addRRect(
+        RRect.fromRectAndRadius(
           Rect.fromLTWH(dx, dy, side, side),
           Radius.circular(side * 0.14),
-        ));
-
+        ),
+      );
     case ShapeType.rectangle:
       final rectH = h * 0.62;
       final dy = (h - rectH) / 2;
-      return Path()
-        ..addRRect(RRect.fromRectAndRadius(
+      return Path()..addRRect(
+        RRect.fromRectAndRadius(
           Rect.fromLTWH(0, dy, w, rectH),
           Radius.circular(rectH * 0.18),
-        ));
-
+        ),
+      );
     case ShapeType.triangle:
       final path = Path();
       path.moveTo(w / 2, 0);
@@ -789,10 +808,8 @@ Path _buildShapePath(ShapeType shape, Size size) {
       path.lineTo(0, h);
       path.close();
       return path;
-
     case ShapeType.star:
       return _starPath(w, h, points: 5, innerRatio: 0.5);
-
     case ShapeType.heart:
       return _heartPath(w, h);
   }
@@ -824,23 +841,11 @@ Path _starPath(double w, double h, {int points = 5, double innerRatio = 0.5}) {
 Path _heartPath(double w, double h) {
   final path = Path();
   path.moveTo(w / 2, h * 0.92);
-  path.cubicTo(
-    -w * 0.15, h * 0.55,
-    w * 0.05, -h * 0.08,
-    w / 2, h * 0.28,
-  );
-  path.cubicTo(
-    w * 0.95, -h * 0.08,
-    w * 1.15, h * 0.55,
-    w / 2, h * 0.92,
-  );
+  path.cubicTo(-w * 0.15, h * 0.55, w * 0.05, -h * 0.08, w / 2, h * 0.28);
+  path.cubicTo(w * 0.95, -h * 0.08, w * 1.15, h * 0.55, w / 2, h * 0.92);
   path.close();
   return path;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Painters
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ShapePainter extends CustomPainter {
   final ShapeType shape;

@@ -1079,18 +1079,16 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await ForestDatabaseService.saveGameData(
-        gameId: 'letter_trace_${widget.letter.toLowerCase()}',
-        activityName: "Alphabet Trace (${widget.letter.toUpperCase()})",
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps, // Represents strokes completed
-        mistakes: 0, // Tracing doesn't record discrete mistakes
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
-      debugPrint("Database Error saving Trace metrics: $e");
-    }
+    ForestDatabaseService.saveGameData(
+      gameId: 'letter_trace_${widget.letter.toLowerCase()}',
+      activityName: "Alphabet Trace (${widget.letter.toUpperCase()})",
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps, // Represents strokes completed
+      mistakes: 0, // Tracing doesn't record discrete mistakes
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
     // --- 2. SMART MINI-GAME ROUTER ---
     String letter = widget.letter.toUpperCase();
 

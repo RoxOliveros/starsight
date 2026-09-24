@@ -194,21 +194,22 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await LagoonDatabaseService.saveGameData(
-        gameId: 'lagoon_rainbow_game',
-        activityName: 'Rainbow Game',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      );
-    } catch (e) {
-      debugPrint("Database Error saving Rainbow Game metrics: $e");
-    }
+    LagoonDatabaseService.saveGameData(
+      gameId: 'lagoon_rainbow_game',
+      activityName: 'Rainbow Game',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
 
-    await LagoonProgressService.instance.markLevelComplete(1);
-
+    LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
     if (mounted) {
       setState(() => _showGoodJob = true);
     }

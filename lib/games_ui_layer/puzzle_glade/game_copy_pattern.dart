@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -13,12 +18,7 @@ import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../goodjob_prompt.dart';
 import 'game_spot_the_difference.dart';
 
-// ── Screen phases ──────────────────────────────────────────────────────────
 enum _ScreenPhase { intro, memorize, recall, result }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
 
 const _kAllObjects = [
   'compass',
@@ -39,10 +39,6 @@ const int _kMemorizeSecondsHard = 8;
 const int _kGridSize = 2;
 const int _kMaxGridSize = 3;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 class CopyPatternScreen extends StatefulWidget {
   final int level;
 
@@ -53,17 +49,27 @@ class CopyPatternScreen extends StatefulWidget {
 }
 
 class _CopyPatternScreenState extends State<CopyPatternScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/copy_the_pattern_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/copy_the_pattern_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/copy_the_pattern_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/copy_the_pattern_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/copy_the_pattern_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/copy_the_pattern_complete.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   _ScreenPhase _phase = _ScreenPhase.intro;
@@ -74,13 +80,14 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
   Timer? _memorizeTimer;
 
   List<String> _patternObjects = [];
-
   List<String?> _answerSlots = [null, null];
-
   List<String> _choices = [];
 
   bool _showWinDialog = false;
   bool _roundCorrect = false;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -98,26 +105,31 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
   late AnimationController _countdownCtrl;
   late AnimationController _correctPulseCtrl;
 
-  // Per-slot shake for wrong answer
   late List<AnimationController> _slotShakeCtrl;
   late List<Animation<double>> _slotShakeAnim;
-
-  // Per-slot bounce for correct
   late List<AnimationController> _slotBounceCtrl;
   late List<Animation<double>> _slotBounceAnim;
-
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     finishLoading(_startIntroFlow);
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _memorizeTimer?.cancel();
     _sfxPlayer.dispose();
     _completePlayer.dispose();
@@ -136,8 +148,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     OrientationService.setLandscape();
     super.dispose();
   }
-
-  // ── Animation init ─────────────────────────────────────────────────────────
 
   void _initAnimations() {
     _roxieFloatCtrl = AnimationController(
@@ -182,7 +192,7 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
 
     _slotShakeCtrl = List.generate(
       _kMaxGridSize,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 400),
       ),
@@ -198,7 +208,7 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
 
     _slotBounceCtrl = List.generate(
       _kMaxGridSize,
-          (_) => AnimationController(
+      (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 450),
       ),
@@ -212,8 +222,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
         )
         .toList();
   }
-
-  // ── Intro flow ─────────────────────────────────────────────────────────────
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
@@ -257,19 +265,18 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     }
   }
 
-  // ── Round setup ────────────────────────────────────────────────────────────
-
   void _startRound() {
     if (!mounted) return;
 
     _gridSize = _round >= 4 ? _kMaxGridSize : _kGridSize;
-    _memorizeSecondsMax = _round >= 4 ? _kMemorizeSecondsHard : _kMemorizeSeconds;
+    _memorizeSecondsMax = _round >= 4
+        ? _kMemorizeSecondsHard
+        : _kMemorizeSeconds;
 
     final rng = Random();
     final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
     _patternObjects = shuffled.take(_gridSize).toList();
 
-    // Build choices: correct answers + distractors, shuffled
     final distractors = shuffled.skip(_gridSize).take(1).toList();
     _choices = [..._patternObjects, ...distractors]..shuffle(rng);
 
@@ -315,12 +322,9 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     _phaseCtrl.forward(from: 0);
   }
 
-  // ── Answer logic ──────────────────────────────────────────────────────────
-
   void _onChoiceTapped(String object) async {
     if (_phase != _ScreenPhase.recall) return;
 
-    // Find first empty slot
     final emptyIndex = _answerSlots.indexWhere((s) => s == null);
     if (emptyIndex == -1) return;
 
@@ -353,6 +357,7 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     }
 
     if (correct) {
+      _tapTracker.recordCorrectTap();
       setState(() {
         _roundCorrect = true;
         _phase = _ScreenPhase.result;
@@ -376,8 +381,12 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
         await completer.future.timeout(const Duration(seconds: 15));
         await sub.cancel();
         if (!mounted) return;
-        await PuzzleProgressService.instance.markLevelComplete(16);
-        if (mounted) setState(() => _showWinDialog = true);
+        PuzzleProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
+        await _saveDataAndShowWinDialog();
       } else {
         if (!mounted) return;
         await _phaseCtrl.reverse();
@@ -389,6 +398,7 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
         }
       }
     } else {
+      _tapTracker.recordMistake();
       showRoxieReaction(RoxieState.wrong);
 
       for (int i = 0; i < _gridSize; i++) {
@@ -408,30 +418,49 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
       }
     }
   }
-  
-  // ── Build ──────────────────────────────────────────────────────────────────
+
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    PuzzleDatabaseService.saveGameData(
+      gameId: 'puzzle_copy_pattern',
+      activityName: 'Copy The Pattern',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      setState(() => _showWinDialog = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: buildWithLoading(
-          loadingScreen: LoadingScreen.puzzleGlade(), gameBuilder: () =>
-            Stack(
-              children: [
-          Positioned.fill(
-            child: Stack(
-              children: [
-                Image.asset(
-                  _bgImage,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-                Container(color: Colors.black.withValues(alpha: 0.15)),
-              ],
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.puzzleGlade(),
+        gameBuilder: () => Stack(
+          children: [
+            Positioned.fill(
+              child: Stack(
+                children: [
+                  Image.asset(
+                    _bgImage,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                ],
+              ),
             ),
-          ),
-          _phase == _ScreenPhase.intro
+            _phase == _ScreenPhase.intro
                 ? _buildIntroLayer()
                 : Stack(
                     children: [
@@ -443,28 +472,35 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
                     ],
                   ),
 
-                Positioned(top: 25, left: 25, child: PuzzleXButton()),
+            Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-          if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-        ],
-      ),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+          ],
         ),
+      ),
     );
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-          child:Stack(
+          child: Stack(
             alignment: Alignment.topCenter,
             children: [
-              Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: PuzzleLevelBadge(level: widget.level),
+              ),
             ],
           ),
         ),
@@ -523,7 +559,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Pattern side
           _buildPreviewGrid(revealed: true),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -533,7 +568,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
               color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
-          // Recall side
           _buildPreviewGrid(revealed: false),
         ],
       ),
@@ -599,10 +633,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════════
-
   Widget _buildGameLayer() {
     return FadeTransition(
       opacity: _phaseAnim,
@@ -610,11 +640,13 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
-            child:
-            Stack(
+            child: Stack(
               alignment: Alignment.topCenter,
               children: [
-                Align(alignment: Alignment.centerRight, child: PuzzleLevelBadge(level: widget.level)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: PuzzleLevelBadge(level: widget.level),
+                ),
               ],
             ),
           ),
@@ -643,8 +675,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
       ],
     );
   }
-
-  // ── Memorize view ──────────────────────────────────────────────────────────
 
   Widget _buildMemorizeView() {
     if (_patternObjects.length < _gridSize) return const SizedBox.shrink();
@@ -727,11 +757,8 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     );
   }
 
-  // ── Recall view ────────────────────────────────────────────────────────────
-
   Widget _buildRecallView() {
-    if (_patternObjects.length < _gridSize ||
-        _answerSlots.length < _gridSize) {
+    if (_patternObjects.length < _gridSize || _answerSlots.length < _gridSize) {
       return const SizedBox.shrink();
     }
     return Column(
@@ -742,7 +769,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
           children: List.generate(_gridSize, (i) => _buildAnswerSlot(i)),
         ),
         const SizedBox(height: 14),
-        // Choice buttons
         if (_phase == _ScreenPhase.recall) _buildChoices(),
       ],
     );
@@ -858,12 +884,9 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     );
   }
 
-  // ── Win overlay ────────────────────────────────────────────────────────────
-
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      
       onNext: () {
         Navigator.pushReplacement(
           context,
