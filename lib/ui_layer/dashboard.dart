@@ -3,6 +3,7 @@ import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:StarSight/business_layer/database_service.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
@@ -61,16 +62,16 @@ class _DashboardScreenState extends State<DashboardScreen>
   // Activity/island cards
   final List<_ActivityCard> _activities = const [
     _ActivityCard(
-      title: 'Alphabet Forest',
-      subtitle: '...',
-      isActive: true,
-      imagePath: 'assets/animations/forest.json',
-    ),
-    _ActivityCard(
       title: 'Lumi Town',
       subtitle: '...',
       isActive: false,
       imagePath: 'assets/animations/town.json',
+    ),
+    _ActivityCard(
+      title: 'Alphabet Forest',
+      subtitle: '...',
+      isActive: true,
+      imagePath: 'assets/animations/forest.json',
     ),
     _ActivityCard(
       title: 'Artic Numberland',
@@ -102,6 +103,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     ArcticProgressService.instance.activeChildId = widget.nickname;
     ArcticDatabaseService.activeChildId = widget.nickname;
     LagoonProgressService.instance.activeChildId = widget.nickname;
+    LagoonDatabaseService.activeChildId = widget.nickname;
     PuzzleProgressService.instance.activeChildId = widget.nickname;
     TownProgressService.instance.activeChildId = widget.nickname;
 

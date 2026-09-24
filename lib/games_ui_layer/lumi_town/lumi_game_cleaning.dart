@@ -8,6 +8,7 @@ import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
+import 'lumi_game_dont_talk_to_strangers.dart';
 
 const String _introBg = 'assets/images/backgrounds/mama_little_bear_scene.png';
 const String _gameBg = 'assets/images/backgrounds/bg_sky.png';
@@ -503,12 +504,11 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
             GoodJobOverlay(
               characterImage: _teacherWooImage,
               onNext: () async {
-                // TODO: wire to next Lumi Town level
-                // Navigator.of(context).pushReplacement(
-                //   MaterialPageRoute(
-                //     builder: (_) => const (),
-                //   ),
-                // );
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => DontTalkToStrangersGame(level: widget.level + 1),
+                  ),
+                );
               },
               onRestart: _restartGame,
               onBack: _goBack,

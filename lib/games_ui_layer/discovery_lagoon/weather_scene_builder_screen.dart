@@ -1,9 +1,14 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/animal_lifecycle_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_clothes_match.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/material.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
@@ -36,10 +41,11 @@ class WeatherSceneBuilderScreen extends StatefulWidget {
 }
 
 class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
-    with TickerProviderStateMixin, LagoonIntroMixin {
+    with TickerProviderStateMixin, LagoonIntroMixin, AiCameraMixin {
   // ── Intro phase ──────────────────────────────────────────────────────────
 
   final AudioPlayer _introPlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   @override
   AudioPlayer get introAudioPlayer => _introPlayer;
@@ -78,7 +84,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
   final List<WeatherElement> _allElements = [
     WeatherElement(
       id: 'sun',
-      imagePath: 'assets/images/objects/lagoon/sun.png',
+      imagePath: 'assets/images/objects/lagoon/sun_wb.png',
       weatherId: 'sunny',
       scenePosition: const Alignment(0.6, -0.8),
     ),
@@ -131,7 +137,10 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
   late List<WeatherElement> _currentElements;
   late List<WeatherElement> _choices;
   final Set<String> _placed = {};
-  bool _roundLocked = false; // prevent double-taps during transition
+  bool _roundLocked = false;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   late AnimationController _popCtrl;
   late Map<String, AnimationController> _itemCtrls;
@@ -143,6 +152,14 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _popCtrl = AnimationController(
       vsync: this,
@@ -166,6 +183,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _popCtrl.dispose();
     for (final c in _itemCtrls.values) {
       c.dispose();
@@ -208,16 +226,16 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
     if (_roundLocked || _placed.contains(el.id)) return;
 
     if (el.weatherId == _currentWeather['id']) {
+      _tapTracker.recordCorrectTap();
       setState(() => _placed.add(el.id));
       _itemCtrls[el.id]?.forward(from: 0);
 
       if (_placed.length == _currentElements.length) {
         _roundLocked = true;
-        // Play round-complete audio, then advance
         LagoonAudio.instance.playThenCallback(_currentWeather['winKey']!, () {
           if (!mounted) return;
           if (_roundIndex >= _weathers.length - 1) {
-            _showSuccessDialog();
+            _saveDataAndShowSuccessDialog();
           } else {
             setState(() {
               _roundIndex++;
@@ -227,11 +245,34 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
         });
       }
     } else {
-      // Wrong tap — brief red flash via controller forward/reverse
+      _tapTracker.recordMistake();
       _itemCtrls[el.id]?.forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
       _itemCtrls[el.id]?.reverse();
+    }
+  }
+
+  Future<void> _saveDataAndShowSuccessDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_weather_scene',
+        activityName: 'Weather Scene Builder',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (mounted) {
+      _showSuccessDialog();
     }
   }
 
@@ -244,18 +285,17 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
       barrierColor: Colors.black54,
       builder: (_) => GoodJobOverlay(
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-        
+
         characterSizeFactor: 0.9,
         onNext: () async {
-          // 1. Mark the current level as complete (Change the number for each game)
           await LagoonProgressService.instance.markLevelComplete(16);
 
           if (context.mounted) {
-            // 2. Push directly to the next level's screen
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => AnimalLifecycleGame(level: widget.level + 1),
+                builder: (context) =>
+                    AnimalLifecycleGame(level: widget.level + 1),
               ),
             );
           }
@@ -264,11 +304,12 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
           Navigator.pop(context);
           setState(() {
             _roundIndex = 0;
+            _hasSavedResult = false;
+            _tapTracker.startSession();
             _startRound();
           });
         },
         onBack: () => Navigator.of(context).pop(),
-
       ),
     );
   }
@@ -312,14 +353,24 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
                     ),
                   ),
           ),
-           _screenPhase == LagoonScreenPhase.intro
-                ? _buildIntroContent()
-                : _buildGameContent(),
+          _screenPhase == LagoonScreenPhase.intro
+              ? _buildIntroContent()
+              : _buildGameContent(),
 
-          // X Button and Level Badge
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
 
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
         ],
       ),
     );
@@ -327,16 +378,13 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
 
   Widget _buildIntroContent() {
     return Stack(
-      children: [
-        Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
-      ],
+      children: [Positioned.fill(top: 48, child: buildLagoonIntroCharacter())],
     );
   }
 
   Widget _buildGameContent() {
     return Column(
       children: [
-        // Header
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 0),
           child: SizedBox(
@@ -373,7 +421,6 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
 
         const Spacer(),
 
-        // Choice buttons
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
@@ -408,7 +455,6 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
           ),
         ),
 
-        // Progress dots
         Container(
           padding: const EdgeInsets.only(bottom: 10),
           child: Row(
@@ -434,8 +480,6 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
       ],
     );
   }
-
-  // ── Phase images ──────────────────────────────────────────────────────────
 
   final Map<String, List<String>> _weatherPhases = {
     'sunny': [

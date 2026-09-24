@@ -1,7 +1,12 @@
-import 'package:StarSight/games_ui_layer/discovery_lagoon/tree_game.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/tree_game.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_background.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
@@ -11,7 +16,6 @@ import 'audio_helper.dart';
 import 'intro_phase.dart';
 import 'lagoon_game_ui.dart';
 
-// --- GENERIC THEME ---
 abstract class ColorTheme {
   static const Color background = Color(0xFFE8F4F8);
   static const Color textDark = Color(0xFF5E463E);
@@ -42,18 +46,20 @@ class BodyPartsAssemblyScreen extends StatefulWidget {
 }
 
 class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
-    with TickerProviderStateMixin, LagoonIntroMixin {
-  // ── Required by LagoonIntroMixin ────────────────────────────────────────
+    with TickerProviderStateMixin, LagoonIntroMixin, AiCameraMixin {
   final AudioPlayer _player = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   @override
   AudioPlayer get introAudioPlayer => _player;
 
-  // ── Screen phase ─────────────────────────────────────────────────────────
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
   final Set<String> _matchedParts = {};
   late List<BodyPartItem> _availableParts;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   final List<BodyPartItem> _allParts = [
     BodyPartItem(
@@ -78,6 +84,15 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     initLagoonIntro();
     _resetGame();
 
@@ -92,6 +107,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     disposeLagoonIntro();
     _player.dispose();
     OrientationService.setLandscape();
@@ -102,7 +118,32 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
     setState(() {
       _matchedParts.clear();
       _availableParts = List.from(_allParts)..shuffle();
+      _hasSavedResult = false;
+      _tapTracker.startSession();
     });
+  }
+
+  Future<void> _saveDataAndShowSuccessDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_bodyparts',
+        activityName: 'Body Parts Assembly',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (mounted) {
+      _showSuccessDialog();
+    }
   }
 
   void _showSuccessDialog() {
@@ -114,25 +155,26 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
       barrierDismissible: false,
       builder: (context) => GoodJobOverlay(
         characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-        
         characterSizeFactor: 0.9,
         onNext: () {
           Navigator.pop(context);
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => TreeGameScreen(level: widget.level + 1)),
+            MaterialPageRoute(
+              builder: (context) => TreeGameScreen(level: widget.level + 1),
+            ),
           );
         },
         onRestart: () {
-          Navigator.pop(context); // Close the overlay
+          Navigator.pop(context);
           setState(() {
-            _screenPhase = LagoonScreenPhase.game; // stay in game phase
+            _screenPhase = LagoonScreenPhase.game;
             _resetGame();
           });
         },
         onBack: () {
-          Navigator.pop(context); // Close the overlay
-          Navigator.pop(context); // Exit the game back to the map
+          Navigator.pop(context);
+          Navigator.pop(context);
         },
       ),
     );
@@ -142,35 +184,42 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ColorTheme.background,
-      body: LagoonBackground(
-        child: _screenPhase == LagoonScreenPhase.intro
-              ? _buildIntroContent()
-              : _buildGameContent(),
-        ),
+      body: Stack(
+        children: [
+          LagoonBackground(
+            child: _screenPhase == LagoonScreenPhase.intro
+                ? _buildIntroContent()
+                : _buildGameContent(),
+          ),
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
+        ],
+      ),
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════
-  // INTRO
-  // ══════════════════════════════════════════════════════════════════════
   Widget _buildIntroContent() {
     return Stack(
       children: [
-        // X Button and Level Badge
         Positioned(top: 25, left: 25, child: const LagoonXButton()),
-        Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: LagoonLevelBadge(level: widget.level),
+        ),
         Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
       ],
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════
-  // GAME
-  // ══════════════════════════════════════════════════════════════════════
   Widget _buildGameContent() {
     return Column(
       children: [
-        // --- HEADER ---
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 0),
           child: Stack(
@@ -183,14 +232,12 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
             ],
           ),
         ),
-
-        // --- MAIN PUZZLE AREA ---
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
               final double h = constraints.maxHeight;
               final double w = constraints.maxWidth;
-              final double cx = w / 2; // ← declare cx/cy FIRST
+              final double cx = w / 2;
               final double cy = h / 2;
               final double boxSize = h * 0.25;
 
@@ -272,8 +319,6 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
             },
           ),
         ),
-
-        // --- DRAGGABLE PARTS ROW ---
         Container(
           height: 120,
           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -286,6 +331,11 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
 
               return Draggable<String>(
                 data: part.id,
+                onDragEnd: (details) {
+                  if (!details.wasAccepted) {
+                    _tapTracker.recordMistake();
+                  }
+                },
                 feedback: _DraggableImage(
                   imagePath: part.imagePath,
                   isDragging: true,
@@ -313,11 +363,15 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
       onWillAcceptWithDetails: (details) =>
           details.data == targetId && !isMatched,
       onAcceptWithDetails: (details) {
+        _tapTracker.recordCorrectTap();
         setState(() {
           _matchedParts.add(targetId);
         });
         if (_matchedParts.length == _allParts.length) {
-          LagoonAudio.instance.playThenCallback(targetId, _showSuccessDialog);
+          LagoonAudio.instance.playThenCallback(
+            targetId,
+            _saveDataAndShowSuccessDialog,
+          );
         } else {
           LagoonAudio.instance.play(targetId);
         }
@@ -393,7 +447,6 @@ class _DraggableImage extends StatelessWidget {
   }
 }
 
-// --- UPDATED CUSTOM PAINTER ---
 class ConnectingLinesPainter extends CustomPainter {
   final Offset headBox, headTarget;
   final Offset shoulderBox, shoulderTarget;
@@ -422,10 +475,9 @@ class ConnectingLinesPainter extends CustomPainter {
       ..color = Colors.black87
       ..style = PaintingStyle.fill;
 
-    // Helper function to draw a line with a dot at the target
     void drawConnection(Offset box, Offset target) {
       canvas.drawLine(box, target, linePaint);
-      canvas.drawCircle(target, 6.0, dotPaint); // Draws the pointer dot!
+      canvas.drawCircle(target, 6.0, dotPaint);
     }
 
     drawConnection(headBox, headTarget);

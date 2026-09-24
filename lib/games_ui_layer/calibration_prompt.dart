@@ -75,6 +75,7 @@ class _CalibrationScreenState extends State<CalibrationScreen>
 
   Widget _buildCard({required Widget child}) {
     final size = MediaQuery.of(context).size;
+
     return Center(
       child: Container(
         width: size.width * 0.85,
@@ -95,29 +96,39 @@ class _CalibrationScreenState extends State<CalibrationScreen>
         ),
         child: Stack(
           children: [
+            // MAIN CONTENT
+            // Takes the full width so everything stays centered.
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 20.0,
                 vertical: 16.0,
               ),
               child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [child],
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Center(
+                    child: child,
+                  ),
                 ),
               ),
             ),
-            // THE NEW SKIP BUTTON
+
             Positioned(
-              top: 8,
-              right: 8,
+              top: 6,
+              right: 6,
               child: IconButton(
                 icon: const Icon(Icons.close_rounded),
-                color: const Color(0xFF5F7199).withValues(alpha: 0.5),
-                iconSize: 28,
+                color: const Color(0xFF5F7199),
+                iconSize: 24,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 36,
+                  minHeight: 36,
+                ),
                 onPressed: () {
-                  // Manually trigger completion to bypass the screen
-                  if (mounted) widget.onCalibrationDone();
+                  if (mounted) {
+                    widget.onCalibrationDone();
+                  }
                 },
               ),
             ),

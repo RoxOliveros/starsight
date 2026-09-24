@@ -2,6 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -9,24 +14,15 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import 'alphabet_game_ui.dart';
-import 'alphabet_intro.dart';
 import 'forest_audio_helper.dart';
 import 'forest_game_catterpillar_letter_match.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
-
-/// Which celebratory motion an animal uses once it reaches its finish line.
 enum _AnimalBounceStyle { hop, wag }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PATH PAINTER
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// Draws a soft dashed line through the race path's waypoints, purely
-/// decorative -- it visually anchors where the animals are travelling.
 class _DashedPathPainter extends CustomPainter {
-  final List<Offset> points; // fractional (0..1), scaled against [size]
+  final List<Offset> points;
   final Color color;
 
   const _DashedPathPainter({required this.points, required this.color});
@@ -35,7 +31,9 @@ class _DashedPathPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.length < 2) return;
 
-    final scaled = points.map((p) => Offset(p.dx * size.width, p.dy * size.height)).toList();
+    final scaled = points
+        .map((p) => Offset(p.dx * size.width, p.dy * size.height))
+        .toList();
     final path = Path()..moveTo(scaled.first.dx, scaled.first.dy);
     for (final p in scaled.skip(1)) {
       path.lineTo(p.dx, p.dy);
@@ -64,10 +62,6 @@ class _DashedPathPainter extends CustomPainter {
   bool shouldRepaint(covariant _DashedPathPainter oldDelegate) => false;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// GAME
-// ═══════════════════════════════════════════════════════════════════════════
-
 class YakZebraRaceGame extends StatefulWidget {
   final int level;
   const YakZebraRaceGame({super.key, required this.level});
@@ -81,15 +75,19 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
         TickerProviderStateMixin,
         GameLoadingMixin<YakZebraRaceGame>,
         ForestAudioMixin<YakZebraRaceGame>,
-        TofiReactionMixin<YakZebraRaceGame> {
+        TofiReactionMixin<YakZebraRaceGame>,
+        AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   // ═════════════════════════════════════════════════════════════════════
   // ASSET PATHS
   // ═════════════════════════════════════════════════════════════════════
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_grassland.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_forest_grassland.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _yakAsset = 'assets/images/objects/forest/yak.png';
   static const String _zebraAsset = 'assets/images/objects/forest/zebra.png';
@@ -100,12 +98,11 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   static const String _audioIntro = '$_audioBase/yak_zebra_race_intro.wav';
   static const String _audioTapY = '$_audioBase/sound_effects/sound_y.wav';
   static const String _audioTapZ = '$_audioBase/sound_effects/sound_z.wav';
-  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioCorrect =
+      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioYIsForYak = '$_audioBase/y_is_for_yak.wav';
   static const String _audioZIsForZebra = '$_audioBase/z_is_for_zebra.wav';
   static const String _audioWin = '$_audioBase/yak_zebra_race_win.wav';
-  // Wrong-answer audio ("Try again") is already handled by
-  // TofiReactionMixin.showTofiReaction(TofiState.wrong) internally.
 
   // ═════════════════════════════════════════════════════════════════════
   // GAME STRUCTURE
@@ -135,17 +132,20 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   // ═════════════════════════════════════════════════════════════════════
 
   bool _introPlaying = true;
-  int _currentRoundIndex = 0; // 0..5
+  int _currentRoundIndex = 0;
   int _solvedRounds = 0;
   double _yakProgress = 0;
   double _zebraProgress = 0;
 
-  late List<String> _choices; // 4 letters this round, target guaranteed present
-  int? _correctSlotIndex; // briefly set right after a correct tap
-  int? _wrongSlotIndex; // briefly set right after a wrong tap
+  late List<String> _choices;
+  int? _correctSlotIndex;
+  int? _wrongSlotIndex;
   bool _resolving = false;
-  bool _showBothCelebrating = false; // final "reveal both animals" moment
+  bool _showBothCelebrating = false;
   late bool _yakWillWin;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   late final String _finalRoundLetter = Random().nextBool() ? 'Y' : 'Z';
 
@@ -170,17 +170,16 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   // ANIMATION CONTROLLERS
   // ═════════════════════════════════════════════════════════════════════
 
-  late AnimationController _tofiFloatCtrl; // intro-only idle float
+  late AnimationController _tofiFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
-  late AnimationController _bobCtrl; // gentle idle floating for stones
-  late AnimationController _pulseCtrl; // correct-stone pulse + glow pop
-  late AnimationController _shakeCtrl; // wrong-stone wiggle
+  late AnimationController _bobCtrl;
+  late AnimationController _pulseCtrl;
+  late AnimationController _shakeCtrl;
   late Animation<double> _shake;
-  late AnimationController _celebrateCtrl; // Yak bounce / Zebra wag, repeating
-  late AnimationController _ambientLeavesCtrl; // always-on slow background drift
+  late AnimationController _celebrateCtrl;
+  late AnimationController _ambientLeavesCtrl;
 
   // ═════════════════════════════════════════════════════════════════════
   // INIT
@@ -190,6 +189,15 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   void initState() {
     OrientationService.setLandscape();
     super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAnimations();
     _setupRound(playInstruction: false);
     finishLoading(_startIntroFlow);
@@ -206,17 +214,15 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _sceneEnter = CurvedAnimation(parent: _sceneEnterCtrl, curve: Curves.elasticOut);
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
 
     _bobCtrl = AnimationController(
       vsync: this,
@@ -255,17 +261,19 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) await playVoice(_targetLetter == 'Y' ? _audioTapY : _audioTapZ);
+    if (mounted)
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        _targetLetter == 'Y' ? _audioTapY : _audioTapZ,
+      );
   }
 
-  /// Builds this round's 4 letter choices: the target letter is always
-  /// included, the rest are random distinct A-Z letters, then shuffled.
   List<String> _generateChoices(String target) {
     final rng = Random();
     final letters = <String>{target};
@@ -286,7 +294,11 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
 
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted) playVoice(_targetLetter == 'Y' ? _audioTapY : _audioTapZ);
+        if (mounted)
+          playVoiceRestartingOnFaceLoss(
+            audio.voicePlayer,
+            _targetLetter == 'Y' ? _audioTapY : _audioTapZ,
+          );
       });
     }
 
@@ -301,16 +313,17 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     if (_resolving) return;
 
     if (letter == _targetLetter) {
+      _tapTracker.recordCorrectTap();
       _resolving = true;
       HapticFeedback.mediumImpact();
       setState(() => _correctSlotIndex = slotIndex);
       _pulseCtrl.forward(from: 0);
 
       await playSfx(_audioCorrect);
-      showTofiReaction(TofiState.correct); // fire-and-forget; plays its own audio
+      showTofiReaction(TofiState.correct);
 
       setState(() {
-        const winnerStep = 1 / 5; // 0.20
+        const winnerStep = 1 / 5;
         const loserStep = 0.16;
 
         if (_yakWillWin) {
@@ -330,10 +343,11 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
 
       await _advanceRound();
     } else {
+      _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
       setState(() => _wrongSlotIndex = slotIndex);
       _shakeCtrl.forward(from: 0);
-      showTofiReaction(TofiState.wrong); // fire-and-forget; plays "try again" audio
+      showTofiReaction(TofiState.wrong);
 
       await Future.delayed(const Duration(milliseconds: 500));
       if (!mounted) return;
@@ -348,16 +362,18 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   Future<void> _advanceRound() async {
     _solvedRounds++;
 
-    // Zebra's finish line -- the very end of the track, end of the game.
     final justFinishedGame = _currentRoundIndex == _totalRounds - 1;
 
     if (justFinishedGame) {
       await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
       if (_yakWillWin) {
-        await playVoice(_audioYIsForYak);
+        await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioYIsForYak);
       } else {
-        await playVoice(_audioZIsForZebra);
+        await playVoiceRestartingOnFaceLoss(
+          audio.voicePlayer,
+          _audioZIsForZebra,
+        );
       }
       if (!mounted) return;
 
@@ -365,18 +381,40 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       if (!mounted) return;
       setState(() => _showBothCelebrating = true);
 
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioWin);
       if (!mounted) return;
 
       await ForestProgressService.instance.markLevelComplete(widget.level);
       if (!mounted) return;
 
-      _showGoodJob();
+      await _saveDataAndShowGoodJob();
       return;
     }
 
     _currentRoundIndex++;
     _setupRound();
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await ForestDatabaseService.saveGameData(
+        gameId: 'forest_yak_zebra_race',
+        activityName: 'Yak Zebra Race',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (!mounted) return;
+    _showGoodJob();
   }
 
   void _showGoodJob() {
@@ -389,17 +427,20 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => CaterpillarLetterMatchGame(level: 19)),
+              MaterialPageRoute(
+                builder: (_) => CaterpillarLetterMatchGame(level: 19),
+              ),
             );
           },
           onRestart: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => YakZebraRaceGame(level: widget.level)),
+              MaterialPageRoute(
+                builder: (_) => YakZebraRaceGame(level: widget.level),
+              ),
             );
           },
           onBack: () {
@@ -413,6 +454,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _tofiFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -424,10 +466,6 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     super.dispose();
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // BUILD -- ROOT
-  // ═════════════════════════════════════════════════════════════════════
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -437,15 +475,18 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
             if (!_introPlaying) buildTofi(context),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
         ),
       ),
     );
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // INTRO LAYER
-  // ═════════════════════════════════════════════════════════════════════
 
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
@@ -456,11 +497,16 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
           child: Image.asset(
             _bgImage,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(color: ForestColorTheme.lightgrayishgreen),
+            errorBuilder: (_, __, ___) =>
+                Container(color: ForestColorTheme.lightgrayishgreen),
           ),
         ),
         const Positioned(top: 25, left: 25, child: ForestXButton()),
-        Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(level: widget.level),
+        ),
         Center(
           child: AnimatedBuilder(
             animation: _tofiFloatCtrl,
@@ -468,7 +514,10 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
               offset: Offset(
                 0,
                 Tween<double>(begin: -6, end: 6).evaluate(
-                  CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
+                  CurvedAnimation(
+                    parent: _tofiFloatCtrl,
+                    curve: Curves.easeInOut,
+                  ),
                 ),
               ),
               child: child,
@@ -476,17 +525,14 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
             child: Image.asset(
               _dogImage,
               height: screenH * 0.72,
-              errorBuilder: (_, __, ___) => const Text('🐶', style: TextStyle(fontSize: 90)),
+              errorBuilder: (_, __, ___) =>
+                  const Text('🐶', style: TextStyle(fontSize: 90)),
             ),
           ),
         ),
       ],
     );
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // MAIN GAME LAYOUT
-  // ═════════════════════════════════════════════════════════════════════
 
   Widget _buildGameContent() {
     return LayoutBuilder(
@@ -500,7 +546,8 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
               child: Image.asset(
                 _bgImage,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: ForestColorTheme.lightgrayishgreen),
+                errorBuilder: (_, __, ___) =>
+                    Container(color: ForestColorTheme.lightgrayishgreen),
               ),
             ),
             Positioned.fill(child: _buildAmbientLeaves(w, h)),
@@ -517,8 +564,11 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       child: Stack(
         children: [
           const Positioned(top: 25, left: 25, child: ForestXButton()),
-          Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
-
+          Positioned(
+            top: 25,
+            right: 20,
+            child: ForestLevelBadge(level: widget.level),
+          ),
           Padding(
             padding: const EdgeInsets.only(top: 90),
             child: Column(
@@ -526,13 +576,14 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
                 Expanded(
                   flex: 3,
                   child: LayoutBuilder(
-                    builder: (context, inner) => _buildRaceScene(inner.maxWidth, inner.maxHeight),
+                    builder: (context, inner) =>
+                        _buildRaceScene(inner.maxWidth, inner.maxHeight),
                   ),
                 ),
                 Expanded(
                   flex: 2,
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 60), // adjust this value
+                    padding: const EdgeInsets.only(left: 60),
                     child: LayoutBuilder(
                       builder: (context, inner) =>
                           _buildStonesArea(inner.maxWidth, inner.maxHeight),
@@ -551,10 +602,6 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     );
   }
 
-  // ═════════════════════════════════════════════════════════════════════
-  // RACE SCENE (path + animals)
-  // ═════════════════════════════════════════════════════════════════════
-
   Offset _positionAlongPath(double t) {
     final points = _pathPoints;
     final clampedT = t.clamp(0.0, 1.0);
@@ -567,9 +614,6 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   }
 
   Widget _buildRaceScene(double w, double h) {
-    // Yak owns t in [0, 0.5]; once the Z phase begins he parks at the
-    // midpoint permanently. Zebra owns t in [0.5, 1.0] and only appears
-    // once the Z phase begins, continuing from exactly where Yak stopped.
     final yakT = _yakProgress;
     final zebraT = _zebraProgress;
 
@@ -586,12 +630,8 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
               ),
             ),
           ),
-
           TweenAnimationBuilder<double>(
-            tween: Tween(
-              begin: _yakProgress,
-              end: yakT,
-            ),
+            tween: Tween(begin: _yakProgress, end: yakT),
             duration: const Duration(milliseconds: 700),
             builder: (context, t, _) => _buildAnimal(
               asset: _yakAsset,
@@ -603,12 +643,8 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
               bounceStyle: _AnimalBounceStyle.hop,
             ),
           ),
-
           TweenAnimationBuilder<double>(
-            tween: Tween(
-              begin: _zebraProgress,
-              end: zebraT,
-            ),
+            tween: Tween(begin: _zebraProgress, end: zebraT),
             duration: const Duration(milliseconds: 700),
             builder: (context, t, _) => _buildAnimal(
               asset: _zebraAsset,
@@ -641,7 +677,8 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       asset,
       height: size,
       fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => Text(fallbackEmoji, style: TextStyle(fontSize: size * 0.7)),
+      errorBuilder: (_, __, ___) =>
+          Text(fallbackEmoji, style: TextStyle(fontSize: size * 0.7)),
     );
 
     if (bouncing) {
@@ -667,10 +704,6 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       child: image,
     );
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // LETTER STONES
-  // ═════════════════════════════════════════════════════════════════════
 
   Widget _buildStonesArea(double w, double h) {
     return SizedBox(
@@ -700,8 +733,12 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
         child: AnimatedBuilder(
           animation: Listenable.merge([_bobCtrl, _pulseCtrl, _shakeCtrl]),
           builder: (_, child) {
-            final bobY = _resolving ? 0.0 : 4 * sin((_bobCtrl.value * 2 * pi) + phase);
-            final pulseScale = correct ? 1.0 + 0.25 * Curves.elasticOut.transform(_pulseCtrl.value) : 1.0;
+            final bobY = _resolving
+                ? 0.0
+                : 4 * sin((_bobCtrl.value * 2 * pi) + phase);
+            final pulseScale = correct
+                ? 1.0 + 0.25 * Curves.elasticOut.transform(_pulseCtrl.value)
+                : 1.0;
             final shakeAngle = wrong ? _shake.value : 0.0;
             return Transform.translate(
               offset: Offset(0, bobY),
@@ -717,15 +754,17 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
               Container(
                 decoration: correct
                     ? BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: ForestColorTheme.mediumseagreen.withValues(alpha: 0.7),
-                      blurRadius: 22,
-                      spreadRadius: 6,
-                    ),
-                  ],
-                )
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: ForestColorTheme.mediumseagreen.withValues(
+                              alpha: 0.7,
+                            ),
+                            blurRadius: 22,
+                            spreadRadius: 6,
+                          ),
+                        ],
+                      )
                     : null,
                 child: Image.asset(
                   _stoneAsset,
@@ -744,7 +783,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
                 ),
               ),
               Transform.translate(
-                offset: const Offset(2, 0), // move right by 12 px
+                offset: const Offset(2, 0),
                 child: _outlinedLetter(
                   letter,
                   fontSize: size * 0.42,
@@ -759,10 +798,6 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       ),
     );
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // AMBIENT DECORATION
-  // ═════════════════════════════════════════════════════════════════════
 
   Widget _buildAmbientLeaves(double w, double h) {
     return IgnorePointer(
@@ -783,7 +818,8 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
                   child: Image.asset(
                     _leafAsset,
                     width: 18,
-                    errorBuilder: (_, __, ___) => const Text('🍃', style: TextStyle(fontSize: 14)),
+                    errorBuilder: (_, __, ___) =>
+                        const Text('🍃', style: TextStyle(fontSize: 14)),
                   ),
                 ),
               );
@@ -794,9 +830,11 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     );
   }
 
-  /// Letter with a white outline behind a solid fill, for legibility
-  /// against the forest background and stone artwork.
-  Widget _outlinedLetter(String letter, {required double fontSize, required Color fillColor}) {
+  Widget _outlinedLetter(
+    String letter, {
+    required double fontSize,
+    required Color fillColor,
+  }) {
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -824,10 +862,6 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       ],
     );
   }
-
-  // ═════════════════════════════════════════════════════════════════════
-  // PROGRESS DOTS
-  // ═════════════════════════════════════════════════════════════════════
 
   Widget _buildProgressDots() {
     return Row(

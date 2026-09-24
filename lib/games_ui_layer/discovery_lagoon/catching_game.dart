@@ -1,18 +1,22 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:StarSight/business_layer/lagoon_progress_service.dart';
-import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/soft_hard_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/lagoon_progress_service.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/soft_hard_game.dart';
 
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
 
-// Added favoriteTaste phase for the final interactive question!
 enum GamePhase {
   intro,
   sweetPrompt,
@@ -24,16 +28,14 @@ enum GamePhase {
   goodJob,
 }
 
-// Tracks which taste round is currently active
 enum TasteRound { sweet, sour, salty, bitter }
 
-// Represents a single falling food item on the screen
 class FallingFood {
   String imagePath;
-  double x; // Horizontal position (from 0.0 left to 1.0 right)
-  double y; // Vertical position (from -0.2 top to 1.2 bottom)
-  double speed; // How fast it falls
-  bool isTarget; // Distinguishes between correct taste items and wrong items!
+  double x;
+  double y;
+  double speed;
+  bool isTarget;
 
   FallingFood({
     required this.imagePath,
@@ -54,10 +56,11 @@ class CatchingGameScreen extends StatefulWidget {
 }
 
 class _CatchingGameScreenState extends State<CatchingGameScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AiCameraMixin {
   late AnimationController _gameLoopController;
   late final AudioPlayer _audioPlayer;
   final Random _random = Random();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   GamePhase _currentPhase = GamePhase.intro;
   TasteRound _currentRound = TasteRound.sweet;
@@ -73,7 +76,11 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   bool _canTapFavorite = false;
   bool _disposed = false;
 
-  final String _catchMissedFoods = 'audio/discovery_lagoon/catching_missed_food.wav';
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  final String _catchMissedFoods =
+      'audio/discovery_lagoon/catching_missed_food.wav';
 
   final List<String> _sweetFoodImages = [
     'assets/images/objects/lagoon/cookie.png',
@@ -83,7 +90,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     'assets/images/objects/lagoon/banana_colored.png',
   ];
 
-  // Asset paths for sour foods
   final List<String> _sourFoodImages = [
     'assets/images/objects/lagoon/orange.png',
     'assets/images/objects/lagoon/lemon.png',
@@ -92,7 +98,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     'assets/images/objects/lagoon/vinegar.png',
   ];
 
-  // Asset paths for salty foods
   final List<String> _saltyFoodImages = [
     'assets/images/objects/lagoon/pizza_colored.png',
     'assets/images/objects/lagoon/fries.png',
@@ -101,7 +106,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     'assets/images/objects/lagoon/bacon.png',
   ];
 
-  // Asset paths for bitter foods
   final List<String> _bitterFoodImages = [
     'assets/images/objects/lagoon/coffee.png',
     'assets/images/objects/lagoon/lettuce.png',
@@ -109,7 +113,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     'assets/images/objects/lagoon/broccoli.png',
   ];
 
-  // Asset paths for wrong / non-food items
   final List<String> _wrongFoodImages = [
     'assets/images/objects/lagoon/onion.png',
     'assets/images/objects/lagoon/perfume_fish.png',
@@ -122,6 +125,14 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _audioPlayer = AudioPlayer();
     _playIntroSequence();
 
@@ -131,14 +142,10 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     )..addListener(_updateGame);
   }
 
-  /// NEW: waits for the current sound to finish without throwing
-  /// "Bad state: No element" if the player gets disposed mid-wait.
   Future<void> _waitForAudioComplete() async {
     try {
       await _audioPlayer.onPlayerComplete.first;
-    } catch (_) {
-      // Stream closed (player disposed) before it ever completed — ignore.
-    }
+    } catch (_) {}
   }
 
   Future<void> _playIntroSequence() async {
@@ -326,6 +333,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   void _onFavoriteTasteTapped() {
     if (!_canTapFavorite || _currentPhase != GamePhase.favoriteTaste) return;
 
+    _tapTracker.recordCorrectTap();
     setState(() {
       _canTapFavorite = false;
     });
@@ -338,11 +346,32 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
       _waitForAudioComplete().then((_) {
         if (!mounted || _disposed) return;
-        setState(() {
-          _currentPhase = GamePhase.goodJob;
-        });
+        _saveDataAndShowGoodJob();
       });
     });
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_catching_game',
+        activityName: 'Catching Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+    await LagoonProgressService.instance.markLevelComplete(4);
+    if (mounted) {
+      setState(() => _currentPhase = GamePhase.goodJob);
+    }
   }
 
   Future<void> _playSound(String assetPath) async {
@@ -376,8 +405,10 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
             _fallingItems.removeAt(i);
 
             if (caughtItem.isTarget) {
+              _tapTracker.recordCorrectTap();
               _caughtCount++;
             } else {
+              _tapTracker.recordMistake();
               _wrongCatchCount++;
             }
 
@@ -426,22 +457,21 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   }
 
   void _spawnFood() {
-    // 50% chance to spawn target food, 30% chance to spawn a distraction!
     bool spawnTarget = _random.nextDouble() < 0.50;
 
     String randomImage;
     if (spawnTarget) {
       if (_currentRound == TasteRound.sweet) {
         randomImage =
-        _sweetFoodImages[_random.nextInt(_sweetFoodImages.length)];
+            _sweetFoodImages[_random.nextInt(_sweetFoodImages.length)];
       } else if (_currentRound == TasteRound.sour) {
         randomImage = _sourFoodImages[_random.nextInt(_sourFoodImages.length)];
       } else if (_currentRound == TasteRound.salty) {
         randomImage =
-        _saltyFoodImages[_random.nextInt(_saltyFoodImages.length)];
+            _saltyFoodImages[_random.nextInt(_saltyFoodImages.length)];
       } else {
         randomImage =
-        _bitterFoodImages[_random.nextInt(_bitterFoodImages.length)];
+            _bitterFoodImages[_random.nextInt(_bitterFoodImages.length)];
       }
     } else {
       List<String> distractionPool = [..._wrongFoodImages];
@@ -492,6 +522,8 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
       _fallingItems.clear();
       _currentRound = TasteRound.sweet;
       _currentPhase = GamePhase.intro;
+      _hasSavedResult = false;
+      _tapTracker.startSession();
     });
     _playIntroSequence();
   }
@@ -499,6 +531,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   @override
   void dispose() {
     _disposed = true;
+    disposeAiCamera();
     _gameLoopController.dispose();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
@@ -517,8 +550,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
         children: [
           _buildPhaseContent(sw, sh),
 
-          // X Button and Level Badge — on every phase except the
-          // victory overlay, which has its own close button.
           if (_currentPhase != GamePhase.goodJob) ...[
             Positioned(top: 25, left: 25, child: const LagoonXButton()),
             Positioned(
@@ -527,13 +558,19 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
               child: LagoonLevelBadge(level: widget.level),
             ),
           ],
+
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
         ],
       ),
     );
   }
 
-  /// Returns just the content for the current phase (no Scaffold —
-  /// build() now provides one Scaffold shared by every phase).
   Widget _buildPhaseContent(double sw, double sh) {
     if (_currentPhase == GamePhase.intro) {
       return Stack(
@@ -663,7 +700,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
       );
     }
 
-    // PLAYING & GOOD JOB PHASES
     final double basketWidth = sh * 0.75;
     final double basketHeight = sh * 0.55;
     final double foodSize = sh * 0.26;
@@ -701,13 +737,13 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
           }),
           if (_currentPhase == GamePhase.goodJob)
             GoodJobOverlay(
-              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-              
+              characterImage:
+                  'assets/images/characters/cat_holding_fishbone.png',
               characterSizeFactor: 0.9,
-              onNext: () async {
-                await LagoonProgressService.instance.markLevelComplete(4);
+              onNext: () {
                 if (context.mounted) {
-                  Navigator.of(context).pushReplacement(
+                  Navigator.pushReplacement(
+                    context,
                     MaterialPageRoute(
                       builder: (_) =>
                           SoftHardGameScreen(level: widget.level + 1),
@@ -724,10 +760,10 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   }
 
   Widget _buildFavoriteChoice(
-      String foodImagePath,
-      double screenHeight,
-      double screenWidth,
-      ) {
+    String foodImagePath,
+    double screenHeight,
+    double screenWidth,
+  ) {
     final double basketW = screenWidth * 0.23;
     final double basketH = screenHeight * 0.38;
     final double foodS = screenHeight * 0.28;

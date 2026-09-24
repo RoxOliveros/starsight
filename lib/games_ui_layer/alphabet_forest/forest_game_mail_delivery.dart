@@ -17,6 +17,7 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 
 import 'forest_audio_helper.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ForestMailDeliveryGame extends StatefulWidget {
   final int level;
@@ -28,12 +29,7 @@ class ForestMailDeliveryGame extends StatefulWidget {
 }
 
 class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
-    with
-        TickerProviderStateMixin,
-        GameLoadingMixin,
-        ForestAudioMixin,
-        TofiReactionMixin,
-        AiCameraMixin {
+    with TickerProviderStateMixin, GameLoadingMixin, ForestAudioMixin, TofiReactionMixin, AiCameraMixin {
   @override
   AudioPlayer get tofiPlayer => _player;
 
@@ -63,25 +59,33 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_forest_3houses.png';
-  static const String _envelopImage =
-      'assets/images/objects/forest/envelope.png';
-  static const String _mailboxImage =
-      'assets/images/objects/forest/mailbox.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_forest_3houses.png';
+  static const String _envelopImage = 'assets/images/objects/forest/envelope.png';
+  static const String _mailboxImage = 'assets/images/objects/forest/mailbox.png';
 
   static const String _audioBase = ForestAudioAssets.base;
+  // Tagalog
   static const String _audioIntro = '$_audioBase/mail_intro.wav';
   static const String _audioInstruction = '$_audioBase/mail_instruction.wav';
   static const String _audioWin = '$_audioBase/mail_win.wav';
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
 
+    // child's calibration separate from everyone else's.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
+
+    // Lighting card can reappear later if the face is lost again mid-play.
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     Future.microtask(() => playBackgroundMusic());
 
@@ -105,13 +109,8 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
       duration: const Duration(milliseconds: 150),
     );
 
-    finishLoading(() {
-      if (isFaceDetected) {
-        onFirstFaceDetected?.call();
-        onFirstFaceDetected = null;
-      }
-      _startIntroFlow();
-    });
+    // Starts once loading is done - never waits for a face.
+    finishLoading(_startIntroFlow);
 
     _loadRound();
   }
@@ -133,7 +132,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
 
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
 
     if (!mounted) return;
 
@@ -145,7 +144,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
     if (!mounted) return;
 
-    await playVoice(_audioInstruction);
+    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
   }
 
   // ── ROUND SETUP ──────────────────────────────────────────────────────
@@ -253,6 +252,8 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
     try {
@@ -320,14 +321,11 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
             if (!_introPlaying) buildTofi(context),
 
-            if (hasCapturedFirstFrame && !isFaceDetected)
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {
-                  setState(() {
-                    isFaceDetected = true;
-                  });
-                  onFirstFaceDetected?.call();
-                  onFirstFaceDetected = null;
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate(); // don't leave the tutorial audio waiting
                 },
               ),
           ],
@@ -558,21 +556,42 @@ class _ParcelCard extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Image.asset(imagePath, fit: BoxFit.contain),
-          Text(
-            letter,
-            style: const TextStyle(
-              fontSize: 56,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF6B4226),
-              shadows: [
-                Shadow(
-                  color: Colors.white70,
-                  offset: Offset(1, 1),
-                  blurRadius: 2,
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.asset(imagePath, fit: BoxFit.contain),
+
+              // outline/stroke text
+              Text(
+                letter,
+                style: TextStyle(
+                  fontSize: 60,
+                  fontWeight: FontWeight.w900,
+                  foreground: Paint()
+                    ..style = PaintingStyle.stroke
+                    ..strokeWidth = 5
+                    ..color = Colors.white,
                 ),
-              ],
-            ),
-          ),
+              ),
+
+              // main fill text
+              Text(
+                letter,
+                style: const TextStyle(
+                  fontSize: 60,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF4A2E1F),
+                  shadows: [
+                    Shadow(
+                      color: Colors.black26,
+                      offset: Offset(2, 2),
+                      blurRadius: 3,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          )
         ],
       ),
     );
@@ -626,21 +645,40 @@ class _MailboxWidget extends StatelessWidget {
               ),
 
             Positioned(
-              top: 50,
-              child: Text(
-                letter,
-                style: const TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black45,
-                      offset: Offset(1, 2),
-                      blurRadius: 1,
+              top: 45,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // White outline
+                  Text(
+                    letter,
+                    style: TextStyle(
+                      fontSize: 52,
+                      fontWeight: FontWeight.w900,
+                      foreground: Paint()
+                        ..style = PaintingStyle.stroke
+                        ..strokeWidth = 5
+                        ..color = Colors.black,
                     ),
-                  ],
-                ),
+                  ),
+
+                  // Main letter
+                  Text(
+                    letter,
+                    style: const TextStyle(
+                      fontSize: 52,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black38,
+                          offset: Offset(2, 2),
+                          blurRadius: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

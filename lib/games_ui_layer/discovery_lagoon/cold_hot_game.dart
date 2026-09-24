@@ -1,18 +1,23 @@
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
 class SortableItem {
   final String imagePath;
-  final bool isCold; // true = Cold side, false = Hot side
+  final bool isCold;
 
   SortableItem({required this.imagePath, required this.isCold});
 }
@@ -27,17 +32,16 @@ class ColdHotGame extends StatefulWidget {
 }
 
 class _ColdHotGameState extends State<ColdHotGame>
-    with TickerProviderStateMixin, KikiReactionMixin {
+    with TickerProviderStateMixin, KikiReactionMixin, AiCameraMixin {
   late final AudioPlayer _audioPlayer;
   final Random _random = Random();
-
   final AudioPlayer _kikiPlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   @override
   AudioPlayer get kikiPlayer => _kikiPlayer;
 
   bool _isIntroPlaying = true;
-  // bool _hasPlayedInstruction = false;
 
   late List<SortableItem> _remainingItems;
   SortableItem? _currentItem;
@@ -51,25 +55,38 @@ class _ColdHotGameState extends State<ColdHotGame>
   bool _isGameWon = false;
   bool _showVictoryOverlay = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   // --- Asset paths ---
-  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
-  static const String _coldBadgeImage = 'assets/images/objects/lagoon/cold_icecube.png';
-  static const String _hotBadgeImage = 'assets/images/objects/lagoon/hot_flame.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_rainbow_lagoon.png';
+  static const String _coldBadgeImage =
+      'assets/images/objects/lagoon/cold_icecube.png';
+  static const String _hotBadgeImage =
+      'assets/images/objects/lagoon/hot_flame.png';
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
-  static const String _goodJobImage = 'assets/images/characters/cat_holding_fishbone.png';
+  static const String _goodJobImage =
+      'assets/images/characters/cat_holding_fishbone.png';
 
   static const String _iceImage = 'assets/images/objects/lagoon/ice_wb.png';
-  static const String _icecreamImage = 'assets/images/objects/lagoon/icecream_wb.png';
-  static const String _snowballImage = 'assets/images/objects/lagoon/snowball_wb.png';
-  static const String _snowmanImage = 'assets/images/objects/lagoon/snowman_wb.png';
+  static const String _icecreamImage =
+      'assets/images/objects/lagoon/icecream_wb.png';
+  static const String _snowballImage =
+      'assets/images/objects/lagoon/snowball_wb.png';
+  static const String _snowmanImage =
+      'assets/images/objects/lagoon/snowman_wb.png';
   static const String _iglooImage = 'assets/images/objects/lagoon/igloo_wb.png';
-  static const String _coffeeImage = 'assets/images/objects/lagoon/coffee_wb.png';
+  static const String _coffeeImage =
+      'assets/images/objects/lagoon/coffee_wb.png';
   static const String _sunImage = 'assets/images/objects/lagoon/sun_wb.png';
-  static const String _candleImage = 'assets/images/objects/lagoon/candle_wb.png';
-  static const String _kettleImage = 'assets/images/objects/lagoon/kettle_wb.png';
+  static const String _candleImage =
+      'assets/images/objects/lagoon/candle_wb.png';
+  static const String _kettleImage =
+      'assets/images/objects/lagoon/kettle_wb.png';
 
-  static const String _introAudio = 'audio/discovery_lagoon/cold_hot_game_intro&tutorial.wav';
-  // static const String _instructionAudio = 'audio/discovery_lagoon/cold_hot_instruction.wav';
+  static const String _introAudio =
+      'audio/discovery_lagoon/cold_hot_game_intro&tutorial.wav';
   static const String _wrongAudio = 'audio/sound_effects/bubble_pop.wav';
 
   @override
@@ -78,15 +95,18 @@ class _ColdHotGameState extends State<ColdHotGame>
     OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _audioPlayer = AudioPlayer();
 
     _audioPlayer.onPlayerComplete.listen((event) {
       if (!mounted) return;
-      //
-      // if (_isIntroPlaying && !_hasPlayedInstruction) {
-      //   _hasPlayedInstruction = true;
-      //   _playInstruction();
-      // } else if (
 
       if (_isIntroPlaying) {
         setState(() {
@@ -109,17 +129,6 @@ class _ColdHotGameState extends State<ColdHotGame>
       }
     }
   }
-
-  // Future<void> _playInstruction() async {
-  //   try {
-  //     await _audioPlayer.play(AssetSource(_instructionAudio));
-  //   } catch (e) {
-  //     debugPrint("Error playing instruction audio: $e");
-  //     if (mounted) {
-  //       setState(() => _isIntroPlaying = false);
-  //     }
-  //   }
-  // }
 
   void _initGame() {
     _remainingItems = [
@@ -156,11 +165,34 @@ class _ColdHotGameState extends State<ColdHotGame>
     if (_currentItem == null) {
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted && _isGameWon) {
-          setState(() {
-            LagoonProgressService.instance.markLevelComplete(widget.level);
-            _showVictoryOverlay = true;
-          });
+          _saveDataAndShowGoodJob();
         }
+      });
+    }
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    try {
+      await LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_cold_hot',
+        activityName: 'Cold & Hot Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      );
+    } catch (e) {
+      debugPrint("Database Error saving metrics: $e");
+    }
+
+    if (mounted) {
+      setState(() {
+        LagoonProgressService.instance.markLevelComplete(widget.level);
+        _showVictoryOverlay = true;
       });
     }
   }
@@ -186,20 +218,21 @@ class _ColdHotGameState extends State<ColdHotGame>
     final bool droppedOnRight = droppedX > screenWidth * 0.55;
 
     if (_currentItem!.isCold && droppedOnLeft) {
-      // await _playSound(_shineAudio);
+      _tapTracker.recordCorrectTap();
       showKikiReaction(KikiState.correct);
       setState(() {
         _sortedColdItems.add(_currentItem!);
       });
       _loadNextItem();
     } else if (!_currentItem!.isCold && droppedOnRight) {
-      // await _playSound(_shineAudio);
+      _tapTracker.recordCorrectTap();
       showKikiReaction(KikiState.correct);
       setState(() {
         _sortedHotItems.add(_currentItem!);
       });
       _loadNextItem();
     } else if (droppedOnLeft || droppedOnRight) {
+      _tapTracker.recordMistake();
       await _playSound(_wrongAudio);
       showKikiReaction(KikiState.wrong);
       setState(() {
@@ -214,6 +247,7 @@ class _ColdHotGameState extends State<ColdHotGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
     OrientationService.setLandscape();
@@ -231,10 +265,8 @@ class _ColdHotGameState extends State<ColdHotGame>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // A. BACKGROUND LAYER
           Image.asset(_bgImage, fit: BoxFit.cover),
 
-          // COLD badge (upper-left-center)
           Positioned(
             top: sh * 0.03,
             left: sw * 0.5 - (sw * 0.34),
@@ -245,7 +277,6 @@ class _ColdHotGameState extends State<ColdHotGame>
             ),
           ),
 
-          // HOT badge (upper-right-center)
           Positioned(
             top: sh * 0.03,
             right: sw * 0.5 - (sw * 0.34),
@@ -256,7 +287,6 @@ class _ColdHotGameState extends State<ColdHotGame>
             ),
           ),
 
-          // Dashed vertical separator line down the middle
           Positioned(
             top: 0,
             bottom: 0,
@@ -270,7 +300,6 @@ class _ColdHotGameState extends State<ColdHotGame>
             ),
           ),
 
-          // C. SORTED COLD ITEMS LAYER (Left)
           Positioned(
             left: sw * 0.03,
             top: sh * 0.32,
@@ -295,7 +324,6 @@ class _ColdHotGameState extends State<ColdHotGame>
             ),
           ),
 
-          // D. SORTED HOT ITEMS LAYER (Right)
           Positioned(
             right: sw * 0.03,
             top: sh * 0.32,
@@ -320,7 +348,6 @@ class _ColdHotGameState extends State<ColdHotGame>
             ),
           ),
 
-          // E. DRAGGABLE ITEM LAYER
           if (_currentItem != null)
             Positioned(
               left: (sw / 2) - (itemSize / 2) + _dragOffset.dx,
@@ -354,17 +381,31 @@ class _ColdHotGameState extends State<ColdHotGame>
                   alignment: Alignment.bottomCenter,
                   child: FractionalTranslation(
                     translation: const Offset(0.0, 0.2),
-                    child: Image.asset(_kikiImage, height: sh * 1, fit: BoxFit.contain),
+                    child: Image.asset(
+                      _kikiImage,
+                      height: sh * 1,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
               ),
             ),
 
-          // X Button and Level Badge
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(top: 25, right: 25, child: LagoonLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
 
-          // F. GOOD JOB VICTORY OVERLAY
+          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+            LightingPromptCard(
+              onClose: () {
+                setState(() => _hideLightingCard = true);
+                releaseFaceGate();
+              },
+            ),
+
           if (_showVictoryOverlay)
             GoodJobOverlay(
               characterImage: _goodJobImage,
@@ -383,6 +424,8 @@ class _ColdHotGameState extends State<ColdHotGame>
                 setState(() {
                   _isGameWon = false;
                   _showVictoryOverlay = false;
+                  _hasSavedResult = false;
+                  _tapTracker.startSession();
                   _initGame();
                 });
               },
@@ -398,10 +441,7 @@ class _DashedLinePainter extends CustomPainter {
   final double topPadding;
   final double bottomPadding;
 
-  _DashedLinePainter({
-    this.topPadding = 0,
-    this.bottomPadding = 0,
-  });
+  _DashedLinePainter({this.topPadding = 0, this.bottomPadding = 0});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -427,5 +467,5 @@ class _DashedLinePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _DashedLinePainter oldDelegate) =>
       oldDelegate.topPadding != topPadding ||
-          oldDelegate.bottomPadding != bottomPadding;
+      oldDelegate.bottomPadding != bottomPadding;
 }

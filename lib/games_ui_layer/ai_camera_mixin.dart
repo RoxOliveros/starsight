@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   CameraController? aiCameraController;
+  Future<void>? _cameraInitFuture;
   Timer? _analysisTimer;
   bool isCameraInitialized = false;
   bool isFaceDetected = false;
@@ -32,10 +33,12 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   final String pythonServerUrl = 'http://13.68.159.132:8080/analyze';
   final String pythonResetUrl = 'http://13.68.159.132:8080/reset_calibration';
 
+  /// If the analysis server is slow or unreachable, give up on that request
+  /// instead of hanging (and piling up uploads). A timeout takes the same
+  /// path as any network error, so the game is never held up by it.
+  final Duration _serverTimeout = const Duration(seconds: 8);
+
   // ── Face-aware tutorial audio ────────────────────────────────────────────
-  // When the child leaves the frame mid-clip, the clip is stopped and held.
-  // Once the face is back (or the lighting card is dismissed) it plays again
-  // from the start, so the tutorial is never half-heard behind the card.
   Completer<void>? _activeVoiceInterrupt;
   AudioPlayer? _activeVoicePlayer;
   Completer<void>? _faceReturnGate;
@@ -122,7 +125,8 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         enableAudio: false,
       );
 
-      await aiCameraController!.initialize();
+      _cameraInitFuture = aiCameraController!.initialize();
+      await _cameraInitFuture;
       if (_isCameraDisposed) return;
       if (mounted) {
         setState(() {
@@ -156,10 +160,9 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
 
   Future<void> resetCalibrationForNewChild() async {
     try {
-      await http.post(
-        Uri.parse(pythonResetUrl),
-        body: {'session_id': sessionId},
-      );
+      await http
+          .post(Uri.parse(pythonResetUrl), body: {'session_id': sessionId})
+          .timeout(_serverTimeout);
     } catch (e) {
       print("Failed to reset calibration: $e");
     }
@@ -184,14 +187,16 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
       request.files.add(
         await http.MultipartFile.fromPath('image', imageFile.path),
       );
-      var response = await request.send();
+      var response = await request.send().timeout(_serverTimeout);
       if (_isCameraDisposed || !mounted) return;
 
       // SECURE DELETION
       if (await imageFile.exists()) await imageFile.delete();
 
       if (response.statusCode == 200) {
-        String responseBody = await response.stream.bytesToString();
+        String responseBody = await response.stream.bytesToString().timeout(
+          _serverTimeout,
+        );
         var jsonResponse = jsonDecode(responseBody);
         String detectedEmotion = jsonResponse['emotion'];
         final faceNowDetected = detectedEmotion != "NO FACE DETECTED";
@@ -279,7 +284,23 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
     releaseFaceGate();
     _analysisTimer?.cancel();
     final controller = aiCameraController;
+    final initFuture = _cameraInitFuture;
     aiCameraController = null;
-    controller?.dispose();
+    _cameraInitFuture = null;
+    if (controller == null) return;
+
+    () async {
+      if (initFuture != null) {
+        try {
+          await initFuture;
+        } catch (_) {
+          return;
+        }
+      }
+      try {
+        await controller.dispose();
+      } catch (_) {
+      }
+    }();
   }
 }

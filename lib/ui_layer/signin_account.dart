@@ -345,6 +345,8 @@ class _SignInAccountState extends State<SignInAccount>
                                   TextField(
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
+                                    enableInteractiveSelection: false,
+                                    selectionControls: MaterialTextSelectionControls(),
                                     style: const TextStyle(
                                       fontFamily: AppTextStyles.fredoka,
                                       fontSize: 15,

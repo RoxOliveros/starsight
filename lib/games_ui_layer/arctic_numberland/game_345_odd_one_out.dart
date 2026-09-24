@@ -29,11 +29,7 @@ class Number345OddOneOutScreen extends StatefulWidget {
 }
 
 class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin,
-        GameLoadingMixin,
-        AiCameraMixin<Number345OddOneOutScreen> {
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin {
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -42,11 +38,9 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   static const List<int> _numbers = [3, 4, 5];
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level16/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level16/intro.wav';
 
   static const Map<int, String> _numberAudio = {
     3: 'assets/audio/arctic_numberland/level16/odd_three.wav',
@@ -79,11 +73,11 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
 
   // ── State ──────────────────────────────────────────────────────────────────
   int _currentRound = 0;
-  late int _targetNumber; // the number that 3 cards will show
-  late int _oddCount; // the number the odd-one-out card shows
-  late int _oddCardIndex; // which of the 4 cards is the odd one out
-  late List<int> _cardCounts; // count per card (4 cards)
-  late List<String> _cardAssets; // object asset per card (4 cards)
+  late int _targetNumber;
+  late int _oddCount;
+  late int _oddCardIndex;
+  late List<int> _cardCounts;
+  late List<String> _cardAssets;
 
   bool _roundComplete = false;
   bool _showWinDialog = false;
@@ -231,7 +225,9 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
     _instructionCtrl.forward(from: 0);
 
     Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) _playAudio(_numberAudio[_targetNumber]!);
+      if (mounted) {
+        playVoiceRestartingOnFaceLoss(_player, _numberAudio[_targetNumber]!);
+      }
     });
   }
 
@@ -268,19 +264,19 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
           debugPrint("Database Error saving Arctic metrics: $e");
         }
 
-        await ArcticProgressService.instance.markLevelComplete(widget.level);
+        ArcticProgressService.instance.markLevelComplete(widget.level);
         setState(() => _showWinDialog = true);
       } else {
         setState(() => _currentRound++);
         _setupRound();
       }
     } else {
-      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
+      _tapTracker.recordMistake();
       // ── Wrong: tapped a matching card ──
       setState(() => _wrongTappedIndex = cardIndex);
       _wrongCtrlList[cardIndex].forward(from: 0);
       await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
-      showDomaReaction(DomaState.wrong);
+      await showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 200));
       if (mounted) setState(() => _wrongTappedIndex = -1);
     }
@@ -343,7 +339,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
 
         _introPlaying ? _buildIntroLayer() : _buildGameContent(),
 
-        if (!_introPlaying) buildDoma(context),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
