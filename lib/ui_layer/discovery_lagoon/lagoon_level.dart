@@ -62,7 +62,6 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
       if (!mounted) return;
 
       if (_isLoading) {
-        // only enforce the minimum wait on the very first value
         final elapsed = DateTime.now().difference(_loadStart);
         final remaining = _minLoadingTime - elapsed;
         if (remaining > Duration.zero) {
