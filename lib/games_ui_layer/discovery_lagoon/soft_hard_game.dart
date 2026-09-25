@@ -59,31 +59,24 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_rainbow_lagoon.png';
-  static const String _softCloudImage =
-      'assets/images/objects/lagoon/soft_cloud.png';
-  static const String _hardRockImage =
-      'assets/images/objects/lagoon/hard_rock.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
+  static const String _softCloudImage = 'assets/images/objects/lagoon/soft_cloud.png';
+  static const String _hardRockImage = 'assets/images/objects/lagoon/hard_rock.png';
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
-  static const String _goodJobImage =
-      'assets/images/characters/cat_holding_fishbone.png';
+  static const String _goodJobImage = 'assets/images/characters/cat_holding_fishbone.png';
 
   static const String _pillowImage = 'assets/images/objects/lagoon/pillow.png';
-  static const String _cushionImage =
-      'assets/images/objects/lagoon/cushion.png';
+  static const String _cushionImage = 'assets/images/objects/lagoon/cushion.png';
   static const String _towelImage = 'assets/images/objects/lagoon/towel.png';
-  static const String _teddybearImage =
-      'assets/images/objects/lagoon/teddybear.png';
+  static const String _teddybearImage = 'assets/images/objects/lagoon/teddybear.png';
   static const String _yarnImage = 'assets/images/objects/lagoon/yarn_wb.png';
   static const String _yoyoImage = 'assets/images/objects/lagoon/yoyo_wb.png';
   static const String _planeImage = 'assets/images/objects/lagoon/plane_wb.png';
   static const String _trainImage = 'assets/images/objects/lagoon/train_wb.png';
+  static const String _chairImage = 'assets/images/objects/lagoon/chair_wb.png';
 
-  static const String _introAudio =
-      'audio/discovery_lagoon/soft&hard_intro&tutorial.wav';
-  static const String _instructionAudio =
-      'audio/discovery_lagoon/soft&hard_instruction.wav';
+  static const String _introAudio = 'audio/discovery_lagoon/soft&hard_intro&tutorial.wav';
+  static const String _instructionAudio = 'audio/discovery_lagoon/soft&hard_instruction.wav';
   static const String _wrongAudio = 'audio/sound_effects/bubble_pop.wav';
 
   @override
@@ -146,10 +139,11 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
       SortableItem(imagePath: _cushionImage, isSoft: true),
       SortableItem(imagePath: _towelImage, isSoft: true),
       SortableItem(imagePath: _teddybearImage, isSoft: true),
-      SortableItem(imagePath: _yarnImage, isSoft: false),
+      SortableItem(imagePath: _yarnImage, isSoft: true),
       SortableItem(imagePath: _yoyoImage, isSoft: false),
       SortableItem(imagePath: _planeImage, isSoft: false),
       SortableItem(imagePath: _trainImage, isSoft: false),
+      SortableItem(imagePath: _chairImage, isSoft: false),
     ];
 
     _sortedSoftItems.clear();
