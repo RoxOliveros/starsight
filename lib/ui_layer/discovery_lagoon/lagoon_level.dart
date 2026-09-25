@@ -28,19 +28,7 @@ import '../loading_screen.dart';
 import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-abstract class ColorTheme {
-  static const Color wasteland = Color(0xFF5F5630);
-  static const Color pastelorange = Color(0xFFFBEACA);
-  static const Color gunmetalgreen = Color(0xFF6B6A41);
-  static const Color ferngreen = Color(0xFF82AD61);
-  static const Color peach = Color(0xFFFBEBC6);
-  static const Color darkbrown = Color(0xFF4E360D);
-  static const Color sagegreen = Color(0xFF98BC62);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
+import 'lagoon_theme.dart';
 
 class LagoonLevelScreen extends StatefulWidget {
   const LagoonLevelScreen({super.key});
@@ -50,11 +38,8 @@ class LagoonLevelScreen extends StatefulWidget {
 }
 
 class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
-  // 0 is equal to levels 1-8
-  // 1 is equal to levels 9-16
-  // 2 is equal to levels 17-24
   int _currentPage = 0;
-  final int _maxPages = 2; // Increase number when adding more pages!
+  final int _maxPages = 2;
 
   int _unlockedLevel = 1;
   bool _isLoading = true;
@@ -156,7 +141,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                           color: const Color(0xFFF4EFE6),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: ColorTheme.darkbrown,
+                            color: LagoonColorTheme.darkbrown,
                             width: 8,
                           ),
                         ),
@@ -194,10 +179,10 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                                 vertical: 10,
                               ),
                               decoration: BoxDecoration(
-                                color: ColorTheme.ferngreen,
+                                color: LagoonColorTheme.ferngreen,
                                 borderRadius: BorderRadius.circular(25),
                                 border: Border.all(
-                                  color: ColorTheme.gunmetalgreen,
+                                  color: LagoonColorTheme.gunmetalgreen,
                                   width: 5,
                                 ),
                                 boxShadow: [
@@ -213,7 +198,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
                                 style: TextStyle(
                                   fontFamily: AppTextStyles.fredoka,
                                   fontSize: 25,
-                                  color: ColorTheme.peach,
+                                  color: LagoonColorTheme.peach,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1,
                                 ),
@@ -292,17 +277,6 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
               },
             ),
           ),
-
-          // Positioned(
-          //   bottom: 15,
-          //   right: 15,
-          //   child: Lottie.asset(
-          //     'assets/animations/movie_clapperboard.json',
-          //     width: 60,
-          //     height: 60,
-          //     errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-          //   ),
-          // ),
         ],
       ),
     );
@@ -509,9 +483,9 @@ class _LevelTile extends StatelessWidget {
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: ColorTheme.sagegreen,
+              color: LagoonColorTheme.sagegreen,
               borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: ColorTheme.gunmetalgreen, width: 5),
+              border: Border.all(color: LagoonColorTheme.gunmetalgreen, width: 5),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -519,7 +493,7 @@ class _LevelTile extends StatelessWidget {
               style: TextStyle(
                 fontFamily: AppTextStyles.fredoka,
                 fontSize: size * 0.5,
-                color: ColorTheme.gunmetalgreen,
+                color: LagoonColorTheme.gunmetalgreen,
                 fontWeight: FontWeight.bold,
               ),
             ),
