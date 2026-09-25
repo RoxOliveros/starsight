@@ -79,7 +79,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
   static const double _catchTop = 0.65;
   static const double _catchBottom = 0.90;
-  static const double _catchHalfWidth = 0.08;
+  static const double _catchHalfWidth = 0.085;
 
   final String _catchMissedFoods = 'audio/discovery_lagoon/catching_missed_food.wav';
 
@@ -719,24 +719,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
           Image.asset(
             'assets/images/backgrounds/bg_rainbow_closeup.png',
             fit: BoxFit.cover,
-          ),
-          // TEMP DEBUG: Basket TODO
-          Positioned(
-            left: (_basketX - _catchHalfWidth) * sw,
-            top: _catchTop * sh,
-            width: (_catchHalfWidth * 2) * sw,
-            height: (_catchBottom - _catchTop) * sh,
-            child: IgnorePointer(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.30),
-                  border: Border.all(
-                    color: Colors.red,
-                    width: 3,
-                  ),
-                ),
-              ),
-            ),
           ),
           Positioned(
             left: (_basketX * sw) - (basketWidth / 2),
