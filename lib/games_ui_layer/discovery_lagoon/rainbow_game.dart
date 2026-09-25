@@ -4,7 +4,6 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/perfume_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -178,17 +177,6 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
     }
   }
 
-  void _onSkipTapped() {
-    if (_currentLevel < 8) {
-      setState(() {
-        _currentLevel++;
-        _isIntroPlaying = false;
-      });
-    } else {
-      _saveDataAndShowGoodJob();
-    }
-  }
-
   Future<void> _saveDataAndShowGoodJob() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
@@ -352,13 +340,6 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
                 right: 25,
                 child: LagoonLevelBadge(level: widget.level),
               ),
-
-              if (!_showGoodJob)
-                Positioned(
-                  bottom: 25,
-                  right: 25,
-                  child: LagoonSkipButton(onTap: _onSkipTapped),
-                ),
 
               if (hasCapturedFirstFrame &&
                   !isFaceDetected &&
@@ -525,7 +506,7 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
