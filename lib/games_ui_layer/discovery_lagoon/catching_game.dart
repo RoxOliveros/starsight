@@ -11,9 +11,7 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/soft_hard_game.dart';
-
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
 
@@ -79,8 +77,11 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  final String _catchMissedFoods =
-      'audio/discovery_lagoon/catching_missed_food.wav';
+  static const double _catchTop = 0.65;
+  static const double _catchBottom = 0.90;
+  static const double _catchHalfWidth = 0.085;
+
+  final String _catchMissedFoods = 'audio/discovery_lagoon/catching_missed_food.wav';
 
   final List<String> _sweetFoodImages = [
     'assets/images/objects/lagoon/cookie.png',
@@ -401,10 +402,12 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
       for (int i = _fallingItems.length - 1; i >= 0; i--) {
         _fallingItems[i].y += _fallingItems[i].speed;
 
-        if (_fallingItems[i].y >= 0.65 && _fallingItems[i].y <= 0.85) {
-          double horizontalDistance = (_fallingItems[i].x - _basketX).abs();
+        if (_fallingItems[i].y >= _catchTop &&
+            _fallingItems[i].y <= _catchBottom) {
+          final double horizontalDistance =
+          (_fallingItems[i].x - _basketX).abs();
 
-          if (horizontalDistance < 0.22) {
+          if (horizontalDistance < _catchHalfWidth) {
             final caughtItem = _fallingItems[i];
             _fallingItems.removeAt(i);
 
