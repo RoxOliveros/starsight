@@ -11,8 +11,6 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import 'lagoon_game_ui.dart';
 
 class CharacterConfig {
@@ -65,6 +63,12 @@ class PickupGame extends StatefulWidget {
 class _PickupGameState extends State<PickupGame> with AiCameraMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
+  final math.Random _random = math.Random();
+
+  double _targetChoiceLeft = 0.35;
+  double? _wrong1ChoiceLeft;
+  double? _wrong2ChoiceLeft;
+
   int _currentLevelIndex = 0;
 
   CharacterConfig? _assignedTarget;
@@ -276,9 +280,37 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
 
   void _assignCurrentLevelPositions() {
     final level = _levels[_currentLevelIndex];
+
     _assignedTarget = level.targetChild;
     _assignedWrong1 = level.wrongChild1;
     _assignedWrong2 = level.wrongChild2;
+
+    final int childCount =
+        1 +
+            (_assignedWrong1 != null ? 1 : 0) +
+            (_assignedWrong2 != null ? 1 : 0);
+
+    late List<double> positions;
+
+    if (childCount == 3) {
+      positions = [0.35, 0.48, 0.61];
+    } else if (childCount == 2) {
+      positions = [0.42, 0.56];
+    } else {
+      positions = [0.48];
+    }
+
+    positions.shuffle(_random);
+
+    int index = 0;
+
+    _targetChoiceLeft = positions[index++];
+
+    _wrong1ChoiceLeft =
+    _assignedWrong1 != null ? positions[index++] : null;
+
+    _wrong2ChoiceLeft =
+    _assignedWrong2 != null ? positions[index++] : null;
   }
 
   void _triggerEntranceAnimation() {
@@ -426,6 +458,7 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
     required CharacterConfig config,
     required bool isTarget,
     required Size screenSize,
+    required double choiceLeftOffset,
   }) {
     double currentLeft;
     double currentBottom;
@@ -437,14 +470,14 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
     if (isTarget) {
       if (_isWalkingAway) {
         currentLeft = screenSize.width * (config.endLeftOffset - 0.75);
-        currentBottom = screenSize.height * config.endBottomOffset;
+        currentBottom = 0.0;
         currentHeight = screenSize.height * config.endHeight;
         animDuration = const Duration(milliseconds: 1800);
         animCurve = Curves.linear;
         shouldBounce = true;
       } else if (_isTargetMoving) {
         currentLeft = screenSize.width * config.endLeftOffset;
-        currentBottom = screenSize.height * config.endBottomOffset;
+        currentBottom = 0.0;
         currentHeight = screenSize.height * config.endHeight;
         animDuration = const Duration(milliseconds: 1200);
         animCurve = Curves.easeInOut;
@@ -457,7 +490,7 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
         animCurve = Curves.linear;
         shouldBounce = _isChildrenEntering;
       } else {
-        currentLeft = screenSize.width * config.leftOffset;
+        currentLeft = screenSize.width * choiceLeftOffset;
         currentBottom = screenSize.height * config.bottomOffset;
         currentHeight = screenSize.height * config.startHeight;
         animDuration = const Duration(milliseconds: 1500);
@@ -473,7 +506,7 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
         animCurve = Curves.linear;
         shouldBounce = _isChildrenEntering;
       } else {
-        currentLeft = screenSize.width * config.leftOffset;
+        currentLeft = screenSize.width * choiceLeftOffset;
         currentBottom = screenSize.height * config.bottomOffset;
         currentHeight = screenSize.height * config.startHeight;
         animDuration = const Duration(milliseconds: 1500);
@@ -552,7 +585,7 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
 
           if (_isIntro)
             Positioned(
-              bottom: -screenSize.height * 0.05,
+              bottom: 0,
               left: screenSize.width * 0.15,
               height: screenSize.height * 0.65,
               child: _WalkingAnimalEntrance(
@@ -563,13 +596,13 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
               ),
             ),
 
-          if (!_isIntro)
+          if (!_isIntro && !_showSuccessUI)
             AnimatedPositioned(
               duration: _isWalkingAway
                   ? const Duration(milliseconds: 1800)
                   : Duration.zero,
               curve: Curves.linear,
-              bottom: -screenSize.height * 0.05,
+              bottom: 0,
               left: _isWalkingAway
                   ? -screenSize.width * 0.60
                   : screenSize.width * 0.15,
@@ -582,7 +615,9 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
                     if (!_isTargetMoving &&
                         !_isWalkingAway &&
                         !_isChildrenEntering) {
-                      _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
+                      _playAudio(
+                        'audio/discovery_lagoon/kiki_tryagain.wav',
+                      );
                     }
                   },
                   child: _WalkingAnimalEntrance(
@@ -594,25 +629,34 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
               ),
             ),
 
-          if (!_isIntro && _assignedWrong1 != null)
+          if (!_isIntro &&
+              !_showSuccessUI &&
+              _assignedWrong1 != null)
             _buildChildCharacter(
               config: _assignedWrong1!,
               isTarget: false,
               screenSize: screenSize,
+              choiceLeftOffset: _wrong1ChoiceLeft!,
             ),
 
-          if (!_isIntro && _assignedWrong2 != null)
+          if (!_isIntro &&
+              !_showSuccessUI &&
+              _assignedWrong2 != null)
             _buildChildCharacter(
               config: _assignedWrong2!,
               isTarget: false,
               screenSize: screenSize,
+              choiceLeftOffset: _wrong2ChoiceLeft!,
             ),
 
-          if (!_isIntro && _assignedTarget != null)
+          if (!_isIntro &&
+              !_showSuccessUI &&
+              _assignedTarget != null)
             _buildChildCharacter(
               config: _assignedTarget!,
               isTarget: true,
               screenSize: screenSize,
+              choiceLeftOffset: _targetChoiceLeft,
             ),
 
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
@@ -668,7 +712,6 @@ class _WalkingBounce extends StatefulWidget {
   final double bounceHeightPx;
 
   const _WalkingBounce({
-    super.key,
     required this.child,
     required this.isWalking,
     required this.bounceHeightPx,
