@@ -30,7 +30,6 @@ enum KikiState { normal, correct, wrong }
 mixin KikiReactionMixin<T extends StatefulWidget> on State<T> {
   KikiState kikiState = KikiState.normal;
 
-  // Override this in your screen to provide the AudioPlayer
   AudioPlayer get kikiPlayer;
 
   Future<void> showKikiReaction(KikiState state) async {

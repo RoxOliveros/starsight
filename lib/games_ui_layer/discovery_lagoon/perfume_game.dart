@@ -10,8 +10,8 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
 class PerfumeGame extends StatefulWidget {
@@ -23,9 +23,23 @@ class PerfumeGame extends StatefulWidget {
   State<PerfumeGame> createState() => _PerfumeGameState();
 }
 
-class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
+class _PerfumeGameState extends State<PerfumeGame>
+    with AiCameraMixin, KikiReactionMixin {
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
+
   final AudioPlayer _audioPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
+  final AudioPlayer _kikiPlayer = AudioPlayer();
+
+  static const String _introAudio = 'audio/discovery_lagoon/perfume_intro.wav';
+  static const String _tutorialAudio = 'audio/discovery_lagoon/perfume_tutorial.wav';
+  static const String _rcAudio = 'audio/discovery_lagoon/perfume_rc.wav';
+  static const String _recipeAudio = 'audio/discovery_lagoon/perfume_complete_recipe.wav';
+  static const String _whatPartAudio = 'audio/discovery_lagoon/perfume_whatpart.wav';
+  static const String _completeAudio = 'audio/discovery_lagoon/perfume_completed.wav';
+  static const String _endingAudio = 'audio/discovery_lagoon/perfume_ending.wav';
 
   int _currentStage = 1;
   bool _showOptions = false;
@@ -81,7 +95,7 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
 
   Future<void> _startAudioSequence() async {
     await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/perfume_intro.wav'),
+      AssetSource(_introAudio),
     );
 
     _waitForAudioComplete().then((_) async {
@@ -93,7 +107,7 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
       });
 
       await _audioPlayer.play(
-        AssetSource('audio/discovery_lagoon/perfume_tutorial.wav'),
+        AssetSource(_tutorialAudio),
       );
 
       _waitForAudioComplete().then((_) {
@@ -132,11 +146,10 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
       }
     });
 
-    await _playKikiAudio('audio/sound_effects/shine.wav');
-    await _waitForAudioComplete();
-    if (_disposed) return;
+    await showKikiReaction(KikiState.correct);
+    if (!mounted || _disposed) return;
 
-    await _playKikiAudio('audio/discovery_lagoon/perfume_rc.wav');
+    await _playKikiAudio(_rcAudio);
     await _waitForAudioComplete();
     if (_disposed) return;
 
@@ -147,7 +160,7 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
     } else if (_currentStage == 3 && mounted) {
       _transitionToStage4();
     } else if (_currentStage == 4 && mounted) {
-      _transitionToStage5();
+      await _transitionToStage5();
     }
   }
 
@@ -189,7 +202,7 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
       _canTap = false;
     });
 
-    await _playKikiAudio('audio/discovery_lagoon/perfume_complete_recipe.wav');
+    await _playKikiAudio(_recipeAudio);
     await _waitForAudioComplete();
     if (_disposed) return;
 
@@ -240,8 +253,7 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
       _showMixStar = true;
     });
 
-    await _playKikiAudio('audio/sound_effects/shine.wav');
-    await _waitForAudioComplete();
+    await showKikiReaction(KikiState.correct);
     if (!mounted || _disposed) return;
 
     setState(() {
@@ -253,7 +265,7 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
       _isKikiSmiling = true;
     });
 
-    await _playKikiAudio('audio/discovery_lagoon/perfume_completed.wav');
+    await _playKikiAudio(_completeAudio);
     await _waitForAudioComplete();
     if (_disposed) return;
 
@@ -273,7 +285,7 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
       _canTap = false;
     });
 
-    await _playKikiAudio('audio/discovery_lagoon/perfume_whatpart.wav');
+    await _playKikiAudio(_whatPartAudio);
     await _waitForAudioComplete();
     if (_disposed) return;
 
@@ -295,11 +307,10 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
       _showKikiCheering = true;
     });
 
-    await _playKikiAudio('audio/sound_effects/shine.wav');
-    await _waitForAudioComplete();
-    if (_disposed) return;
+    await showKikiReaction(KikiState.correct);
+    if (!mounted || _disposed) return;
 
-    await _playKikiAudio('audio/discovery_lagoon/perfume_ending.wav');
+    await _playKikiAudio(_endingAudio);
     await _waitForAudioComplete();
     if (_disposed) return;
 
@@ -310,20 +321,19 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
 
   Future<void> _handleWrongPick() async {
     if (!_canTap || _actionTaken) return;
+
     _tapTracker.recordMistake();
 
     setState(() {
       _canTap = false;
     });
 
-    await _playKikiAudio('audio/discovery_lagoon/kiki_tryagain.wav');
+    await showKikiReaction(KikiState.wrong);
 
-    _waitForAudioComplete().then((_) {
-      if (mounted && !_disposed && !_actionTaken) {
-        setState(() {
-          _canTap = true;
-        });
-      }
+    if (!mounted || _disposed || _actionTaken) return;
+
+    setState(() {
+      _canTap = true;
     });
   }
 
@@ -360,6 +370,7 @@ class _PerfumeGameState extends State<PerfumeGame> with AiCameraMixin {
     _disposed = true;
     disposeAiCamera();
     _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     super.dispose();
   }
 
