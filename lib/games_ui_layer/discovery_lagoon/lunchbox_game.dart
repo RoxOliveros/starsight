@@ -10,9 +10,8 @@ import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
+import '../tryagain_prompt.dart';
 import 'lagoon_game_ui.dart';
 
 class SauceStroke {
@@ -131,7 +130,8 @@ class LunchboxGameUnhealthyEnding extends StatefulWidget {
 class _LunchboxGameUnhealthyEndingState
     extends State<LunchboxGameUnhealthyEnding> {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _showSadRoxie = false;
+
+  bool _showTryAgain = false;
 
   @override
   void initState() {
@@ -141,17 +141,31 @@ class _LunchboxGameUnhealthyEndingState
   }
 
   Future<void> _playEndingSequence() async {
-    await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/lunchboxgame_wrong_ending.wav'),
-    );
+    try {
+      final completed = _audioPlayer.onPlayerComplete.first;
 
-    Future.delayed(const Duration(seconds: 4), () {
+      await _audioPlayer.play(
+        AssetSource(
+          'audio/discovery_lagoon/lunchboxgame_wrong_ending.wav',
+        ),
+      );
+
+      await completed;
+
+      if (!mounted) return;
+
+      setState(() {
+        _showTryAgain = true;
+      });
+    } catch (e) {
+      debugPrint('Wrong ending audio error: $e');
+
       if (mounted) {
         setState(() {
-          _showSadRoxie = true;
+          _showTryAgain = true;
         });
       }
-    });
+    }
   }
 
   @override
@@ -163,10 +177,12 @@ class _LunchboxGameUnhealthyEndingState
 
   void _restartGame() {
     _audioPlayer.stop();
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => LunchboxGameIntro(level: widget.level),
+        builder: (context) =>
+            LunchboxGameIntro(level: widget.level),
       ),
     );
   }
@@ -187,15 +203,19 @@ class _LunchboxGameUnhealthyEndingState
                   fit: BoxFit.cover,
                 ),
               ),
+
+              // Kiki
               Positioned(
                 bottom: -screenHeight * 0.15,
                 left: screenWidth * 0.02,
                 child: Image.asset(
                   'assets/images/characters/kiki_the_cat.png',
-                  height: screenHeight * 1.00,
+                  height: screenHeight,
                   fit: BoxFit.contain,
                 ),
               ),
+
+              // Roxie
               Positioned(
                 bottom: -screenHeight * 0.15,
                 right: screenWidth * 0.02,
@@ -203,12 +223,11 @@ class _LunchboxGameUnhealthyEndingState
                   alignment: Alignment.center,
                   children: [
                     Image.asset(
-                      _showSadRoxie
-                          ? 'assets/images/characters/roxie_sad.png'
-                          : 'assets/images/characters/roxie_standing.png',
-                      height: screenHeight * 1.00,
+                      'assets/images/characters/roxie_sad.png',
+                      height: screenHeight,
                       fit: BoxFit.contain,
                     ),
+
                     Positioned(
                       bottom: screenHeight * 0.15,
                       left: screenWidth * 0.07,
@@ -221,29 +240,14 @@ class _LunchboxGameUnhealthyEndingState
                   ],
                 ),
               ),
-              if (_showSadRoxie)
-                Align(
-                  alignment: Alignment.center,
-                  child: GestureDetector(
-                    onTap: _restartGame,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            blurRadius: 20,
-                            spreadRadius: 5,
-                          ),
-                        ],
-                      ),
-                      child: Image.asset(
-                        'assets/images/buttons/restart.png',
-                        width: screenWidth * 0.15,
-                        height: screenWidth * 0.15,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
+
+              if (_showTryAgain)
+                Positioned.fill(
+                  child: TryJobOverlay(
+                    characterImage: 'assets/images/characters/cat_holding_fishbone.png',
+                    characterSizeFactor: 0.9,
+                    onRestart: _restartGame,
+                    onBack: () => Navigator.of(context).pop(),
                   ),
                 ),
             ],
@@ -392,8 +396,12 @@ class LunchboxGame extends StatefulWidget {
   State<LunchboxGame> createState() => _LunchboxGameState();
 }
 
-class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
+class _LunchboxGameState extends State<LunchboxGame>
+    with AiCameraMixin {
   final GameTapTracker _tapTracker = GameTapTracker();
+  final AudioPlayer _foodAudioPlayer = AudioPlayer();
+  final AudioPlayer _sfxPlayer = AudioPlayer();
+
   int currentBatch = 1;
 
   String? leftCompartmentFoodId;
@@ -427,8 +435,66 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
   @override
   void dispose() {
     disposeAiCamera();
+    _foodAudioPlayer.dispose();
+    _sfxPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
+  }
+
+  Future<void> _playFoodAudio(String id) async {
+    final Map<String, String> foodAudio = {
+      'pizza': 'audio/discovery_lagoon/pizza.wav',
+      'fries': 'audio/discovery_lagoon/fries.wav',
+      'rice': 'audio/discovery_lagoon/rice.wav',
+      'drumstick': 'audio/discovery_lagoon/fried_chicken.wav',
+      'chips': 'audio/discovery_lagoon/chips.wav',
+      'cookie': 'audio/discovery_lagoon/cookie.wav',
+      'fish': 'audio/discovery_lagoon/fish.wav',
+      'lettuce': 'audio/discovery_lagoon/lettuce.wav',
+      'broccoli': 'audio/discovery_lagoon/broccoli.wav',
+      'bacon': 'audio/discovery_lagoon/bacon.wav',
+
+      'mustard': 'audio/discovery_lagoon/mustard.wav',
+      'ketchup': 'audio/discovery_lagoon/ketchup.wav',
+      'mayo': 'audio/discovery_lagoon/mayonnaise.wav',
+
+      'chocolate': 'audio/discovery_lagoon/chocolate.wav',
+      'banana': 'audio/discovery_lagoon/banana.wav',
+      'strawberry': 'audio/discovery_lagoon/strawberry.wav',
+      'orange': 'audio/discovery_lagoon/orange.wav',
+
+      'coffee': 'audio/discovery_lagoon/coffee.wav',
+      'water': 'audio/discovery_lagoon/water.wav',
+      'chocomilk': 'audio/discovery_lagoon/chocolate_milk_juice.wav',
+      'orangejuice': 'audio/discovery_lagoon/fruit_juice.wav',
+    };
+
+    final String? audioPath = foodAudio[id];
+
+    if (audioPath == null) return;
+
+    try {
+      await _foodAudioPlayer.stop();
+
+      await _foodAudioPlayer.play(
+        AssetSource(audioPath),
+      );
+
+      await _foodAudioPlayer.onPlayerComplete.first;
+    } catch (e) {
+      debugPrint('Food audio error ($id): $e');
+    }
+  }
+
+  Future<void> _playBubblePop() async {
+    try {
+      await _sfxPlayer.stop();
+      await _sfxPlayer.play(
+        AssetSource('audio/sound_effects/bubble_pop.wav'),
+      );
+    } catch (e) {
+      debugPrint('Bubble pop audio error: $e');
+    }
   }
 
   Future<void> _evaluateLunchbox() async {
@@ -610,10 +676,18 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
       alignment: alignment,
       child: GestureDetector(
         onTap: () {
+          _playFoodAudio(id);
+
           _tapTracker.recordCorrectTap();
-          setState(() => selectedDessertId = id);
+
+          setState(() {
+            selectedDessertId = id;
+          });
+
           Future.delayed(const Duration(milliseconds: 600), () {
-            if (mounted) setState(() => currentBatch = 6);
+            if (mounted) {
+              setState(() => currentBatch = 6);
+            }
           });
         },
         child: AnimatedContainer(
@@ -639,19 +713,29 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
     );
   }
 
-  Widget _buildDrinkOption(String id, Alignment alignment, double size) {
+  Widget _buildDrinkOption(
+      String id,
+      Alignment alignment,
+      double size,
+      ) {
     final isSelected = selectedDrinkId == id;
+
     return Align(
       alignment: alignment,
       child: GestureDetector(
-        onTap: () {
+        onTap: () async {
+          if (selectedDrinkId != null) return;
+
           _tapTracker.recordCorrectTap();
-          setState(() => selectedDrinkId = id);
-          Future.delayed(const Duration(milliseconds: 600), () {
-            if (mounted) {
-              _evaluateLunchbox();
-            }
+
+          setState(() {
+            selectedDrinkId = id;
           });
+
+          await _playFoodAudio(id);
+          if (!mounted) return;
+
+          await _evaluateLunchbox();
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
@@ -661,16 +745,19 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
             shape: BoxShape.circle,
             boxShadow: isSelected
                 ? [
-                    BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      blurRadius: 15,
-                      spreadRadius: 5,
-                    ),
-                  ]
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.6),
+                blurRadius: 15,
+                spreadRadius: 5,
+              ),
+            ]
                 : [],
           ),
           padding: const EdgeInsets.all(6.0),
-          child: Image.asset(getFoodAsset(id), fit: BoxFit.contain),
+          child: Image.asset(
+            getFoodAsset(id),
+            fit: BoxFit.contain,
+          ),
         ),
       ),
     );
@@ -759,6 +846,9 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                                     onAccept: (data) {
                                       if (currentBatch == 1) {
                                         _tapTracker.recordCorrectTap();
+
+                                        _playBubblePop();
+
                                         setState(() {
                                           leftCompartmentFoodId = data;
                                           currentBatch = 2;
@@ -800,6 +890,9 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                                     onAccept: (data) {
                                       if (currentBatch == 2) {
                                         _tapTracker.recordCorrectTap();
+
+                                        _playBubblePop();
+
                                         setState(() {
                                           topRightCompartmentFoodId = data;
                                           currentBatch = 3;
@@ -842,6 +935,9 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                                     onAccept: (data) {
                                       if (currentBatch == 3) {
                                         _tapTracker.recordCorrectTap();
+
+                                        _playBubblePop();
+
                                         setState(() {
                                           bottomRightCompartmentFoodId = data;
                                           currentBatch = 4;
@@ -878,6 +974,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     foodId: 'pizza',
                     size: plateSize,
                     foodScale: 0.9,
+                    onDragStarted: () => _playFoodAudio('pizza'),
                   ),
                 ),
                 Align(
@@ -887,6 +984,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     foodId: 'rice',
                     size: plateSize,
                     foodScale: 0.9,
+                    onDragStarted: () => _playFoodAudio('rice'),
                   ),
                 ),
                 Align(
@@ -897,6 +995,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     size: plateSize * 0.85,
                     isTilted: true,
                     tiltAngle: -0.20,
+                    onDragStarted: () => _playFoodAudio('fries'),
                   ),
                 ),
               ],
@@ -912,6 +1011,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     isTilted: true,
                     tiltAngle: -0.3,
                     isVisible: topRightCompartmentFoodId != 'drumstick',
+                    onDragStarted: () => _playFoodAudio('drumstick'),
                   ),
                 ),
                 Align(
@@ -923,6 +1023,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                           size: plateSize * 0.85,
                           isTilted: true,
                           tiltAngle: -1.57,
+                          onDragStarted: () => _playFoodAudio('chips'),
                         )
                       : SizedBox(width: plateSize * 0.85),
                 ),
@@ -934,6 +1035,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     size: plateSize,
                     foodScale: 0.9,
                     isVisible: topRightCompartmentFoodId != 'fish',
+                    onDragStarted: () => _playFoodAudio('fish'),
                   ),
                 ),
                 Align(
@@ -944,6 +1046,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     size: plateSize,
                     foodScale: 0.8,
                     isVisible: topRightCompartmentFoodId != 'cookie',
+                    onDragStarted: () => _playFoodAudio('cookie'),
                   ),
                 ),
               ],
@@ -957,6 +1060,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     size: plateSize,
                     foodScale: 0.85,
                     isVisible: bottomRightCompartmentFoodId != 'lettuce',
+                    onDragStarted: () => _playFoodAudio('lettuce'),
                   ),
                 ),
                 Align(
@@ -968,6 +1072,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                           size: plateSize * 0.85,
                           isTilted: true,
                           tiltAngle: -1.57,
+                    onDragStarted: () => _playFoodAudio('chips'),
                         )
                       : SizedBox(width: plateSize * 0.85),
                 ),
@@ -979,6 +1084,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     size: plateSize,
                     foodScale: 0.9,
                     isVisible: bottomRightCompartmentFoodId != 'broccoli',
+                    onDragStarted: () => _playFoodAudio('broccoli'),
                   ),
                 ),
                 Align(
@@ -989,6 +1095,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     size: plateSize,
                     foodScale: 0.8,
                     isVisible: bottomRightCompartmentFoodId != 'bacon',
+                    onDragStarted: () => _playFoodAudio('bacon'),
                   ),
                 ),
               ],
@@ -1002,6 +1109,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     size: plateSize * 0.8,
                     isActive: activeSauceId == 'ketchup',
                     onTap: () {
+                      _playFoodAudio('ketchup');
                       _tapTracker.recordCorrectTap();
                       setState(() => activeSauceId = 'ketchup');
                     },
@@ -1015,6 +1123,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     size: plateSize * 0.8,
                     isActive: activeSauceId == 'mustard',
                     onTap: () {
+                      _playFoodAudio('mustard');
                       _tapTracker.recordCorrectTap();
                       setState(() => activeSauceId = 'mustard');
                     },
@@ -1028,6 +1137,7 @@ class _LunchboxGameState extends State<LunchboxGame> with AiCameraMixin {
                     size: plateSize * 0.8,
                     isActive: activeSauceId == 'mayo',
                     onTap: () {
+                      _playFoodAudio('mayo');
                       _tapTracker.recordCorrectTap();
                       setState(() => activeSauceId = 'mayo');
                     },
@@ -1172,6 +1282,7 @@ class PlateWithFood extends StatelessWidget {
   final bool isVisible;
   final bool isTilted;
   final double tiltAngle;
+  final VoidCallback? onDragStarted;
 
   const PlateWithFood({
     super.key,
@@ -1182,6 +1293,7 @@ class PlateWithFood extends StatelessWidget {
     this.isVisible = true,
     this.isTilted = false,
     this.tiltAngle = 0.0,
+    this.onDragStarted,
   });
 
   @override
@@ -1205,6 +1317,7 @@ class PlateWithFood extends StatelessWidget {
               size: size * foodScale,
               isTilted: isTilted,
               tiltAngle: tiltAngle,
+              onDragStarted: onDragStarted,
             ),
         ],
       ),
@@ -1218,6 +1331,7 @@ class DraggableFood extends StatelessWidget {
   final double size;
   final bool isTilted;
   final double tiltAngle;
+  final VoidCallback? onDragStarted;
 
   const DraggableFood({
     super.key,
@@ -1226,6 +1340,7 @@ class DraggableFood extends StatelessWidget {
     required this.size,
     this.isTilted = false,
     this.tiltAngle = -0.20,
+    this.onDragStarted,
   });
 
   @override
@@ -1273,8 +1388,15 @@ class DraggableFood extends StatelessWidget {
 
     return Draggable<String>(
       data: foodId,
-      feedback: Material(color: Colors.transparent, child: foodImage),
-      childWhenDragging: SizedBox(width: size, height: size),
+      onDragStarted: onDragStarted,
+      feedback: Material(
+        color: Colors.transparent,
+        child: foodImage,
+      ),
+      childWhenDragging: SizedBox(
+        width: size,
+        height: size,
+      ),
       child: foodImage,
     );
   }
