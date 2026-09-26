@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,8 +10,8 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
 enum GamePhase { intro1, playLiving, intro2, playNonLiving, finished }
@@ -66,16 +68,26 @@ class LivingNonLivingGame extends StatefulWidget {
 }
 
 class _LivingNonLivingGameState extends State<LivingNonLivingGame>
-    with AiCameraMixin {
+    with AiCameraMixin, KikiReactionMixin {
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
+
+  final AudioPlayer _kikiPlayer = AudioPlayer();
   final Set<AssetConfig> _tappedAssets = {};
-  late List<AssetConfig> _gameItems;
   final GameTapTracker _tapTracker = GameTapTracker();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  late List<AssetConfig> _gameItems;
 
   GamePhase _phase = GamePhase.intro1;
-  final AudioPlayer _audioPlayer = AudioPlayer();
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _isTransitioning = false;
+
+  static const String _bgFieldImage = 'assets/images/backgrounds/bg_lagoon_fields_closeup.png';
+  static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
+  static const String _kikiFishboneImage = 'assets/images/characters/cat_holding_fishbone.png';
 
   @override
   void initState() {
@@ -83,7 +95,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
     OrientationService.setLandscape();
 
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-    startAiCamera(); //to start the camera and face detection
+    startAiCamera();
     _tapTracker.startSession();
 
     onFaceDetectionChanged = (detected) {
@@ -116,6 +128,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   void dispose() {
     disposeAiCamera();
     _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     super.dispose();
   }
 
@@ -143,12 +156,19 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
     );
   }
 
-  void _checkProgress() {
+  Future<void> _checkProgress() async {
     if (_phase == GamePhase.playLiving) {
       final tappedLiving = _tappedAssets.where((a) => a.isLiving).length;
       final totalLiving = _gameItems.where((a) => a.isLiving).length;
 
-      if (tappedLiving >= totalLiving) {
+      if (tappedLiving >= totalLiving && !_isTransitioning) {
+        _isTransitioning = true;
+
+        await Future.delayed(const Duration(milliseconds: 1500),);
+
+        if (!mounted) return;
+
+        _isTransitioning = false;
         _startPhase2();
       }
     } else if (_phase == GamePhase.playNonLiving) {
@@ -355,23 +375,41 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
 
     Widget imageContent = GestureDetector(
       onTap: () {
+        if (_isTransitioning) return;
+
+        if (_phase != GamePhase.playLiving &&
+            _phase != GamePhase.playNonLiving) {
+          return;
+        }
+
         if (!config.isClickable) return;
         if (isTapped) return;
 
         if (_phase == GamePhase.playLiving && !config.isLiving) {
           _tapTracker.recordMistake();
+
+          unawaited(
+            showKikiReaction(KikiState.wrong),
+          );
+
           return;
         }
+
         if (_phase == GamePhase.playNonLiving && config.isLiving) {
           _tapTracker.recordMistake();
+
+          showKikiReaction(KikiState.wrong);
           return;
         }
 
         _tapTracker.recordCorrectTap();
+        showKikiReaction(KikiState.correct);
+
         setState(() {
           _tappedAssets.add(config);
-          _checkProgress();
         });
+
+        unawaited(_checkProgress());
       },
       behavior: HitTestBehavior.deferToChild,
       child: Image.asset(
@@ -414,9 +452,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
             height: size.height,
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage(
-                  'assets/images/backgrounds/bg_lagoon_fields_closeup.png',
-                ),
+                image: AssetImage(_bgFieldImage,),
                 fit: BoxFit.cover,
               ),
             ),
@@ -445,30 +481,14 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
 
           if (isIntro)
             Positioned.fill(
-              child: GestureDetector(
-                onTap: () {
-                  _audioPlayer.stop();
-                  setState(() {
-                    if (_phase == GamePhase.intro1) {
-                      _phase = GamePhase.playLiving;
-                    }
-                    if (_phase == GamePhase.intro2) {
-                      _phase = GamePhase.playNonLiving;
-                    }
-                  });
-                },
-                child: Container(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Transform.translate(
-                      offset: Offset(0, size.height * 0.25),
-                      child: Image.asset(
-                        'assets/images/characters/kiki_the_cat.png',
-                        height: size.height * 0.8,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.7),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Image.asset(
+                    _kikiImage,
+                    height: size.height * 0.8,
+                    fit: BoxFit.contain,
                   ),
                 ),
               ),
@@ -482,12 +502,17 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
               },
             ),
 
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
+
           if (isFinished)
             Positioned.fill(
               child: GoodJobOverlay(
-                characterImage:
-                    'assets/images/characters/cat_holding_fishbone.png',
-
+                characterImage: _kikiFishboneImage,
                 characterSizeFactor: 0.9,
                 onNext: () {},
                 onRestart: () {
@@ -501,13 +526,6 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
                 onBack: () => Navigator.of(context).pop(),
               ),
             ),
-
-          Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(
-            top: 25,
-            right: 25,
-            child: LagoonLevelBadge(level: widget.level),
-          ),
         ],
       ),
     );
