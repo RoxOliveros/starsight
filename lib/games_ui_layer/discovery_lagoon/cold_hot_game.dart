@@ -33,61 +33,50 @@ class ColdHotGame extends StatefulWidget {
 
 class _ColdHotGameState extends State<ColdHotGame>
     with TickerProviderStateMixin, KikiReactionMixin, AiCameraMixin {
-  late final AudioPlayer _audioPlayer;
-  final Random _random = Random();
-  final AudioPlayer _kikiPlayer = AudioPlayer();
-  final GameTapTracker _tapTracker = GameTapTracker();
 
   @override
   AudioPlayer get kikiPlayer => _kikiPlayer;
 
-  bool _isIntroPlaying = true;
-
   late List<SortableItem> _remainingItems;
-  SortableItem? _currentItem;
 
+  late final AudioPlayer _audioPlayer;
+
+  final Random _random = Random();
+  final AudioPlayer _kikiPlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
   final List<SortableItem> _sortedColdItems = [];
   final List<SortableItem> _sortedHotItems = [];
 
-  Offset _dragOffset = Offset.zero;
-  bool _isDragging = false;
+  SortableItem? _currentItem;
 
+  Offset _dragOffset = Offset.zero;
+
+  bool _isIntroPlaying = true;
+  bool _isDragging = false;
   bool _isGameWon = false;
   bool _showVictoryOverlay = false;
-
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
   // --- Asset paths ---
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_rainbow_lagoon.png';
-  static const String _coldBadgeImage =
-      'assets/images/objects/lagoon/cold_icecube.png';
-  static const String _hotBadgeImage =
-      'assets/images/objects/lagoon/hot_flame.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
+  static const String _coldBadgeImage = 'assets/images/objects/lagoon/cold_snowflake.png';
+  static const String _hotBadgeImage = 'assets/images/objects/lagoon/hot_flame.png';
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
-  static const String _goodJobImage =
-      'assets/images/characters/cat_holding_fishbone.png';
+  static const String _goodJobImage = 'assets/images/characters/cat_holding_fishbone.png';
 
   static const String _iceImage = 'assets/images/objects/lagoon/ice_wb.png';
-  static const String _icecreamImage =
-      'assets/images/objects/lagoon/icecream_wb.png';
-  static const String _snowballImage =
-      'assets/images/objects/lagoon/snowball_wb.png';
-  static const String _snowmanImage =
-      'assets/images/objects/lagoon/snowman_wb.png';
+  static const String _icecreamImage = 'assets/images/objects/lagoon/icecream_wb.png';
+  static const String _snowballImage = 'assets/images/objects/lagoon/snowball_wb.png';
+  static const String _snowmanImage = 'assets/images/objects/lagoon/snowman_wb.png';
   static const String _iglooImage = 'assets/images/objects/lagoon/igloo_wb.png';
-  static const String _coffeeImage =
-      'assets/images/objects/lagoon/coffee_wb.png';
+  static const String _coffeeImage = 'assets/images/objects/lagoon/coffee_wb.png';
   static const String _sunImage = 'assets/images/objects/lagoon/sun_wb.png';
-  static const String _candleImage =
-      'assets/images/objects/lagoon/candle_wb.png';
-  static const String _kettleImage =
-      'assets/images/objects/lagoon/kettle_wb.png';
+  static const String _candleImage = 'assets/images/objects/lagoon/candle_wb.png';
+  static const String _kettleImage = 'assets/images/objects/lagoon/kettle_wb.png';
 
-  static const String _introAudio =
-      'audio/discovery_lagoon/cold_hot_game_intro&tutorial.wav';
-  static const String _wrongAudio = 'audio/sound_effects/bubble_pop.wav';
+  static const String _introAudio = 'audio/discovery_lagoon/cold_hot_game_intro&tutorial.wav';
+  static const String _bubblePopAudio = 'audio/sound_effects/bubble_pop.wav';
 
   @override
   void initState() {
@@ -189,8 +178,7 @@ class _ColdHotGameState extends State<ColdHotGame>
 
     if (mounted) {
       setState(() {
-        LagoonProgressService.instance
-            .markLevelComplete(widget.level)
+        LagoonProgressService.instance.markLevelComplete(widget.level)
             .catchError((e) {
               debugPrint("Database Error marking level complete: $e");
             });
@@ -235,7 +223,7 @@ class _ColdHotGameState extends State<ColdHotGame>
       _loadNextItem();
     } else if (droppedOnLeft || droppedOnRight) {
       _tapTracker.recordMistake();
-      await _playSound(_wrongAudio);
+      await _playSound(_bubblePopAudio);
       showKikiReaction(KikiState.wrong);
       setState(() {
         _dragOffset = Offset.zero;
@@ -270,7 +258,7 @@ class _ColdHotGameState extends State<ColdHotGame>
           Image.asset(_bgImage, fit: BoxFit.cover),
 
           Positioned(
-            top: sh * 0.03,
+            top: 25,
             left: sw * 0.5 - (sw * 0.34),
             child: Image.asset(
               _coldBadgeImage,
@@ -280,11 +268,11 @@ class _ColdHotGameState extends State<ColdHotGame>
           ),
 
           Positioned(
-            top: sh * 0.03,
+            top: 25,
             right: sw * 0.5 - (sw * 0.34),
             child: Image.asset(
               _hotBadgeImage,
-              width: sw * 0.25,
+              width: sw * 0.3,
               fit: BoxFit.contain,
             ),
           ),
@@ -304,49 +292,23 @@ class _ColdHotGameState extends State<ColdHotGame>
 
           Positioned(
             left: sw * 0.03,
-            top: sh * 0.32,
+            top: sh * 0.27,
+            bottom: sh * 0.04,
             width: sw * 0.42,
-            height: sh * 0.65,
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.center,
-              children: _sortedColdItems.map((item) {
-                return AnimatedScale(
-                  scale: 1.0,
-                  duration: const Duration(milliseconds: 300),
-                  child: Image.asset(
-                    item.imagePath,
-                    width: sh * 0.28,
-                    height: sh * 0.28,
-                    fit: BoxFit.contain,
-                  ),
-                );
-              }).toList(),
+            child: _buildSortedItemsArea(
+              items: _sortedColdItems,
+              sh: sh,
             ),
           ),
 
           Positioned(
             right: sw * 0.03,
-            top: sh * 0.32,
+            top: sh * 0.27,
+            bottom: sh * 0.04,
             width: sw * 0.42,
-            height: sh * 0.65,
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.center,
-              children: _sortedHotItems.map((item) {
-                return AnimatedScale(
-                  scale: 1.0,
-                  duration: const Duration(milliseconds: 300),
-                  child: Image.asset(
-                    item.imagePath,
-                    width: sh * 0.28,
-                    height: sh * 0.28,
-                    fit: BoxFit.contain,
-                  ),
-                );
-              }).toList(),
+            child: _buildSortedItemsArea(
+              items: _sortedHotItems,
+              sh: sh,
             ),
           ),
 
@@ -437,6 +399,44 @@ class _ColdHotGameState extends State<ColdHotGame>
       ),
     );
   }
+}
+
+Widget _buildSortedItemsArea({
+  required List<SortableItem> items,
+  required double sh,
+}) {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      const int columns = 2;
+      const double spacing = 8.0;
+
+      final int rows = max(1, (items.length / columns).ceil(),);
+      final double availableWidth = constraints.maxWidth - spacing * (columns - 1);
+      final double availableHeight = constraints.maxHeight - spacing * (rows - 1);
+      final double widthPerItem = availableWidth / columns;
+      final double heightPerItem = availableHeight / rows;
+      final double itemSize = min(min(widthPerItem, heightPerItem) * 1.3, sh * 0.3,);
+
+      return Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        alignment: WrapAlignment.center,
+        runAlignment: WrapAlignment.center,
+        children: items.map((item) {
+          return AnimatedScale(
+            scale: 1.0,
+            duration: const Duration(milliseconds: 300),
+            child: Image.asset(
+              item.imagePath,
+              width: itemSize,
+              height: itemSize,
+              fit: BoxFit.contain,
+            ),
+          );
+        }).toList(),
+      );
+    },
+  );
 }
 
 class _DashedLinePainter extends CustomPainter {
