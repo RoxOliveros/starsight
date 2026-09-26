@@ -62,12 +62,15 @@ mixin KikiReactionMixin<T extends StatefulWidget> on State<T> {
     }
   }
 
-  Widget buildKiki(BuildContext context) {
+  Widget buildKiki(
+      BuildContext context, {
+        double heightFactor = 0.50,
+      }) {
     return Positioned(
       left: 0,
       bottom: 0,
       child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.50,
+        height: MediaQuery.of(context).size.height * heightFactor,
         child: switch (kikiState) {
           KikiState.correct => Image.asset(
             'assets/animations/characters/kiki_cheering.webp',
