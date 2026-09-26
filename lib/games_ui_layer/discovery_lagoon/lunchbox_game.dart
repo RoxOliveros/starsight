@@ -401,6 +401,7 @@ class _LunchboxGameState extends State<LunchboxGame>
   final GameTapTracker _tapTracker = GameTapTracker();
   final AudioPlayer _foodAudioPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
+  final AudioPlayer _roundAudioPlayer = AudioPlayer();
 
   int currentBatch = 1;
 
@@ -415,6 +416,7 @@ class _LunchboxGameState extends State<LunchboxGame>
   String? selectedDessertId;
   String? selectedDrinkId;
 
+  bool _canInteract = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -428,8 +430,16 @@ class _LunchboxGameState extends State<LunchboxGame>
     _tapTracker.startSession();
 
     onFaceDetectionChanged = (detected) {
-      if (detected && mounted) setState(() => _hideLightingCard = false);
+      if (detected && mounted) {
+        setState(() => _hideLightingCard = false);
+      }
     };
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _playRoundAudio(1);
+      }
+    });
   }
 
   @override
@@ -437,8 +447,49 @@ class _LunchboxGameState extends State<LunchboxGame>
     disposeAiCamera();
     _foodAudioPlayer.dispose();
     _sfxPlayer.dispose();
+    _roundAudioPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
+  }
+
+  Future<void> _playRoundAudio(int batch) async {
+    final Map<int, String> roundAudio = {
+      1: 'audio/discovery_lagoon/lunchbox_round1_main.wav',
+      2: 'audio/discovery_lagoon/lunchbox_round2_ulam.wav',
+      3: 'audio/discovery_lagoon/lunchbox_round3_veggies.wav',
+      4: 'audio/discovery_lagoon/lunchbox_round4_sauce.wav',
+      5: 'audio/discovery_lagoon/lunchbox_round5_dessert.wav',
+      6: 'audio/discovery_lagoon/lunchbox_round6_drink.wav',
+    };
+
+    final audioPath = roundAudio[batch];
+    if (audioPath == null) return;
+
+    if (mounted) {
+      setState(() {
+        _canInteract = false;
+      });
+    }
+
+    try {
+      await _roundAudioPlayer.stop();
+
+      final completed = _roundAudioPlayer.onPlayerComplete.first;
+
+      await _roundAudioPlayer.play(
+        AssetSource(audioPath),
+      );
+
+      await completed;
+    } catch (e) {
+      debugPrint('Round audio error ($batch): $e');
+    }
+
+    if (mounted) {
+      setState(() {
+        _canInteract = true;
+      });
+    }
   }
 
   Future<void> _playFoodAudio(String id) async {
@@ -489,9 +540,14 @@ class _LunchboxGameState extends State<LunchboxGame>
   Future<void> _playBubblePop() async {
     try {
       await _sfxPlayer.stop();
+
+      final completed = _sfxPlayer.onPlayerComplete.first;
+
       await _sfxPlayer.play(
         AssetSource('audio/sound_effects/bubble_pop.wav'),
       );
+
+      await completed;
     } catch (e) {
       debugPrint('Bubble pop audio error: $e');
     }
@@ -675,20 +731,25 @@ class _LunchboxGameState extends State<LunchboxGame>
     return Align(
       alignment: alignment,
       child: GestureDetector(
-        onTap: () {
-          _playFoodAudio(id);
+        onTap: () async {
+          if (!_canInteract || selectedDessertId != null) return;
 
           _tapTracker.recordCorrectTap();
 
           setState(() {
             selectedDessertId = id;
+            _canInteract = false;
           });
 
-          Future.delayed(const Duration(milliseconds: 600), () {
-            if (mounted) {
-              setState(() => currentBatch = 6);
-            }
+          await _playFoodAudio(id);
+
+          if (!mounted) return;
+
+          setState(() {
+            currentBatch = 6;
           });
+
+          await _playRoundAudio(6);
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
@@ -724,15 +785,17 @@ class _LunchboxGameState extends State<LunchboxGame>
       alignment: alignment,
       child: GestureDetector(
         onTap: () async {
-          if (selectedDrinkId != null) return;
+          if (!_canInteract || selectedDrinkId != null) return;
 
           _tapTracker.recordCorrectTap();
 
           setState(() {
             selectedDrinkId = id;
+            _canInteract = false;
           });
 
           await _playFoodAudio(id);
+
           if (!mounted) return;
 
           await _evaluateLunchbox();
@@ -843,16 +906,20 @@ class _LunchboxGameState extends State<LunchboxGame>
                                                 )
                                               : null,
                                         ),
-                                    onAccept: (data) {
+                                    onAccept: (data) async {
                                       if (currentBatch == 1) {
                                         _tapTracker.recordCorrectTap();
-
-                                        _playBubblePop();
 
                                         setState(() {
                                           leftCompartmentFoodId = data;
                                           currentBatch = 2;
                                         });
+
+                                        await _playBubblePop();
+
+                                        if (!mounted) return;
+
+                                        await _playRoundAudio(2);
                                       }
                                     },
                                   ),
@@ -887,16 +954,20 @@ class _LunchboxGameState extends State<LunchboxGame>
                                                 )
                                               : null,
                                         ),
-                                    onAccept: (data) {
+                                    onAccept: (data) async {
                                       if (currentBatch == 2) {
                                         _tapTracker.recordCorrectTap();
-
-                                        _playBubblePop();
 
                                         setState(() {
                                           topRightCompartmentFoodId = data;
                                           currentBatch = 3;
                                         });
+
+                                        await _playBubblePop();
+
+                                        if (!mounted) return;
+
+                                        await _playRoundAudio(3);
                                       }
                                     },
                                   ),
@@ -932,16 +1003,20 @@ class _LunchboxGameState extends State<LunchboxGame>
                                                 )
                                               : null,
                                         ),
-                                    onAccept: (data) {
+                                    onAccept: (data) async {
                                       if (currentBatch == 3) {
                                         _tapTracker.recordCorrectTap();
-
-                                        _playBubblePop();
 
                                         setState(() {
                                           bottomRightCompartmentFoodId = data;
                                           currentBatch = 4;
                                         });
+
+                                        await _playBubblePop();
+
+                                        if (!mounted) return;
+
+                                        await _playRoundAudio(4);
                                       }
                                     },
                                   ),
@@ -1162,7 +1237,15 @@ class _LunchboxGameState extends State<LunchboxGame>
                         borderRadius: BorderRadius.circular(30),
                       ),
                     ),
-                    onPressed: () => setState(() => currentBatch = 5),
+                    onPressed: !_canInteract
+                        ? null
+                        : () async {
+                      setState(() {
+                        currentBatch = 5;
+                      });
+
+                      await _playRoundAudio(5);
+                    },
                     child: const Icon(Icons.check, size: 50),
                   ),
                 ),
@@ -1223,6 +1306,16 @@ class _LunchboxGameState extends State<LunchboxGame>
                   plateSize * 1.2,
                 ),
               ],
+
+              if (!_canInteract)
+                Positioned.fill(
+                  child: AbsorbPointer(
+                    absorbing: true,
+                    child: Container(
+                      color: Colors.transparent,
+                    ),
+                  ),
+                ),
 
               Positioned(top: 25, left: 25, child: const LagoonXButton()),
               Positioned(
