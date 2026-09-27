@@ -8,6 +8,12 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
+
 // ==========================================
 // 🛠️ TRASH ITEM DATA MODEL
 // ==========================================
@@ -26,22 +32,19 @@ class ThrowingTrashGame extends StatefulWidget {
 }
 
 class _ThrowingTrashGameState extends State<ThrowingTrashGame>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, AiCameraMixin<ThrowingTrashGame> {
   // ==========================================
   // 🛠️ ADJUSTERS
   // ==========================================
-  // Trashcan Adjusters
   final double trashcanWidthPercentage = 0.25;
-  final double trashcanIntroBottomOffset = 20.0; // Height during intro
+  final double trashcanIntroBottomOffset = 20.0;
   final double spacingBetweenCans = 20.0;
   final double backgroundWhiteOpacity = 0.4;
   final double walkBounceHeight = 25.0;
   final double jumpHeight = 30.0;
 
-  // Timing Adjusters
   final int audioIntervalMilliseconds = 800;
 
-  // Dr. Woo Adjusters
   final double drWooHeightPercentage = 0.85;
   final double darkOverlayOpacity = 0.7;
   final double drWooVerticalOffset = 60.00;
@@ -49,6 +52,10 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
   late final AnimationController _walkCtrl;
   late final AnimationController _jumpCtrl;
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   int _introStep = 0;
 
@@ -58,7 +65,6 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
   int _sadBinId = 0;
   bool _isGameWon = false;
 
-  // NEW: State for fading trash at the drop location
   bool _isTrashFading = false;
   TrashItem? _fadingTrash;
   Offset? _droppedPosition;
@@ -67,6 +73,14 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _initTrashItems();
 
@@ -106,7 +120,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
         _playAudio('audio/lumi_town/level11/throwing_trash_game_trashcan3.wav');
       } else if (_introStep == 4) {
         setState(() {
-          _introStep = 5; // Intro done! Gameplay begins, trashcans slide down.
+          _introStep = 5;
           _jumpCtrl.stop();
         });
       }
@@ -122,7 +136,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
 
   void _initTrashItems() {
     _remainingTrash = [
-      // BIN 1: Biodegradable (Rotting/Decaying)
+      // BIN 1: Biodegradable
       TrashItem('assets/images/objects/lumi/trash_apple.png', 1),
       TrashItem('assets/images/objects/lumi/trash_banana.png', 1),
       TrashItem('assets/images/objects/lumi/trash_fishbone.png', 1),
@@ -157,9 +171,39 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
         _currentTrash = _remainingTrash.removeLast();
       } else {
         _currentTrash = null;
-        _isGameWon = true;
       }
     });
+
+    if (_remainingTrash.isEmpty && _currentTrash == null) {
+      _saveDataAndShowGoodJob();
+    }
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    final finalEmotions = stopAiCamera();
+
+    TownDatabaseService.saveGameData(
+      gameId: 'lumi_town_throwing_trash',
+      activityName: 'Throwing Trash',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    TownProgressService.instance.markLevelComplete(11).catchError((e) {
+      debugPrint("Database Error marking level complete: $e");
+    });
+
+    if (mounted) {
+      setState(() {
+        _isGameWon = true;
+      });
+    }
   }
 
   Future<void> _playAudio(String path) async {
@@ -171,18 +215,17 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
     }
   }
 
-  // Changed to receive DragTargetDetails so we can get the exact pixel location
   void _handleDrop(DragTargetDetails<TrashItem> details, int targetBinId) {
     final TrashItem item = details.data;
 
     if (item.correctBinId == targetBinId) {
-      // Correct Bin!
+      _tapTracker.recordCorrectTap();
       _playAudio('audio/sound_effects/shine.wav');
 
       setState(() {
-        _isTrashFading = true; // Hides the main draggable at the top
-        _fadingTrash = item; // Sets the clone image
-        _droppedPosition = details.offset; // Grabs the exact drop coordinates
+        _isTrashFading = true;
+        _fadingTrash = item;
+        _droppedPosition = details.offset;
       });
 
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -196,7 +239,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
         }
       });
     } else {
-      // Wrong Bin!
+      _tapTracker.recordMistake();
       _playAudio('audio/lumi_town/dr.woo_tryagain.wav');
 
       setState(() => _sadBinId = targetBinId);
@@ -211,6 +254,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _walkCtrl.dispose();
     _jumpCtrl.dispose();
     _audioPlayer.dispose();
@@ -264,184 +308,192 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
         : trashcanIntroBottomOffset;
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Base Background Image
-          Image.asset(
-            'assets/images/backgrounds/bg_park_sunny.png',
-            fit: BoxFit.cover,
-          ),
-
-          // 2. Low Opacity White Overlay
-          Container(color: Colors.white.withValues(alpha: backgroundWhiteOpacity)),
-
-          // 3. The Animated Trashcans Container
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeInOut,
-            bottom: dynamicBottomOffset,
-            left: 0,
-            right: 0,
-            child: AnimatedBuilder(
-              animation: _walkCtrl,
-              builder: (context, child) {
-                final double t = _walkCtrl.value;
-                final double easedT = Curves.easeOutCubic.transform(t);
-                final double dx = sw * (1 - easedT);
-                final int stepCount = 8;
-                final double walkBounce = t < 1.0
-                    ? (math.sin(t * stepCount * math.pi)).abs() *
-                          walkBounceHeight
-                    : 0.0;
-
-                return Transform.translate(
-                  offset: Offset(dx, -walkBounce),
-                  child: child,
-                );
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  _buildTrashcan(
-                    'assets/images/objects/lumi/trashcan1_happy.png',
-                    'assets/images/objects/lumi/trashcan1_sad.png',
-                    trashcanWidth,
-                    2,
-                    1,
-                  ),
-                  SizedBox(width: spacingBetweenCans),
-                  _buildTrashcan(
-                    'assets/images/objects/lumi/trashcan2_happy.png',
-                    'assets/images/objects/lumi/trashcan2_sad.png',
-                    trashcanWidth,
-                    3,
-                    2,
-                  ),
-                  SizedBox(width: spacingBetweenCans),
-                  _buildTrashcan(
-                    'assets/images/objects/lumi/trashcan3_happy.png',
-                    'assets/images/objects/lumi/trashcan3_sad.png',
-                    trashcanWidth,
-                    4,
-                    3,
-                  ),
-                ],
-              ),
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_park_sunny.png',
+              fit: BoxFit.cover,
             ),
-          ),
 
-          // 4. Dr. Woo Intro Overlay
-          if (_introStep == 1)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: darkOverlayOpacity),
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Transform.translate(
-                    offset: Offset(0, drWooVerticalOffset),
-                    child: Image.asset(
-                      'assets/images/characters/tr.woo_the_owl.png',
-                      height: sh * drWooHeightPercentage,
-                      fit: BoxFit.contain,
+            Container(
+              color: Colors.white.withValues(alpha: backgroundWhiteOpacity),
+            ),
+
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeInOut,
+              bottom: dynamicBottomOffset,
+              left: 0,
+              right: 0,
+              child: AnimatedBuilder(
+                animation: _walkCtrl,
+                builder: (context, child) {
+                  final double t = _walkCtrl.value;
+                  final double easedT = Curves.easeOutCubic.transform(t);
+                  final double dx = sw * (1 - easedT);
+                  final int stepCount = 8;
+                  final double walkBounce = t < 1.0
+                      ? (math.sin(t * stepCount * math.pi)).abs() *
+                            walkBounceHeight
+                      : 0.0;
+
+                  return Transform.translate(
+                    offset: Offset(dx, -walkBounce),
+                    child: child,
+                  );
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _buildTrashcan(
+                      'assets/images/objects/lumi/trashcan1_happy.png',
+                      'assets/images/objects/lumi/trashcan1_sad.png',
+                      trashcanWidth,
+                      2,
+                      1,
                     ),
-                  ),
+                    SizedBox(width: spacingBetweenCans),
+                    _buildTrashcan(
+                      'assets/images/objects/lumi/trashcan2_happy.png',
+                      'assets/images/objects/lumi/trashcan2_sad.png',
+                      trashcanWidth,
+                      3,
+                      2,
+                    ),
+                    SizedBox(width: spacingBetweenCans),
+                    _buildTrashcan(
+                      'assets/images/objects/lumi/trashcan3_happy.png',
+                      'assets/images/objects/lumi/trashcan3_sad.png',
+                      trashcanWidth,
+                      4,
+                      3,
+                    ),
+                  ],
                 ),
               ),
             ),
 
-          // 5. The Draggable Trash Item (Hidden while fading to prevent snapping back)
-          if (_introStep == 5 &&
-              _currentTrash != null &&
-              !_isGameWon &&
-              !_isTrashFading)
-            Positioned(
-              top: sh * 0.08,
-              left: (sw / 2) - (trashItemSize / 2),
-              child: Draggable<TrashItem>(
-                data: _currentTrash,
-                feedback: Material(
-                  color: Colors.transparent,
+            if (_introStep == 1)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withValues(alpha: darkOverlayOpacity),
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Transform.translate(
+                      offset: Offset(0, drWooVerticalOffset),
+                      child: Image.asset(
+                        'assets/images/characters/tr.woo_the_owl.png',
+                        height: sh * drWooHeightPercentage,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            if (_introStep == 5 &&
+                _currentTrash != null &&
+                !_isGameWon &&
+                !_isTrashFading)
+              Positioned(
+                top: sh * 0.08,
+                left: (sw / 2) - (trashItemSize / 2),
+                child: Draggable<TrashItem>(
+                  data: _currentTrash,
+                  onDragEnd: (details) {
+                    if (!details.wasAccepted) {
+                      _tapTracker.recordMistake();
+                    }
+                  },
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: Image.asset(
+                      _currentTrash!.imagePath,
+                      width: trashItemSize * 1.2,
+                      height: trashItemSize * 1.2,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  childWhenDragging: SizedBox(
+                    width: trashItemSize,
+                    height: trashItemSize,
+                  ),
                   child: Image.asset(
                     _currentTrash!.imagePath,
+                    width: trashItemSize,
+                    height: trashItemSize,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+
+            if (_fadingTrash != null && _droppedPosition != null)
+              Positioned(
+                left: _droppedPosition!.dx,
+                top: _droppedPosition!.dy,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 1.0, end: 0.0),
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInBack,
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: Opacity(
+                        opacity: value.clamp(0.0, 1.0),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Image.asset(
+                    _fadingTrash!.imagePath,
                     width: trashItemSize * 1.2,
                     height: trashItemSize * 1.2,
                     fit: BoxFit.contain,
                   ),
                 ),
-                childWhenDragging: SizedBox(
-                  width: trashItemSize,
-                  height: trashItemSize,
-                ),
-                child: Image.asset(
-                  _currentTrash!.imagePath,
-                  width: trashItemSize,
-                  height: trashItemSize,
-                  fit: BoxFit.contain,
-                ),
               ),
-            ),
 
-          // 6. The Fading "Ghost" Trash (Spawns exactly where dropped!)
-          if (_fadingTrash != null && _droppedPosition != null)
-            Positioned(
-              left: _droppedPosition!.dx,
-              top: _droppedPosition!.dy,
-              child: TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 1.0, end: 0.0),
-                duration: const Duration(milliseconds: 400),
-                curve: Curves
-                    .easeInBack, // Shrinks down with a slight bounce effect
-                builder: (context, value, child) {
-                  return Transform.scale(
-                    scale: value,
-                    child: Opacity(
-                      opacity: value.clamp(0.0, 1.0),
-                      child: child,
-                    ),
-                  );
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
                 },
-                child: Image.asset(
-                  _fadingTrash!.imagePath,
-                  // Uses the 1.2 multiplier to match the size it was while being dragged!
-                  width: trashItemSize * 1.2,
-                  height: trashItemSize * 1.2,
-                  fit: BoxFit.contain,
+              ),
+
+            if (_isGameWon)
+              Positioned.fill(
+                child: GoodJobOverlay(
+                  characterImage: 'assets/images/characters/tr.woo_the_owl.png',
+                  onNext: () {
+                    if (mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (_) => const AppreciationGame(),
+                        ),
+                        (route) => route.isFirst,
+                      );
+                    }
+                  },
+                  onRestart: () {
+                    setState(() {
+                      _hasSavedResult = false;
+                      _tapTracker.startSession();
+                      _isGameWon = false;
+                      _initTrashItems();
+                    });
+                  },
+                  onBack: () => Navigator.of(context).pop(),
                 ),
               ),
-            ),
 
-          // 7. Good Job Overlay
-          if (_isGameWon)
-            Positioned.fill(
-              child: GoodJobOverlay(
-                characterImage: 'assets/images/characters/tr.woo_the_owl.png',
-                
-                onNext: () async {
-                  await TownProgressService.instance.markLevelComplete(11);
-
-                  if (mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (_) => const AppreciationGame(),
-                      ),
-                      (route) => route.isFirst,
-                    );
-                  }
-                },
-                onRestart: () {
-                  setState(() {
-                    _isGameWon = false;
-                    _initTrashItems();
-                  });
-                },
-                onBack: () => Navigator.of(context).pop(),
-              ),
-            ),
-
-          const Positioned(top: 25, left: 25, child: LumiXButton()),
-        ],
+            const Positioned(top: 25, left: 25, child: LumiXButton()),
+          ],
+        ),
       ),
     );
   }

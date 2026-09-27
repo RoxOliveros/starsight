@@ -10,6 +10,12 @@ import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_cleaning.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
+
 const String _classroomBg = 'assets/images/backgrounds/bg_lumi_classroom.png';
 const String _gameBg = 'assets/images/backgrounds/bg_table.png';
 const String _teacherWooImage = 'assets/images/characters/tr.woo_the_owl.png';
@@ -32,12 +38,7 @@ const String _sceneImageBase = 'assets/images/objects/lumi/';
 // MODEL
 // ============================================================================
 
-enum BehaviorSequencePhase {
-  intro,
-  instruction,
-  game,
-  complete,
-}
+enum BehaviorSequencePhase { intro, instruction, game, complete }
 
 class BehaviorSceneModel {
   final String id;
@@ -114,7 +115,9 @@ class BehaviorGameScreen extends StatefulWidget {
 }
 
 class _BehaviorGameScreenState extends State<BehaviorGameScreen>
-    with TrWooReactionMixin<BehaviorGameScreen> {
+    with
+        TrWooReactionMixin<BehaviorGameScreen>,
+        AiCameraMixin<BehaviorGameScreen> {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
@@ -132,10 +135,14 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
 
   bool _inputEnabled = false;
   bool _checkingAnswer = false;
-  String? _pressedButton; // 'red' | 'green' | null, brief clicked-asset flash
+  String? _pressedButton;
   BehaviorSequencePhase _phase = BehaviorSequencePhase.intro;
   bool _isLoading = true;
   bool _gameComplete = false;
+
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   BehaviorSceneModel get _current => _queue[_currentIndex];
 
@@ -143,6 +150,14 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _queue = _shuffledBehaviors();
     _initializeGame();
@@ -171,14 +186,13 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _narrationPlayer.dispose();
     _completePlayer.dispose();
     _drWooPlayer.dispose();
     _sfxPlayer.dispose();
     super.dispose();
   }
-
-  // --- Shuffle ------------------------------------------------------------
 
   List<BehaviorSceneModel> _shuffledBehaviors() {
     final rand = Random();
@@ -191,8 +205,6 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
     }
     return arr;
   }
-
-  // --- Intro / instruction flow --------------------------------------------
 
   Future<void> _startIntroFlow() async {
     if (!mounted) return;
@@ -251,8 +263,6 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
     }
   }
 
-  // --- Answer handling --------------------------------------------------
-
   Future<void> _onAnswer(bool pickedGreen) async {
     if (!_inputEnabled || _checkingAnswer || !mounted) return;
 
@@ -269,6 +279,7 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
     final bool isCorrect = pickedGreen == _current.expectedGreen;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap();
 
       await _playAndWait(_sfxPlayer, _audioCorrect);
       if (!mounted) return;
@@ -286,6 +297,7 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
         await _playCurrentNarration();
       }
     } else {
+      _tapTracker.recordMistake();
       await _playAndWait(_sfxPlayer, _audioWrong);
       if (!mounted) return;
 
@@ -301,8 +313,6 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
     }
   }
 
-  // --- Completion / restart -------------------------------------------------
-
   Future<void> _completeGame() async {
     if (!mounted) return;
 
@@ -310,7 +320,27 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
       _phase = BehaviorSequencePhase.complete;
     });
 
-    TownProgressService.instance.markLevelComplete(widget.level);
+    if (!_hasSavedResult) {
+      _hasSavedResult = true;
+      List<String> finalEmotions = stopAiCamera();
+
+      TownDatabaseService.saveGameData(
+        gameId: 'lumi_town_behavior',
+        activityName: 'Good Behavior Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      ).catchError((e) {
+        debugPrint("Database Error saving metrics: $e");
+      });
+    }
+
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
 
     await _playAndWait(_completePlayer, _winAudio);
 
@@ -333,6 +363,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
       _gameComplete = false;
       _phase = BehaviorSequencePhase.game;
       _inputEnabled = false;
+      _hasSavedResult = false;
+      _tapTracker.startSession();
     });
 
     await _playCurrentNarration();
@@ -346,107 +378,113 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
     Navigator.of(context).pop();
   }
 
-  // --- UI -----------------------------------------------------------------
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        body: LoadingScreen.lumiTown(),
-      );
+      return Scaffold(body: LoadingScreen.lumiTown());
     }
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              (_phase == BehaviorSequencePhase.intro ||
-                  _phase == BehaviorSequencePhase.complete)
-                  ? _classroomBg
-                  : _gameBg,
-              fit: BoxFit.cover,
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                (_phase == BehaviorSequencePhase.intro ||
+                        _phase == BehaviorSequencePhase.complete)
+                    ? _classroomBg
+                    : _gameBg,
+                fit: BoxFit.cover,
+              ),
             ),
-          ),
 
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final height = constraints.maxHeight;
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final height = constraints.maxHeight;
 
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  // TEACHER WOO DURING INTRO
-                  if (_phase == BehaviorSequencePhase.intro)
-                    Positioned(
-                      right: 0,
-                      left: 0,
-                      bottom: -70,
-                      child: SizedBox(
-                        height: height * 1,
-                        child: Image.asset(_teacherWooImage, fit: BoxFit.contain),
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (_phase == BehaviorSequencePhase.intro)
+                      Positioned(
+                        right: 0,
+                        left: 0,
+                        bottom: -70,
+                        child: SizedBox(
+                          height: height * 1,
+                          child: Image.asset(
+                            _teacherWooImage,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
-                    ),
 
-                  // BEHAVIOR SCENE + ANSWER BUTTONS
-                  if (_phase == BehaviorSequencePhase.game)
-                    Positioned(
-                      left: width * 0.08,
-                      right: width * 0.08,
-                      top: height * 0.08,
-                      bottom: height * 0.10,
-                      child: _BehaviorRound(
-                        scene: _current,
-                        inputEnabled: _inputEnabled && !_checkingAnswer,
-                        pressedButton: _pressedButton,
-                        onRed: () => _onAnswer(false),
-                        onGreen: () => _onAnswer(true),
+                    if (_phase == BehaviorSequencePhase.game)
+                      Positioned(
+                        left: width * 0.08,
+                        right: width * 0.08,
+                        top: height * 0.08,
+                        bottom: height * 0.10,
+                        child: _BehaviorRound(
+                          scene: _current,
+                          inputEnabled: _inputEnabled && !_checkingAnswer,
+                          pressedButton: _pressedButton,
+                          onRed: () => _onAnswer(false),
+                          onGreen: () => _onAnswer(true),
+                        ),
                       ),
-                    ),
 
-                  if (_phase == BehaviorSequencePhase.complete)
-                    Positioned(
-                      right: 0,
-                      left: 0,
-                      bottom: -70,
-                      child: SizedBox(
-                        height: height * 1,
-                        child: Image.asset(_teacherWooImage, fit: BoxFit.contain),
+                    if (_phase == BehaviorSequencePhase.complete)
+                      Positioned(
+                        right: 0,
+                        left: 0,
+                        bottom: -70,
+                        child: SizedBox(
+                          height: height * 1,
+                          child: Image.asset(
+                            _teacherWooImage,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
-                    ),
-                ],
-              );
-            },
-          ),
-
-          // Back button.
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-
-          // Completion overlay.
-          if (_gameComplete)
-            GoodJobOverlay(
-              characterImage: 'assets/images/characters/tr.woo_the_owl.png',
-              onNext: () async {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => CleaningGameScreen(level: widget.level + 1),
-                  ),
+                  ],
                 );
               },
-              onRestart: _restartGame,
-              onBack: _goBack,
             ),
-        ],
+
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_gameComplete)
+              GoodJobOverlay(
+                characterImage: 'assets/images/characters/tr.woo_the_owl.png',
+                onNext: () async {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          CleaningGameScreen(level: widget.level + 1),
+                    ),
+                  );
+                },
+                onRestart: _restartGame,
+                onBack: _goBack,
+              ),
+          ],
+        ),
       ),
     );
   }
 }
-
-// ============================================================================
-// BEHAVIOR ROUND — center scene image, red button left, green button right
-// ============================================================================
 
 class _BehaviorRound extends StatelessWidget {
   final BehaviorSceneModel scene;
@@ -481,7 +519,11 @@ class _BehaviorRound extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: const Color(0xFFf5dbb6), width: 8),
               boxShadow: const [
-                BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, 4)),
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 15,
+                  offset: Offset(0, 4),
+                ),
               ],
             ),
             child: ClipRRect(

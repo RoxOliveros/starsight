@@ -6,17 +6,29 @@ import '../../../../ui_layer/lumi_town/town_level.dart';
 import '../audio_helper.dart';
 import '../widgets/shake_widget.dart';
 import 'step3_combing.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class Step3ChoiceScreen extends StatefulWidget {
-  const Step3ChoiceScreen({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Step3ChoiceScreen({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<Step3ChoiceScreen> createState() => _Step3ChoiceScreenState();
 }
 
 class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AiCameraMixin<Step3ChoiceScreen> {
   final AudioPlayer _player = AudioPlayer();
+  bool _hideLightingCard = false;
 
   final GlobalKey<ShakeWidgetState> _plantKey = GlobalKey();
   final GlobalKey<ShakeWidgetState> _appleKey = GlobalKey();
@@ -29,38 +41,65 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _iconEntranceCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _iconFade =
-        CurvedAnimation(parent: _iconEntranceCtrl, curve: Curves.easeIn);
+    _iconFade = CurvedAnimation(
+      parent: _iconEntranceCtrl,
+      curve: Curves.easeIn,
+    );
 
     _playQuestionAudio();
   }
 
   Future<void> _playQuestionAudio() async {
-    await playAssetAudio(_player, 'assets/audio/lumi_town/level2/vo_step3_question.wav');
+    await playAssetAudio(
+      _player,
+      'assets/audio/lumi_town/level2/vo_step3_question.wav',
+    );
     await waitForAudio(_player);
     if (mounted) _iconEntranceCtrl.forward();
   }
 
   Future<void> _onCorrect() async {
-    await playAssetAudio(_player, 'assets/audio/lumi_town/level2/vo_comb_start.wav');
+    widget.tapTracker.recordCorrectTap();
+    await playAssetAudio(
+      _player,
+      'assets/audio/lumi_town/level2/vo_comb_start.wav',
+    );
     await waitForAudio(_player);
     if (!mounted) return;
+    final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
     Navigator.of(context).pushReplacement(
-      _fadeRoute(const Step3CombingScreen()),
+      _fadeRoute(
+        Step3CombingScreen(
+          priorEmotions: emotionsSoFar,
+          tapTracker: widget.tapTracker,
+        ),
+      ),
     );
   }
 
   Future<void> _onWrong(GlobalKey<ShakeWidgetState> key) async {
+    widget.tapTracker.recordMistake();
     key.currentState?.shake();
-    await playAssetAudio(_player, 'assets/audio/lumi_town/level2/vo_step1_wrong.wav');
+    await playAssetAudio(
+      _player,
+      'assets/audio/lumi_town/level2/vo_step1_wrong.wav',
+    );
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _player.dispose();
     _iconEntranceCtrl.dispose();
     super.dispose();
@@ -70,78 +109,87 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset('assets/images/backgrounds/bg_lumi_bathroom.png',
-              fit: BoxFit.cover),
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_lumi_bathroom.png',
+              fit: BoxFit.cover,
+            ),
 
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final bearH = MediaQuery.of(context).size.height * 0.80;
-                  return Image.asset(
-                    'assets/images/characters/little_bear.png',
-                    height: bearH,
-                    fit: BoxFit.contain,
-                  );
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final bearH = MediaQuery.of(context).size.height * 0.80;
+                    return Image.asset(
+                      'assets/images/characters/little_bear.png',
+                      height: bearH,
+                      fit: BoxFit.contain,
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            Positioned(
+              bottom: 16,
+              left: 0,
+              right: 0,
+              child: FadeTransition(
+                opacity: _iconFade,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Comb — CORRECT
+                    _ChoiceIcon(
+                      imagePath: 'assets/images/objects/lumi/comb.png',
+                      bgColor: const Color(0xFF5BAD72),
+                      onTap: _onCorrect,
+                    ),
+                    const SizedBox(width: 24),
+
+                    // Plant — WRONG
+                    ShakeWidget(
+                      key: _plantKey,
+                      child: _ChoiceIcon(
+                        imagePath: 'assets/images/objects/lumi/plant.png',
+                        bgColor: const Color(0xFFB88FD4),
+                        onTap: () => _onWrong(_plantKey),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+
+                    // Apple — WRONG
+                    ShakeWidget(
+                      key: _appleKey,
+                      child: _ChoiceIcon(
+                        imagePath: 'assets/images/objects/lumi/apple.png',
+                        bgColor: const Color(0xFF5B9FD4),
+                        onTap: () => _onWrong(_appleKey),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
                 },
               ),
-            ),
-          ),
-
-          Positioned(
-            bottom: 16,
-            left: 0,
-            right: 0,
-            child: FadeTransition(
-              opacity: _iconFade,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Comb — CORRECT
-                  _ChoiceIcon(
-                    imagePath: 'assets/images/objects/lumi/comb.png',
-                    bgColor: const Color(0xFF5BAD72),
-                    onTap: _onCorrect,
-                  ),
-                  const SizedBox(width: 24),
-
-                  // Plant — WRONG
-                  ShakeWidget(
-                    key: _plantKey,
-                    child: _ChoiceIcon(
-                      imagePath: 'assets/images/objects/lumi/plant.png',
-                      bgColor: const Color(0xFFB88FD4),
-                      onTap: () => _onWrong(_plantKey),
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-
-                  // Apple — WRONG
-                  ShakeWidget(
-                    key: _appleKey,
-                    child: _ChoiceIcon(
-                      imagePath: 'assets/images/objects/lumi/apple.png',
-                      bgColor: const Color(0xFF5B9FD4),
-                      onTap: () => _onWrong(_appleKey),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          Positioned(
-            top: 25,
-            left: 25,
-            child: LumiXButton(onTap: _onBack),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

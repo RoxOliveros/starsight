@@ -5,17 +5,29 @@ import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
 import '../audio_helper.dart';
 import 'step_ending.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class Step3CombingScreen extends StatefulWidget {
-  const Step3CombingScreen({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Step3CombingScreen({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<Step3CombingScreen> createState() => _Step3CombingScreenState();
 }
 
 class _Step3CombingScreenState extends State<Step3CombingScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AiCameraMixin<Step3CombingScreen> {
   final AudioPlayer _player = AudioPlayer();
+  bool _hideLightingCard = false;
   bool _dropped = false;
 
   double _combProgress = 0.0;
@@ -34,6 +46,13 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _dropped = true;
 
     _wobbleCtrl = AnimationController(
@@ -43,6 +62,7 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
   }
 
   Future<void> _onCombComplete() async {
+    widget.tapTracker.recordCorrectTap();
     _wobbleCtrl.stop();
     await playAssetAudio(
       _player,
@@ -50,11 +70,20 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
     );
     await waitForAudio(_player);
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(_fadeRoute(const StepEndingScreen()));
+    final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
+    Navigator.of(context).pushReplacement(
+      _fadeRoute(
+        StepEndingScreen(
+          priorEmotions: emotionsSoFar,
+          tapTracker: widget.tapTracker,
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _player.dispose();
     _wobbleCtrl.dispose();
     super.dispose();
@@ -64,102 +93,105 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/backgrounds/bg_lumi_bathroom.png',
-            fit: BoxFit.cover,
-          ),
-
-          // Little Bear + drop target on head
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Image.asset(
-                'assets/images/characters/little_bear.png',
-                height: MediaQuery.of(context).size.height * 0.80,
-                fit: BoxFit.contain,
-              ),
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_lumi_bathroom.png',
+              fit: BoxFit.cover,
             ),
-          ),
 
-          // Gesture area on bear's head
-          if (_dropped)
+            // Little Bear + drop target on head
             Positioned(
-              top: MediaQuery.of(context).size.height * 0.18,
+              bottom: 0,
               left: 0,
               right: 0,
               child: Center(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onPanStart: (details) {
-                    setState(() {
-                      _isCombing = true;
-                      _combX = details.globalPosition.dx;
-                      _combY = details.globalPosition.dy;
-                    });
-                  },
-                  onPanUpdate: (details) {
-                    if (_completeFired) return;
-                    setState(() {
-                      _combX = details.globalPosition.dx;
-                      _combY = details.globalPosition.dy;
-                      _combProgress =
-                          (_combProgress + details.delta.dx.abs() * 0.0010)
-                              .clamp(0.0, 1.0);
-                    });
-                    if (!_audioFired && _combProgress >= 0.15) {
-                      _audioFired = true;
-                    }
-                    if (!_quarterFired && _combProgress >= 0.5) {
-                      _quarterFired = true;
-                    }
-                    if (!_halfFired && _combProgress >= 0.75) {
-                      _halfFired = true;
-                    }
-                    if (!_completeFired && _combProgress >= 1.0) {
-                      _completeFired = true;
-                      _onCombComplete();
-                    }
-                  },
-                  onPanEnd: (_) => setState(() => _isCombing = false),
-                  child: Container(
-                    width: 160,
-                    height: 80,
-                    color: Colors.transparent,
-                  ),
+                child: Image.asset(
+                  'assets/images/characters/little_bear.png',
+                  height: MediaQuery.of(context).size.height * 0.80,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
 
-          // Progress bar
-          if (_dropped)
-            Positioned(
-              bottom: 20,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  height: 22,
-                  width: MediaQuery.of(context).size.width * 0.65,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white38, width: 1.5),
+            // Gesture area on bear's head
+            if (_dropped)
+              Positioned(
+                top: MediaQuery.of(context).size.height * 0.18,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onPanStart: (details) {
+                      setState(() {
+                        _isCombing = true;
+                        _combX = details.globalPosition.dx;
+                        _combY = details.globalPosition.dy;
+                      });
+                    },
+                    onPanUpdate: (details) {
+                      if (_completeFired) return;
+                      setState(() {
+                        _combX = details.globalPosition.dx;
+                        _combY = details.globalPosition.dy;
+                        _combProgress =
+                            (_combProgress + details.delta.dx.abs() * 0.0010)
+                                .clamp(0.0, 1.0);
+                      });
+                      if (!_audioFired && _combProgress >= 0.15) {
+                        _audioFired = true;
+                      }
+                      if (!_quarterFired && _combProgress >= 0.5) {
+                        _quarterFired = true;
+                      }
+                      if (!_halfFired && _combProgress >= 0.75) {
+                        _halfFired = true;
+                      }
+                      if (!_completeFired && _combProgress >= 1.0) {
+                        _completeFired = true;
+                        _onCombComplete();
+                      }
+                    },
+                    onPanEnd: (_) => setState(() => _isCombing = false),
+                    child: Container(
+                      width: 160,
+                      height: 80,
+                      color: Colors.transparent,
+                    ),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: AnimatedFractionallySizedBox(
-                      duration: const Duration(milliseconds: 100),
-                      widthFactor: _combProgress,
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF80DFFF), Color(0xFF00BFFF)],
+                ),
+              ),
+
+            // Progress bar
+            if (_dropped)
+              Positioned(
+                bottom: 20,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    height: 22,
+                    width: MediaQuery.of(context).size.width * 0.65,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white38, width: 1.5),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: AnimatedFractionallySizedBox(
+                        duration: const Duration(milliseconds: 100),
+                        widthFactor: _combProgress,
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFF80DFFF), Color(0xFF00BFFF)],
+                            ),
                           ),
                         ),
                       ),
@@ -167,25 +199,33 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
                   ),
                 ),
               ),
-            ),
 
-          // Comb follows finger
-          if (_isCombing)
-            Positioned(
-              left: _combX - 30,
-              top: _combY - 30,
-              child: IgnorePointer(
-                child: Image.asset(
-                  'assets/images/objects/lumi/comb.png',
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.contain,
+            // Comb follows finger
+            if (_isCombing)
+              Positioned(
+                left: _combX - 30,
+                top: _combY - 30,
+                child: IgnorePointer(
+                  child: Image.asset(
+                    'assets/images/objects/lumi/comb.png',
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
-            ),
 
-          Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
-        ],
+            Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -7,6 +7,10 @@ import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/town_level.dart';
 import 'steps/step1_choice.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class Lvl2BathroomGameScreen extends StatefulWidget {
   const Lvl2BathroomGameScreen({super.key});
@@ -16,8 +20,14 @@ class Lvl2BathroomGameScreen extends StatefulWidget {
 }
 
 class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AiCameraMixin<Lvl2BathroomGameScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  // ── Tracking (camera + taps; this level spans 8 screens ending at
+  // StepEndingScreen, so this tracker and the emotions list travel with the
+  // player through every one of them) ─────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
 
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
@@ -27,6 +37,16 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     OrientationService.setLandscape();
+
+    // Starts immediately - never waits for a face. Session id/tap tracker
+    // are shared with every following screen in this level.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _fadeCtrl = AnimationController(
       vsync: this,
@@ -48,8 +68,14 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
 
+    final emotionsSoFar = stopAiCamera();
     Navigator.of(context).pushReplacement(
-      _fadeRoute(const Step1ChoiceScreen()),
+      _fadeRoute(
+        Step1ChoiceScreen(
+          priorEmotions: emotionsSoFar,
+          tapTracker: _tapTracker,
+        ),
+      ),
     );
   }
 
@@ -65,6 +91,7 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     _fadeCtrl.dispose();
     super.dispose();
@@ -74,41 +101,59 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // 1. Background
-            Image.asset('assets/images/backgrounds/bg_lumi_bathroom.png', fit: BoxFit.cover),
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: FadeTransition(
+          opacity: _fadeAnim,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 1. Background
+              Image.asset(
+                'assets/images/backgrounds/bg_lumi_bathroom.png',
+                fit: BoxFit.cover,
+              ),
 
-            // 2. Bear — behind choices
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final bearH = MediaQuery.of(context).size.height * 0.80;
-                    return Image.asset(
-                      'assets/images/characters/little_bear.png',
-                      height: bearH,
-                      fit: BoxFit.contain,
-                    );
-                  },
+              // 2. Bear — behind choices
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final bearH = MediaQuery.of(context).size.height * 0.80;
+                      return Image.asset(
+                        'assets/images/characters/little_bear.png',
+                        height: bearH,
+                        fit: BoxFit.contain,
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
 
-            // 3. X button — always on top
-            Positioned(
-              top: 25,
-              left: 25,
-              child: LumiXButton(),
-            ),
-          ],
-        )
+              // 3. X button — always on top
+              Positioned(
+                top: 25,
+                left: 25,
+                child: LumiXButton(
+                  onTap: _onBack,
+                ), // was unwired: X did nothing before
+              ),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

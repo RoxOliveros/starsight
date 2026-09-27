@@ -14,14 +14,27 @@ import '../../tryagain_prompt.dart';
 import 'character_entrance.dart';
 import 'sharing_tutorial_prompt.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
+
 class Sharing2 extends StatefulWidget {
-  const Sharing2({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Sharing2({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<Sharing2> createState() => _Sharing2State();
 }
 
-class _Sharing2State extends State<Sharing2> {
+class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   // ── State Variables ──────────────────────────────────────────────────
@@ -36,15 +49,15 @@ class _Sharing2State extends State<Sharing2> {
   bool _secondFoxCanceled = false;
   String _currentMood = 'normal';
 
-  // Inventory state
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   int _pancakesLeft = 7;
   int _waterLeft = 7;
 
-  // Turn state
   bool _hasGivenPancake = false;
   bool _hasGivenWater = false;
 
-  // Character sequence tracking
   int _charIndex = 0;
   int _retryCount = 0;
 
@@ -75,7 +88,6 @@ class _Sharing2State extends State<Sharing2> {
     'dog': 'audio/lumi_town/level5/dog_thankyou.wav',
   };
 
-  // The exact sequence requested
   final List<String> _sequence = [
     'bunny',
     'cat',
@@ -92,7 +104,6 @@ class _Sharing2State extends State<Sharing2> {
     if (_currentMood == 'smiling') {
       return charactersSmiling[charKey] ?? characters[charKey]!;
     } else if (_currentMood == 'sad' && charKey == 'fox') {
-      // Make sure this path points to your sad fox image
       return 'assets/images/characters/jack_sad.png';
     }
 
@@ -102,11 +113,16 @@ class _Sharing2State extends State<Sharing2> {
   @override
   void initState() {
     super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _lockOrientationThenStartEntrance();
 
-    // If the tutorial is showing, hold off on the game's own audio and the
-    // cancel-button reveal timer until the player dismisses it — otherwise
-    // the tutorial narration and the game's "sharing.wav" would overlap.
     if (!_showTutorial) {
       _startRoundAudioAndTimers();
     }
@@ -120,9 +136,6 @@ class _Sharing2State extends State<Sharing2> {
         });
       }
     });
-
-    // Note: the round's narration audio ('sharing.wav') is now played by
-    // SharingTutorialPrompt itself, as soon as it appears — not here.
   }
 
   void _handleTutorialClose() {
@@ -147,6 +160,7 @@ class _Sharing2State extends State<Sharing2> {
 
   @override
   void dispose() {
+    disposeAiCamera();
     _cancelBtnTimer?.cancel();
     _audioPlayer.dispose();
 
@@ -158,12 +172,13 @@ class _Sharing2State extends State<Sharing2> {
     if (_hasGivenPancake && _hasGivenWater) {
       String currentCharKey = _sequence[_charIndex];
 
-      // 1. Make the character smile!
       setState(() {
         _currentMood = 'smiling';
       });
 
-      String audioPath = characterThankYouVoiceovers[currentCharKey] ?? 'audio/lumi_town/level5/share_yes.wav';
+      String audioPath =
+          characterThankYouVoiceovers[currentCharKey] ??
+          'audio/lumi_town/level5/share_yes.wav';
 
       await _audioPlayer.play(AssetSource(audioPath));
 
@@ -171,13 +186,12 @@ class _Sharing2State extends State<Sharing2> {
         if (!mounted) return;
 
         if (_charIndex < _sequence.length - 1) {
-          // Normal progression to the next character
           setState(() {
             _readyForEntrance = false;
             _charIndex++;
             _hasGivenPancake = false;
             _hasGivenWater = false;
-            _currentMood = 'normal'; // Reset mood for next character
+            _currentMood = 'normal';
           });
 
           Future.delayed(const Duration(milliseconds: 200), () {
@@ -187,28 +201,13 @@ class _Sharing2State extends State<Sharing2> {
             });
           });
         } else {
-          // End of the sequence reached (Dog was just fed).
           setState(() {
             _readyForEntrance = false;
           });
 
-          // Check if we saved enough food by denying the 2nd fox
           if (_secondFoxCanceled) {
-            // SUCCESS! Everyone gets a share.
-            setState(() {
-              _showAllCharactersSuccessUI = true;
-            });
-            _audioPlayer.play(
-              AssetSource('audio/sound_effects/shine.wav'), // TODO: @Tin change to good ending dialog
-            );
-            Future.delayed(const Duration(seconds: 2), () {
-              if (!mounted) return;
-              setState(() {
-                _showGoodJobOverlay = true;
-              });
-            });
+            _saveDataAndShowWinDialog();
           } else {
-            // FAILURE! We fed the 2nd fox, so the bear gets nothing.
             setState(() {
               _showSadBearFailedUI = true;
             });
@@ -227,123 +226,80 @@ class _Sharing2State extends State<Sharing2> {
     }
   }
 
-  // Called when the cancel button is tapped
+  Future<void> _saveDataAndShowWinDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = [...widget.priorEmotions, ...stopAiCamera()];
+
+    TownDatabaseService.saveGameData(
+      gameId: 'lumi_town_sharing',
+      activityName: 'Sharing',
+      emotions: finalEmotions,
+      totalTaps: widget.tapTracker.totalTaps,
+      mistakes: widget.tapTracker.mistakeCount,
+      timePlayedSeconds: widget.tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+    TownProgressService.instance.markLevelComplete(5).catchError((e) {
+      debugPrint("Database Error marking level complete: $e");
+    });
+
+    if (mounted) {
+      setState(() {
+        _showAllCharactersSuccessUI = true;
+      });
+      _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _showGoodJobOverlay = true;
+          });
+        }
+      });
+    }
+  }
+
   void _handleCancel() {
-    // 1. If it's NOT the 2nd Fox (index 5), playing the cancel button is wrong!
     if (_charIndex != 5) {
+      widget.tapTracker.recordMistake();
       _audioPlayer.play(AssetSource('audio/lumi_town/level5/cancel_wrong.wav'));
-      return; // Stop here! Do not reset items or trigger character retry.
+      return;
     }
 
-    // 2. User correctly canceled the 2nd Fox!
     if (_charIndex == 5) {
+      widget.tapTracker.recordCorrectTap();
       setState(() {
-        _secondFoxCanceled = true; // Mark as successfully bypassed
-        _currentMood = 'sad'; // Make the fox sad
+        _secondFoxCanceled = true;
+        _currentMood = 'sad';
 
-        // --- NEW FIX ---
-        // Restore items to the table if they were accidentally dragged
         if (_hasGivenPancake) _pancakesLeft++;
         if (_hasGivenWater) _waterLeft++;
 
-        // Remove the items from the Fox's hands immediately
         _hasGivenPancake = false;
         _hasGivenWater = false;
-        // ---------------
       });
 
-      // Wait a moment so the user sees the sad fox, then move to the dog
       Future.delayed(const Duration(milliseconds: 1500), () {
         if (!mounted) return;
         setState(() {
           _readyForEntrance = false;
-          _charIndex++; // Move to the dog
-          _currentMood = 'normal'; // Reset mood for the dog
+          _charIndex++;
+          _currentMood = 'normal';
         });
 
         Future.delayed(const Duration(milliseconds: 300), () {
           if (!mounted) return;
           setState(() {
-            _readyForEntrance = true; // Bring the dog in
+            _readyForEntrance = true;
           });
         });
       });
-      return; // Stop the standard retry logic
+      return;
     }
   }
 
-  // Back-row character slot (dog / cat): positioned by horizontal fraction
-  // of the stack's width, filling the FULL height of the stack (top:0,
-  // bottom:0) so that FractionallySizedBox has a real height to size
-  // against. Bottom-anchored just like the front row, so it shares the same
-  // "ground" line — the only difference is it's taller and painted
-  // *underneath* the front row (declared earlier in the Stack), so the
-  // front-row characters naturally cover its lower body, exactly like the
-  // reference photo where the dog/cat peek in from behind the group instead
-  // of floating alone above a gap.
-
-  /*
-  Widget _backCharacterSlot(
-    String imagePath, {
-    required double leftFraction,
-    required double widthFraction,
-    required double heightFraction,
-    required double sw,
-    required int delayMs,
-  }) {
-    return Positioned(
-      top: 0,
-      bottom: 0,
-      left: sw * leftFraction,
-      width: sw * widthFraction,
-      child: FractionallySizedBox(
-        heightFactor: heightFraction,
-        alignment: Alignment.bottomCenter,
-        child: Image.asset(imagePath, fit: BoxFit.contain)
-            .animate(
-              onPlay: (c) => c.repeat(reverse: true),
-              delay: Duration(milliseconds: delayMs),
-            )
-            .moveY(
-              begin: 0,
-              end: -14,
-              duration: const Duration(milliseconds: 900),
-              curve: Curves.easeInOut,
-            ),
-      ),
-    );
-  }
-
-  // Front-row character slot: an Expanded column sized to heightFraction of
-  // the available row height, bottom-anchored, so characters line up like a
-  // real group photo with the bear standing tallest in the center.
-  Widget _frontCharacterSlot(
-    String imagePath, {
-    required double heightFraction,
-    required int delayMs,
-  }) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: FractionallySizedBox(
-          heightFactor: heightFraction,
-          alignment: Alignment.bottomCenter,
-          child: Image.asset(imagePath, fit: BoxFit.contain)
-              .animate(
-                onPlay: (c) => c.repeat(reverse: true),
-                delay: Duration(milliseconds: delayMs),
-              )
-              .moveY(
-                begin: 0,
-                end: -16,
-                duration: const Duration(milliseconds: 900),
-                curve: Curves.easeInOut,
-              ),
-        ),
-      ),
-    );
-  }
-*/
   Widget _positionedCharacter(
     String imagePath, {
     required double left,
@@ -362,7 +318,7 @@ class _Sharing2State extends State<Sharing2> {
           )
           .moveY(
             begin: 0,
-            end: -14, // Subtle bobbing animation
+            end: -14,
             duration: const Duration(milliseconds: 900),
             curve: Curves.easeInOut,
           ),
@@ -374,349 +330,452 @@ class _Sharing2State extends State<Sharing2> {
     final double sw = MediaQuery.of(context).size.width;
     final double sh = MediaQuery.of(context).size.height;
 
-    // ── Layout constants ──────────────────────────────────────────────────
     final double tableBottom = -sh * 0.60;
     final double tableWidth = sw;
 
-    // ── Pancake stack math (Left Side) ───────────────────────────────────
     final double plateWidth = sw * 0.26;
     final double pancakeWidth = sw * 0.20;
     final double stackBaseOffset = sh * 0.055;
     final double pancakeThickness = sh * 0.055;
 
-    // Seeded random for consistent jitter across state rebuilds
     final rng = math.Random(7);
     final List<double> jitterDx = List.generate(
-      10, // Max capacity
+      10,
       (_) => (rng.nextDouble() - 0.5) * pancakeWidth * 0.18,
     );
 
-    // ── Water glasses math (Right Side) ──────────────────────────────────
     final double glassWidth = sw * 0.075;
     final double glassSpacing = sw * 0.085;
     final double glassFrontRowOffset = sh * 0.04;
     final double glassBackRowOffset = sh * 0.12;
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // ── 1. Background ────────────────────────────────────────────
-          Image.asset(
-            'assets/images/backgrounds/bg_lumi_park.png',
-            fit: BoxFit.cover,
-            errorBuilder: (ctx, err, st) =>
-                Container(color: const Color(0xFF90D060)),
-          ),
-
-          // ── 2. Drag Target & Character Entrance ──────────────────────
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: DragTarget<String>(
-              onWillAcceptWithDetails: (details) {
-                if (details.data == 'pancake' && !_hasGivenPancake) return true;
-                if (details.data == 'water' && !_hasGivenWater) return true;
-                return false;
-              },
-              onAcceptWithDetails: (details) {
-                if (details.data == 'pancake') {
-                  setState(() {
-                    _pancakesLeft--;
-                    _hasGivenPancake = true;
-                  });
-                } else if (details.data == 'water') {
-                  setState(() {
-                    _waterLeft--;
-                    _hasGivenWater = true;
-                  });
-                }
-                _checkNextCharacter();
-              },
-              builder: (context, candidateData, rejectedData) {
-                return Center(
-                  child: Stack(
-                    alignment: Alignment.bottomCenter,
-                    clipBehavior: Clip.none,
-                    children: [
-                      // The Character — carries the plate (pancake) on its
-                      // right arm (screen-left, user's POV) and the water
-                      // glass on its left arm (screen-right, user's POV).
-                      if (_readyForEntrance)
-                        CharacterEntrance(
-                          key: ValueKey('$_charIndex-$_retryCount'),
-                          characterImagePath: currentCharacterImage,
-                          characterHeightFraction: 0.95,
-                          plateWidthFraction: 0.18,
-                          plateHeightFraction:
-                              0.24, // arm height, not cheek height
-                          plateOffsetXFraction:
-                              -0.55, // right arm — screen-left
-                          primaryItemOverlayImagePath: _hasGivenPancake
-                              ? 'assets/images/objects/lumi/pancke_maple_syrup_butter.png'
-                              : null,
-                          secondaryItemImagePath: _hasGivenWater
-                              ? 'assets/images/objects/lumi/water_glass.png'
-                              : null,
-                          secondaryItemWidthFraction: 0.10,
-                          // secondaryItemOffsetXFraction is left unset, so it
-                          secondaryItemOffsetXFraction: 0.40,
-                          // defaults to the mirror of plateOffsetXFraction:
-                          // left arm — screen-right.
-                          from: AxisDirection.right,
-                          walkDuration: const Duration(milliseconds: 3000),
-                          stepDuration: const Duration(milliseconds: 380),
-                        )
-                      else
-                        const SizedBox.shrink(),
-                    ],
-                  ),
-                );
-              },
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_lumi_park.png',
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, st) =>
+                  Container(color: const Color(0xFF90D060)),
             ),
-          ),
 
-          // ── 3. Table ───────────────────────────────────────────────
-          Positioned(
-            bottom: tableBottom,
-            left: 0,
-            right: 0,
-            child: IgnorePointer(
-              // IgnorePointer allows drops to pass through to the DragTarget
-              child: Image.asset(
-                'assets/images/objects/lumi/table.png',
-                width: tableWidth,
-                fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => Container(
-                  height: sh * 0.22,
-                  color: const Color(0xFFCD853F),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: DragTarget<String>(
+                onWillAcceptWithDetails: (details) {
+                  if (details.data == 'pancake' && !_hasGivenPancake)
+                    return true;
+                  if (details.data == 'water' && !_hasGivenWater) return true;
+                  return false;
+                },
+                onAcceptWithDetails: (details) {
+                  widget.tapTracker.recordCorrectTap();
+                  if (details.data == 'pancake') {
+                    setState(() {
+                      _pancakesLeft--;
+                      _hasGivenPancake = true;
+                    });
+                  } else if (details.data == 'water') {
+                    setState(() {
+                      _waterLeft--;
+                      _hasGivenWater = true;
+                    });
+                  }
+                  _checkNextCharacter();
+                },
+                builder: (context, candidateData, rejectedData) {
+                  return Center(
+                    child: Stack(
+                      alignment: Alignment.bottomCenter,
+                      clipBehavior: Clip.none,
+                      children: [
+                        if (_readyForEntrance)
+                          CharacterEntrance(
+                            key: ValueKey('$_charIndex-$_retryCount'),
+                            characterImagePath: currentCharacterImage,
+                            characterHeightFraction: 0.95,
+                            plateWidthFraction: 0.18,
+                            plateHeightFraction: 0.24,
+                            plateOffsetXFraction: -0.55,
+                            primaryItemOverlayImagePath: _hasGivenPancake
+                                ? 'assets/images/objects/lumi/pancke_maple_syrup_butter.png'
+                                : null,
+                            secondaryItemImagePath: _hasGivenWater
+                                ? 'assets/images/objects/lumi/water_glass.png'
+                                : null,
+                            secondaryItemWidthFraction: 0.10,
+                            secondaryItemOffsetXFraction: 0.40,
+                            from: AxisDirection.right,
+                            walkDuration: const Duration(milliseconds: 3000),
+                            stepDuration: const Duration(milliseconds: 380),
+                          )
+                        else
+                          const SizedBox.shrink(),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            Positioned(
+              bottom: tableBottom,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Image.asset(
+                  'assets/images/objects/lumi/table.png',
+                  width: tableWidth,
+                  fit: BoxFit.contain,
+                  errorBuilder: (ctx, err, st) => Container(
+                    height: sh * 0.22,
+                    color: const Color(0xFFCD853F),
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // ── 4. Pancake stack (Left side) ───────────────────────────
-          Positioned(
-            bottom: stackBaseOffset,
-            left: sw * 0.08,
-            child: SizedBox(
-              width: plateWidth,
-              height: sh * 1.1,
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                clipBehavior: Clip.none,
-                children: [
-                  // Plate
-                  Positioned(
-                    bottom: 0,
-                    child: Image.asset(
-                      'assets/images/objects/lumi/plate.png',
-                      width: plateWidth,
-                      errorBuilder: (ctx, err, st) => Container(
-                        width: plateWidth,
-                        height: 14,
-                        decoration: BoxDecoration(color: Colors.white),
-                      ),
-                    ),
-                  ),
-
-                  // Dynamic Pancake Stack
-                  ...List.generate(_pancakesLeft, (index) {
-                    final dx = jitterDx[index];
-                    final isTop =
-                        index ==
-                        _pancakesLeft -
-                            1; // Ensures butter/syrup is always on top
-
-                    final pancakeWidget = Image.asset(
-                      isTop
-                          ? 'assets/images/objects/lumi/pancke_maple_syrup_butter.png'
-                          : 'assets/images/objects/lumi/pancake.png',
-                      width: pancakeWidth,
-                    );
-
-                    final positionedPancake = Positioned(
-                      bottom: stackBaseOffset + (index * pancakeThickness),
-                      left: plateWidth / 2 - pancakeWidth / 2 + dx,
-                      child: isTop
-                          ? Draggable<String>(
-                              data: 'pancake',
-                              feedback: Material(
-                                color: Colors.transparent,
-                                child: pancakeWidget,
-                              ),
-                              childWhenDragging: Opacity(
-                                opacity: 0.3,
-                                child: pancakeWidget,
-                              ),
-                              child: pancakeWidget,
-                            )
-                          : pancakeWidget,
-                    );
-                    return positionedPancake;
-                  }),
-                ],
-              ),
-            ),
-          ),
-
-          // ── 5. Water Glasses Cluster (Right side) ──────────────────
-          Positioned(
-            bottom: 0,
-            right: sw * 0.05,
-            child: SizedBox(
-              width: sw * 0.40,
-              height: sh * 0.45,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  ...List.generate(7, (index) {
-                    // Hide glasses dynamically as they are given away
-                    if (index >= _waterLeft) return const SizedBox.shrink();
-
-                    bool isFrontRow = index >= 4;
-                    int rowIdx = isFrontRow ? index - 4 : index;
-                    double bottom = isFrontRow
-                        ? glassFrontRowOffset
-                        : glassBackRowOffset;
-                    double left = isFrontRow
-                        ? (glassSpacing / 2) + (rowIdx * glassSpacing)
-                        : rowIdx * glassSpacing;
-
-                    final glassWidget = Image.asset(
-                      'assets/images/objects/lumi/water_glass.png',
-                      width: glassWidth,
-                    );
-
-                    return Positioned(
-                      bottom: bottom,
-                      left: left,
-                      child: Draggable<String>(
-                        data: 'water',
-                        feedback: Material(
-                          color: Colors.transparent,
-                          child: glassWidget,
-                        ),
-                        childWhenDragging: Opacity(
-                          opacity: 0.3,
-                          child: glassWidget,
-                        ),
-                        child: glassWidget,
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ),
-
-          // ── 6. Cancel Button ─────────────────────────────────────────
-          if (_showCancelBtn)
             Positioned(
-              bottom: sh * 0.05,
-              right: sw * 0.02,
-              child: GestureDetector(
-                onTap: _handleCancel,
-                child:
-                    Image.asset(
-                          'assets/images/objects/lumi/cancel_btn.png',
-                          width: sw * 0.10,
-                          errorBuilder: (ctx, err, st) => Icon(
-                            Icons.cancel,
-                            color: Colors.red,
-                            size: sw * 0.10,
-                          ),
-                        )
-                        .animate(onPlay: (c) => c.repeat(reverse: true))
-                        .scale(
-                          begin: const Offset(1.0, 1.0),
-                          end: const Offset(1.06, 1.06),
-                          duration: const Duration(milliseconds: 800),
-                          curve: Curves.easeInOut,
-                        )
-                        .animate()
-                        .scale(
-                          begin: const Offset(0.0, 0.0),
-                          end: const Offset(1.0, 1.0),
-                          duration: const Duration(milliseconds: 600),
-                          curve: Curves.elasticOut,
-                        ),
-              ),
-            ),
-
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-
-          // ── 8. "How to Play" Tutorial Overlay ─────────────────────────
-          // Sits above everything else so it's the first thing the player
-          // sees; closing it starts the round's own audio/timers.
-          if (_showTutorial)
-            Positioned.fill(
-              child: SharingTutorialPrompt(onClose: _handleTutorialClose),
-            ),
-          // ── 9. Sad Bear Failure UI (Ran out of food) ─────────────────
-          if (_showSadBearFailedUI)
-            Positioned.fill(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 1. Background Park
-                  Image.asset(
-                    'assets/images/backgrounds/bg_lumi_park.png',
-                    fit: BoxFit.cover,
-                  ),
-
-                  // 2. Sad Bear — big and close, same "half body" framing as
-                  // the bear in Sharing1 (tall image, bottom-anchored, so
-                  // the top of the screen crops him instead of shrinking him).
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Image.asset(
-                        'assets/images/characters/bear_sad.png', // Change to .jpg if needed
-                        height: sh * 0.95,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-
-                  // 3. Table in the foreground
-                  Positioned(
-                    bottom: tableBottom,
-                    left: 0,
-                    right: 0,
-                    child: Image.asset(
-                      'assets/images/objects/lumi/table.png',
-                      width: tableWidth,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-
-                  // 4. Empty Plate centered on the table
-                  Positioned(
-                    bottom: stackBaseOffset,
-                    left: 0,
-                    right: 0,
-                    child: Center(
+              bottom: stackBaseOffset,
+              left: sw * 0.08,
+              child: SizedBox(
+                width: plateWidth,
+                height: sh * 1.1,
+                child: Stack(
+                  alignment: Alignment.bottomCenter,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      bottom: 0,
                       child: Image.asset(
                         'assets/images/objects/lumi/plate.png',
                         width: plateWidth,
+                        errorBuilder: (ctx, err, st) => Container(
+                          width: plateWidth,
+                          height: 14,
+                          decoration: BoxDecoration(color: Colors.white),
+                        ),
                       ),
                     ),
-                  ),
 
-                  // 5. Try Again Button (Appears ONLY after audio finishes)
-                  if (_showTryAgainButton)
-                    Positioned.fill(
-                      child: TryJobOverlay(
-                        characterImage: 'assets/images/characters/tr.woo_smiling.png',
+                    ...List.generate(_pancakesLeft, (index) {
+                      final dx = jitterDx[index];
+                      final isTop = index == _pancakesLeft - 1;
+
+                      final pancakeWidget = Image.asset(
+                        isTop
+                            ? 'assets/images/objects/lumi/pancke_maple_syrup_butter.png'
+                            : 'assets/images/objects/lumi/pancake.png',
+                        width: pancakeWidth,
+                      );
+
+                      final positionedPancake = Positioned(
+                        bottom: stackBaseOffset + (index * pancakeThickness),
+                        left: plateWidth / 2 - pancakeWidth / 2 + dx,
+                        child: isTop
+                            ? Draggable<String>(
+                                data: 'pancake',
+                                onDragEnd: (details) {
+                                  if (!details.wasAccepted) {
+                                    widget.tapTracker.recordMistake();
+                                  }
+                                },
+                                feedback: Material(
+                                  color: Colors.transparent,
+                                  child: pancakeWidget,
+                                ),
+                                childWhenDragging: Opacity(
+                                  opacity: 0.3,
+                                  child: pancakeWidget,
+                                ),
+                                child: pancakeWidget,
+                              )
+                            : pancakeWidget,
+                      );
+                      return positionedPancake;
+                    }),
+                  ],
+                ),
+              ),
+            ),
+
+            Positioned(
+              bottom: 0,
+              right: sw * 0.05,
+              child: SizedBox(
+                width: sw * 0.40,
+                height: sh * 0.45,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ...List.generate(7, (index) {
+                      if (index >= _waterLeft) return const SizedBox.shrink();
+
+                      bool isFrontRow = index >= 4;
+                      int rowIdx = isFrontRow ? index - 4 : index;
+                      double bottom = isFrontRow
+                          ? glassFrontRowOffset
+                          : glassBackRowOffset;
+                      double left = isFrontRow
+                          ? (glassSpacing / 2) + (rowIdx * glassSpacing)
+                          : rowIdx * glassSpacing;
+
+                      final glassWidget = Image.asset(
+                        'assets/images/objects/lumi/water_glass.png',
+                        width: glassWidth,
+                      );
+
+                      return Positioned(
+                        bottom: bottom,
+                        left: left,
+                        child: Draggable<String>(
+                          data: 'water',
+                          onDragEnd: (details) {
+                            if (!details.wasAccepted) {
+                              widget.tapTracker.recordMistake();
+                            }
+                          },
+                          feedback: Material(
+                            color: Colors.transparent,
+                            child: glassWidget,
+                          ),
+                          childWhenDragging: Opacity(
+                            opacity: 0.3,
+                            child: glassWidget,
+                          ),
+                          child: glassWidget,
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
+
+            if (_showCancelBtn)
+              Positioned(
+                bottom: sh * 0.05,
+                right: sw * 0.02,
+                child: GestureDetector(
+                  onTap: _handleCancel,
+                  child:
+                      Image.asset(
+                            'assets/images/objects/lumi/cancel_btn.png',
+                            width: sw * 0.10,
+                            errorBuilder: (ctx, err, st) => Icon(
+                              Icons.cancel,
+                              color: Colors.red,
+                              size: sw * 0.10,
+                            ),
+                          )
+                          .animate(onPlay: (c) => c.repeat(reverse: true))
+                          .scale(
+                            begin: const Offset(1.0, 1.0),
+                            end: const Offset(1.06, 1.06),
+                            duration: const Duration(milliseconds: 800),
+                            curve: Curves.easeInOut,
+                          )
+                          .animate()
+                          .scale(
+                            begin: const Offset(0.0, 0.0),
+                            end: const Offset(1.0, 1.0),
+                            duration: const Duration(milliseconds: 600),
+                            curve: Curves.elasticOut,
+                          ),
+                ),
+              ),
+
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_showTutorial)
+              Positioned.fill(
+                child: SharingTutorialPrompt(onClose: _handleTutorialClose),
+              ),
+
+            if (_showSadBearFailedUI)
+              Positioned.fill(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(
+                      'assets/images/backgrounds/bg_lumi_park.png',
+                      fit: BoxFit.cover,
+                    ),
+
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Image.asset(
+                          'assets/images/characters/bear_sad.png',
+                          height: sh * 0.95,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+
+                    Positioned(
+                      bottom: tableBottom,
+                      left: 0,
+                      right: 0,
+                      child: Image.asset(
+                        'assets/images/objects/lumi/table.png',
+                        width: tableWidth,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+
+                    Positioned(
+                      bottom: stackBaseOffset,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Image.asset(
+                          'assets/images/objects/lumi/plate.png',
+                          width: plateWidth,
+                        ),
+                      ),
+                    ),
+
+                    if (_showTryAgainButton)
+                      Positioned.fill(
+                        child: TryJobOverlay(
+                          characterImage:
+                              'assets/images/characters/tr.woo_smiling.png',
+                          onRestart: () {
+                            setState(() {
+                              _showSadBearFailedUI = false;
+                              _showTryAgainButton = false;
+                              _charIndex = 0;
+                              _pancakesLeft = 7;
+                              _waterLeft = 7;
+                              _hasGivenPancake = false;
+                              _hasGivenWater = false;
+                              _readyForEntrance = true;
+                              _secondFoxCanceled = false;
+                              _currentMood = 'normal';
+
+                              // Reset the tracking session
+                              _hasSavedResult = false;
+                              widget.tapTracker.startSession();
+                            });
+                          },
+                          onBack: () {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (_) => const LumiLevelScreen(),
+                              ),
+                              (route) => route.isFirst,
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+            if (_showAllCharactersSuccessUI)
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Container(
+                      decoration: const BoxDecoration(
+                        image: DecorationImage(
+                          image: AssetImage(
+                            'assets/images/backgrounds/bg_lumi_park.png',
+                          ),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      child: Stack(
+                        clipBehavior: Clip.hardEdge,
+                        alignment: Alignment.bottomCenter,
+                        children: [
+                          _positionedCharacter(
+                            charactersSmiling['dog']!,
+                            left: -sw * 0.02,
+                            bottom: -sh * 0.15,
+                            width: sw * 0.38,
+                            delayMs: 0,
+                          ),
+                          _positionedCharacter(
+                            charactersSmiling['cat']!,
+                            left: sw * 0.62,
+                            bottom: -sh * 0.12,
+                            width: sw * 0.40,
+                            delayMs: 150,
+                          ),
+
+                          _positionedCharacter(
+                            charactersSmiling['bunny']!,
+                            left: -sw * 0.01,
+                            bottom: -sh * 0.22,
+                            width: sw * 0.26,
+                            delayMs: 300,
+                          ),
+                          _positionedCharacter(
+                            charactersSmiling['penguin']!,
+                            left: sw * 0.18,
+                            bottom: -sh * 0.20,
+                            width: sw * 0.26,
+                            delayMs: 450,
+                          ),
+                          _positionedCharacter(
+                            charactersSmiling['owl']!,
+                            left: sw * 0.55,
+                            bottom: -sh * 0.18,
+                            width: sw * 0.28,
+                            delayMs: 750,
+                          ),
+                          _positionedCharacter(
+                            charactersSmiling['fox']!,
+                            left: sw * 0.74,
+                            bottom: -sh * 0.20,
+                            width: sw * 0.28,
+                            delayMs: 900,
+                          ),
+
+                          _positionedCharacter(
+                            'assets/images/characters/little_bear_uniform.png',
+                            left: sw * 0.33,
+                            bottom: -sh * 0.28,
+                            width: sw * 0.35,
+                            delayMs: 600,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    if (_showGoodJobOverlay)
+                      GoodJobOverlay(
+                        characterImage:
+                            'assets/images/characters/tr.woo_smiling.png',
+
+                        onNext: () {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (context) => const EmotionStarsScreen(),
+                            ),
+                          );
+                        },
                         onRestart: () {
-                          // Reset the game completely
                           setState(() {
-                            _showSadBearFailedUI = false;
-                            _showTryAgainButton = false;
+                            _showAllCharactersSuccessUI = false;
+                            _showGoodJobOverlay = false;
                             _charIndex = 0;
                             _pancakesLeft = 7;
                             _waterLeft = 7;
@@ -725,144 +784,29 @@ class _Sharing2State extends State<Sharing2> {
                             _readyForEntrance = true;
                             _secondFoxCanceled = false;
                             _currentMood = 'normal';
+
+                            // Reset the tracking session
+                            _hasSavedResult = false;
+                            widget.tapTracker.startSession();
                           });
                         },
                         onBack: () {
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (_) => const LumiLevelScreen(),
-                            ),
-                                (route) => route.isFirst,
-                          );
+                          if (mounted) {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (_) => const LumiLevelScreen(),
+                              ),
+                              (route) => route.isFirst,
+                            );
+                          }
                         },
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-
-          // ── 10. Success UI (Canceled the 2nd Fox) ──────────────────────
-          if (_showAllCharactersSuccessUI)
-            Positioned.fill(
-              child: Stack(
-                children: [
-                  // Layer 1: Background and the Cropped Group Photo
-                  Container(
-                    decoration: const BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage(
-                          'assets/images/backgrounds/bg_lumi_park.png',
-                        ),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    child: Stack(
-                      clipBehavior: Clip.hardEdge,
-                      alignment: Alignment.bottomCenter,
-                      children: [
-                        // ── Back Row ──
-                        _positionedCharacter(
-                          charactersSmiling['dog']!,
-                          left: -sw * 0.02,
-                          bottom: -sh * 0.15,
-                          width: sw * 0.38,
-                          delayMs: 0,
-                        ),
-                        _positionedCharacter(
-                          charactersSmiling['cat']!,
-                          left: sw * 0.62,
-                          bottom: -sh * 0.12,
-                          width: sw * 0.40,
-                          delayMs: 150,
-                        ),
-
-                        // ── Mid/Front Row ──
-                        _positionedCharacter(
-                          charactersSmiling['bunny']!,
-                          left: -sw * 0.01,
-                          bottom: -sh * 0.22,
-                          width: sw * 0.26,
-                          delayMs: 300,
-                        ),
-                        _positionedCharacter(
-                          charactersSmiling['penguin']!,
-                          left: sw * 0.18,
-                          bottom: -sh * 0.20,
-                          width: sw * 0.26,
-                          delayMs: 450,
-                        ),
-                        _positionedCharacter(
-                          charactersSmiling['owl']!,
-                          left: sw * 0.55,
-                          bottom: -sh * 0.18,
-                          width: sw * 0.28,
-                          delayMs: 750,
-                        ),
-                        _positionedCharacter(
-                          charactersSmiling['fox']!,
-                          left: sw * 0.74,
-                          bottom: -sh * 0.20,
-                          width: sw * 0.28,
-                          delayMs: 900,
-                        ),
-
-                        // ── Front Center ──
-                        _positionedCharacter(
-                          'assets/images/characters/little_bear_uniform.png',
-                          left: sw * 0.33,
-                          bottom: -sh * 0.28,
-                          width: sw * 0.35,
-                          delayMs: 600,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Layer 2: The Good Job Overlay (Delayed)
-                  if (_showGoodJobOverlay)
-                    GoodJobOverlay(
-                      characterImage:
-                          'assets/images/characters/tr.woo_smiling.png',
-                      
-                      onNext: () async {
-                        await TownProgressService.instance.markLevelComplete(5);
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (context) => const EmotionStarsScreen(),
-                          ),
-                        );
-                      },
-                      onRestart: () {
-                        setState(() {
-                          _showAllCharactersSuccessUI = false;
-                          _showGoodJobOverlay = false;
-                          _charIndex = 0;
-                          _pancakesLeft = 7;
-                          _waterLeft = 7;
-                          _hasGivenPancake = false;
-                          _hasGivenWater = false;
-                          _readyForEntrance = true;
-                          _secondFoxCanceled = false;
-                          _currentMood = 'normal';
-                        });
-                      },
-                      onBack: () async {
-                        await TownProgressService.instance.markLevelComplete(5);
-                        if (mounted) {
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (_) => const LumiLevelScreen(),
-                            ),
-                            (route) => route.isFirst,
-                          );
-                        }
-                      },
-                    ),
-                ],
-              ),
-            ),
-        ], // <-- This closes the main Stack's children array
-      ), // <-- This closes the main Stack
-    ); // <-- This closes the Scaffold
+          ],
+        ),
+      ),
+    );
   }
 }

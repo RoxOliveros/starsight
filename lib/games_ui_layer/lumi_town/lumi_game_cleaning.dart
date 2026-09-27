@@ -10,9 +10,16 @@ import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_dont_talk_to_strangers.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
+
 const String _introBg = 'assets/images/backgrounds/mama_little_bear_scene.png';
 const String _gameBg = 'assets/images/backgrounds/bg_sky.png';
-const String _completeBg = 'assets/images/backgrounds/mama_little_bear_happy_cleaning.png';
+const String _completeBg =
+    'assets/images/backgrounds/mama_little_bear_happy_cleaning.png';
 const String _teacherWooImage = 'assets/images/characters/tr.woo_the_owl.png';
 
 const String _audioBase = 'assets/audio/lumi_town/';
@@ -34,7 +41,14 @@ const String _sprayWipeAsset = '${_sceneImageBase}spray_wipe.png';
 // MODEL
 // ============================================================================
 
-enum CleaningMaterial { sponge, duster, mopBucket, broomDustpan, basket, sprayWipe }
+enum CleaningMaterial {
+  sponge,
+  duster,
+  mopBucket,
+  broomDustpan,
+  basket,
+  sprayWipe,
+}
 
 extension CleaningMaterialAsset on CleaningMaterial {
   String get asset {
@@ -178,7 +192,9 @@ class CleaningGameScreen extends StatefulWidget {
 }
 
 class _CleaningGameScreenState extends State<CleaningGameScreen>
-    with TrWooReactionMixin<CleaningGameScreen> {
+    with
+        TrWooReactionMixin<CleaningGameScreen>,
+        AiCameraMixin<CleaningGameScreen> {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio -----------------------------------------------------------
@@ -201,12 +217,24 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
   bool _isLoading = true;
   bool _gameComplete = false;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   CleaningScenarioModel get _current => _queue[_currentIndex];
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _queue = _shuffledScenarios();
     _currentChoiceOrder = _shuffledChoices(_queue[_currentIndex]);
@@ -232,6 +260,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _narrationPlayer.dispose();
     _completePlayer.dispose();
     _drWooPlayer.dispose();
@@ -357,6 +386,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     final bool isCorrect = picked == _current.correctMaterial;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap();
       await showTrWooReaction(TrWooState.correct);
       if (!mounted) return;
 
@@ -371,6 +401,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
         await _beginScenario(_currentIndex + 1);
       }
     } else {
+      _tapTracker.recordMistake();
       await _playAndWait(_narrationPlayer, _wrongAudio);
       if (!mounted) return;
 
@@ -390,7 +421,27 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
 
     setState(() => _phase = CleaningSequencePhase.complete);
 
-    TownProgressService.instance.markLevelComplete(widget.level);
+    if (!_hasSavedResult) {
+      _hasSavedResult = true;
+      List<String> finalEmotions = stopAiCamera();
+
+      TownDatabaseService.saveGameData(
+        gameId: 'lumi_town_cleaning',
+        activityName: 'Cleaning Room',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      ).catchError((e) {
+        debugPrint("Database Error saving metrics: $e");
+      });
+    }
+
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
 
     unawaited(showTrWooReaction(TrWooState.correct));
     if (!mounted) return;
@@ -415,6 +466,9 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       _gameComplete = false;
       _phase = CleaningSequencePhase.game;
       _inputEnabled = false;
+
+      _hasSavedResult = false;
+      _tapTracker.startSession();
     });
 
     await _beginScenario(0);
@@ -437,83 +491,93 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     }
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              _phase == CleaningSequencePhase.complete
-                  ? _completeBg
-                  : (_phase == CleaningSequencePhase.intro ||
-                  _phase == CleaningSequencePhase.instruction)
-                  ? _introBg
-                  : _gameBg,
-              fit: BoxFit.cover,
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                _phase == CleaningSequencePhase.complete
+                    ? _completeBg
+                    : (_phase == CleaningSequencePhase.intro ||
+                          _phase == CleaningSequencePhase.instruction)
+                    ? _introBg
+                    : _gameBg,
+                fit: BoxFit.cover,
+              ),
             ),
-          ),
 
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final height = constraints.maxHeight;
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final height = constraints.maxHeight;
 
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (_phase == CleaningSequencePhase.instruction)
-                    Positioned(
-                      right: width * 0.04,
-                      top: 0,
-                      bottom: 0,
-                      width: width * 0.18,
-                      child: const _ScrollingMaterialsPreview(),
-                    ),
-
-                  if (_phase == CleaningSequencePhase.game)
-                    Positioned(
-                      left: width * 0.15,
-                      right: width * 0.08 ,
-                      top: height * 0.15,
-                      bottom: height * 0.06,
-                      child: _CleaningRound(
-                        scenario: _current,
-                        showClean: _showClean,
-                        choiceOrder: _currentChoiceOrder,
-                        inputEnabled: _inputEnabled && !_checkingAnswer,
-                        onSelect: _onAnswer,
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (_phase == CleaningSequencePhase.instruction)
+                      Positioned(
+                        right: width * 0.04,
+                        top: 0,
+                        bottom: 0,
+                        width: width * 0.18,
+                        child: const _ScrollingMaterialsPreview(),
                       ),
-                    ),
-                ],
-              );
-            },
-          ),
 
-          if (_phase == CleaningSequencePhase.game)
-            Positioned(
-              left: 0,
-              bottom: 0,
-              width: 250,
-              child: buildTrWooContent(context),
-            ),
-
-          // Back button.
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-
-          // Completion overlay.
-          if (_gameComplete)
-            GoodJobOverlay(
-              characterImage: _teacherWooImage,
-              onNext: () async {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => DontTalkToStrangersGame(level: widget.level + 1),
-                  ),
+                    if (_phase == CleaningSequencePhase.game)
+                      Positioned(
+                        left: width * 0.15,
+                        right: width * 0.08,
+                        top: height * 0.15,
+                        bottom: height * 0.06,
+                        child: _CleaningRound(
+                          scenario: _current,
+                          showClean: _showClean,
+                          choiceOrder: _currentChoiceOrder,
+                          inputEnabled: _inputEnabled && !_checkingAnswer,
+                          onSelect: _onAnswer,
+                        ),
+                      ),
+                  ],
                 );
               },
-              onRestart: _restartGame,
-              onBack: _goBack,
             ),
-        ],
+
+            if (_phase == CleaningSequencePhase.game)
+              Positioned(
+                left: 0,
+                bottom: 0,
+                width: 250,
+                child: buildTrWooContent(context),
+              ),
+
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_gameComplete)
+              GoodJobOverlay(
+                characterImage: _teacherWooImage,
+                onNext: () async {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          DontTalkToStrangersGame(level: widget.level + 1),
+                    ),
+                  );
+                },
+                onRestart: _restartGame,
+                onBack: _goBack,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -543,13 +607,11 @@ class _CleaningRound extends StatelessWidget {
         final spacing = (constraints.maxHeight * 0.03);
         final totalSpacing = spacing * (count - 1);
 
-        // Card size is capped by whichever is tighter: the width budget for
-        // the choice column, or the height left once spacing is subtracted.
         final maxCardWidth = constraints.maxWidth * 0.16;
         final maxCardHeightFit = (constraints.maxHeight - totalSpacing) / count;
         final cardSize =
-        (maxCardWidth < maxCardHeightFit ? maxCardWidth : maxCardHeightFit)
-            .clamp(60.0, 130.0);
+            (maxCardWidth < maxCardHeightFit ? maxCardWidth : maxCardHeightFit)
+                .clamp(60.0, 130.0);
 
         return Row(
           children: [
@@ -559,7 +621,11 @@ class _CleaningRound extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Color(0xFFfe9322), width: 8),
                   boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, 4)),
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 15,
+                      offset: Offset(0, 4),
+                    ),
                   ],
                 ),
                 child: ClipRRect(
@@ -568,7 +634,9 @@ class _CleaningRound extends StatelessWidget {
                     duration: const Duration(milliseconds: 400),
                     child: Image.asset(
                       showClean ? scenario.cleanScene : scenario.dirtyScene,
-                      key: ValueKey(showClean ? scenario.cleanScene : scenario.dirtyScene),
+                      key: ValueKey(
+                        showClean ? scenario.cleanScene : scenario.dirtyScene,
+                      ),
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
@@ -656,7 +724,11 @@ class _MaterialAnswerCardState extends State<_MaterialAnswerCard> {
                 width: (widget.size * 0.045).clamp(3.0, 6.0),
               ),
               boxShadow: const [
-                BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 3)),
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
               ],
             ),
             child: Image.asset(widget.material.asset, fit: BoxFit.contain),
@@ -671,7 +743,8 @@ class _ScrollingMaterialsPreview extends StatefulWidget {
   const _ScrollingMaterialsPreview();
 
   @override
-  State<_ScrollingMaterialsPreview> createState() => _ScrollingMaterialsPreviewState();
+  State<_ScrollingMaterialsPreview> createState() =>
+      _ScrollingMaterialsPreviewState();
 }
 
 class _ScrollingMaterialsPreviewState extends State<_ScrollingMaterialsPreview>
@@ -682,8 +755,10 @@ class _ScrollingMaterialsPreviewState extends State<_ScrollingMaterialsPreview>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 8))
-      ..repeat();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
   }
 
   @override
@@ -712,7 +787,6 @@ class _ScrollingMaterialsPreviewState extends State<_ScrollingMaterialsPreview>
                     left: 0,
                     right: 0,
                     top: -offset,
-                    // Two copies back-to-back so the scroll loops seamlessly.
                     child: Column(
                       children: [
                         for (final m in [..._materials, ..._materials])
@@ -724,8 +798,13 @@ class _ScrollingMaterialsPreviewState extends State<_ScrollingMaterialsPreview>
                               padding: EdgeInsets.all(itemSize * 0.12),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(itemSize * 0.14),
-                                border: Border.all(color: const Color(0xFFf5dbb6), width: 4),
+                                borderRadius: BorderRadius.circular(
+                                  itemSize * 0.14,
+                                ),
+                                border: Border.all(
+                                  color: const Color(0xFFf5dbb6),
+                                  width: 4,
+                                ),
                               ),
                               child: Image.asset(m.asset, fit: BoxFit.contain),
                             ),

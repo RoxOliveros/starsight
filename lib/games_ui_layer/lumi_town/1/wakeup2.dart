@@ -1,5 +1,10 @@
 import 'dart:io';
 import 'package:StarSight/business_layer/town_progress_service.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/1/wakeup1.dart';
 import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
@@ -13,20 +18,41 @@ import '../../goodjob_prompt.dart';
 import '../lvl2/bathroom_game_screen.dart';
 
 class Lumi2ValuesWakingup extends StatefulWidget {
-  const Lumi2ValuesWakingup({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Lumi2ValuesWakingup({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<Lumi2ValuesWakingup> createState() => _Lumi2ValuesWakingupState();
 }
 
-class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
+class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
+    with AiCameraMixin<Lumi2ValuesWakingup> {
   bool _showNext = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _showGoodJob = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   @override
   void initState() {
     super.initState();
+
+    // Continues the same Level 1 session wakeup1 started - starts
+    // immediately, never waits for a face.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _playAlarm();
     Future.delayed(const Duration(seconds: 9), () async {
       if (mounted) {
@@ -62,54 +88,95 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup> {
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveDataAndMarkComplete() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final List<String> finalEmotions = [
+      ...widget.priorEmotions,
+      ...stopAiCamera(),
+    ];
+
+    TownDatabaseService.saveGameData(
+      gameId: 'lumi_town_wakeup',
+      activityName: 'Wake Up',
+      emotions: finalEmotions,
+      totalTaps: widget.tapTracker.totalTaps,
+      mistakes: widget.tapTracker.mistakeCount,
+      timePlayedSeconds: widget.tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    TownProgressService.instance.markLevelComplete(1).catchError((e) {
+      debugPrint("Database Error marking level complete: $e");
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 800),
-            child: _showNext ? _buildNext() : _buildAwake(),
-          ),
-          if (_showGoodJob)
-            GoodJobOverlay(
-              characterImage: 'assets/images/characters/tr.woo_the_owl.png',
-              
-              onNext: () async {
-                // Unlock level 2!
-                await TownProgressService.instance.markLevelComplete(1);
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: Stack(
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 800),
+              child: _showNext ? _buildNext() : _buildAwake(),
+            ),
 
-                if (mounted) {
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_showGoodJob)
+              GoodJobOverlay(
+                characterImage: 'assets/images/characters/tr.woo_the_owl.png',
+
+                onNext: () async {
+                  await _saveDataAndMarkComplete();
+
+                  if (mounted) {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (_) => const Lvl2BathroomGameScreen(),
+                      ),
+                    );
+                  }
+                },
+                onRestart: () {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (_) => const Lvl2BathroomGameScreen(),
+                      builder: (_) => const Lumi1ValuesWakeup(),
                     ),
                   );
-                }
-              },
-              onRestart: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const Lumi1ValuesWakeup()),
-                );
-              },
-              onBack: () async {
-                // Unlock level 2 even after they tap the back btn
-                await TownProgressService.instance.markLevelComplete(1);
+                },
+                onBack: () async {
+                  // Unlock level 2 even after they tap the back btn
+                  await _saveDataAndMarkComplete();
 
-                if (mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-                    (route) => route.isFirst,
-                  );
-                }
-              },
-            ),
-        ],
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const LumiLevelScreen(),
+                      ),
+                      (route) => route.isFirst,
+                    );
+                  }
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

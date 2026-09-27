@@ -5,34 +5,41 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-// Adjust this import path to wherever your gesture_camera_view.dart is located
 import 'package:StarSight/business_layer/gesture_camera_view.dart';
-
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
-// Adjust this to wherever your next screen/level is located!
-// import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_4.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 enum _CameraGestureState { checking, granted, denied }
 
 class Sorry3Screen extends StatefulWidget {
-  const Sorry3Screen({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Sorry3Screen({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<Sorry3Screen> createState() => _Sorry3ScreenState();
 }
 
-class _Sorry3ScreenState extends State<Sorry3Screen> {
+class _Sorry3ScreenState extends State<Sorry3Screen>
+    with AiCameraMixin<Sorry3Screen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   StreamSubscription<Duration>? _positionSub;
 
-  // --- Story Sequence State ---
   bool _showScene4 = false;
   bool _introFinished = false;
   bool _actionTaken = false;
+  bool _hideLightingCard = false;
 
-  // --- Camera & Fallback State ---
   _CameraGestureState _cameraState = _CameraGestureState.checking;
   static const _noHandsTimeout = Duration(seconds: 8);
   Timer? _noHandsTimer;
@@ -43,14 +50,20 @@ class _Sorry3ScreenState extends State<Sorry3Screen> {
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _startStorySequence();
     _requestCameraPermission();
   }
 
-  /// Plays Scene 3 audio -> swaps to Scene 4 at 4s mark -> finishes audio -> plays Scene 4 audio -> enables interactive UI
   Future<void> _startStorySequence() async {
     try {
-      // 1. Listen to playback timestamp to trigger Scene 4 at exactly 4 seconds
       _positionSub = _audioPlayer.onPositionChanged.listen((position) {
         if (position >= const Duration(seconds: 4) && !_showScene4) {
           if (mounted) {
@@ -62,31 +75,26 @@ class _Sorry3ScreenState extends State<Sorry3Screen> {
         }
       });
 
-      // 2. Play sorry_2.wav (starts on Scene 3)
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level9/sorry_2.wav'),
       );
 
-      // Wait for sorry_2.wav to completely finish playing
       await _audioPlayer.onPlayerComplete.first;
       _positionSub?.cancel();
       if (!mounted) return;
 
-      // Safety check: ensure Scene 4 is visible even if the audio was shorter than 4 seconds
       if (!_showScene4) {
         setState(() {
           _showScene4 = true;
         });
       }
 
-      // 3. Play sorry_3.wav for Scene 4
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level9/sorry_3.wav'),
       );
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 
-      // 4. Enable gesture recognition or fallback buttons
       setState(() {
         _introFinished = true;
       });
@@ -135,38 +143,28 @@ class _Sorry3ScreenState extends State<Sorry3Screen> {
 
   @override
   void dispose() {
+    disposeAiCamera();
     _positionSub?.cancel();
     _audioPlayer.dispose();
     _noHandsTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _exitLevel() async {
-    Navigator.of(context).maybePop();
-  }
-
-  // ============================================================================
-  // UPDATED GESTURE & BUTTON ACTION HANDLERS
-  // ============================================================================
-
   Future<void> _handleThumbsUp() async {
     if (_actionTaken) return;
     _actionTaken = true;
+
+    widget.tapTracker.recordCorrectTap();
 
     _noHandsTimer?.cancel();
     _noHandsTimer = null;
     if (_showNoHandsPrompt) setState(() => _showNoHandsPrompt = false);
 
-    debugPrint('Thumbs Up Detected / Clicked! Playing sorry_4.wav...');
-
     try {
-      // 1. Stop any lingering audio and play the success sound
       await _audioPlayer.stop();
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level9/sorry_4.wav'),
       );
-
-      // 2. Wait for sorry_4.wav to finish playing before leaving the screen
       await _audioPlayer.onPlayerComplete.first;
     } catch (e) {
       debugPrint('Error playing sorry_4.wav: $e');
@@ -174,8 +172,15 @@ class _Sorry3ScreenState extends State<Sorry3Screen> {
 
     if (!mounted) return;
 
+    final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
+
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const Sorry4Screen()),
+      MaterialPageRoute(
+        builder: (context) => Sorry4Screen(
+          priorEmotions: emotionsSoFar,
+          tapTracker: widget.tapTracker,
+        ),
+      ),
     );
   }
 
@@ -183,20 +188,17 @@ class _Sorry3ScreenState extends State<Sorry3Screen> {
     if (_actionTaken) return;
     _actionTaken = true;
 
+    widget.tapTracker.recordMistake();
+
     _noHandsTimer?.cancel();
     _noHandsTimer = null;
     if (_showNoHandsPrompt) setState(() => _showNoHandsPrompt = false);
 
-    debugPrint('Thumbs Down Detected / Clicked! Playing try again audio...');
-
     try {
-      // 1. Stop any lingering audio and play Dr. Woo's try again sound
       await _audioPlayer.stop();
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/dr.woo_tryagain.wav'),
       );
-
-      // 2. Wait for Dr. Woo to finish speaking before letting them try again
       await _audioPlayer.onPlayerComplete.first;
     } catch (e) {
       debugPrint('Error playing dr.woo_tryagain.wav: $e');
@@ -204,16 +206,11 @@ class _Sorry3ScreenState extends State<Sorry3Screen> {
 
     if (!mounted) return;
 
-    // 3. Reset state so the user can try showing a gesture or clicking again
     setState(() {
       _actionTaken = false;
     });
     _ensureNoHandsWatcherStarted();
   }
-
-  // ============================================================================
-  // BUILD METHOD
-  // ============================================================================
 
   @override
   Widget build(BuildContext context) {
@@ -224,121 +221,123 @@ class _Sorry3ScreenState extends State<Sorry3Screen> {
     final double thumbBtnSize = sw * 0.135;
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Background Scene Image (Swaps seamlessly from Scene 3 to Scene 4 at 4s)
-          Image.asset(
-            _showScene4
-                ? 'assets/images/objects/lumi/lvl9_scene4.png'
-                : 'assets/images/objects/lumi/lvl9_scene3.png',
-            fit: BoxFit.cover,
-            errorBuilder: (ctx, err, st) => const Center(
-              child: Text(
-                'Scene asset could not be loaded.',
-                style: TextStyle(color: Colors.red, fontSize: 16),
-              ),
-            ),
-          ),
-
-          // 2. Camera Gesture Detection (Active once intro is finished)
-          if (_introFinished &&
-              _cameraState == _CameraGestureState.granted &&
-              !_forceButtonFallback) ...[
-            _HiddenGestureDetector(
-              onGesture: (result) {
-                _onAnyGestureDetected();
-                if (result.isThumbsUp) {
-                  _handleThumbsUp();
-                } else if (result.isThumbsDown) {
-                  _handleThumbsDown();
-                }
-              },
-              onMounted: _ensureNoHandsWatcherStarted,
-            ),
-
-            // Instruction Banner
-            Positioned(
-              bottom: sh * 0.10,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Text(
-                    'Show a thumbs up or thumbs down!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Fredoka',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Color(0xFF5E463E),
-                    ),
-                  ),
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              _showScene4
+                  ? 'assets/images/objects/lumi/lvl9_scene4.png'
+                  : 'assets/images/objects/lumi/lvl9_scene3.png',
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, st) => const Center(
+                child: Text(
+                  'Scene asset could not be loaded.',
+                  style: TextStyle(color: Colors.red, fontSize: 16),
                 ),
               ),
             ),
 
-            // Timeout Prompt ("We can't see your hands!")
-            if (_showNoHandsPrompt)
-              _NoHandsPrompt(onUseButtons: _switchToButtonFallback),
+            if (_introFinished &&
+                _cameraState == _CameraGestureState.granted &&
+                !_forceButtonFallback) ...[
+              _HiddenGestureDetector(
+                onGesture: (result) {
+                  _onAnyGestureDetected();
+                  if (result.isThumbsUp) {
+                    _handleThumbsUp();
+                  } else if (result.isThumbsDown) {
+                    _handleThumbsDown();
+                  }
+                },
+                onMounted: _ensureNoHandsWatcherStarted,
+              ),
 
-            // 3. Fallback Thumbs Up / Down Buttons (Shown if camera denied or fallback chosen)
-          ] else if (_introFinished &&
-              (_cameraState == _CameraGestureState.denied ||
-                  _forceButtonFallback)) ...[
-            Positioned(
-              bottom: sh * 0.10,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: _handleThumbsUp,
-                      child: _ThumbButton(
-                        imagePath: 'assets/images/objects/lumi/thumbs_up.png',
-                        backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-                        size: thumbBtnSize,
-                        iconSize: thumbSize,
-                        animDelay: Duration.zero,
+              Positioned(
+                bottom: sh * 0.10,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Text(
+                      'Show a thumbs up or thumbs down!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Fredoka',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Color(0xFF5E463E),
                       ),
                     ),
-                    SizedBox(width: sw * 0.04),
-                    GestureDetector(
-                      onTap: _handleThumbsDown,
-                      child: _ThumbButton(
-                        imagePath: 'assets/images/objects/lumi/thumbs_down.png',
-                        backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-                        size: thumbBtnSize,
-                        iconSize: thumbSize,
-                        animDelay: const Duration(milliseconds: 400),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+
+              if (_showNoHandsPrompt)
+                _NoHandsPrompt(onUseButtons: _switchToButtonFallback),
+            ] else if (_introFinished &&
+                (_cameraState == _CameraGestureState.denied ||
+                    _forceButtonFallback)) ...[
+              Positioned(
+                bottom: sh * 0.10,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: _handleThumbsUp,
+                        child: _ThumbButton(
+                          imagePath: 'assets/images/objects/lumi/thumbs_up.png',
+                          backgroundColor: const Color.fromARGB(0, 0, 0, 0),
+                          size: thumbBtnSize,
+                          iconSize: thumbSize,
+                          animDelay: Duration.zero,
+                        ),
+                      ),
+                      SizedBox(width: sw * 0.04),
+                      GestureDetector(
+                        onTap: _handleThumbsDown,
+                        child: _ThumbButton(
+                          imagePath:
+                              'assets/images/objects/lumi/thumbs_down.png',
+                          backgroundColor: const Color.fromARGB(0, 0, 0, 0),
+                          size: thumbBtnSize,
+                          iconSize: thumbSize,
+                          animDelay: const Duration(milliseconds: 400),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
           ],
-
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-        ],
+        ),
       ),
     );
   }
 }
-
-// ============================================================================
-// HELPER WIDGETS
-// ============================================================================
 
 class _HiddenGestureDetector extends StatefulWidget {
   final void Function(GestureResult result) onGesture;

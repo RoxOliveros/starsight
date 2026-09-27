@@ -24,6 +24,8 @@ import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl3/clean_bedroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl4_cooking/game_screen.dart';
 import '../loading_screen.dart';
+import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'lumi_buttons.dart';
 import 'lumi_theme.dart';
 
@@ -133,7 +135,10 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                                 final level = _page * 8 + i + 1;
 
                                 if (level > 20) {
-                                  return SizedBox(width: tileSize, height: tileSize);
+                                  return SizedBox(
+                                    width: tileSize,
+                                    height: tileSize,
+                                  );
                                 }
 
                                 return level <= _unlockedLevel
@@ -148,7 +153,10 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
                                 final level = _page * 8 + i + 5;
 
                                 if (level > 20) {
-                                  return SizedBox(width: tileSize, height: tileSize);
+                                  return SizedBox(
+                                    width: tileSize,
+                                    height: tileSize,
+                                  );
                                 }
 
                                 return level <= _unlockedLevel
@@ -281,6 +289,28 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
   }
 }
 
+String? _townCalibratedSessionId;
+
+/// Shows the camera calibration
+Future<void> _ensureTownCalibrated(BuildContext context) async {
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+  if (_townCalibratedSessionId == uid) return;
+  _townCalibratedSessionId = uid;
+
+  await Navigator.push(
+    context,
+
+    PageRouteBuilder(
+      opaque: false,
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          CalibrationScreen(
+            childSessionId: uid,
+            onCalibrationDone: () => Navigator.pop(context),
+          ),
+    ),
+  );
+}
+
 class _LevelTile extends StatelessWidget {
   final int level;
   final double size;
@@ -338,9 +368,11 @@ class _LevelTile extends StatelessWidget {
   Widget build(BuildContext context) {
     if (level > 20) return SizedBox(width: size, height: size);
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         final screen = _screenForLevel();
         if (screen == null) return;
+        await _ensureTownCalibrated(context);
+        if (!context.mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => screen),

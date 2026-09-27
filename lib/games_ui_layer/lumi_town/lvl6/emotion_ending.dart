@@ -6,40 +6,55 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
 
 class EmotionEndingScreen extends StatefulWidget {
-  const EmotionEndingScreen({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const EmotionEndingScreen({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<EmotionEndingScreen> createState() => _EmotionEndingScreenState();
 }
 
 class _EmotionEndingScreenState extends State<EmotionEndingScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AiCameraMixin<EmotionEndingScreen> {
   late AudioPlayer _audioPlayer;
 
-  // Animation controller for the continuous flicker effect
   late AnimationController _flickerController;
   late Animation<double> _flickerAnimation;
 
-  // State variables for interactivity
   bool _isAudioFinished = false;
   String? _selectedStarPath;
-  bool _showGoodJobOverlay = false; // Added state for the overlay
+  bool _showGoodJobOverlay = false;
 
-  // Tagalog
-  static const String _audioEnding = 'audio/lumi_town/level6/emotion_ending.wav';
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
-  // English
-  // static const String _audioEndingEng = 'audio/lumi_town/level6/emotion_ending_eng.wav';
+  static const String _audioEnding =
+      'audio/lumi_town/level6/emotion_ending.wav';
+
   @override
   void initState() {
     super.initState();
-
     OrientationService.setLandscape();
 
-    // Set up the continuous flicker animation
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _flickerController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -57,147 +72,174 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
     _audioPlayer.onPlayerComplete.listen((event) {
       if (mounted) {
         setState(() {
-          _isAudioFinished = true; // Unlock tapping
+          _isAudioFinished = true;
         });
       }
     });
 
-    await _audioPlayer.play(
-      AssetSource(_audioEnding),
-    );
+    await _audioPlayer.play(AssetSource(_audioEnding));
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _flickerController.dispose();
     _audioPlayer.dispose();
     super.dispose();
   }
 
+  Future<void> _saveDataAndMarkComplete() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = [...widget.priorEmotions, ...stopAiCamera()];
+
+    TownDatabaseService.saveGameData(
+      gameId: 'lumi_town_emotions',
+      activityName: 'Emotion Stars',
+      emotions: finalEmotions,
+      totalTaps: widget.tapTracker.totalTaps,
+      mistakes: widget.tapTracker.mistakeCount,
+      timePlayedSeconds: widget.tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    TownProgressService.instance.markLevelComplete(6).catchError((e) {
+      debugPrint("Database Error marking level complete: $e");
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final double screenWidth = constraints.maxWidth;
-          final double screenHeight = constraints.maxHeight;
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double screenWidth = constraints.maxWidth;
+            final double screenHeight = constraints.maxHeight;
 
-          // Original base size calculation
-          final double baseElementSize =
-              (screenWidth * 0.18 < screenHeight * 0.28)
-              ? screenWidth * 0.25
-              : screenHeight * 0.35;
+            final double baseElementSize =
+                (screenWidth * 0.18 < screenHeight * 0.28)
+                ? screenWidth * 0.25
+                : screenHeight * 0.35;
 
-          return Stack(
-            children: [
-              // 1. Background Layer
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/images/backgrounds/bg_game_emotion.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
-
-              // 2. Animated Stars Layer
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/scared.png',
-                baseElementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.15,
-                y: 0.65,
-                tiltDegrees: -8,
-              ),
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/happy.png',
-                baseElementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.25,
-                y: 0.25,
-                tiltDegrees: 8,
-              ),
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/disgust.png',
-                baseElementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.42,
-                y: 0.72,
-                tiltDegrees: -8,
-              ),
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/sad.png',
-                baseElementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.56,
-                y: 0.36,
-                tiltDegrees: -8,
-              ),
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/wow.png',
-                baseElementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.75,
-                y: 0.70,
-                tiltDegrees: 12,
-              ),
-              _buildResponsiveStar(
-                'assets/images/objects/lumi/angry.png',
-                baseElementSize,
-                screenWidth,
-                screenHeight,
-                x: 0.80,
-                y: 0.30,
-                tiltDegrees: -5,
-              ),
-
-              Positioned(top: 25, left: 25, child: LumiXButton()),
-
-              // 4. Good Job Overlay (Renders on top of everything if activated)
-              if (_showGoodJobOverlay && _selectedStarPath != null)
+            return Stack(
+              children: [
                 Positioned.fill(
-                  child: GoodJobOverlay(
-                    // Pass the tapped emotion image to the overlay character!
-                    characterImage: _selectedStarPath!,
-                    onNext: () async {
-                      await TownProgressService.instance.markLevelComplete(6);
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (context) => const LumiClassroomScreen(),
-                        ),
-                      );
-                    },
-                    onRestart: () {
-                      // Reset the selection so they can pick again
-                      setState(() {
-                        _selectedStarPath = null;
-                        _showGoodJobOverlay = false;
-                      });
-                    },
-                    onBack: () async {
-                      await TownProgressService.instance.markLevelComplete(5);
-                      if (mounted) {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(
-                            builder: (_) => const LumiLevelScreen(),
-                          ),
-                          (route) => route.isFirst,
-                        );
-                      }
-                    },
+                  child: Image.asset(
+                    'assets/images/backgrounds/bg_game_emotion.png',
+                    fit: BoxFit.cover,
                   ),
                 ),
-            ],
-          );
-        },
+
+                _buildResponsiveStar(
+                  'assets/images/objects/lumi/scared.png',
+                  baseElementSize,
+                  screenWidth,
+                  screenHeight,
+                  x: 0.15,
+                  y: 0.65,
+                  tiltDegrees: -8,
+                ),
+                _buildResponsiveStar(
+                  'assets/images/objects/lumi/happy.png',
+                  baseElementSize,
+                  screenWidth,
+                  screenHeight,
+                  x: 0.25,
+                  y: 0.25,
+                  tiltDegrees: 8,
+                ),
+                _buildResponsiveStar(
+                  'assets/images/objects/lumi/disgust.png',
+                  baseElementSize,
+                  screenWidth,
+                  screenHeight,
+                  x: 0.42,
+                  y: 0.72,
+                  tiltDegrees: -8,
+                ),
+                _buildResponsiveStar(
+                  'assets/images/objects/lumi/sad.png',
+                  baseElementSize,
+                  screenWidth,
+                  screenHeight,
+                  x: 0.56,
+                  y: 0.36,
+                  tiltDegrees: -8,
+                ),
+                _buildResponsiveStar(
+                  'assets/images/objects/lumi/wow.png',
+                  baseElementSize,
+                  screenWidth,
+                  screenHeight,
+                  x: 0.75,
+                  y: 0.70,
+                  tiltDegrees: 12,
+                ),
+                _buildResponsiveStar(
+                  'assets/images/objects/lumi/angry.png',
+                  baseElementSize,
+                  screenWidth,
+                  screenHeight,
+                  x: 0.80,
+                  y: 0.30,
+                  tiltDegrees: -5,
+                ),
+
+                Positioned(top: 25, left: 25, child: LumiXButton()),
+
+                if (hasCapturedFirstFrame &&
+                    !isFaceDetected &&
+                    !_hideLightingCard)
+                  LightingPromptCard(
+                    onClose: () {
+                      setState(() => _hideLightingCard = true);
+                      releaseFaceGate();
+                    },
+                  ),
+
+                if (_showGoodJobOverlay && _selectedStarPath != null)
+                  Positioned.fill(
+                    child: GoodJobOverlay(
+                      characterImage: _selectedStarPath!,
+                      onNext: () async {
+                        await _saveDataAndMarkComplete();
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => const LumiClassroomScreen(),
+                          ),
+                        );
+                      },
+                      onRestart: () {
+                        setState(() {
+                          _selectedStarPath = null;
+                          _showGoodJobOverlay = false;
+                        });
+                      },
+                      onBack: () async {
+                        await _saveDataAndMarkComplete();
+                        if (mounted) {
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (_) => const LumiLevelScreen(),
+                            ),
+                            (route) => route.isFirst,
+                          );
+                        }
+                      },
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  // Interactive Helper Widget
   Widget _buildResponsiveStar(
     String imagePath,
     double baseSize,
@@ -245,13 +287,15 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
           },
           child: GestureDetector(
             onTap: () {
-              // Lock tapping if audio isn't finished or overlay is already up
               if (_isAudioFinished && !_showGoodJobOverlay) {
+                if (!isSelected) {
+                  widget.tapTracker.recordCorrectTap();
+                }
+
                 setState(() {
                   _selectedStarPath = isSelected ? null : imagePath;
                 });
 
-                // Trigger GoodJobOverlay after the star finishes zooming to the center
                 if (!isSelected) {
                   Future.delayed(const Duration(milliseconds: 1000), () {
                     if (mounted && _selectedStarPath == imagePath) {

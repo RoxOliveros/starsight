@@ -6,15 +6,30 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 class Sorry6Screen extends StatefulWidget {
-  const Sorry6Screen({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Sorry6Screen({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<Sorry6Screen> createState() => _Sorry6ScreenState();
 }
 
-class _Sorry6ScreenState extends State<Sorry6Screen> {
+class _Sorry6ScreenState extends State<Sorry6Screen>
+    with AiCameraMixin<Sorry6Screen> {
   late final AudioPlayer _audioPlayer;
+
+  bool _hideLightingCard = false;
 
   @override
   void initState() {
@@ -22,26 +37,36 @@ class _Sorry6ScreenState extends State<Sorry6Screen> {
     _audioPlayer = AudioPlayer();
     OrientationService.setLandscape();
 
-    // Trigger sorry_7.wav right after the scene loads
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playSceneAudio();
     });
   }
 
-  /// Plays sorry_7.wav while the characters stand together in the classroom
   Future<void> _playSceneAudio() async {
     try {
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level9/sorry_7.wav'),
       );
 
-      // Wait for sorry_7.wav to finish playing
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 
-      // Navigate to the 6-piece Puzzle (Scene 7)
+      final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
+
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const Sorry7Screen()),
+        MaterialPageRoute(
+          builder: (context) => Sorry7Screen(
+            priorEmotions: emotionsSoFar,
+            tapTracker: widget.tapTracker,
+          ),
+        ),
       );
     } catch (e) {
       debugPrint('Error playing audio for sorry_6 screen: $e');
@@ -50,6 +75,7 @@ class _Sorry6ScreenState extends State<Sorry6Screen> {
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -59,75 +85,78 @@ class _Sorry6ScreenState extends State<Sorry6Screen> {
     final sw = MediaQuery.of(context).size.width;
     final baseCharacterHeight = MediaQuery.of(context).size.height * 1.18;
 
-    // Both characters scale proportionally to the classroom
     final characterHeight = baseCharacterHeight * 0.70;
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Background Layer
-          Image.asset(
-            'assets/images/backgrounds/bg_lumi_classroom.png',
-            fit: BoxFit.cover,
-            errorBuilder: (ctx, err, st) => const Center(
-              child: Text(
-                'Background could not be loaded.',
-                style: TextStyle(color: Colors.red),
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_lumi_classroom.png',
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, st) => const Center(
+                child: Text(
+                  'Background could not be loaded.',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
             ),
-          ),
 
-          // 2. Left Character: Little Bear (Standing statically on the left)
-          Positioned(
-            left: sw * 0.12,
-            bottom: -(baseCharacterHeight * 0.15),
-            child: SizedBox(
-              height: characterHeight,
-              child: Image.asset(
-                'assets/images/characters/littlebear_sad_tears.png',
-                fit: BoxFit.contain,
+            Positioned(
+              left: sw * 0.12,
+              bottom: -(baseCharacterHeight * 0.15),
+              child: SizedBox(
+                height: characterHeight,
+                child: Image.asset(
+                  'assets/images/characters/littlebear_sad_tears.png',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
-          ),
 
-          // 3. Right Character: Jack holding the Car (Standing statically on the right)
-          Positioned(
-            right:
-                sw *
-                0.12, // Placed directly on the right side without animation offsets
-            bottom: -(baseCharacterHeight * 0.15),
-            child: SizedBox(
-              height: characterHeight,
-              width: characterHeight * 0.85,
-              child: Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  // Layer A: Jack the Fox
-                  Image.asset(
-                    'assets/images/characters/jack_sad.png',
-                    height: characterHeight,
-                    fit: BoxFit.contain,
-                  ),
-
-                  // Layer B: The Toy Car (Held near his front paw)
-                  Positioned(
-                    bottom: characterHeight * 0.12,
-                    left: characterHeight * 0.08,
-                    child: Image.asset(
-                      'assets/images/objects/lumi/car.png',
-                      width: characterHeight * 0.35,
+            Positioned(
+              right: sw * 0.12,
+              bottom: -(baseCharacterHeight * 0.15),
+              child: SizedBox(
+                height: characterHeight,
+                width: characterHeight * 0.85,
+                child: Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Image.asset(
+                      'assets/images/characters/jack_sad.png',
+                      height: characterHeight,
                       fit: BoxFit.contain,
                     ),
-                  ),
-                ],
+
+                    Positioned(
+                      bottom: characterHeight * 0.12,
+                      left: characterHeight * 0.08,
+                      child: Image.asset(
+                        'assets/images/objects/lumi/car.png',
+                        width: characterHeight * 0.35,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-        ],
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

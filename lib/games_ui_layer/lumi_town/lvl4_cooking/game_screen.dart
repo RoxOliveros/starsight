@@ -1,6 +1,11 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/town_progress_service.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
@@ -21,11 +26,18 @@ class CookingGameScreen extends StatefulWidget {
 }
 
 class _CookingGameScreenState extends State<CookingGameScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, AiCameraMixin<CookingGameScreen> {
   late GameState _state;
   final AudioManager _audio = AudioManager();
   late AnimationController _shakeController;
   late AnimationController _cookTimerController;
+
+  // ── Tracking (camera + taps span the whole level — one continuous
+  // screen from intro through outro, so tracker/camera start once here
+  // and are saved once when the player exits via the GoodJobOverlay) ───────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   // Bowl state tracking
   bool _flourAdded = false;
@@ -107,6 +119,14 @@ class _CookingGameScreenState extends State<CookingGameScreen>
     super.initState();
     _state = GameState();
 
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _shakeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -124,6 +144,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
   @override
   void dispose() {
     _disposed = true;
+    disposeAiCamera();
     _cookTimer?.cancel();
     _audio.stopAll();
     _shakeController.dispose();
@@ -145,6 +166,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
   }
 
   void _showWrongTap() {
+    _tapTracker.recordMistake();
     final dialogs = GameDialogs.wrongTapDialogs;
     final dialog = dialogs[Random().nextInt(dialogs.length)];
     //TODO _audio.playWrong();
@@ -181,6 +203,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
 
   void _onFlourTap() {
     if (_flourAdded) return;
+    _tapTracker.recordCorrectTap();
     //TODO _audio.playPour();
     setState(() => _flourAdded = true);
     Future.delayed(const Duration(milliseconds: 800), () {
@@ -195,6 +218,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
       return;
     }
     if (_bakingPowderAdded) return;
+    _tapTracker.recordCorrectTap();
     //TODO _audio.playPour();
     setState(() => _bakingPowderAdded = true);
     Future.delayed(const Duration(milliseconds: 800), () {
@@ -209,6 +233,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
       return;
     }
     if (_sugarAdded) return;
+    _tapTracker.recordCorrectTap();
     //TODO _audio.playPour();
     setState(() => _sugarAdded = true);
     Future.delayed(const Duration(milliseconds: 800), () {
@@ -234,6 +259,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
 
   void _onMilkTap() {
     if (_milkAdded) return;
+    _tapTracker.recordCorrectTap();
     //TODO _audio.playPour();
     setState(() => _milkAdded = true);
     Future.delayed(const Duration(milliseconds: 800), () {
@@ -248,6 +274,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
       return;
     }
     if (_eggAdded) return;
+    _tapTracker.recordCorrectTap();
     //TODO   _audio.playCrack();
     setState(() => _eggAdded = true);
     Future.delayed(const Duration(milliseconds: 800), () {
@@ -281,6 +308,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
 
   void _onWhiskComplete() {
     if (_batcherMixed) return;
+    _tapTracker.recordCorrectTap();
     setState(() => _batcherMixed = true);
     _audio.playSfx('sfx_done.wav');
     _showDialog(GameDialogs.whisk4);
@@ -303,6 +331,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
 
   void _onPanTap() {
     if (_panSelected) return;
+    _tapTracker.recordCorrectTap();
     //TODO _audio.playTap();
     setState(() => _panSelected = true);
     _showDialog(GameDialogs.cook3);
@@ -314,6 +343,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
       return;
     }
     if (_batterPoured) return;
+    _tapTracker.recordCorrectTap();
     //TODO _audio.playPour();
     setState(() => _batterPoured = true);
     _showDialog(GameDialogs.cook4);
@@ -359,6 +389,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
       _showWrongTap();
       return;
     }
+    _tapTracker.recordCorrectTap();
     //TODO _audio.playFlip();
     setState(() {
       _pancakeFlipped = true;
@@ -372,6 +403,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
 
   void _onPlateTap() {
     if (_pancakePlated) return;
+    _tapTracker.recordCorrectTap();
     //TODO _audio.playTap();
     setState(() => _pancakePlated = true);
     Future.delayed(const Duration(milliseconds: 500), () {
@@ -386,6 +418,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
       return;
     }
     if (_syrupAdded) return;
+    _tapTracker.recordCorrectTap();
     //TODO _audio.playDrizzle();
     setState(() => _syrupAdded = true);
     Future.delayed(const Duration(milliseconds: 600), () {
@@ -400,6 +433,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
       return;
     }
     if (_butterAdded) return;
+    _tapTracker.recordCorrectTap();
     //TODO _audio.playTap();
     setState(() => _butterAdded = true);
     Future.delayed(const Duration(milliseconds: 600), () {
@@ -434,6 +468,8 @@ class _CookingGameScreenState extends State<CookingGameScreen>
 
   void _restartGame() {
     _cookTimer?.cancel();
+    _tapTracker.reset();
+    _tapTracker.startSession();
     setState(() {
       _state = GameState();
       _flourAdded = false;
@@ -456,6 +492,40 @@ class _CookingGameScreenState extends State<CookingGameScreen>
     _showDialog(GameDialogs.intro1);
   }
 
+  // ─────────────────── Save & exit ─────────────────────────
+
+  Future<void> _saveDataAndMarkComplete() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final emotions = stopAiCamera();
+
+    TownDatabaseService.saveGameData(
+      gameId: 'lumi_town_cooking',
+      activityName: 'Cooking Pancakes',
+      emotions: emotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    TownProgressService.instance.markLevelComplete(4).catchError((e) {
+      debugPrint("Database Error marking level complete: $e");
+    });
+  }
+
+  Future<void> _onBack() async {
+    await _saveDataAndMarkComplete();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
+        (route) => route.isFirst,
+      );
+    }
+  }
+
   // ─────────────────── BUILD ──────────────────────────────
 
   @override
@@ -463,93 +533,104 @@ class _CookingGameScreenState extends State<CookingGameScreen>
     _sw = MediaQuery.of(context).size.width;
     _sh = MediaQuery.of(context).size.height;
     return Scaffold(
-      body: GestureDetector(
-        onTap: _state.currentScene == GameScene.intro
-            ? _advanceIntro
-            : _state.currentScene == GameScene.outro
-            ? _onOutroTap
-            : null,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background
-            Image.asset(
-              'assets/images/backgrounds/bg_game_kitchen.png',
-              fit: BoxFit.cover,
-              errorBuilder: (ctx, err, st) => Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFFFFF3C8), Color(0xFFE8C97A)],
-                  ),
-                ),
-              ),
-            ),
-
-            Positioned(top: 25, left: 25, child: LumiXButton()),
-
-            // Scene content
-            _buildSceneContent(),
-
-            // Speech bubble for mid-game scenes (no bear visible)
-            if (_state.currentScene != GameScene.intro &&
-                _state.currentScene != GameScene.cooking &&
-                _state.currentScene != GameScene.outro &&
-                _state.showBearSpeech &&
-                _state.bearSpeechText.isNotEmpty)
-              Positioned(
-                top: 20,
-                left: 20,
-                right: 20,
-                child: Center(
-                  child: BearSpeechBubble(
-                    text: _state.bearSpeechText,
-                    instruction: _state.instructionText,
-                    visible: _state.showBearSpeech,
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: GestureDetector(
+          onTap: _state.currentScene == GameScene.intro
+              ? _advanceIntro
+              : _state.currentScene == GameScene.outro
+              ? _onOutroTap
+              : null,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background
+              Image.asset(
+                'assets/images/backgrounds/bg_game_kitchen.png',
+                fit: BoxFit.cover,
+                errorBuilder: (ctx, err, st) => Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFFFF3C8), Color(0xFFE8C97A)],
+                    ),
                   ),
                 ),
               ),
 
-            // Whisk progress bar
-            if (_state.currentScene == GameScene.whisking && !_batcherMixed)
-              Positioned(
-                bottom: 10,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: CookingProgressBar(
-                    progress: _whiskProgress,
-                    label: '',
-                    color: const Color(0xFFD4A853),
+              Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
+
+              // Scene content
+              _buildSceneContent(),
+
+              // Speech bubble for mid-game scenes (no bear visible)
+              if (_state.currentScene != GameScene.intro &&
+                  _state.currentScene != GameScene.cooking &&
+                  _state.currentScene != GameScene.outro &&
+                  _state.showBearSpeech &&
+                  _state.bearSpeechText.isNotEmpty)
+                Positioned(
+                  top: 20,
+                  left: 20,
+                  right: 20,
+                  child: Center(
+                    child: BearSpeechBubble(
+                      text: _state.bearSpeechText,
+                      instruction: _state.instructionText,
+                      visible: _state.showBearSpeech,
+                    ),
                   ),
                 ),
-              ),
 
-            // Cook progress bar
-            if (_state.currentScene == GameScene.cooking &&
-                _batterPoured &&
-                _cookProgress < 1.0)
-              Positioned(
-                bottom: 10,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: CookingProgressBar(
-                    progress: _cookProgress,
-                    label: _pancakeFlipped
-                        ? ''
-                        : '',
-                    color: Colors.orange,
+              // Whisk progress bar
+              if (_state.currentScene == GameScene.whisking && !_batcherMixed)
+                Positioned(
+                  bottom: 10,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: CookingProgressBar(
+                      progress: _whiskProgress,
+                      label: '',
+                      color: const Color(0xFFD4A853),
+                    ),
                   ),
                 ),
+
+              // Cook progress bar
+              if (_state.currentScene == GameScene.cooking &&
+                  _batterPoured &&
+                  _cookProgress < 1.0)
+                Positioned(
+                  bottom: 10,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: CookingProgressBar(
+                      progress: _cookProgress,
+                      label: _pancakeFlipped ? '' : '',
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+
+              // Celebration
+              CelebrationOverlay(
+                visible: _showCelebration && _state.dialogIndex < 2,
               ),
 
-            // Celebration
-            CelebrationOverlay(
-              visible: _showCelebration && _state.dialogIndex < 2,
-            ),
-          ],
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -1212,10 +1293,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
         if (_state.dialogIndex >= 2)
           GoodJobOverlay(
             characterImage: 'assets/images/characters/tr.woo_the_owl.png',
-            onNext: () async {
-              // TODO: navigate to next level
-              await TownProgressService.instance.markLevelComplete(4);
-
+            onNext: () {
               if (mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
@@ -1224,15 +1302,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
               }
             },
             onRestart: _restartGame,
-            onBack: () async {
-              await TownProgressService.instance.markLevelComplete(4);
-              if (mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-                  (route) => route.isFirst,
-                );
-              }
-            },
+            onBack: _onBack,
           ),
       ],
     );

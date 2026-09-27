@@ -1,17 +1,29 @@
 import 'package:StarSight/business_layer/town_progress_service.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../business_layer/orientation_service.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../goodjob_prompt.dart';
 import '../lvl2/audio_helper.dart';
 import '../lvl4_cooking/game_screen.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'clean_bedroom_game_screen.dart';
 
 class CleanBedroomEndingScreen extends StatefulWidget {
-  const CleanBedroomEndingScreen({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const CleanBedroomEndingScreen({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<CleanBedroomEndingScreen> createState() =>
@@ -19,9 +31,13 @@ class CleanBedroomEndingScreen extends StatefulWidget {
 }
 
 class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
-    with SingleTickerProviderStateMixin {
+    with
+        SingleTickerProviderStateMixin,
+        AiCameraMixin<CleanBedroomEndingScreen> {
   final AudioPlayer _player = AudioPlayer();
   bool _showOverlay = false;
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
@@ -31,6 +47,13 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _fadeCtrl = AnimationController(
       vsync: this,
@@ -53,42 +76,81 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _player.dispose();
     _fadeCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveDataAndMarkComplete() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final List<String> finalEmotions = [
+      ...widget.priorEmotions,
+      ...stopAiCamera(),
+    ];
+
+    TownDatabaseService.saveGameData(
+      gameId: 'lumi_town_bedroom',
+      activityName: 'Clean Bedroom',
+      emotions: finalEmotions,
+      totalTaps: widget.tapTracker.totalTaps,
+      mistakes: widget.tapTracker.mistakeCount,
+      timePlayedSeconds: widget.tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    TownProgressService.instance.markLevelComplete(3).catchError((e) {
+      debugPrint("Database Error marking level complete: $e");
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset(
-              'assets/images/backgrounds/bg_lumi_bed.png',
-              fit: BoxFit.cover,
-            ),
-
-            Positioned(top: 25, left: 25, child: LumiXButton()),
-
-            if (_showOverlay)
-              GoodJobOverlay(
-                characterImage: 'assets/images/characters/tr.woo_the_owl.png',
-                onNext: _onNext,
-                onRestart: _onRestart,
-                onBack: _onBack,
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: FadeTransition(
+          opacity: _fadeAnim,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/images/backgrounds/bg_lumi_bed.png',
+                fit: BoxFit.cover,
               ),
-          ],
+
+              Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
+
+              if (_showOverlay)
+                GoodJobOverlay(
+                  characterImage: 'assets/images/characters/tr.woo_the_owl.png',
+                  onNext: _onNext,
+                  onRestart: _onRestart,
+                  onBack: _onBack,
+                ),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Future<void> _onNext() async {
-    await TownProgressService.instance.markLevelComplete(3);
+    await _saveDataAndMarkComplete();
 
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
@@ -105,7 +167,7 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
   }
 
   Future<void> _onBack() async {
-    await TownProgressService.instance.markLevelComplete(3);
+    await _saveDataAndMarkComplete();
 
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(

@@ -12,6 +12,12 @@ import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import 'prayer_prompt_card.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
+
 class Prayer1 extends StatefulWidget {
   const Prayer1({super.key});
 
@@ -19,8 +25,9 @@ class Prayer1 extends StatefulWidget {
   State<Prayer1> createState() => _Prayer1State();
 }
 
-class _Prayer1State extends State<Prayer1> {
+class _Prayer1State extends State<Prayer1> with AiCameraMixin<Prayer1> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   // Track which scene is currently active
   String _currentScene = 'assets/images/objects/lumi/lvl8_scene1.png';
@@ -39,11 +46,23 @@ class _Prayer1State extends State<Prayer1> {
   bool _showSkipButton = false;
   bool _showGoodJob = false;
 
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initializeSequence();
   }
 
@@ -130,21 +149,48 @@ class _Prayer1State extends State<Prayer1> {
     await _audioPlayer.onPlayerComplete.first;
     if (!mounted) return;
 
-    setState(() {
-      _showGoodJob = true;
+    await _saveDataAndShowGoodJob();
+  }
+
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    TownDatabaseService.saveGameData(
+      gameId: 'lumi_town_prayer',
+      activityName: 'Prayer',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
     });
+
+    TownProgressService.instance.markLevelComplete(8).catchError((e) {
+      debugPrint("Database Error marking level complete: $e");
+    });
+
+    if (mounted) {
+      setState(() {
+        _showGoodJob = true;
+      });
+    }
   }
 
   void _onGestureDetected(GestureResult result) {
     if (!_isWaitingForPrayerGesture || _gestureDetected) return;
 
     if (result.isPraying) {
+      _tapTracker.recordCorrectTap();
       _triggerSuccessSequence();
     }
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _scene2Timer?.cancel();
     _scene3Timer?.cancel();
@@ -158,115 +204,128 @@ class _Prayer1State extends State<Prayer1> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 500),
-            child: Image.asset(
-              _currentScene,
-              key: ValueKey<String>(_currentScene),
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          ),
-
-          if (_hasCameraPermission)
-            Positioned(
-              left: -10,
-              top: -10,
-              width: 1,
-              height: 1,
-              child: GestureCameraView(
-                key: const ValueKey('prayer_camera_2_hands'),
-                onGesture: _onGestureDetected,
-                minConfidence: 0.7,
-                requiredConsecutiveFrames: 4,
-                requiredHands: 2,
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 500),
+              child: Image.asset(
+                _currentScene,
+                key: ValueKey<String>(_currentScene),
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
               ),
             ),
 
-          Positioned(top: 25, left: 25, child: LumiXButton()),
+            if (_hasCameraPermission)
+              Positioned(
+                left: -10,
+                top: -10,
+                width: 1,
+                height: 1,
+                child: GestureCameraView(
+                  key: const ValueKey('prayer_camera_2_hands'),
+                  onGesture: _onGestureDetected,
+                  minConfidence: 0.7,
+                  requiredConsecutiveFrames: 4,
+                  requiredHands: 2,
+                ),
+              ),
 
-          Positioned.fill(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: _showPromptCard
-                  ? PrayerPromptCard(
-                      key: const ValueKey('prompt_card'),
-                      onClose: () {
-                        setState(() {
-                          _showPromptCard = false;
-                        });
-                      },
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ),
+            Positioned(top: 25, left: 25, child: LumiXButton()),
 
-          // ---  Skip Button  ---
-          if (_showSkipButton)
-            Positioned(
-              bottom: 25,
-              right: 25,
-              child: GestureDetector(
-                onTap: () {
-                  if (!_gestureDetected) {
-                    _triggerSuccessSequence();
-                  }
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
                 },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: LumiColorTheme.seaglass,
-                    borderRadius: BorderRadius.circular(25),
-                    border: Border.all(
-                      color: LumiColorTheme.darkolive,
-                      width: 5,
+              ),
+
+            Positioned.fill(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _showPromptCard
+                    ? PrayerPromptCard(
+                        key: const ValueKey('prompt_card'),
+                        onClose: () {
+                          setState(() {
+                            _showPromptCard = false;
+                          });
+                        },
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+
+            // ---  Skip Button  ---
+            if (_showSkipButton)
+              Positioned(
+                bottom: 25,
+                right: 25,
+                child: GestureDetector(
+                  onTap: () {
+                    if (!_gestureDetected) {
+                      _tapTracker
+                          .recordMistake(); // Skipping counts as needing help / a mistake
+                      _triggerSuccessSequence();
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 5,
                     ),
-                  ),
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(
-                      fontFamily: LumiAppTextStyles.fredoka,
-                      fontSize: 18,
-                      color: LumiColorTheme.darkolive,
-                      fontWeight: FontWeight.bold,
+                    decoration: BoxDecoration(
+                      color: LumiColorTheme.seaglass,
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(
+                        color: LumiColorTheme.darkolive,
+                        width: 5,
+                      ),
+                    ),
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(
+                        fontFamily: LumiAppTextStyles.fredoka,
+                        fontSize: 18,
+                        color: LumiColorTheme.darkolive,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-          if (_showGoodJob)
-            GoodJobOverlay(
-              characterImage: 'assets/images/characters/tr.woo_smiling.png',
-              onNext: () async {
-                await TownProgressService.instance.markLevelComplete(8);
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const Sorry1Screen()),
-                );
-              },
-              onRestart: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const Prayer1()),
-                );
-              },
-              onBack: () async {
-                await TownProgressService.instance.markLevelComplete(7);
-                if (mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const Prayer1()),
-                    (route) => route.isFirst,
+            if (_showGoodJob)
+              GoodJobOverlay(
+                characterImage: 'assets/images/characters/tr.woo_smiling.png',
+                onNext: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (context) => const Sorry1Screen(),
+                    ),
                   );
-                }
-              },
-            ),
-        ],
+                },
+                onRestart: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const Prayer1()),
+                  );
+                },
+                onBack: () {
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const Prayer1()),
+                      (route) => route.isFirst,
+                    );
+                  }
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

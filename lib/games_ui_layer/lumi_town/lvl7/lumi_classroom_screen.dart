@@ -6,6 +6,11 @@ import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import 'respect_1.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 class LumiClassroomScreen extends StatefulWidget {
   const LumiClassroomScreen({Key? key}) : super(key: key);
 
@@ -14,8 +19,11 @@ class LumiClassroomScreen extends StatefulWidget {
 }
 
 class _LumiClassroomScreenState extends State<LumiClassroomScreen>
-    with TrWooReactionMixin {
+    with TrWooReactionMixin, AiCameraMixin<LumiClassroomScreen> {
   late final AudioPlayer _audioPlayer;
+
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
 
   @override
   void initState() {
@@ -24,6 +32,14 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
 
     OrientationService.setLandscape();
 
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playIntroAudio();
     });
@@ -31,6 +47,7 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -47,32 +64,34 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
 
   Future<void> _playIntroAudio() async {
     try {
-      // 1. Play the intro audio first
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level7/respect_intro.wav'),
       );
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 
-      // 2. Play the tutorial audio
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level7/respect_tutorial.wav'),
       );
 
-      // 3. Trigger Dr. Woo 6 seconds in
       Future.delayed(const Duration(seconds: 6), () {
         if (mounted) {
           showDrWooReactionQuietly(TrWooState.correct);
         }
       });
 
-      // 4. WAIT for the tutorial audio to finish entirely
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 
-      // 5. Automatically jump to Respect 1!
+      final emotionsSoFar = stopAiCamera();
+
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const Respect1Screen()),
+        MaterialPageRoute(
+          builder: (context) => Respect1Screen(
+            priorEmotions: emotionsSoFar,
+            tapTracker: _tapTracker,
+          ),
+        ),
       );
     } catch (e) {
       debugPrint('Error playing audio sequence: $e');
@@ -113,16 +132,26 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/backgrounds/bg_lumi_classroom.png',
-            fit: BoxFit.cover,
-          ),
-          buildTrWoo(context),
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-        ],
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_lumi_classroom.png',
+              fit: BoxFit.cover,
+            ),
+            buildTrWoo(context),
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

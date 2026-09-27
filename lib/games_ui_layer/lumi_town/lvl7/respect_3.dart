@@ -8,34 +8,55 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 class Respect3Screen extends StatefulWidget {
-  const Respect3Screen({Key? key}) : super(key: key);
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Respect3Screen({
+    Key? key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  }) : super(key: key);
 
   @override
   State<Respect3Screen> createState() => _Respect3ScreenState();
 }
 
 class _Respect3ScreenState extends State<Respect3Screen>
-    with TickerProviderStateMixin, TrWooReactionMixin {
+    with
+        TickerProviderStateMixin,
+        TrWooReactionMixin,
+        AiCameraMixin<Respect3Screen> {
   late final AudioPlayer _audioPlayer;
   bool _showButtons = false;
 
-  // --- Animation Variables (Now only used for Roxie) ---
   late final AnimationController _walkController;
   final Duration _walkDuration = const Duration(milliseconds: 1800);
   final Duration _stepDuration = const Duration(milliseconds: 260);
   final double _bounceHeightFraction = 0.045;
+
+  bool _hideLightingCard = false;
 
   @override
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
 
-    // Setup the walking animation
     _walkController = AnimationController(vsync: this, duration: _walkDuration);
 
-    // Lock to landscape
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _walkController.forward(from: 0);
@@ -45,6 +66,7 @@ class _Respect3ScreenState extends State<Respect3Screen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _walkController.dispose();
     _audioPlayer.dispose();
     super.dispose();
@@ -53,9 +75,6 @@ class _Respect3ScreenState extends State<Respect3Screen>
   @override
   AudioPlayer get trWooPlayer => _audioPlayer;
 
-  // ---------------------------------------------------------------------------
-  // Custom visual-only reaction
-  // ---------------------------------------------------------------------------
   Future<void> showDrWooReactionQuietly(TrWooState state) async {
     if (!mounted) return;
     setState(() => trWooState = state);
@@ -81,9 +100,6 @@ class _Respect3ScreenState extends State<Respect3Screen>
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // OVERRIDDEN: Dr. Woo is back to his static placement
-  // ---------------------------------------------------------------------------
   @override
   Widget buildTrWoo(BuildContext context) {
     final owlHeight = MediaQuery.of(context).size.height * 1.18;
@@ -117,8 +133,7 @@ class _Respect3ScreenState extends State<Respect3Screen>
     final baseCharacterHeight = MediaQuery.of(context).size.height * 1.18;
     final roxieHeight = baseCharacterHeight * 0.70;
 
-    // Animation Math for Roxie (From Right)
-    final double startX = sw; // Start off-screen right
+    final double startX = sw;
     final int stepCount =
         (_walkDuration.inMilliseconds / _stepDuration.inMilliseconds)
             .round()
@@ -126,99 +141,112 @@ class _Respect3ScreenState extends State<Respect3Screen>
     final double bounceHeightPx = roxieHeight * _bounceHeightFraction;
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Background
-          Image.asset(
-            'assets/images/backgrounds/bg_lumi_classroom.png',
-            fit: BoxFit.cover,
-          ),
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_lumi_classroom.png',
+              fit: BoxFit.cover,
+            ),
 
-          // 1. Dr. Woo Layer (Left Side - Static)
-          buildTrWoo(context),
+            buildTrWoo(context),
 
-          // 2. characters layer
-          AnimatedBuilder(
-            animation: _walkController,
-            builder: (context, child) {
-              final double t = _walkController.value;
-              final double easedT = Curves.easeOutCubic.transform(t);
+            AnimatedBuilder(
+              animation: _walkController,
+              builder: (context, child) {
+                final double t = _walkController.value;
+                final double easedT = Curves.easeOutCubic.transform(t);
 
-              final double dx = startX * (1 - easedT);
-              final double bounce = t < 1.0
-                  ? (math.sin(t * stepCount * math.pi)).abs() * bounceHeightPx
-                  : 0.0;
+                final double dx = startX * (1 - easedT);
+                final double bounce = t < 1.0
+                    ? (math.sin(t * stepCount * math.pi)).abs() * bounceHeightPx
+                    : 0.0;
 
-              return Positioned(
-                right:
-                    (sw * 0.15) - dx, // Subtract dx because she is on the right
-                bottom: -(baseCharacterHeight * 0.15) + bounce,
-                child: SizedBox(
-                  height: roxieHeight,
+                return Positioned(
+                  right: (sw * 0.15) - dx,
+                  bottom: -(baseCharacterHeight * 0.15) + bounce,
+                  child: SizedBox(
+                    height: roxieHeight,
+                    child: Image.asset(
+                      'assets/images/characters/little_bear_uniform.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            if (_showButtons) ...[
+              // Bear 1: Thumbs Up is Correct
+              Positioned(
+                left: 20,
+                bottom: 40,
+                child: GestureDetector(
+                  onTap: () async {
+                    widget.tapTracker.recordCorrectTap();
+                    _audioPlayer.play(
+                      AssetSource(
+                        'audio/lumi_town/level7/respect_bear1_rc.wav',
+                      ),
+                    );
+                    await Future.wait([
+                      showDrWooReactionQuietly(TrWooState.correct),
+                      _audioPlayer.onPlayerComplete.first,
+                    ]);
+
+                    if (!mounted) return;
+
+                    final emotionsSoFar = [
+                      ...widget.priorEmotions,
+                      ...stopAiCamera(),
+                    ];
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => Respect4Screen(
+                          priorEmotions: emotionsSoFar,
+                          tapTracker: widget.tapTracker,
+                        ),
+                      ),
+                    );
+                  },
                   child: Image.asset(
-                    'assets/images/characters/little_bear_uniform.png',
-                    fit: BoxFit.contain,
+                    'assets/images/objects/lumi/thumbs_up.png',
+                    width: 100,
+                    height: 100,
                   ),
                 ),
-              );
-            },
-          ),
+              ),
 
-          // Buttons Layer
-          if (_showButtons) ...[
-            // Thumbs Up Button
-            Positioned(
-              left: 20,
-              bottom: 40,
-              child: GestureDetector(
-                onTap: () async {
-                  _audioPlayer.play(
-                    AssetSource('audio/lumi_town/level7/respect_bear1_rc.wav'),
-                  );
-                  // 2. The Magic Fix: Wait for BOTH the reaction AND the audio to finish!
-                  await Future.wait([
-                    showDrWooReactionQuietly(TrWooState.correct),
-                    _audioPlayer.onPlayerComplete.first,
-                  ]);
-
-                  // 3. Ensure the screen is still active
-                  if (!mounted) return;
-
-                  // 4. Navigate safely
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (context) => const Respect4Screen(),
-                    ),
-                  );
-                },
-                child: Image.asset(
-                  'assets/images/objects/lumi/thumbs_up.png',
-                  width: 100,
-                  height: 100,
+              Positioned(
+                right: 20,
+                bottom: 40,
+                child: GestureDetector(
+                  onTap: () {
+                    widget.tapTracker.recordMistake();
+                    showTrWooReaction(TrWooState.wrong);
+                  },
+                  child: Image.asset(
+                    'assets/images/objects/lumi/thumbs_down.png',
+                    width: 100,
+                    height: 100,
+                  ),
                 ),
               ),
-            ),
+            ],
 
-            // Thumbs Down Button
-            Positioned(
-              right: 20,
-              bottom: 40,
-              child: GestureDetector(
-                onTap: () {
-                  showTrWooReaction(TrWooState.wrong);
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
                 },
-                child: Image.asset(
-                  'assets/images/objects/lumi/thumbs_down.png',
-                  width: 100,
-                  height: 100,
-                ),
               ),
-            ),
           ],
-
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-        ],
+        ),
       ),
     );
   }

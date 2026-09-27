@@ -2,69 +2,73 @@ import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_ending.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class Emotion8Screen extends StatefulWidget {
-  const Emotion8Screen({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Emotion8Screen({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<Emotion8Screen> createState() => _Emotion8ScreenState();
 }
 
 class _Emotion8ScreenState extends State<Emotion8Screen>
-    with TrWooReactionMixin {
-  // Player for Dr. Woo's SFX (Required by Mixin)
+    with TrWooReactionMixin, AiCameraMixin<Emotion8Screen> {
   late final AudioPlayer _audioPlayer;
-
-  // NEW: Dedicated player for the Filipino narration
   late final AudioPlayer _narratorPlayer;
 
-  // Tracks if the correct star was dropped
   bool _isCorrectlyAnswered = false;
-  // Controls the fade-in/fade-out of the sparkle overlay
   bool _showSparkles = false;
-
-  // NEW: Controls the visibility of the draggable stars
   bool _showStars = false;
-
   bool _isSuccessAudioPlaying = false;
+  bool _hideLightingCard = false;
 
-  // Tagalog
   static const String _audioP6 = 'audio/lumi_town/level6/emotion_p6.wav';
   static const String _audioP6Rc = 'audio/lumi_town/level6/emotion_p6_rc.wav';
-
-  // English
-  // static const String _audioP6 = 'audio/lumi_town/level6/emotion_p6_eng.wav';
-  // static const String _audioP6Rc = 'audio/lumi_town/level6/emotion_p6_rc_eng.wav';
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _audioPlayer = AudioPlayer();
     _narratorPlayer = AudioPlayer();
 
-    // Start the intro sequence
     _playIntroAudio();
   }
 
-  /// Plays the initial story audio and shows stars when finished
   Future<void> _playIntroAudio() async {
-    // UPDATED: The listener now handles both the intro finishing AND the success finishing
     _narratorPlayer.onPlayerComplete.listen((_) {
       if (mounted) {
         if (_isSuccessAudioPlaying) {
-          // If the success audio just finished, go to the next screen
+          final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => const EmotionEndingScreen(), // Next Screen!
+              builder: (context) => EmotionEndingScreen(
+                priorEmotions: emotionsSoFar,
+                tapTracker: widget.tapTracker,
+              ),
             ),
           );
         } else {
-          // If the intro audio just finished, show the stars
           setState(() {
             _showStars = true;
           });
@@ -72,18 +76,14 @@ class _Emotion8ScreenState extends State<Emotion8Screen>
       }
     });
 
-    // Play the audio (AssetSource automatically looks inside the 'assets/' folder)
-    // IMPORTANT: Update this path if you placed the audio in a different folder!
-    await _narratorPlayer.play(
-      AssetSource(_audioP6),
-    );
+    await _narratorPlayer.play(AssetSource(_audioP6));
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
-    _narratorPlayer
-        .dispose(); // Always clean up the new player to prevent memory leaks
+    _narratorPlayer.dispose();
     super.dispose();
   }
 
@@ -130,16 +130,19 @@ class _Emotion8ScreenState extends State<Emotion8Screen>
     final double paddingEdge = screenWidth * 0.04;
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/backgrounds/bg_game_emotion.png'),
-            fit: BoxFit.cover,
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(
+                'assets/images/backgrounds/bg_game_emotion.png',
+              ),
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
-        child: Stack(
+          child: Stack(
             children: [
-              // 1. Center Image as a DragTarget (The Drop Zone)
               Center(
                 child: Container(
                   width: centerImageWidth,
@@ -153,50 +156,33 @@ class _Emotion8ScreenState extends State<Emotion8Screen>
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(18),
-                    // DragTarget listens for Draggable widgets carrying a DrWooState
                     child: DragTarget<TrWooState>(
                       onAcceptWithDetails: (details) async {
                         final droppedState = details.data;
-
-                        // 1. Always trigger Dr. Woo's reaction on drop immediately
                         showTrWooReaction(droppedState);
 
-                        // 2. If it is the correct answer, run the sequence
                         if (droppedState == TrWooState.correct &&
                             !_isCorrectlyAnswered) {
-                          // Lock the answer so it can't be triggered twice
+                          widget.tapTracker.recordCorrectTap();
                           _isCorrectlyAnswered = true;
-
                           _isSuccessAudioPlaying = true;
 
-                          // Optional: Wait half a second so Dr. Woo's "ding" SFX
-                          // finishes before the narrator starts talking
                           await Future.delayed(
                             const Duration(milliseconds: 500),
                           );
-
-                          // Safely stop the player just in case it was hanging
                           await _narratorPlayer.stop();
+                          await _narratorPlayer.play(AssetSource(_audioP6Rc));
 
-                          // Play the narrative success sound
-                          await _narratorPlayer.play(
-                            AssetSource(
-                              _audioP6Rc,
-                            ),
-                          );
-
-                          // Show sparkles
                           setState(() => _showSparkles = true);
-
-                          // Wait for 1 second while sparkles are covering the image
                           await Future.delayed(const Duration(seconds: 1));
 
                           if (mounted) {
-                            // Swap the base image and hide sparkles
                             setState(() {
                               _showSparkles = false;
                             });
                           }
+                        } else if (!_isCorrectlyAnswered) {
+                          widget.tapTracker.recordMistake();
                         }
                       },
                       builder: (context, candidateData, rejectedData) {
@@ -204,15 +190,12 @@ class _Emotion8ScreenState extends State<Emotion8Screen>
                           alignment: Alignment.center,
                           fit: StackFit.expand,
                           children: [
-                            // Base Scenario Image
                             Image.asset(
                               _isCorrectlyAnswered
                                   ? 'assets/images/objects/lumi/e6_right.png'
                                   : 'assets/images/objects/lumi/e6_wrong.png',
                               fit: BoxFit.cover,
                             ),
-
-                            // Sparkle Overlay with a smooth fade animation
                             AnimatedOpacity(
                               opacity: _showSparkles ? 1.0 : 0.0,
                               duration: const Duration(milliseconds: 400),
@@ -234,19 +217,15 @@ class _Emotion8ScreenState extends State<Emotion8Screen>
 
               Positioned(top: 25, left: 25, child: LumiXButton()),
 
-              // 3. Right Side Star Draggables (Now animated to fade in!)
               Positioned(
                 right: paddingEdge,
                 top: 0,
                 bottom: 0,
                 child: IgnorePointer(
-                  // Prevent users from clicking invisible stars before they fade in
                   ignoring: !_showStars,
                   child: AnimatedOpacity(
                     opacity: _showStars ? 1.0 : 0.0,
-                    duration: const Duration(
-                      milliseconds: 800,
-                    ), // Smooth 0.8s fade
+                    duration: const Duration(milliseconds: 800),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -273,15 +252,24 @@ class _Emotion8ScreenState extends State<Emotion8Screen>
                 ),
               ),
 
-              // 4. Dr. Woo Owl Character
               buildTrWoo(context),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
             ],
           ),
         ),
-      );
+      ),
+    );
   }
 
-  /// Helper widget to build the draggable star buttons
   Widget _buildReactionDraggable(
     String assetPath,
     TrWooState stateToTrigger,
