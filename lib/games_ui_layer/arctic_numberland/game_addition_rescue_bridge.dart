@@ -29,21 +29,30 @@ class AdditionRescueBridgeGame extends StatefulWidget {
 }
 
 class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
-    with TickerProviderStateMixin, DomaReactionMixin<AdditionRescueBridgeGame>, GameLoadingMixin<AdditionRescueBridgeGame>, AiCameraMixin<AdditionRescueBridgeGame> {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin<AdditionRescueBridgeGame>,
+        GameLoadingMixin<AdditionRescueBridgeGame>,
+        AiCameraMixin<AdditionRescueBridgeGame> {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
 
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_river.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _babyFoxAsset = 'assets/images/characters/baby_arctic_fox.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_arctic_river.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _babyFoxAsset =
+      'assets/images/characters/baby_arctic_fox.png';
   static const String _beamAsset = 'assets/images/objects/arctic/beam.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/rescue_bridge_intro.wav';
-  static const String _audioInstructionPrompt = '$_audioBase/rescue_bridge_instruction.wav';
-  static const String _audioWeightAddRemove = 'assets/audio/sound_effects/clack.wav';
+  static const String _audioInstructionPrompt =
+      '$_audioBase/rescue_bridge_instruction.wav';
+  static const String _audioWeightAddRemove =
+      'assets/audio/sound_effects/clack.wav';
   static const String _audioWin = '$_audioBase/rescue_bridge_win.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
@@ -354,17 +363,19 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       // --- AI STOP & DATABASE SAVE ---
       List<String> finalEmotions = stopAiCamera();
 
-      try {
-        ArcticDatabaseService.saveGameData(
-          gameId: 'arctic_numberland_${widget.level}',
-          mistakes: _tapTracker.mistakeCount,
-          emotions: finalEmotions,
-        );
-      } catch (e) {
-        debugPrint("Database Error saving Arctic metrics: $e");
-      }
+      ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      ).catchError((e) {
+        debugPrint("Database Error saving metrics: $e");
+      });
 
-      ArcticProgressService.instance.markLevelComplete(widget.level);
+      ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
+        (e) {
+          debugPrint("Database Error marking level complete: $e");
+        },
+      );
       if (!mounted) return;
       setState(() => _showWinDialog = true);
     } else {
@@ -479,11 +490,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
         ),
         // X button
-        Positioned(
-          top: 25,
-          left: 25,
-          child: ArcticXButton(),
-        ),
+        Positioned(top: 25, left: 25, child: ArcticXButton()),
 
         // Level badge
         Positioned(
@@ -541,10 +548,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           child: AnimatedBuilder(
             animation: _domaFloatCtrl,
             builder: (_, child) {
-              final floatY = Tween<double>(
-                begin: -6,
-                end: 6,
-              ).evaluate(
+              final floatY = Tween<double>(begin: -6, end: 6).evaluate(
                 CurvedAnimation(
                   parent: _domaFloatCtrl,
                   curve: Curves.easeInOut,
@@ -560,10 +564,8 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
               _characterImage,
               height: screenH * 0.65,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Text(
-                '🐧',
-                style: TextStyle(fontSize: 70),
-              ),
+              errorBuilder: (_, __, ___) =>
+                  const Text('🐧', style: TextStyle(fontSize: 70)),
             ),
           ),
         ),
@@ -576,10 +578,8 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
             _babyFoxAsset,
             height: screenH * 0.38,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Text(
-              '🦊',
-              style: TextStyle(fontSize: 70),
-            ),
+            errorBuilder: (_, __, ___) =>
+                const Text('🦊', style: TextStyle(fontSize: 70)),
           ),
         ),
       ],
@@ -603,10 +603,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Expanded(
-                        flex: 3,
-                        child: _buildIceFloe(h),
-                      ),
+                      Expanded(flex: 3, child: _buildIceFloe(h)),
 
                       Expanded(
                         flex: 5,
@@ -641,17 +638,12 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                 ),
 
                 Padding(
-                  padding: const EdgeInsets.only(
-                    left: 60,
-                    right: 60,
-                  ),
+                  padding: const EdgeInsets.only(left: 60, right: 60),
                   child: _buildWeightTray(h),
                 ),
 
                 Padding(
-                  padding: const EdgeInsets.only(
-                    bottom: 15,
-                  ),
+                  padding: const EdgeInsets.only(bottom: 15),
                   child: _buildRoundIndicator(),
                 ),
               ],
@@ -714,26 +706,19 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         final areaH = constraints.maxHeight;
 
         return Padding(
-          padding: const EdgeInsets.only(
-            top: 80,
-            left: 30,
-          ),
+          padding: const EdgeInsets.only(top: 80, left: 30),
           child: Stack(
             clipBehavior: Clip.none,
             children: List.generate(_totalRounds, (i) {
-              final hidden =
-                  i < _rescuedCount || i == _crossingIndex;
+              final hidden = i < _rescuedCount || i == _crossingIndex;
 
-              final scatter =
-              _pupScatter[i % _pupScatter.length];
+              final scatter = _pupScatter[i % _pupScatter.length];
 
               final pupSize = baseSize * scatter[2];
 
-              final left =
-                  (areaW * scatter[0]) - (pupSize / 2);
+              final left = (areaW * scatter[0]) - (pupSize / 2);
 
-              final top =
-                  (areaH * scatter[1]) - (pupSize / 2);
+              final top = (areaH * scatter[1]) - (pupSize / 2);
 
               return Positioned(
                 left: left,
@@ -746,12 +731,8 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                     _babyFoxAsset,
                     height: pupSize,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Text(
-                      '🦊',
-                      style: TextStyle(
-                        fontSize: pupSize * 0.7,
-                      ),
-                    ),
+                    errorBuilder: (_, __, ___) =>
+                        Text('🦊', style: TextStyle(fontSize: pupSize * 0.7)),
                   ),
                 ),
               );
@@ -768,7 +749,9 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
     final rawPanSize = (h * 0.36);
     final maxPanSizeForWidth = w / 4.4;
-    final panSize = rawPanSize < maxPanSizeForWidth ? rawPanSize : maxPanSizeForWidth;
+    final panSize = rawPanSize < maxPanSizeForWidth
+        ? rawPanSize
+        : maxPanSizeForWidth;
     const double beamLengthFactor = 1.3;
     final beamWidth = ((w - panSize) * beamLengthFactor).clamp(150.0, w - 8);
     final balanced = _currentTotal == _target;
@@ -869,10 +852,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       decoration: BoxDecoration(
         color: ArcticColorTheme.cotton.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white,
-          width: 3,
-        ),
+        border: Border.all(color: Colors.white, width: 3),
         boxShadow: [
           BoxShadow(
             color: ArcticColorTheme.pictonblue.withValues(alpha: 0.001),
@@ -897,12 +877,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
               fontSize: size * 0.28,
               fontWeight: FontWeight.bold,
               color: ArcticColorTheme.cadetblue,
-              shadows: const [
-                Shadow(
-                  color: Colors.white,
-                  blurRadius: 4,
-                ),
-              ],
+              shadows: const [Shadow(color: Colors.white, blurRadius: 4)],
             ),
           ),
 
@@ -922,12 +897,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           spacing: size * 0.04,
           runSpacing: size * 0.04,
           alignment: WrapAlignment.center,
-          children: List.generate(
-            count,
-                (_) => _miniCrystal(
-              size * 0.35,
-            ),
-          ),
+          children: List.generate(count, (_) => _miniCrystal(size * 0.35)),
         ),
       ],
     );
@@ -944,11 +914,9 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         hitTestBehavior: HitTestBehavior.opaque,
 
         onWillAcceptWithDetails: (details) =>
-        !_resolvingRound &&
-            !_weightUsed[details.data],
+            !_resolvingRound && !_weightUsed[details.data],
 
-        onAcceptWithDetails: (details) =>
-            _onWeightDropped(details.data),
+        onAcceptWithDetails: (details) => _onWeightDropped(details.data),
 
         builder: (context, candidateData, rejectedData) {
           final isHovering = candidateData.isNotEmpty;
@@ -977,29 +945,29 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
             child: _panLoad.isEmpty
                 ? const SizedBox.shrink()
                 : SizedBox.expand(
-              child: Center(
-                child: Transform.translate(
-                  offset: Offset(0, size * 0.07),
-                  child: Wrap(
-                    spacing: size * 0.08,
-                    runSpacing: size * 0.08,
-                    alignment: WrapAlignment.center,
-                    runAlignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: _panLoad.map((idx) {
-                      return GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onTap: () => _onWeightRemoved(idx),
-                        child: _panWeightVisual(
-                          _weightPool[idx],
-                          size * 0.92,
+                    child: Center(
+                      child: Transform.translate(
+                        offset: Offset(0, size * 0.07),
+                        child: Wrap(
+                          spacing: size * 0.08,
+                          runSpacing: size * 0.08,
+                          alignment: WrapAlignment.center,
+                          runAlignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: _panLoad.map((idx) {
+                            return GestureDetector(
+                              behavior: HitTestBehavior.translucent,
+                              onTap: () => _onWeightRemoved(idx),
+                              child: _panWeightVisual(
+                                _weightPool[idx],
+                                size * 0.92,
+                              ),
+                            );
+                          }).toList(),
                         ),
-                      );
-                    }).toList(),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
           );
         },
       ),
@@ -1020,7 +988,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           runAlignment: WrapAlignment.center,
           children: List.generate(
             value,
-                (_) => Image.asset(
+            (_) => Image.asset(
               _iceAsset,
               width: crystalSize,
               height: crystalSize,
@@ -1039,10 +1007,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: ArcticColorTheme.pictonblue,
-              border: Border.all(
-                color: Colors.white,
-                width: 2,
-              ),
+              border: Border.all(color: Colors.white, width: 2),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -1066,17 +1031,13 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       width: size,
       height: size,
       fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => Text(
-        '🧊',
-        style: TextStyle(fontSize: size),
-      ),
+      errorBuilder: (_, __, ___) =>
+          Text('🧊', style: TextStyle(fontSize: size)),
     );
   }
 
   Widget _weightChipVisual(int value, double size) {
-    final crystalSize = value <= 2
-        ? size * 0.48
-        : size * 0.38;
+    final crystalSize = value <= 2 ? size * 0.48 : size * 0.38;
 
     return Container(
       constraints: BoxConstraints(
@@ -1096,17 +1057,13 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
               runAlignment: WrapAlignment.center,
               children: List.generate(
                 value,
-                    (_) => Image.asset(
+                (_) => Image.asset(
                   _iceAsset,
                   width: crystalSize,
                   height: crystalSize,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Text(
-                    '🧊',
-                    style: TextStyle(
-                      fontSize: crystalSize,
-                    ),
-                  ),
+                  errorBuilder: (_, __, ___) =>
+                      Text('🧊', style: TextStyle(fontSize: crystalSize)),
                 ),
               ),
             ),
@@ -1122,14 +1079,10 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: ArcticColorTheme.pictonblue,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 2,
-                ),
+                border: Border.all(color: Colors.white, width: 2),
                 boxShadow: [
                   BoxShadow(
-                    color: ArcticColorTheme.pictonblue
-                        .withValues(alpha: 0.4),
+                    color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
                     blurRadius: 4,
                   ),
                 ],
@@ -1157,9 +1110,10 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       builder: (context, constraints) {
         const itemGap = 8.0;
 
-        final availableWidth = constraints.maxWidth - (itemGap * (_weightPool.length - 1));
+        final availableWidth =
+            constraints.maxWidth - (itemGap * (_weightPool.length - 1));
         final maxChipFromWidth = availableWidth / (_weightPool.length * 1.45);
-        final chipSize = min(h * 0.25, maxChipFromWidth,);
+        final chipSize = min(h * 0.25, maxChipFromWidth);
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1167,37 +1121,23 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           children: List.generate(_weightPool.length, (i) {
             final used = _weightUsed[i];
 
-            final chip = _weightChipVisual(
-              _weightPool[i],
-              chipSize,
-            );
+            final chip = _weightChipVisual(_weightPool[i], chipSize);
 
             final choice = used
-                ? Opacity(
-              opacity: 0.25,
-              child: chip,
-            )
+                ? Opacity(opacity: 0.25, child: chip)
                 : Draggable<int>(
-              data: i,
-              feedback: Material(
-                color: Colors.transparent,
-                child: _weightChipVisual(
-                  _weightPool[i],
-                  chipSize * 1.10,
-                ),
-              ),
-              childWhenDragging: Opacity(
-                opacity: 0.3,
-                child: chip,
-              ),
-              child: chip,
-            );
+                    data: i,
+                    feedback: Material(
+                      color: Colors.transparent,
+                      child: _weightChipVisual(_weightPool[i], chipSize * 1.10),
+                    ),
+                    childWhenDragging: Opacity(opacity: 0.3, child: chip),
+                    child: chip,
+                  );
 
             return Padding(
               padding: EdgeInsets.only(
-                right: i < _weightPool.length - 1
-                    ? itemGap
-                    : 0,
+                right: i < _weightPool.length - 1 ? itemGap : 0,
               ),
               child: choice,
             );
@@ -1228,20 +1168,16 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
             return ScaleTransition(
               scale: isNewest
                   ? CurvedAnimation(
-                parent: _campPupCtrl,
-                curve: Curves.elasticOut,
-              )
+                      parent: _campPupCtrl,
+                      curve: Curves.elasticOut,
+                    )
                   : const AlwaysStoppedAnimation(1.0),
               child: Image.asset(
                 _babyFoxAsset,
                 height: pupSize,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Text(
-                  '🦊',
-                  style: TextStyle(
-                    fontSize: pupSize * 0.7,
-                  ),
-                ),
+                errorBuilder: (_, __, ___) =>
+                    Text('🦊', style: TextStyle(fontSize: pupSize * 0.7)),
               ),
             );
           }),

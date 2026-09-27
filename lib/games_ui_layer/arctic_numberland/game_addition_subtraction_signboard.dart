@@ -330,7 +330,11 @@ class _SignboardMathGameState extends State<SignboardMathGame>
       if (_currentRound + 1 >= _totalRounds) {
         await _playVoice(_audioWin);
         _saveGameResult();
-        ArcticProgressService.instance.markLevelComplete(widget.level);
+        ArcticProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
         if (!mounted) return;
         setState(() => _showWinDialog = true);
       } else {

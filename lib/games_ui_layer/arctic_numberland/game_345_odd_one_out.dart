@@ -29,7 +29,11 @@ class Number345OddOneOutScreen extends StatefulWidget {
 }
 
 class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -38,9 +42,11 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   static const List<int> _numbers = [3, 4, 5];
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level16/intro.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level16/intro.wav';
 
   static const Map<int, String> _numberAudio = {
     3: 'assets/audio/arctic_numberland/level16/odd_three.wav',
@@ -254,17 +260,20 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         // --- ADDED AI STOP & DATABASE SAVE ---
         List<String> finalEmotions = stopAiCamera();
 
-        try {
-          await ArcticDatabaseService.saveGameData(
-            gameId: 'arctic_numberland_${widget.level}',
-            mistakes: _tapTracker.mistakeCount,
-            emotions: finalEmotions,
-          );
-        } catch (e) {
-          debugPrint("Database Error saving Arctic metrics: $e");
-        }
+        ArcticDatabaseService.saveGameData(
+          gameId: 'arctic_numberland_${widget.level}',
+          mistakes: _tapTracker.mistakeCount,
+          emotions: finalEmotions,
+        ).catchError((e) {
+          debugPrint("Database Error saving metrics: $e");
+        });
 
-        ArcticProgressService.instance.markLevelComplete(widget.level);
+        ArcticProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
+
         setState(() => _showWinDialog = true);
       } else {
         setState(() => _currentRound++);

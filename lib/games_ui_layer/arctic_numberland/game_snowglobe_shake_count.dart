@@ -41,20 +41,29 @@ class SnowglobeShakeGame extends StatefulWidget {
 }
 
 class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
-    with TickerProviderStateMixin, DomaReactionMixin<SnowglobeShakeGame>, GameLoadingMixin<SnowglobeShakeGame>, ArcticAudioMixin<SnowglobeShakeGame>, AiCameraMixin<SnowglobeShakeGame> {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin<SnowglobeShakeGame>,
+        GameLoadingMixin<SnowglobeShakeGame>,
+        ArcticAudioMixin<SnowglobeShakeGame>,
+        AiCameraMixin<SnowglobeShakeGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _snowglobeEmptyAsset = 'assets/images/objects/arctic/empty_snowglobe.png';
-  static const String _snowballAsset = 'assets/images/objects/arctic/snowball.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _snowglobeEmptyAsset =
+      'assets/images/objects/arctic/empty_snowglobe.png';
+  static const String _snowballAsset =
+      'assets/images/objects/arctic/snowball.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/snowglobe_shake_intro.wav';
-  static const String _audioInstruction = '$_audioBase/snowglobe_shake_instuction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/snowglobe_shake_instuction.wav';
 
   static const List<Alignment> _ballPositions = [
     Alignment(-0.28, -0.55),
@@ -262,17 +271,20 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
       // --- AI STOP & DATABASE SAVE ---
       List<String> finalEmotions = stopAiCamera();
 
-      try {
-        await ArcticDatabaseService.saveGameData(
-          gameId: 'arctic_numberland_${widget.level}',
-          mistakes: _tapTracker.mistakeCount,
-          emotions: finalEmotions,
-        );
-      } catch (e) {
-        debugPrint("Database Error saving Arctic metrics: $e");
-      }
+      ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      ).catchError((e) {
+        debugPrint("Database Error saving metrics: $e");
+      });
 
-      await ArcticProgressService.instance.markLevelComplete(widget.level);
+      await ArcticProgressService.instance
+          .markLevelComplete(widget.level)
+          .catchError((e) {
+            debugPrint("Database Error marking level complete: $e");
+          });
+
       if (!mounted) return;
       setState(() => _showWinDialog = true);
       return;
@@ -541,7 +553,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   Widget _buildGlobeDropTarget(double size) {
     return DragTarget<_TagOption>(
       onWillAcceptWithDetails: (details) =>
-      !_resolving &&
+          !_resolving &&
           details.data.number == _rounds[_currentRound].targetNumber,
       onAcceptWithDetails: (details) =>
           _onCorrectTagDroppedOnGlobe(details.data),

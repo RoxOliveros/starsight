@@ -281,17 +281,19 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
           // --- ADDED AI STOP & DATABASE SAVE ---
           List<String> finalEmotions = stopAiCamera();
 
-          try {
-            await ArcticDatabaseService.saveGameData(
-              gameId: 'arctic_numberland_${widget.level}',
-              mistakes: _tapTracker.mistakeCount,
-              emotions: finalEmotions,
-            );
-          } catch (e) {
-            debugPrint("Database Error saving Arctic metrics: $e");
-          }
+          ArcticDatabaseService.saveGameData(
+            gameId: 'arctic_numberland_${widget.level}',
+            mistakes: _tapTracker.mistakeCount,
+            emotions: finalEmotions,
+          ).catchError((e) {
+            debugPrint("Database Error saving metrics: $e");
+          });
+          ArcticProgressService.instance
+              .markLevelComplete(widget.level)
+              .catchError((e) {
+                debugPrint("Database Error marking level complete: $e");
+              });
 
-          await ArcticProgressService.instance.markLevelComplete(widget.level);
           setState(() => _showWinDialog = true);
         } else {
           setState(() => _currentRound++);
@@ -812,8 +814,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                CountingTreesScreen(level: widget.level + 1),
+            builder: (_) => CountingTreesScreen(level: widget.level + 1),
           ),
         );
       },

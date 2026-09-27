@@ -24,41 +24,80 @@ class CountingTreesScreen extends StatefulWidget {
   const CountingTreesScreen({super.key, required this.level});
 
   @override
-  State<CountingTreesScreen> createState() =>
-      _CountingTreesScreenState();
+  State<CountingTreesScreen> createState() => _CountingTreesScreenState();
 }
 
-class _CountingTreesScreenState
-    extends State<CountingTreesScreen> with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin<CountingTreesScreen> {
+class _CountingTreesScreenState extends State<CountingTreesScreen>
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin<CountingTreesScreen> {
   @override
   AudioPlayer get domaPlayer => _player;
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _treeAsset = 'assets/images/objects/arctic/snowy_tree.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _treeAsset =
+      'assets/images/objects/arctic/snowy_tree.png';
 
   // Tagalog
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level18/intro.wav';
-  static const String _audioQuestion = 'assets/audio/arctic_numberland/level18/how_many.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level18/intro.wav';
+  static const String _audioQuestion =
+      'assets/audio/arctic_numberland/level18/how_many.wav';
 
   // English
   // static const String _audioIntroEng = 'assets/audio/arctic_numberland/level18/intro_eng.wav';
   // static const String _audioQuestionEng = 'assets/audio/arctic_numberland/level18/how_many_eng.wav';
 
   static const ColorFilter _tappedTreeFilter = ColorFilter.matrix([
-    0.6, 0,   0,   0, 80,
-    0,   0.9, 0,   0, 80,
-    0,   0,   0.4, 0, 0,
-    0,   0,   0,   1, 0,
+    0.6,
+    0,
+    0,
+    0,
+    80,
+    0,
+    0.9,
+    0,
+    0,
+    80,
+    0,
+    0,
+    0.4,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
   ]);
 
   static const ColorFilter _normalTreeFilter = ColorFilter.matrix([
-    1, 0, 0, 0, 0,
-    0, 1, 0, 0, 0,
-    0, 0, 1, 0, 0,
-    0, 0, 0, 1, 0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
   ]);
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
@@ -324,17 +363,19 @@ class _CountingTreesScreenState
         // --- ADDED AI STOP & DATABASE SAVE ---
         List<String> finalEmotions = stopAiCamera();
 
-        try {
-          ArcticDatabaseService.saveGameData(
-            gameId: 'arctic_numberland_${widget.level}',
-            mistakes: _tapTracker.mistakeCount,
-            emotions: finalEmotions,
-          );
-        } catch (e) {
-          debugPrint("Database Error saving Arctic metrics: $e");
-        }
+        ArcticDatabaseService.saveGameData(
+          gameId: 'arctic_numberland_${widget.level}',
+          mistakes: _tapTracker.mistakeCount,
+          emotions: finalEmotions,
+        ).catchError((e) {
+          debugPrint("Database Error saving metrics: $e");
+        });
 
-        ArcticProgressService.instance.markLevelComplete(widget.level);
+        ArcticProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
         setState(() => _showWinDialog = true);
       } else {
         setState(() => _currentRound++);
@@ -509,8 +550,11 @@ class _CountingTreesScreenState
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: List.generate(5, (i) {
                           final num = i + 1;
-                          final angle = _numberDance.value * ((i % 2 == 0) ? 1 : -1);
-                          final treeH = MediaQuery.of(context).size.height * 0.17 + (i * 6.0);
+                          final angle =
+                              _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                          final treeH =
+                              MediaQuery.of(context).size.height * 0.17 +
+                              (i * 6.0);
                           return Transform.rotate(
                             angle: angle,
                             child: Padding(
@@ -630,7 +674,6 @@ class _CountingTreesScreenState
       },
     );
   }
-
 
   // ── Tree Scene ─────────────────────────────────────────────────────────────
   Widget _buildTreeScene(double w, double h) {

@@ -30,21 +30,31 @@ class BuildSnowmanGame extends StatefulWidget {
 }
 
 class _BuildSnowmanGameState extends State<BuildSnowmanGame>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, ArcticAudioMixin, AiCameraMixin{
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        ArcticAudioMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _snowballAsset = 'assets/images/objects/arctic/snowball_clean.png';
-  static const String _snowmanAsset = 'assets/images/objects/arctic/snowman.png';
-  static const String _snowmanHatFaceAsset = 'assets/images/objects/arctic/snowman_hat_face.png';
+  static const String _domaImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _snowballAsset =
+      'assets/images/objects/arctic/snowball_clean.png';
+  static const String _snowmanAsset =
+      'assets/images/objects/arctic/snowman.png';
+  static const String _snowmanHatFaceAsset =
+      'assets/images/objects/arctic/snowman_hat_face.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/build_snowman_intro.wav';
-  static const String _audioInstruction = '$_audioBase/build_snowman_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/build_snowman_instruction.wav';
   static const String _audioWin = '$_audioBase/build_snowman_win.wav';
 
   static const int _totalRounds = 5;
@@ -211,17 +221,20 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       // --- AI STOP & DATABASE SAVE ---
       List<String> finalEmotions = stopAiCamera();
 
-      try {
-        ArcticDatabaseService.saveGameData(
-          gameId: 'arctic_numberland_${widget.level}',
-          mistakes: _tapTracker.mistakeCount,
-          emotions: finalEmotions,
-        );
-      } catch (e) {
-        debugPrint("Database Error saving Arctic metrics: $e");
-      }
+      ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      ).catchError((e) {
+        debugPrint("Database Error saving metrics: $e");
+      });
 
-      ArcticProgressService.instance.markLevelComplete(widget.level);
+      ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
+        (e) {
+          debugPrint("Database Error marking level complete: $e");
+        },
+      );
+
       if (!mounted) return;
       setState(() => _showWinDialog = true);
       return;
@@ -526,7 +539,10 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
     const overlapFraction = 0.45;
     final bottoms = <double>[];
     double cumulative = 0;
-    for (int i = 0; i < _stackCount; i++) {bottoms.add(cumulative);cumulative += ballSize * scales[i] * overlapFraction;}
+    for (int i = 0; i < _stackCount; i++) {
+      bottoms.add(cumulative);
+      cumulative += ballSize * scales[i] * overlapFraction;
+    }
     final topHeight = _stackCount == 0 ? ballSize : ballSize * scales.last;
     final stackHeight = cumulative + topHeight + ballSize * 0.9;
     final topBallScale = _stackCount > 0 ? scales.last : 1.0;
@@ -611,9 +627,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                           animation: _completeCtrl,
                           builder: (_, child) {
                             return Transform.scale(
-                              scale: isComplete
-                                  ? _complete.value
-                                  : 0.0,
+                              scale: isComplete ? _complete.value : 0.0,
                               child: child,
                             );
                           },
@@ -625,9 +639,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
                               fit: BoxFit.contain,
                               errorBuilder: (_, __, ___) => Text(
                                 '🎩',
-                                style: TextStyle(
-                                  fontSize: topBallSize * 0.6,
-                                ),
+                                style: TextStyle(fontSize: topBallSize * 0.6),
                               ),
                             ),
                           ),

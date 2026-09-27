@@ -184,15 +184,13 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
     _hasSavedResult = true;
 
     final finalEmotions = stopAiCamera();
-    try {
-      await ArcticDatabaseService.saveGameData(
-        gameId: 'arctic_numberland_${widget.level}',
-        mistakes: _tapTracker.mistakeCount,
-        emotions: finalEmotions,
-      );
-    } catch (e) {
-      debugPrint('Database Error saving Arctic metrics: $e');
-    }
+    ArcticDatabaseService.saveGameData(
+      gameId: 'arctic_numberland_${widget.level}',
+      mistakes: _tapTracker.mistakeCount,
+      emotions: finalEmotions,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
   }
 
   @override
@@ -616,7 +614,11 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
     if (!mounted) return;
 
     await _saveGameResult();
-    await ArcticProgressService.instance.markLevelComplete(widget.level);
+    ArcticProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
 
     if (!mounted) return;
     setState(() {
@@ -882,9 +884,7 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: ArcticColorTheme.slateblue, width: 4),
         ),
-        child: Center(
-          child: Image.asset(_speakerImage)
-        ),
+        child: Center(child: Image.asset(_speakerImage)),
       ),
     );
   }

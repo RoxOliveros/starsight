@@ -25,21 +25,30 @@ class Number12CountingObjectsScreen extends StatefulWidget {
   const Number12CountingObjectsScreen({super.key, required this.level});
 
   @override
-  State<Number12CountingObjectsScreen> createState() => _Number12CountingObjectsScreenState();
+  State<Number12CountingObjectsScreen> createState() =>
+      _Number12CountingObjectsScreenState();
 }
 
 class _Number12CountingObjectsScreenState
     extends State<Number12CountingObjectsScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get domaPlayer => _player;
 
-  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _domaImage =
+      'assets/images/characters/doma_the_penguin.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/012_counting_intro.wav';
-  static const String _audioInstruction = 'assets/audio/arctic_numberland/012_counting_instruction.wav';
-  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/012_counting_intro.wav';
+  static const String _audioInstruction =
+      'assets/audio/arctic_numberland/012_counting_instruction.wav';
+  static const String _audioBubblePop =
+      'assets/audio/sound_effects/bubble_pop.wav';
 
   late int _correctCount;
   late List<int> _choices;
@@ -65,17 +74,35 @@ class _Number12CountingObjectsScreenState
   final List<Map<String, String>> _objects = [
     {'name': 'Earmuffs', 'asset': 'assets/images/objects/arctic/earmuffs.png'},
     {'name': 'Ice', 'asset': 'assets/images/objects/arctic/ice.png'},
-    {'name': 'Ice Skates', 'asset': 'assets/images/objects/arctic/ice_skates.png',},
+    {
+      'name': 'Ice Skates',
+      'asset': 'assets/images/objects/arctic/ice_skates.png',
+    },
     {'name': 'Ice Cream', 'asset': 'assets/images/objects/arctic/icecream.png'},
     {'name': 'Igloo', 'asset': 'assets/images/objects/arctic/igloo.png'},
     {'name': 'Sled', 'asset': 'assets/images/objects/arctic/sled.png'},
     {'name': 'Snowball', 'asset': 'assets/images/objects/arctic/snowball.png'},
-    {'name': 'Snow Globe', 'asset': 'assets/images/objects/arctic/snowglobe.png',},
+    {
+      'name': 'Snow Globe',
+      'asset': 'assets/images/objects/arctic/snowglobe.png',
+    },
     {'name': 'Snowman', 'asset': 'assets/images/objects/arctic/snowman.png'},
-    {'name': 'Snowy Sign Board', 'asset': 'assets/images/objects/arctic/snowy_signboard.png',},
-    {'name': 'Snowy Tree', 'asset': 'assets/images/objects/arctic/snowy_tree.png',},
-    {'name': 'Candy Cane', 'asset': 'assets/images/objects/arctic/candy_cane.png',},
-    {'name': 'Winter Hat', 'asset': 'assets/images/objects/arctic/winter_hat.png',},
+    {
+      'name': 'Snowy Sign Board',
+      'asset': 'assets/images/objects/arctic/snowy_signboard.png',
+    },
+    {
+      'name': 'Snowy Tree',
+      'asset': 'assets/images/objects/arctic/snowy_tree.png',
+    },
+    {
+      'name': 'Candy Cane',
+      'asset': 'assets/images/objects/arctic/candy_cane.png',
+    },
+    {
+      'name': 'Winter Hat',
+      'asset': 'assets/images/objects/arctic/winter_hat.png',
+    },
   ];
 
   @override
@@ -128,7 +155,7 @@ class _Number12CountingObjectsScreenState
 
   @override
   void dispose() {
-    disposeAiCamera(); 
+    disposeAiCamera();
     _minLoadTimer?.cancel();
     _numberDanceCtrl.dispose();
     _player.dispose();
@@ -164,17 +191,19 @@ class _Number12CountingObjectsScreenState
       if (_round >= _totalRounds) {
         List<String> finalEmotions = stopAiCamera();
 
-        try {
-          ArcticDatabaseService.saveGameData(
-            gameId: 'arctic_numberland_${widget.level}',
-            mistakes: _tapTracker.mistakeCount,
-            emotions: finalEmotions,
-          );
-        } catch (e) {
-          debugPrint("Database Error saving Arctic metrics: $e");
-        }
+        ArcticDatabaseService.saveGameData(
+          gameId: 'arctic_numberland_${widget.level}',
+          mistakes: _tapTracker.mistakeCount,
+          emotions: finalEmotions,
+        ).catchError((e) {
+          debugPrint("Database Error saving metrics: $e");
+        });
 
-        ArcticProgressService.instance.markLevelComplete(widget.level);
+        ArcticProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
         setState(() => _showWinDialog = true);
       } else {
         setState(() {
@@ -194,9 +223,7 @@ class _Number12CountingObjectsScreenState
   }
 
   Future<void> _startIntroFlow() async {
-    await Future.delayed(
-      const Duration(milliseconds: 400),
-    );
+    await Future.delayed(const Duration(milliseconds: 400));
 
     await _playAudio(_audioIntro);
 
@@ -207,9 +234,7 @@ class _Number12CountingObjectsScreenState
       _canTapChoices = false;
     });
 
-    await Future.delayed(
-      const Duration(milliseconds: 400),
-    );
+    await Future.delayed(const Duration(milliseconds: 400));
 
     await _playAudio(_audioInstruction);
 
@@ -251,19 +276,18 @@ class _Number12CountingObjectsScreenState
     final reactiveNeedsLightingPrompt =
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
-    Widget reactiveLightingCard() =>
-        LightingPromptCard(
-          onClose: () => setState(() => _hideLightingCard = true),
-        );
+    Widget reactiveLightingCard() => LightingPromptCard(
+      onClose: () => setState(() => _hideLightingCard = true),
+    );
 
     final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
         ? LightingPromptCard(
-      onClose: () {
-        setState(() => isFaceDetected = true);
-        onFirstFaceDetected?.call();
-        onFirstFaceDetected = null;
-      },
-    )
+            onClose: () {
+              setState(() => isFaceDetected = true);
+              onFirstFaceDetected?.call();
+              onFirstFaceDetected = null;
+            },
+          )
         : LoadingScreen.arctic();
 
     return Listener(
@@ -276,10 +300,7 @@ class _Number12CountingObjectsScreenState
             final gameContent = Stack(
               children: [
                 Positioned.fill(
-                  child: Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                  ),
+                  child: Image.asset(_bgImage, fit: BoxFit.cover),
                 ),
                 if (_screenPhase == _ScreenPhase.intro)
                   _buildIntroLayer()
@@ -303,9 +324,7 @@ class _Number12CountingObjectsScreenState
                                 ),
                                 Align(
                                   alignment: Alignment.centerRight,
-                                  child: ArcticLevelBadge(
-                                    level: widget.level,
-                                  ),
+                                  child: ArcticLevelBadge(level: widget.level),
                                 ),
                               ],
                             ),
@@ -322,8 +341,7 @@ class _Number12CountingObjectsScreenState
                                 bottom: 30,
                               ),
                               child: Row(
-                                crossAxisAlignment:
-                                CrossAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   // OBJECT BOX
                                   Expanded(
@@ -336,17 +354,14 @@ class _Number12CountingObjectsScreenState
                                       ),
                                       decoration: BoxDecoration(
                                         color: ArcticColorTheme.cotton,
-                                        borderRadius:
-                                        BorderRadius.circular(24),
+                                        borderRadius: BorderRadius.circular(24),
                                         border: Border.all(
-                                          color:
-                                          ArcticColorTheme.pictonblue,
+                                          color: ArcticColorTheme.pictonblue,
                                           width: 4,
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: ArcticColorTheme
-                                                .pictonblue
+                                            color: ArcticColorTheme.pictonblue
                                                 .withValues(alpha: 0.3),
                                             blurRadius: 12,
                                             offset: const Offset(0, 4),
@@ -354,8 +369,7 @@ class _Number12CountingObjectsScreenState
                                         ],
                                       ),
                                       child: Padding(
-                                        padding:
-                                        const EdgeInsets.all(16),
+                                        padding: const EdgeInsets.all(16),
                                         child: _buildObjectGrid(),
                                       ),
                                     ),
@@ -367,79 +381,60 @@ class _Number12CountingObjectsScreenState
                                   Expanded(
                                     flex: 2,
                                     child: Padding(
-                                      padding:
-                                      const EdgeInsets.symmetric(
+                                      padding: const EdgeInsets.symmetric(
                                         vertical: 16,
                                       ),
                                       child: Column(
                                         mainAxisAlignment:
-                                        MainAxisAlignment.center,
-                                        children: List.generate(
-                                          _choices.length,
-                                              (index) {
-                                            return Expanded(
-                                              child: Padding(
-                                                padding:
-                                                const EdgeInsets
-                                                    .symmetric(
-                                                  vertical: 7,
-                                                ),
-                                                child: GestureDetector(
-                                                  onTap: _canTapChoices
-                                                      ? () =>
-                                                      _onChoiceTap(
-                                                        index,
-                                                      )
-                                                      : null,
-                                                  child:
-                                                  AnimatedContainer(
-                                                    duration:
-                                                    const Duration(
-                                                      milliseconds: 250,
-                                                    ),
-                                                    width:
-                                                    double.infinity,
-                                                    decoration:
-                                                    BoxDecoration(
-                                                      color:
-                                                      _choiceColor(
+                                            MainAxisAlignment.center,
+                                        children: List.generate(_choices.length, (
+                                          index,
+                                        ) {
+                                          return Expanded(
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 7,
+                                                  ),
+                                              child: GestureDetector(
+                                                onTap: _canTapChoices
+                                                    ? () => _onChoiceTap(index)
+                                                    : null,
+                                                child: AnimatedContainer(
+                                                  duration: const Duration(
+                                                    milliseconds: 250,
+                                                  ),
+                                                  width: double.infinity,
+                                                  decoration: BoxDecoration(
+                                                    color: _choiceColor(index),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          18,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: _choiceBorderColor(
                                                         index,
                                                       ),
-                                                      borderRadius:
-                                                      BorderRadius
-                                                          .circular(
-                                                        18,
-                                                      ),
-                                                      border:
-                                                      Border.all(
-                                                        color:
-                                                        _choiceBorderColor(
-                                                          index,
-                                                        ),
-                                                        width: 3,
-                                                      ),
+                                                      width: 3,
                                                     ),
-                                                    child: Center(
-                                                      child: Padding(
-                                                        padding:
-                                                        const EdgeInsets
-                                                            .all(
-                                                          10,
-                                                        ),
-                                                        child:
-                                                        Image.asset(
-                                                          'assets/fonts/game_numbers/${_choices[index]}.png',
-                                                          fit: BoxFit
-                                                              .contain,
-                                                        ),
+                                                  ),
+                                                  child: Center(
+                                                    child: Padding(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                            10,
+                                                          ),
+                                                      child: Image.asset(
+                                                        'assets/fonts/game_numbers/${_choices[index]}.png',
+                                                        fit: BoxFit.contain,
                                                       ),
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                            );
-                                          },
-                                        ),
+                                            ),
+                                          );
+                                        }),
                                       ),
                                     ),
                                   ),
@@ -455,13 +450,10 @@ class _Number12CountingObjectsScreenState
                         left: 0,
                         right: 0,
                         bottom: 15,
-                        child: Center(
-                          child: _buildProgressDots(),
-                        ),
+                        child: Center(child: _buildProgressDots()),
                       ),
                     ],
                   ),
-
 
                 if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
                 if (_showWinDialog)
@@ -470,11 +462,11 @@ class _Number12CountingObjectsScreenState
             );
             return reactiveNeedsLightingPrompt
                 ? Stack(
-              children: [
-                Positioned.fill(child: gameContent),
-                Positioned.fill(child: reactiveLightingCard()),
-              ],
-            )
+                    children: [
+                      Positioned.fill(child: gameContent),
+                      Positioned.fill(child: reactiveLightingCard()),
+                    ],
+                  )
                 : gameContent;
           },
         ),

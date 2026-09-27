@@ -41,22 +41,32 @@ class IglooPeekabooGame extends StatefulWidget {
 }
 
 class _IglooPeekabooGameState extends State<IglooPeekabooGame>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, ArcticAudioMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        ArcticAudioMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
   static const String _iglooAsset = 'assets/images/objects/arctic/igloo.png';
-  static const String _brokenIglooAsset = 'assets/images/objects/arctic/broken_igloo.png';
-  static const String _babyPenguinAsset = 'assets/images/characters/baby_penguin.png';
-  static const String _snowballAsset = 'assets/images/objects/arctic/snowball.png';
+  static const String _brokenIglooAsset =
+      'assets/images/objects/arctic/broken_igloo.png';
+  static const String _babyPenguinAsset =
+      'assets/images/characters/baby_penguin.png';
+  static const String _snowballAsset =
+      'assets/images/objects/arctic/snowball.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/igloo_peekaboo_intro.wav';
-  static const String _audioInstruction = '$_audioBase/igloo_peekaboo_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/igloo_peekaboo_instruction.wav';
   static const String _audioWin = '$_audioBase/igloo_peekaboo_win.wav';
 
   static const List<int> _optionCounts = [2, 2, 3, 3, 3];
@@ -243,17 +253,20 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
       // --- STOP & DATABASE SAVE ---
       List<String> finalEmotions = stopAiCamera();
 
-      try {
-        ArcticDatabaseService.saveGameData(
-          gameId: 'arctic_numberland_${widget.level}',
-          mistakes: _tapTracker.mistakeCount,
-          emotions: finalEmotions,
-        );
-      } catch (e) {
-        debugPrint("Database Error saving Arctic metrics: $e");
-      }
+      ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      ).catchError((e) {
+        debugPrint("Database Error saving metrics: $e");
+      });
 
-      ArcticProgressService.instance.markLevelComplete(widget.level);
+      ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
+        (e) {
+          debugPrint("Database Error marking level complete: $e");
+        },
+      );
+
       if (!mounted) return;
       setState(() => _showWinDialog = true);
       return;
@@ -453,9 +466,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
                         ),
                         Align(
                           alignment: Alignment.centerRight,
-                          child: ArcticLevelBadge(
-                            level: widget.level,
-                          ),
+                          child: ArcticLevelBadge(level: widget.level),
                         ),
                       ],
                     ),
@@ -469,9 +480,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
                   ),
 
                   Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: 15,
-                    ),
+                    padding: const EdgeInsets.only(bottom: 15),
                     child: _buildProgressDots(),
                   ),
                 ],
@@ -481,11 +490,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
                 top: 20,
                 left: 0,
                 right: 0,
-                child: Center(
-                  child: _buildTargetBadge(
-                    h * 0.22,
-                  ),
-                ),
+                child: Center(child: _buildTargetBadge(h * 0.22)),
               ),
             ],
           ),
@@ -522,10 +527,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
                   ),
                 ),
                 Transform.translate(
-                  offset: Offset(
-                    0,
-                    tagSize * 0.08,
-                  ),
+                  offset: Offset(0, tagSize * 0.08),
                   child: Text(
                     '$target',
                     style: TextStyle(
