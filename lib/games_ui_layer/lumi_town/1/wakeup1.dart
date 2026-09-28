@@ -4,7 +4,6 @@ import 'package:StarSight/games_ui_layer/lumi_town/1/wakeup2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:lottie/lottie.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -24,7 +23,7 @@ class Lumi1ValuesWakeup extends StatefulWidget {
 
   const Lumi1ValuesWakeup({
     super.key,
-    this.imagePath = 'assets/animations/sleeping.json',
+    this.imagePath = 'assets/animations/sleeping.webp',
     this.audioBinPath2 = 'assets/audio/lumi_town/level1/gising.wav',
     this.loopAudio = false,
     this.volume = 1.0,
@@ -36,8 +35,6 @@ class Lumi1ValuesWakeup extends StatefulWidget {
 
 class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     with SingleTickerProviderStateMixin, AiCameraMixin<Lumi1ValuesWakeup> {
-  // ── Tracking (camera + taps; Level 1 spans this screen AND wakeup2, so the
-  // same tracker keeps counting across both, and emotions are handed off) ──
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
 
@@ -53,8 +50,6 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   int _gisingCount = 0;
   static const int _gisingTarget = 3;
   bool _completed = false;
-  // Set when we deliberately shut speech down (X button, finished, or the
-  // screen closing) so nothing is allowed to restart it.
   bool _speechStopped = false;
   Timer? _restartTimer;
 
@@ -63,7 +58,6 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   late Animation<double> _fadeAnimation;
 
   bool _animationReady = false;
-  bool _isLoadingProgress = true;
   final DateTime _loadStart = DateTime.now();
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -73,8 +67,6 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    // Starts immediately - never waits for a face. Session id/tap tracker are
-    // shared with wakeup2, which continues this same level.
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
@@ -92,25 +84,28 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
       curve: Curves.easeIn,
     );
 
-    _loadAnimation();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAnimation());
   }
 
   Future<void> _loadAnimation() async {
-    AssetLottie(widget.imagePath).load();
-    AssetLottie('assets/animations/awake.json').load();
+    if (!mounted) return;
 
-    if (_isLoadingProgress) {
-      final elapsed = DateTime.now().difference(_loadStart);
-      final remaining = const Duration(milliseconds: 1500) - elapsed;
-      if (remaining > Duration.zero) {
-        await Future.delayed(remaining);
-      }
+    try {
+      await precacheImage(AssetImage(widget.imagePath), context);
+    } catch (e) {
+      debugPrint('[Lumi1ValuesWakeup] Precache error: $e');
+    }
+    if (!mounted) return;
+
+    final elapsed = DateTime.now().difference(_loadStart);
+    final remaining = const Duration(milliseconds: 1500) - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
       if (!mounted) return;
     }
 
     setState(() {
       _animationReady = true;
-      _isLoadingProgress = false;
     });
     _fadeController.forward();
     _initAudio();
@@ -328,12 +323,11 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Lottie.asset(
+                    Image.asset(
                       widget.imagePath,
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
-                      frameRate: FrameRate(30),
                       errorBuilder: (context, error, stack) =>
                           _buildImageError(),
                     ),
@@ -404,19 +398,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
       right: 0,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          // Label
-          Text(
-            'Sabihin ang "Gising!" nang $_gisingCount / $_gisingTarget',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-
+        children:[
           // Bar track
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
