@@ -51,33 +51,34 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
 
   final AudioPlayer _introPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
+  final AudioPlayer _sfxPlayer = AudioPlayer();
 
   @override
   AudioPlayer get introAudioPlayer => _introPlayer;
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
+  static const String _introAudio = 'assets/audio/discovery_lagoon/tapsort_intro.wav';
+  static const String _shineAudio = 'assets/audio/sound_effects/shine.wav';
+  static const String _bubblePopAudio = 'assets/audio/sound_effects/bubble_pop.wav';
+
   // ── Game data ────────────────────────────────────────────────────────────
 
   final List<Map<String, dynamic>> _weathers = [
     {
       'id': 'sunny',
-      'label': 'Tap all Sunny things!',
       'color': const Color(0xFFFFE066),
     },
     {
       'id': 'rainy',
-      'label': 'Tap all Rainy things!',
       'color': const Color(0xFF90CAF9),
     },
     {
       'id': 'cloudy',
-      'label': 'Tap all Cloudy things!',
       'color': const Color(0xFFCFD8DC),
     },
     {
       'id': 'windy',
-      'label': 'Tap allWindy things!',
       'color': const Color(0xFFB2EBF2),
     },
   ];
@@ -93,7 +94,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     'sunny': [
       'assets/images/objects/lagoon/sunglasses.png',
       'assets/images/objects/lagoon/rainbow.png',
-      'assets/images/objects/lagoon/sun_wb.png',
+      'assets/images/objects/lagoon/sun.png',
     ],
     'rainy': [
       'assets/images/objects/lagoon/raincloud.png',
@@ -150,7 +151,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
 
     initLagoonIntro();
     startLagoonIntro(
-      introAudioAsset: 'assets/audio/discovery_lagoon/tapsort_intro.wav',
+      introAudioAsset: _introAudio,
       onGameStart: () {
         if (!mounted) return;
         setState(() => _screenPhase = LagoonScreenPhase.game);
@@ -227,6 +228,12 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     });
   }
 
+  void _playSfx(String asset) {
+    _sfxPlayer
+        .play(AssetSource(asset.replaceFirst('assets/', '')))
+        .catchError((e) => debugPrint('SFX error: $e'));
+  }
+
   Future<void> _onTap(FallingIcon icon) async {
     if (icon.tapped) return;
 
@@ -236,7 +243,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
         icon.tapped = true;
         _score++;
       });
-      LagoonAudio.instance.play('correct');
+      _playSfx(_shineAudio);
       if (_score >= _needed) {
         setState(() => _roundComplete = true);
         await Future.delayed(const Duration(milliseconds: 800));
@@ -252,6 +259,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
       }
     } else {
       _tapTracker.recordMistake();
+      _playSfx(_bubblePopAudio);
       setState(() => icon.wrong = true);
       await Future.delayed(const Duration(milliseconds: 400));
       if (mounted) setState(() => icon.tapped = true);
@@ -328,6 +336,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     _tickCtrl.dispose();
     disposeLagoonIntro();
     _introPlayer.dispose();
+    _sfxPlayer.dispose();
     super.dispose();
   }
 
@@ -433,62 +442,6 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
   Widget _buildGameContent() {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SizedBox(
-            height: 50,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: LagoonColorTheme.pastelorange,
-                    borderRadius: BorderRadius.circular(25),
-                    border: Border.all(
-                      color: LagoonColorTheme.wasteland,
-                      width: 5,
-                    ),
-                  ),
-                  child: Text(
-                    _currentWeather['label']!,
-                    style: TextStyle(
-                      fontFamily: LagoonAppTextStyles.fredoka,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: LagoonColorTheme.darkbrown,
-                    ),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: LagoonColorTheme.ferngreen,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '$_score / $_needed',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
         const Spacer(),
 
         Padding(
