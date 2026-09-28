@@ -24,6 +24,7 @@ import '../../games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
 import '../../games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import '../../games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
+import '../../ui_layer/app_dialog.dart';
 import '../loading_screen.dart';
 import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';

@@ -4,29 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/lagoon_database_service.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/tree_game.dart';
 import '../../business_layer/lagoon_progress_service.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_background.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'audio_helper.dart';
 import 'intro_phase.dart';
 import 'lagoon_game_ui.dart';
-
-abstract class ColorTheme {
-  static const Color background = Color(0xFFE8F4F8);
-  static const Color textDark = Color(0xFF5E463E);
-  static const Color primary = Color(0xFF75D5FF);
-  static const Color success = Color(0xFF82C84B);
-  static const Color accent = Color(0xFFEC8A20);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
 
 class BodyPartItem {
   final String id;
@@ -52,6 +37,13 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
 
   @override
   AudioPlayer get introAudioPlayer => _player;
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_closeup2.png';
+  static const String _kikiFishboneImage = 'assets/images/characters/cat_holding_fishbone.png';
+  static const String _boyImage = 'assets/images/objects/lagoon/boy.png';
+
+  static const String _introAudio = 'assets/audio/discovery_lagoon/bodyparts_assembly_intro.wav';
+  static const String _winAudio = 'assets/audio/discovery_lagoon/bodyparts_assembly_win.wav';
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
@@ -97,8 +89,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
     _resetGame();
 
     startLagoonIntro(
-      introAudioAsset:
-          'assets/audio/discovery_lagoon/bodyparts_assembly_intro.wav',
+      introAudioAsset: _introAudio,
       onGameStart: () {
         if (mounted) setState(() => _screenPhase = LagoonScreenPhase.game);
       },
@@ -152,7 +143,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
       barrierColor: Colors.black54,
       barrierDismissible: false,
       builder: (context) => GoodJobOverlay(
-        characterImage: 'assets/images/characters/cat_holding_fishbone.png',
+        characterImage: _kikiFishboneImage,
         characterSizeFactor: 0.9,
         onNext: () {
           Navigator.pop(context);
@@ -181,173 +172,244 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ColorTheme.background,
       body: Stack(
         children: [
-          LagoonBackground(
+          Positioned.fill(
+            child: Image.asset(
+              _bgImage,
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          Positioned(top: 25, left: 25, child: const LagoonXButton()),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: LagoonLevelBadge(level: widget.level),
+          ),
+
+          Positioned.fill(
+            top: 50,
             child: _screenPhase == LagoonScreenPhase.intro
-                ? _buildIntroContent()
+                ? buildLagoonIntroCharacter()
                 : _buildGameContent(),
           ),
-          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-            LightingPromptCard(
-              onClose: () {
-                setState(() => _hideLightingCard = true);
-                releaseFaceGate();
-              },
-            ),
         ],
       ),
     );
   }
 
-  Widget _buildIntroContent() {
-    return Stack(
-      children: [
-        Positioned(top: 25, left: 25, child: const LagoonXButton()),
-        Positioned(
-          top: 25,
-          right: 25,
-          child: LagoonLevelBadge(level: widget.level),
-        ),
-        Positioned.fill(top: 48, child: buildLagoonIntroCharacter()),
-      ],
-    );
-  }
-
   Widget _buildGameContent() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 0),
-          child: Stack(
-            alignment: Alignment.center,
+    return Expanded(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double h = constraints.maxHeight;
+          final double w = constraints.maxWidth;
+
+          // Left side = diagram
+          final double diagramWidth = w * 0.62;
+          final double diagramHeight = h;
+
+          final double optionsWidth = w * 0.38;
+
+          return Row(
             children: [
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: LagoonBackButton(),
+              // =========================
+              // LEFT: BODY DIAGRAM
+              // =========================
+              SizedBox(
+                width: diagramWidth,
+                height: diagramHeight,
+                child: LayoutBuilder(
+                  builder: (context, diagramConstraints) {
+                    final double dh = diagramConstraints.maxHeight;
+                    final double dw = diagramConstraints.maxWidth;
+
+                    final double cx = dw / 2;
+                    final double cy = dh / 2;
+
+                    final double boxSize = dh * 0.20;
+
+                    final double boyHeight = dh * 0.95;
+                    final double boyWidth = boyHeight * 0.6;
+
+                    final double boyLeft = cx - boyWidth / 2;
+                    final double boyTop = cy - boyHeight / 2;
+
+                    final Offset headTarget = Offset(
+                      boyLeft + boyWidth * 0.20,
+                      boyTop + boyHeight * 0.15,
+                    );
+
+                    final Offset shoulderTarget = Offset(
+                      boyLeft + boyWidth * 0.71,
+                      boyTop + boyHeight * 0.44,
+                    );
+
+                    final Offset kneeTarget = Offset(
+                      boyLeft + boyWidth * 0.68,
+                      boyTop + boyHeight * 0.80,
+                    );
+
+                    final Offset feetTarget = Offset(
+                      boyLeft + boyWidth * 0.29,
+                      boyTop + boyHeight * 0.92,
+                    );
+
+                    // Left/right target boxes around the boy
+                    final Offset headBoxCenter = Offset(
+                      cx - dh * 0.32,
+                      cy - dh * 0.25,
+                    );
+
+                    final Offset shoulderBoxCenter = Offset(
+                      cx + dh * 0.32,
+                      cy - dh * 0.20,
+                    );
+
+                    final Offset feetBoxCenter = Offset(
+                      cx - dh * 0.32,
+                      cy + dh * 0.25,
+                    );
+
+                    final Offset kneeBoxCenter = Offset(
+                      cx + dh * 0.32,
+                      cy + dh * 0.25,
+                    );
+
+                    return Stack(
+                      children: [
+                        // Boy
+                        Center(
+                          child: Image.asset(
+                            _boyImage,
+                            height: boyHeight,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+
+                        // Connecting lines
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: ConnectingLinesPainter(
+                              headBox: headBoxCenter,
+                              headTarget: headTarget,
+                              shoulderBox: shoulderBoxCenter,
+                              shoulderTarget: shoulderTarget,
+                              feetBox: feetBoxCenter,
+                              feetTarget: feetTarget,
+                              kneeBox: kneeBoxCenter,
+                              kneeTarget: kneeTarget,
+                            ),
+                          ),
+                        ),
+
+                        // HEAD
+                        Positioned(
+                          left: headBoxCenter.dx - boxSize / 2,
+                          top: headBoxCenter.dy - boxSize / 2,
+                          child: _buildTargetBox(
+                            'head',
+                            boxSize,
+                          ),
+                        ),
+
+                        // SHOULDER
+                        Positioned(
+                          left: shoulderBoxCenter.dx - boxSize / 2,
+                          top: shoulderBoxCenter.dy - boxSize / 2,
+                          child: _buildTargetBox(
+                            'shoulder',
+                            boxSize,
+                          ),
+                        ),
+
+                        // FEET
+                        Positioned(
+                          left: feetBoxCenter.dx - boxSize / 2,
+                          top: feetBoxCenter.dy - boxSize / 2,
+                          child: _buildTargetBox(
+                            'feet',
+                            boxSize,
+                          ),
+                        ),
+
+                        // KNEE
+                        Positioned(
+                          left: kneeBoxCenter.dx - boxSize / 2,
+                          top: kneeBoxCenter.dy - boxSize / 2,
+                          child: _buildTargetBox(
+                            'knee',
+                            boxSize,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+
+              // =========================
+              // RIGHT: 2x2 OPTIONS
+              // =========================
+              SizedBox(
+                width: optionsWidth,
+                height: diagramHeight,
+                child: Center(
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(20),
+                    gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 18,
+                      mainAxisSpacing: 18,
+                      childAspectRatio: 1,
+                    ),
+                    itemCount: _availableParts.length,
+                    itemBuilder: (context, index) {
+                      final part = _availableParts[index];
+
+                      if (_matchedParts.contains(part.id)) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Center(
+                        child: Draggable<String>(
+                          data: part.id,
+
+                          onDragEnd: (details) {
+                            if (!details.wasAccepted) {
+                              _tapTracker.recordMistake();
+                            }
+                          },
+
+                          feedback: _DraggableImage(
+                            imagePath: part.imagePath,
+                            isDragging: true,
+                          ),
+
+                          childWhenDragging: Opacity(
+                            opacity: 0.3,
+                            child: _DraggableImage(
+                              imagePath: part.imagePath,
+                            ),
+                          ),
+
+                          child: _DraggableImage(
+                            imagePath: part.imagePath,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
             ],
-          ),
-        ),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final double h = constraints.maxHeight;
-              final double w = constraints.maxWidth;
-              final double cx = w / 2;
-              final double cy = h / 2;
-              final double boxSize = h * 0.25;
-
-              final double boyHeight = h * 1;
-              final double boyWidth = boyHeight * 0.6;
-              final double boyLeft = cx - boyWidth / 2;
-              final double boyTop = cy - boyHeight / 2;
-
-              final Offset headTarget = Offset(
-                boyLeft + boyWidth * 0.20,
-                boyTop + boyHeight * 0.15,
-              );
-              final Offset shoulderTarget = Offset(
-                boyLeft + boyWidth * 0.71,
-                boyTop + boyHeight * 0.44,
-              );
-              final Offset kneeTarget = Offset(
-                boyLeft + boyWidth * 0.68,
-                boyTop + boyHeight * 0.80,
-              );
-              final Offset feetTarget = Offset(
-                boyLeft + boyWidth * 0.29,
-                boyTop + boyHeight * 0.92,
-              );
-
-              final Offset headBoxCenter = Offset(cx - h * 0.45, cy - h * 0.25);
-              final Offset shoulderBoxCenter = Offset(
-                cx + h * 0.45,
-                cy - h * 0.20,
-              );
-              final Offset feetBoxCenter = Offset(cx - h * 0.45, cy + h * 0.25);
-              final Offset kneeBoxCenter = Offset(cx + h * 0.45, cy + h * 0.25);
-
-              return Stack(
-                children: [
-                  Center(
-                    child: Image.asset(
-                      'assets/images/objects/lagoon/boy.png',
-                      height: boyHeight,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  CustomPaint(
-                    size: Size.infinite,
-                    painter: ConnectingLinesPainter(
-                      headBox: headBoxCenter,
-                      headTarget: headTarget,
-                      shoulderBox: shoulderBoxCenter,
-                      shoulderTarget: shoulderTarget,
-                      feetBox: feetBoxCenter,
-                      feetTarget: feetTarget,
-                      kneeBox: kneeBoxCenter,
-                      kneeTarget: kneeTarget,
-                    ),
-                  ),
-
-                  Positioned(
-                    left: headBoxCenter.dx - boxSize / 2,
-                    top: headBoxCenter.dy - boxSize / 2,
-                    child: _buildTargetBox('head', boxSize),
-                  ),
-                  Positioned(
-                    left: shoulderBoxCenter.dx - boxSize / 2,
-                    top: shoulderBoxCenter.dy - boxSize / 2,
-                    child: _buildTargetBox('shoulder', boxSize),
-                  ),
-                  Positioned(
-                    left: feetBoxCenter.dx - boxSize / 2,
-                    top: feetBoxCenter.dy - boxSize / 2,
-                    child: _buildTargetBox('feet', boxSize),
-                  ),
-                  Positioned(
-                    left: kneeBoxCenter.dx - boxSize / 2,
-                    top: kneeBoxCenter.dy - boxSize / 2,
-                    child: _buildTargetBox('knee', boxSize),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        Container(
-          height: 120,
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: _availableParts.map((part) {
-              if (_matchedParts.contains(part.id)) {
-                return const SizedBox(width: 100);
-              }
-
-              return Draggable<String>(
-                data: part.id,
-                onDragEnd: (details) {
-                  if (!details.wasAccepted) {
-                    _tapTracker.recordMistake();
-                  }
-                },
-                feedback: _DraggableImage(
-                  imagePath: part.imagePath,
-                  isDragging: true,
-                ),
-                childWhenDragging: Opacity(
-                  opacity: 0.3,
-                  child: _DraggableImage(imagePath: part.imagePath),
-                ),
-                child: _DraggableImage(imagePath: part.imagePath),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
 
@@ -360,16 +422,25 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
     return DragTarget<String>(
       onWillAcceptWithDetails: (details) =>
           details.data == targetId && !isMatched,
-      onAcceptWithDetails: (details) {
+      onAcceptWithDetails: (details) async {
         _tapTracker.recordCorrectTap();
+
         setState(() {
           _matchedParts.add(targetId);
         });
+
         if (_matchedParts.length == _allParts.length) {
-          LagoonAudio.instance.playThenCallback(
-            targetId,
-            _saveDataAndShowSuccessDialog,
+          await _player.play(
+            AssetSource(
+              _winAudio.replaceFirst('assets/', ''),
+            ),
           );
+
+          await _player.onPlayerComplete.first;
+
+          if (mounted) {
+            await _saveDataAndShowSuccessDialog();
+          }
         } else {
           LagoonAudio.instance.play(targetId);
         }
@@ -385,13 +456,13 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
                 ? Colors.white
                 : Colors.white.withValues(alpha: 0.9),
             border: Border.all(
-              color: isHovering ? ColorTheme.success : Colors.black87,
+              color: isHovering ? Colors.green : Colors.black87,
               width: isHovering ? 6 : 4,
             ),
             boxShadow: [
               if (isHovering)
                 BoxShadow(
-                  color: ColorTheme.success.withValues(alpha: 0.5),
+                  color: Colors.green.withValues(alpha: 0.5),
                   blurRadius: 10,
                 ),
             ],
