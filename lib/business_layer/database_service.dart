@@ -4,6 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 class DatabaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  // Screen time: parent picks from these presets (no free-text input).
+  static const int defaultScreenTimeLimitMinutes = 30;
+  static const List<int> screenTimeLimitOptions = [1, 15, 30, 45, 60];
+
   Future<void> createParentAndChild({
     required String uid,
     String email = '',
@@ -30,6 +34,7 @@ class DatabaseService {
           'nickname': childNickname,
           'birthdate': childBirthdate,
           'gender': childGender,
+          'screenTimeLimitMinutes': defaultScreenTimeLimitMinutes,
           'createdAt': FieldValue.serverTimestamp(),
         });
   }
@@ -166,6 +171,7 @@ class DatabaseService {
         'nickname': nickname,
         'birthdate': childBirthdate,
         'gender': childGender,
+        'screenTimeLimitMinutes': defaultScreenTimeLimitMinutes,
         'createdAt': FieldValue.serverTimestamp(),
       });
       return null;
@@ -213,4 +219,100 @@ class DatabaseService {
       print("Error updating child avatar: $e");
     }
   }
+
+  // ── SCREEN TIME ──────────────────────────────────────────────────────────
+
+  /// Today's date in the device's local time (yyyy-MM-dd). Comparing this to
+  /// the stored date is what makes the counter reset at 12:00 AM local time.
+  static String todayKey() {
+    final now = DateTime.now();
+    final m = now.month.toString().padLeft(2, '0');
+    final d = now.day.toString().padLeft(2, '0');
+    return '${now.year}-$m-$d';
+  }
+
+  /// Returns the child's limit and how much they've used *today*.
+  /// Children created before this feature existed default to 30 minutes.
+  Future<ScreenTimeData> getScreenTime(String childId) async {
+    const fallback = ScreenTimeData(
+      limitMinutes: defaultScreenTimeLimitMinutes,
+      usedSeconds: 0,
+    );
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return fallback;
+
+      final doc = await _db
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('children')
+          .doc(childId)
+          .get();
+      final data = doc.data();
+      if (data == null) return fallback;
+
+      final limit =
+          (data['screenTimeLimitMinutes'] as num?)?.toInt() ??
+          defaultScreenTimeLimitMinutes;
+      final savedDate = data['screenTimeDate'] as String?;
+      final used = (savedDate == todayKey())
+          ? ((data['screenTimeUsedSeconds'] as num?)?.toInt() ?? 0)
+          : 0; // new day -> counter starts back at zero
+
+      return ScreenTimeData(limitMinutes: limit, usedSeconds: used);
+    } catch (e) {
+      print("Error fetching screen time: $e");
+      return fallback;
+    }
+  }
+
+  /// Saves the parent's chosen daily limit. Returns true on success.
+  Future<bool> setScreenTimeLimit(String childId, int minutes) async {
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return false;
+
+      await _db
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('children')
+          .doc(childId)
+          .set({'screenTimeLimitMinutes': minutes}, SetOptions(merge: true));
+      return true;
+    } catch (e) {
+      print("Error saving screen time limit: $e");
+      return false;
+    }
+  }
+
+  /// Persists how many seconds the child has played on [dateKey].
+  Future<void> saveScreenTimeUsage({
+    required String childId,
+    required int usedSeconds,
+    required String dateKey,
+  }) async {
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      await _db
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('children')
+          .doc(childId)
+          .set({
+            'screenTimeUsedSeconds': usedSeconds,
+            'screenTimeDate': dateKey,
+          }, SetOptions(merge: true));
+    } catch (e) {
+      print("Error saving screen time usage: $e");
+    }
+  }
+}
+
+class ScreenTimeData {
+  final int limitMinutes;
+  final int usedSeconds;
+
+  const ScreenTimeData({required this.limitMinutes, required this.usedSeconds});
 }
