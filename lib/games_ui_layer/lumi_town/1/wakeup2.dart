@@ -10,7 +10,6 @@ import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:lottie/lottie.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/lumi_theme.dart';
@@ -43,9 +42,6 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
   @override
   void initState() {
     super.initState();
-
-    // Continues the same Level 1 session wakeup1 started - starts
-    // immediately, never waits for a face.
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
 
@@ -187,8 +183,8 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Lottie.asset(
-            'assets/animations/awake.json',
+          Image.asset(
+            'assets/animations/awake.webp',
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
@@ -211,111 +207,21 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
             'assets/images/backgrounds/bg_lumi_bed.png',
             fit: BoxFit.cover,
           ),
-          Positioned(
-            left: 160,
-            bottom: -80,
-            child: Image.asset(
-              'assets/images/characters/little_bear.png',
-              width: 300,
-              fit: BoxFit.contain,
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Transform.translate(
+              offset: const Offset(0, 80),
+              child: Image.asset(
+                'assets/images/characters/little_bear.png',
+                width: 300,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
-          Positioned(
-            left: 480,
-            bottom: 150,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                CustomPaint(
-                  size: const Size(200, 110),
-                  painter: _SpeechBubblePainter(),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 22),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text(
-                        '✨ Salamat! ✨',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontFamily: LumiAppTextStyles.fredoka,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF5A3E00),
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Magandang umaga!',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontFamily: LumiAppTextStyles.fredoka,
-                          color: Color(0xFF8B6200),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
           //X button
           Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),
     );
   }
-}
-
-class _SpeechBubblePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bubbleRect = Rect.fromLTWH(0, 0, size.width, size.height * 0.78);
-
-    // Shadow
-    final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.15)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        bubbleRect.translate(0, 4),
-        const Radius.circular(24),
-      ),
-      shadowPaint,
-    );
-
-    // Fill with warm white
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [const Color(0xFFFFFBF0), const Color(0xFFFFF3CC)],
-      ).createShader(bubbleRect);
-    final rrect = RRect.fromRectAndRadius(
-      bubbleRect,
-      const Radius.circular(24),
-    );
-    canvas.drawRRect(rrect, fillPaint);
-
-    // Border
-    final borderPaint = Paint()
-      ..color = const Color(0xFFE8C84A)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-    canvas.drawRRect(rrect, borderPaint);
-
-    // Tail pointing left toward bear
-    final tail = Path()
-      ..moveTo(24, size.height * 0.78)
-      ..lineTo(4, size.height)
-      ..lineTo(54, size.height * 0.78)
-      ..close();
-    canvas.drawPath(tail, Paint()..color = const Color(0xFFFFF3CC));
-    canvas.drawPath(tail, borderPaint);
-  }
-
-  @override
-  bool shouldRepaint(_SpeechBubblePainter oldDelegate) => false;
 }

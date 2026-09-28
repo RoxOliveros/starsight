@@ -493,7 +493,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
             height: size.height,
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage(_bgFieldImage,),
+                image: AssetImage(_bgFieldImage),
                 fit: BoxFit.cover,
               ),
             ),
