@@ -52,7 +52,6 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
     final unlocked = await PuzzleProgressService.instance.getUnlockedLevel();
 
     final elapsed = DateTime.now().difference(_loadStart);
-    //Loading time
     final remaining = const Duration(milliseconds: 1500) - elapsed;
     if (remaining > Duration.zero) {
       await Future.delayed(remaining);
@@ -73,7 +72,6 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
 
   static String? _puzzleCalibratedSessionId;
 
-  /// Shows the camera calibration overlay once, before the first level opens.
   Future<void> _ensurePuzzleCalibrated() async {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     if (_puzzleCalibratedSessionId == uid) return;
