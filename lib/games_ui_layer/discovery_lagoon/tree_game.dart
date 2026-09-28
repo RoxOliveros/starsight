@@ -9,7 +9,6 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
 
@@ -45,8 +44,14 @@ class _TreePart {
 }
 
 class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
-  static const String _fullTreeAsset =
-      'assets/images/objects/lagoon/t5_tree.png';
+  static const String _introAudio = 'audio/discovery_lagoon/tree_game_intro.wav';
+  static const String _leavesAudio = 'audio/discovery_lagoon/leaves.wav';
+  static const String _branchAudio = 'audio/discovery_lagoon/branch.wav';
+  static const String _trunkAudio = 'audio/discovery_lagoon/trunk.wav';
+  static const String _rootAudio = 'audio/discovery_lagoon/roots.wav';
+  static const String _shineAudio = 'audio/sound_effects/shine.wav';
+
+  static const String _fullTreeAsset = 'assets/images/objects/lagoon/t5_tree.png';
 
   static const double _canvasWidth = 260;
   static const double _canvasHeight = 311;
@@ -139,8 +144,32 @@ class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
     });
 
     await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/tree_game_intro.wav'),
+      AssetSource(_introAudio),
     );
+  }
+
+  Future<void> _playPartAudio(String partId) async {
+    String? audio;
+
+    switch (partId) {
+      case 'leaves':
+        audio = _leavesAudio;
+        break;
+      case 'branch':
+        audio = _branchAudio;
+        break;
+      case 'trunk':
+        audio = _trunkAudio;
+        break;
+      case 'root':
+        audio = _rootAudio;
+        break;
+    }
+
+    if (audio != null) {
+      await _audioPlayer.play(AssetSource(audio));
+      await _audioPlayer.onPlayerComplete.first;
+    }
   }
 
   @override
@@ -200,33 +229,6 @@ class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
                 ),
               ),
 
-            if (_showOverlay)
-              GoodJobOverlay(
-                characterImage:
-                    'assets/images/characters/cat_holding_fishbone.png',
-                characterSizeFactor: 0.9,
-                onNext: () {
-                  if (context.mounted) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            const SeasonSceneTapScreen(level: 14),
-                      ),
-                    );
-                  }
-                },
-                onRestart: () {
-                  setState(() {
-                    _placed.clear();
-                    _showOverlay = false;
-                    _hasSavedResult = false;
-                    _tapTracker.startSession();
-                  });
-                },
-                onBack: () => Navigator.of(context).pop(),
-              ),
-
             if (_showIntro)
               Container(
                 width: double.infinity,
@@ -255,6 +257,33 @@ class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
               right: 25,
               child: LagoonLevelBadge(level: widget.level),
             ),
+
+            if (_showOverlay)
+              GoodJobOverlay(
+                characterImage:
+                'assets/images/characters/cat_holding_fishbone.png',
+                characterSizeFactor: 0.9,
+                onNext: () {
+                  if (context.mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                        const SeasonSceneTapScreen(level: 14),
+                      ),
+                    );
+                  }
+                },
+                onRestart: () {
+                  setState(() {
+                    _placed.clear();
+                    _showOverlay = false;
+                    _hasSavedResult = false;
+                    _tapTracker.startSession();
+                  });
+                },
+                onBack: () => Navigator.of(context).pop(),
+              ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -339,21 +368,26 @@ class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
       height: boxHeight,
       child: DragTarget<String>(
         onWillAcceptWithDetails: (details) => details.data == part.id,
-        onAcceptWithDetails: (details) {
+        onAcceptWithDetails: (details) async {
           _tapTracker.recordCorrectTap();
+
           setState(() {
             _placed.add(part.id);
-
-            if (_placed.length == _parts.length) {
-              _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
-
-              Future.delayed(const Duration(seconds: 2), () {
-                if (mounted) {
-                  _saveDataAndShowGoodJob();
-                }
-              });
-            }
           });
+
+          await _playPartAudio(part.id);
+
+          if (_placed.length == _parts.length) {
+            await _audioPlayer.play(
+              AssetSource(_shineAudio),
+            );
+
+            await Future.delayed(const Duration(seconds: 2));
+
+            if (mounted) {
+              _saveDataAndShowGoodJob();
+            }
+          }
         },
         builder: (context, candidateData, rejectedData) {
           final isPlaced = _placed.contains(part.id);
