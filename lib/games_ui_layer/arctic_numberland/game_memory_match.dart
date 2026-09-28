@@ -57,12 +57,15 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _quantityIconAsset = 'assets/images/objects/arctic/snowflake.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _quantityIconAsset =
+      'assets/images/objects/arctic/snowflake.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/number_memory_match_intro.wav';
-  static const String _audioInstruction = '$_audioBase/number_memory_match_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/number_memory_match_instruction.wav';
   static const String _audioWin = '$_audioBase/number_memory_match_win.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
@@ -246,17 +249,19 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
     // --- AI STOP & DATABASE SAVE ---
     List<String> finalEmotions = stopAiCamera();
 
-    try {
-      await ArcticDatabaseService.saveGameData(
-        gameId: 'arctic_numberland_${widget.level}',
-        mistakes: _tapTracker.mistakeCount,
-        emotions: finalEmotions,
-      );
-    } catch (e) {
-      debugPrint("Database Error saving Arctic metrics: $e");
-    }
+    ArcticDatabaseService.saveGameData(
+      gameId: 'arctic_numberland_${widget.level}',
+      mistakes: _tapTracker.mistakeCount,
+      emotions: finalEmotions,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
 
-    await ArcticProgressService.instance.markLevelComplete(widget.level);
+    ArcticProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
     if (!mounted) return;
     setState(() {
       _showWinDialog = true;
@@ -448,7 +453,6 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
   Widget _buildGameContent() {
     return LayoutBuilder(
       builder: (context, constraints) {
-
         return ScaleTransition(
           scale: _sceneEnter,
           child: Column(

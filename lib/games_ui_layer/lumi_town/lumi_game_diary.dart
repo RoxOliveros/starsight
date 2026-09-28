@@ -11,13 +11,20 @@ import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_behavior.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
+
 // ============================================================================
 // ASSET PATHS — replace if your exact filenames/folders differ
 // ============================================================================
 
 const String _roomBg = 'assets/images/backgrounds/bg_classroom_closeup.png';
 const String _tableBg = 'assets/images/backgrounds/bg_table.png';
-const String _bearWritingBookImage = 'assets/images/characters/bear_writing_book.png';
+const String _bearWritingBookImage =
+    'assets/images/characters/bear_writing_book.png';
 
 const String _audioBase = 'assets/audio/lumi_town/';
 const String _introAudio = '${_audioBase}diary_intro.wav';
@@ -33,12 +40,7 @@ const String _schoolScene = 'assets/images/objects/lumi/school_scene.png';
 // MODEL
 // ============================================================================
 
-enum DailySequencePhase {
-  intro,
-  instruction,
-  game,
-  complete,
-}
+enum DailySequencePhase { intro, instruction, game, complete }
 
 class DiarySceneCard {
   final String id;
@@ -52,7 +54,6 @@ class DiarySceneCard {
   });
 }
 
-// Fixed reading order: 1 upper-left, 2 upper-right, 3 lower-left, 4 lower-right.
 const List<DiarySceneCard> _diaryScenes = [
   DiarySceneCard(id: 'wake', correctNumber: 1, imageAsset: _wakeScene),
   DiarySceneCard(id: 'bath', correctNumber: 2, imageAsset: _bathScene),
@@ -74,7 +75,7 @@ class DiaryGameScreen extends StatefulWidget {
 }
 
 class _DiaryGameScreenState extends State<DiaryGameScreen>
-    with TrWooReactionMixin<DiaryGameScreen> {
+    with TrWooReactionMixin<DiaryGameScreen>, AiCameraMixin<DiaryGameScreen> {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
@@ -96,10 +97,22 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
   bool _isLoading = true;
   bool _gameComplete = false;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _slotScenes = _shuffledScenes();
     _initializeGame();
@@ -112,7 +125,6 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
 
     if (_isLoading) {
       final elapsed = DateTime.now().difference(_loadStart);
-      // Loading time
       final remaining = const Duration(milliseconds: 1500) - elapsed;
       if (remaining > Duration.zero) {
         await Future.delayed(remaining);
@@ -129,13 +141,12 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _narrationPlayer.dispose();
     _completePlayer.dispose();
     _drWooPlayer.dispose();
     super.dispose();
   }
-
-  // --- Shuffle ------------------------------------------------------------
 
   List<DiarySceneCard> _shuffledScenes() {
     final rand = Random();
@@ -158,8 +169,6 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
     } while (anyCorrect);
     return arr;
   }
-
-  // --- Intro / instruction flow --------------------------------------------
 
   Future<void> _startIntroFlow() async {
     if (!mounted) return;
@@ -207,8 +216,6 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
     }
   }
 
-  // --- Drop handling --------------------------------------------------------
-
   Future<void> _onDrop(int originIndex, int targetIndex) async {
     if (!_dragEnabled || _checkingAnswer || !mounted) return;
     if (originIndex == targetIndex || _slotLocked[targetIndex]) return;
@@ -220,6 +227,7 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
     final bool isCorrect = draggedCard.correctNumber == targetNumber;
 
     if (isCorrect) {
+      _tapTracker.recordCorrectTap();
       final other = _slotScenes[targetIndex];
       setState(() {
         _slotScenes[targetIndex] = draggedCard;
@@ -241,6 +249,7 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
         await _completeGame();
       }
     } else {
+      _tapTracker.recordMistake();
       unawaited(showTrWooReaction(TrWooState.wrong));
       setState(() => _wrongFlashSlot = targetIndex);
 
@@ -254,8 +263,6 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
     }
   }
 
-  // --- Completion / restart -------------------------------------------------
-
   Future<void> _completeGame() async {
     if (!mounted) return;
 
@@ -265,7 +272,27 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
       _phase = DailySequencePhase.complete;
     });
 
-    TownProgressService.instance.markLevelComplete(widget.level);
+    if (!_hasSavedResult) {
+      _hasSavedResult = true;
+      List<String> finalEmotions = stopAiCamera();
+
+      TownDatabaseService.saveGameData(
+        gameId: 'lumi_town_diary',
+        activityName: 'Daily Routine Diary',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      ).catchError((e) {
+        debugPrint("Database Error saving metrics: $e");
+      });
+    }
+
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
 
     if (!mounted) return;
 
@@ -290,6 +317,8 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
       _gameComplete = false;
       _phase = DailySequencePhase.game;
       _dragEnabled = true;
+      _hasSavedResult = false;
+      _tapTracker.startSession();
     });
   }
 
@@ -301,102 +330,102 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
     Navigator.of(context).pop();
   }
 
-  // --- UI -----------------------------------------------------------------
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        body: LoadingScreen.lumiTown(),
-      );
+      return Scaffold(body: LoadingScreen.lumiTown());
     }
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              (_phase == DailySequencePhase.game ||
-                  _phase == DailySequencePhase.instruction ||
-                  _phase == DailySequencePhase.complete)
-                  ? _tableBg
-                  : _roomBg,
-              fit: BoxFit.cover,
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                (_phase == DailySequencePhase.game ||
+                        _phase == DailySequencePhase.instruction ||
+                        _phase == DailySequencePhase.complete)
+                    ? _tableBg
+                    : _roomBg,
+                fit: BoxFit.cover,
+              ),
             ),
-          ),
 
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final height = constraints.maxHeight;
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final height = constraints.maxHeight;
 
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  // BEAR DURING INTRO
-                  if (_phase == DailySequencePhase.intro)
-                    Positioned(
-                      right: 0,
-                      left: 0,
-                      bottom: -110,
-                      child: SizedBox(
-                        height: height * 1.2,
-                        child: Image.asset(
-                          _bearWritingBookImage,
-                          fit: BoxFit.contain,
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (_phase == DailySequencePhase.intro)
+                      Positioned(
+                        right: 0,
+                        left: 0,
+                        bottom: -110,
+                        child: SizedBox(
+                          height: height * 1.2,
+                          child: Image.asset(
+                            _bearWritingBookImage,
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
-                    ),
 
-                  // DIARY GRID
-                  if (_phase == DailySequencePhase.instruction ||
-                      _phase == DailySequencePhase.game ||
-                      _phase == DailySequencePhase.complete)
-                    Positioned(
-                      left: width * 0.10,
-                      right: width * 0.10,
-                      top: height * 0.10,
-                      bottom: height * 0.08,
-                      child: _DiaryGrid(
-                        slotScenes: _slotScenes,
-                        slotLocked: _slotLocked,
-                        dragEnabled: _dragEnabled && !_checkingAnswer,
-                        wrongFlashSlot: _wrongFlashSlot,
-                        onDrop: _onDrop,
+                    if (_phase == DailySequencePhase.instruction ||
+                        _phase == DailySequencePhase.game ||
+                        _phase == DailySequencePhase.complete)
+                      Positioned(
+                        left: width * 0.10,
+                        right: width * 0.10,
+                        top: height * 0.10,
+                        bottom: height * 0.08,
+                        child: _DiaryGrid(
+                          slotScenes: _slotScenes,
+                          slotLocked: _slotLocked,
+                          dragEnabled: _dragEnabled && !_checkingAnswer,
+                          wrongFlashSlot: _wrongFlashSlot,
+                          onDrop: _onDrop,
+                        ),
                       ),
-                    ),
-                ],
-              );
-            },
-          ),
-
-          // Back button.
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-
-          // Completion overlay.
-          if (_gameComplete)
-            GoodJobOverlay(
-              characterImage: 'assets/images/characters/tr.woo_the_owl.png',
-              onNext: () async {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => BehaviorGameScreen(level: widget.level + 1),
-                  ),
+                  ],
                 );
               },
-              onRestart: _restartGame,
-              onBack: _goBack,
             ),
-        ],
+
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_gameComplete)
+              GoodJobOverlay(
+                characterImage: 'assets/images/characters/tr.woo_the_owl.png',
+                onNext: () async {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          BehaviorGameScreen(level: widget.level + 1),
+                    ),
+                  );
+                },
+                onRestart: _restartGame,
+                onBack: _goBack,
+              ),
+          ],
+        ),
       ),
     );
   }
 }
-
-// ============================================================================
-// DIARY GRID — 2x2 fixed-number slots, drag cards between them to reorder
-// ============================================================================
 
 class _DiaryGrid extends StatelessWidget {
   final List<DiarySceneCard> slotScenes;
@@ -416,9 +445,7 @@ class _DiaryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(24)),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -457,7 +484,7 @@ class _DiaryGrid extends StatelessWidget {
       wrongFlash: wrongFlashSlot == index,
       onAccept: (originIndex) => onDrop(originIndex, index),
       canAccept: (originIndex) =>
-      dragEnabled && !slotLocked[index] && originIndex != index,
+          dragEnabled && !slotLocked[index] && originIndex != index,
       slotIndex: index,
     );
   }
@@ -485,26 +512,40 @@ class _DiarySlot extends StatelessWidget {
   });
 
   static const ColorFilter _greyscale = ColorFilter.matrix(<double>[
-    0.2126, 0.7152, 0.0722, 0, 0,
-    0.2126, 0.7152, 0.0722, 0, 0,
-    0.2126, 0.7152, 0.0722, 0, 0,
-    0, 0, 0, 1, 0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
   ]);
 
   @override
   Widget build(BuildContext context) {
     final Widget image = locked
         ? Image.asset(scene.imageAsset, fit: BoxFit.cover)
-        : ColorFiltered(colorFilter: _greyscale, child: Image.asset(scene.imageAsset, fit: BoxFit.cover));
+        : ColorFiltered(
+            colorFilter: _greyscale,
+            child: Image.asset(scene.imageAsset, fit: BoxFit.cover),
+          );
 
     final Widget card = ClipRRect(
       borderRadius: BorderRadius.circular(16),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          image,
-        ],
-      ),
+      child: Stack(fit: StackFit.expand, children: [image]),
     );
 
     return DragTarget<int>(
@@ -521,14 +562,18 @@ class _DiarySlot extends StatelessWidget {
               color: wrongFlash
                   ? Colors.redAccent
                   : locked
-                      ? Colors.amber
-                      : hovering
-                          ? Colors.greenAccent
-                          : Colors.brown.shade200,
+                  ? Colors.amber
+                  : hovering
+                  ? Colors.greenAccent
+                  : Colors.brown.shade200,
               width: locked ? 4 : 3,
             ),
             boxShadow: const [
-              BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
             ],
           ),
           child: Stack(
@@ -553,7 +598,6 @@ class _DiarySlot extends StatelessWidget {
                     )
                   : card,
 
-              // Numbered destination badge
               Positioned(
                 right: 8,
                 bottom: 8,
@@ -563,7 +607,9 @@ class _DiarySlot extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: locked ? Colors.amber : LumiColorTheme.rust,
-                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3)],
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black38, blurRadius: 3),
+                    ],
                   ),
                   alignment: Alignment.center,
                   child: locked

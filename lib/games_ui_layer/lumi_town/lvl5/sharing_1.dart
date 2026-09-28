@@ -9,6 +9,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:StarSight/business_layer/gesture_camera_view.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 enum _CameraGestureState { checking, granted, denied }
 
 class Sharing1 extends StatefulWidget {
@@ -18,8 +23,9 @@ class Sharing1 extends StatefulWidget {
   State<Sharing1> createState() => _Sharing1State();
 }
 
-class _Sharing1State extends State<Sharing1> {
+class _Sharing1State extends State<Sharing1> with AiCameraMixin<Sharing1> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   _CameraGestureState _cameraState = _CameraGestureState.checking;
 
@@ -31,11 +37,20 @@ class _Sharing1State extends State<Sharing1> {
 
   bool _showNoHandsPrompt = false;
   bool _forceButtonFallback = false;
+  bool _hideLightingCard = false;
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _audioPlayer.play(AssetSource('audio/lumi_town/level5/intro.wav'));
     _audioPlayer.onPlayerComplete.listen((_) {
@@ -88,17 +103,17 @@ class _Sharing1State extends State<Sharing1> {
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     _noHandsTimer?.cancel();
-
     super.dispose();
   }
-
-  // method. ──────────────────────────────────────────────────────────────
 
   Future<void> _handleThumbsUp() async {
     if (_actionTaken) return;
     _actionTaken = true;
+
+    _tapTracker.recordCorrectTap();
 
     _noHandsTimer?.cancel();
     _noHandsTimer = null;
@@ -115,14 +130,20 @@ class _Sharing1State extends State<Sharing1> {
     await _audioPlayer.onPlayerComplete.first;
     if (!mounted) return;
 
+    final emotionsSoFar = stopAiCamera();
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const Sharing2()),
+      MaterialPageRoute(
+        builder: (context) =>
+            Sharing2(priorEmotions: emotionsSoFar, tapTracker: _tapTracker),
+      ),
     );
   }
 
   Future<void> _handleThumbsDown() async {
     if (_actionTaken) return;
     _actionTaken = true;
+
+    _tapTracker.recordMistake();
 
     _noHandsTimer?.cancel();
     _noHandsTimer = null;
@@ -146,13 +167,11 @@ class _Sharing1State extends State<Sharing1> {
     final double sw = MediaQuery.of(context).size.width;
     final double sh = MediaQuery.of(context).size.height;
 
-    // ── Layout constants ──────────────────────────────────────────────────
     final double bearHeight = sh * 0.95;
     const double bearBottom = 0.0;
     final double tableBottom = -sh * 0.60;
     final double tableWidth = sw;
 
-    // ── Pancake stack math ───────────────────────────────────────────────
     final double plateWidth = sw * 0.26;
     final double pancakeWidth = sw * 0.20;
     final double stackBaseOffset = sh * 0.055;
@@ -165,101 +184,127 @@ class _Sharing1State extends State<Sharing1> {
       (_) => (rng.nextDouble() - 0.5) * pancakeWidth * 0.18,
     );
 
-    // ── Thumb button size (fallback UI only) ─────────────────────────────
     final double thumbSize = sw * 0.11;
     final double thumbBtnSize = sw * 0.135;
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // ── 1. Background ────────────────────────────────────────────
-          Image.asset(
-            'assets/images/backgrounds/bg_game_kitchen.png',
-            fit: BoxFit.cover,
-            errorBuilder: (ctx, err, st) => Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFFFF3C8), Color(0xFFE8C97A)],
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_game_kitchen.png',
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, st) => Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFFFF3C8), Color(0xFFE8C97A)],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // ── 2. Bear (behind table) ───────────────────────────────────
-          Positioned(
-            bottom: bearBottom,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Image.asset(
-                'assets/images/characters/little_bear_uniform.png',
-                height: bearHeight,
-                fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => const SizedBox(),
+            Positioned(
+              bottom: bearBottom,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Image.asset(
+                  'assets/images/characters/little_bear_uniform.png',
+                  height: bearHeight,
+                  fit: BoxFit.contain,
+                  errorBuilder: (ctx, err, st) => const SizedBox(),
+                ),
               ),
             ),
-          ),
 
-          // ── 3. Table (in front of bear) ──────────────────────────────
-          Positioned(
-            bottom: tableBottom,
-            left: 0,
-            right: 0,
-            child: Image.asset(
-              'assets/images/objects/lumi/table.png',
-              width: tableWidth,
-              fit: BoxFit.contain,
-              errorBuilder: (ctx, err, st) =>
-                  Container(height: sh * 0.22, color: const Color(0xFFCD853F)),
+            Positioned(
+              bottom: tableBottom,
+              left: 0,
+              right: 0,
+              child: Image.asset(
+                'assets/images/objects/lumi/table.png',
+                width: tableWidth,
+                fit: BoxFit.contain,
+                errorBuilder: (ctx, err, st) => Container(
+                  height: sh * 0.22,
+                  color: const Color(0xFFCD853F),
+                ),
+              ),
             ),
-          ),
 
-          // ── 4. Pancake stack (right side, on table surface) ──────────
-          Positioned(
-            bottom: stackBaseOffset,
-            right: sw * 0.04,
-            child: SizedBox(
-              width: plateWidth,
-              height: sh * 1.1,
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                clipBehavior: Clip.none,
-                children: [
-                  // Plate
-                  Positioned(
-                    bottom: 0,
-                    child: Image.asset(
-                      'assets/images/objects/lumi/plate.png',
-                      width: plateWidth,
-                      errorBuilder: (ctx, err, st) => Container(
+            Positioned(
+              bottom: stackBaseOffset,
+              right: sw * 0.04,
+              child: SizedBox(
+                width: plateWidth,
+                height: sh * 1.1,
+                child: Stack(
+                  alignment: Alignment.bottomCenter,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      bottom: 0,
+                      child: Image.asset(
+                        'assets/images/objects/lumi/plate.png',
                         width: plateWidth,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.grey.shade300),
+                        errorBuilder: (ctx, err, st) => Container(
+                          width: plateWidth,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
                         ),
                       ),
                     ),
-                  ),
 
-                  // Plain pancakes
-                  ...List.generate(plainPancakeCount, (index) {
-                    final dx = jitterDx[index];
-                    return Positioned(
-                      bottom: stackBaseOffset + (index * pancakeThickness),
-                      left: plateWidth / 2 - pancakeWidth / 2 + dx,
+                    ...List.generate(plainPancakeCount, (index) {
+                      final dx = jitterDx[index];
+                      return Positioned(
+                        bottom: stackBaseOffset + (index * pancakeThickness),
+                        left: plateWidth / 2 - pancakeWidth / 2 + dx,
+                        child: Image.asset(
+                          'assets/images/objects/lumi/pancake.png',
+                          width: pancakeWidth,
+                          errorBuilder: (ctx, err, st) => Container(
+                            width: pancakeWidth,
+                            height: pancakeThickness * 0.55,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8A037),
+                              borderRadius: BorderRadius.circular(
+                                pancakeWidth / 2,
+                              ),
+                              border: Border.all(
+                                color: const Color(0xFFB8641A),
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+
+                    Positioned(
+                      bottom:
+                          stackBaseOffset +
+                          (plainPancakeCount * pancakeThickness),
+                      left:
+                          plateWidth / 2 -
+                          pancakeWidth / 2 +
+                          jitterDx[plainPancakeCount],
                       child: Image.asset(
-                        'assets/images/objects/lumi/pancake.png',
+                        'assets/images/objects/lumi/pancke_maple_syrup_butter.png',
                         width: pancakeWidth,
                         errorBuilder: (ctx, err, st) => Container(
                           width: pancakeWidth,
                           height: pancakeThickness * 0.55,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE8A037),
+                            color: const Color(0xFFD4843A),
                             borderRadius: BorderRadius.circular(
                               pancakeWidth / 2,
                             ),
@@ -270,121 +315,104 @@ class _Sharing1State extends State<Sharing1> {
                           ),
                         ),
                       ),
-                    );
-                  }),
-
-                  // Top pancake — butter & syrup
-                  Positioned(
-                    bottom:
-                        stackBaseOffset +
-                        (plainPancakeCount * pancakeThickness),
-                    left:
-                        plateWidth / 2 -
-                        pancakeWidth / 2 +
-                        jitterDx[plainPancakeCount],
-                    child: Image.asset(
-                      'assets/images/objects/lumi/pancke_maple_syrup_butter.png',
-                      width: pancakeWidth,
-                      errorBuilder: (ctx, err, st) => Container(
-                        width: pancakeWidth,
-                        height: pancakeThickness * 0.55,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD4843A),
-                          borderRadius: BorderRadius.circular(pancakeWidth / 2),
-                          border: Border.all(
-                            color: const Color(0xFFB8641A),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ).animate().fadeIn(duration: const Duration(milliseconds: 500)),
-          ),
-
-          if (_introFinished &&
-              _cameraState == _CameraGestureState.granted &&
-              !_forceButtonFallback) ...[
-            _HiddenGestureDetector(
-              onGesture: (result) {
-                _onAnyGestureDetected();
-                if (result.isThumbsUp) {
-                  _handleThumbsUp();
-                } else if (result.isThumbsDown) {
-                  _handleThumbsDown();
-                }
-              },
-              onMounted: _ensureNoHandsWatcherStarted,
-            ),
-            Positioned(
-              bottom: sh * 0.10,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Text(
-                    'Show a thumbs up or thumbs down!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Fredoka',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Color(0xFF5E463E),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (_showNoHandsPrompt)
-              _NoHandsPrompt(onUseButtons: _switchToButtonFallback),
-          ] else if (_introFinished &&
-              (_cameraState == _CameraGestureState.denied ||
-                  _forceButtonFallback))
-            Positioned(
-              bottom: sh * 0.10,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: _handleThumbsUp,
-                      child: _ThumbButton(
-                        imagePath: 'assets/images/objects/lumi/thumbs_up.png',
-                        backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-                        size: thumbBtnSize,
-                        iconSize: thumbSize,
-                        animDelay: Duration.zero,
-                      ),
-                    ),
-                    SizedBox(width: sw * 0.04),
-                    GestureDetector(
-                      onTap: _handleThumbsDown,
-                      child: _ThumbButton(
-                        imagePath: 'assets/images/objects/lumi/thumbs_down.png',
-                        backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-                        size: thumbBtnSize,
-                        iconSize: thumbSize,
-                        animDelay: const Duration(milliseconds: 400),
-                      ),
                     ),
                   ],
                 ),
-              ),
+              ).animate().fadeIn(duration: const Duration(milliseconds: 500)),
             ),
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-        ],
+
+            if (_introFinished &&
+                _cameraState == _CameraGestureState.granted &&
+                !_forceButtonFallback) ...[
+              _HiddenGestureDetector(
+                onGesture: (result) {
+                  _onAnyGestureDetected();
+                  if (result.isThumbsUp) {
+                    _handleThumbsUp();
+                  } else if (result.isThumbsDown) {
+                    _handleThumbsDown();
+                  }
+                },
+                onMounted: _ensureNoHandsWatcherStarted,
+              ),
+              Positioned(
+                bottom: sh * 0.10,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Text(
+                      'Show a thumbs up or thumbs down!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Fredoka',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Color(0xFF5E463E),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (_showNoHandsPrompt)
+                _NoHandsPrompt(onUseButtons: _switchToButtonFallback),
+            ] else if (_introFinished &&
+                (_cameraState == _CameraGestureState.denied ||
+                    _forceButtonFallback))
+              Positioned(
+                bottom: sh * 0.10,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: _handleThumbsUp,
+                        child: _ThumbButton(
+                          imagePath: 'assets/images/objects/lumi/thumbs_up.png',
+                          backgroundColor: const Color.fromARGB(0, 0, 0, 0),
+                          size: thumbBtnSize,
+                          iconSize: thumbSize,
+                          animDelay: Duration.zero,
+                        ),
+                      ),
+                      SizedBox(width: sw * 0.04),
+                      GestureDetector(
+                        onTap: _handleThumbsDown,
+                        child: _ThumbButton(
+                          imagePath:
+                              'assets/images/objects/lumi/thumbs_down.png',
+                          backgroundColor: const Color.fromARGB(0, 0, 0, 0),
+                          size: thumbBtnSize,
+                          iconSize: thumbSize,
+                          animDelay: const Duration(milliseconds: 400),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

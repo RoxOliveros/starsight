@@ -8,16 +8,28 @@ import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
 import '../tryagain_prompt.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
+import 'package:StarSight/business_layer/town_progress_service.dart';
+
 // ============================================================
 // ASSET PATHS
 // ============================================================
 
 const String _bgRedLight = 'assets/images/backgrounds/bg_crossing_redlight.png';
-const String _bgGreenLight = 'assets/images/backgrounds/bg_crossing_greenlight.png';
-const String _carPassingBy = 'assets/animations/lumi_town/crossing_redlight_car_passingby.webp';
-const String _redBump = 'assets/animations/lumi_town/crossing_redlight_bump.webp';
-const String _redGoodJob = 'assets/animations/lumi_town/crossing_redlight_goodjob.webp';
-const String _greenRoxieWalk = 'assets/animations/lumi_town/crossing_greenlight_roxiewalk.webp';
+const String _bgGreenLight =
+    'assets/images/backgrounds/bg_crossing_greenlight.png';
+const String _carPassingBy =
+    'assets/animations/lumi_town/crossing_redlight_car_passingby.webp';
+const String _redBump =
+    'assets/animations/lumi_town/crossing_redlight_bump.webp';
+const String _redGoodJob =
+    'assets/animations/lumi_town/crossing_redlight_goodjob.webp';
+const String _greenRoxieWalk =
+    'assets/animations/lumi_town/crossing_greenlight_roxiewalk.webp';
 const String _thumbsUp = 'assets/images/buttons/thumbs_up.png';
 const String _thumbsDown = 'assets/images/buttons/thumbs_down.png';
 const String _trWooImage = 'assets/images/characters/tr.woo_the_owl.png';
@@ -27,13 +39,20 @@ const String _roxieSmileImage = 'assets/images/characters/roxie_happy.png';
 
 // Audio
 const String _audioIntro = 'assets/audio/lumi_town/crossing_game_intro.wav';
-const String _audioInstruction = 'assets/audio/lumi_town/crossing_game_instruction.wav';
-const String _audioRedLight = 'assets/audio/lumi_town/crossing_game_redlight.wav';
-const String _audioRedLightCorrect = 'assets/audio/lumi_town/crossing_game_redlight_correct.wav';
-const String _audioRedLightWrong = 'assets/audio/lumi_town/crossing_game_redlight_wrong.wav';
-const String _audioGreenLight = 'assets/audio/lumi_town/crossing_game_greenlight.wav';
-const String _audioGreenLightCorrect = 'assets/audio/lumi_town/crossing_game_greenlight_correct.wav';
-const String _audioGreenLightWrong = 'assets/audio/lumi_town/crossing_game_greenlight_wrong.wav';
+const String _audioInstruction =
+    'assets/audio/lumi_town/crossing_game_instruction.wav';
+const String _audioRedLight =
+    'assets/audio/lumi_town/crossing_game_redlight.wav';
+const String _audioRedLightCorrect =
+    'assets/audio/lumi_town/crossing_game_redlight_correct.wav';
+const String _audioRedLightWrong =
+    'assets/audio/lumi_town/crossing_game_redlight_wrong.wav';
+const String _audioGreenLight =
+    'assets/audio/lumi_town/crossing_game_greenlight.wav';
+const String _audioGreenLightCorrect =
+    'assets/audio/lumi_town/crossing_game_greenlight_correct.wav';
+const String _audioGreenLightWrong =
+    'assets/audio/lumi_town/crossing_game_greenlight_wrong.wav';
 const String _audioWin = 'assets/audio/lumi_town/crossing_game_win.wav';
 
 enum _Phase {
@@ -60,7 +79,7 @@ class CrossingGameScreen extends StatefulWidget {
 }
 
 class _CrossingGameScreenState extends State<CrossingGameScreen>
-    with TrWooReactionMixin {
+    with TrWooReactionMixin, AiCameraMixin<CrossingGameScreen> {
   // Audio players
   final AudioPlayer _narrationPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
@@ -68,6 +87,11 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
 
   @override
   AudioPlayer get trWooPlayer => _trWooAudioPlayer;
+
+  // Tracker State
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   // Loading
   bool _isLoading = true;
@@ -100,6 +124,15 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _loadStart = DateTime.now();
     _init();
   }
@@ -214,39 +247,26 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     });
 
     if (!choseCross) {
-      // Correct: DON'T CROSS on red.
+      _tapTracker.recordCorrectTap();
       setState(() => _phase = _Phase.round1Correct);
 
-      // Let the WebP play/be visible first.
       await _waitForWebp();
-
       if (!mounted) return;
 
-      // Then play the explanation.
-      await _playAndWait(
-        _narrationPlayer,
-        _audioRedLightCorrect,
-      );
+      await _playAndWait(_narrationPlayer, _audioRedLightCorrect);
 
       if (!mounted) return;
-
-      // Then continue to Round 2.
       await _startRound2Narration();
     } else {
-      // Wrong: chose CROSS on red.
+      _tapTracker.recordMistake();
       setState(() => _phase = _Phase.round1Wrong);
 
       await _waitForWebp();
-
       if (!mounted) return;
 
-      await _playAndWait(
-        _narrationPlayer,
-        _audioRedLightWrong,
-      );
+      await _playAndWait(_narrationPlayer, _audioRedLightWrong);
 
       if (!mounted) return;
-
       setState(() => _showTryAgain = true);
     }
   }
@@ -288,53 +308,68 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     });
 
     if (choseCross) {
-      // Correct: CROSS on green.
+      _tapTracker.recordCorrectTap();
       setState(() => _phase = _Phase.round2Correct);
 
       showTrWooReaction(TrWooState.correct);
 
       await _waitForWebp();
-
       if (!mounted) return;
 
-      // AFTER
-      await _playAndWait(
-        _narrationPlayer,
-        _audioGreenLightCorrect,
-      );
+      await _playAndWait(_narrationPlayer, _audioGreenLightCorrect);
 
       if (!mounted) return;
 
       setState(() => _playingWin = true);
 
-      await _playAndWait(
-        _completePlayer,
-        _audioWin,
-      );
+      await _playAndWait(_completePlayer, _audioWin);
 
       if (!mounted) return;
 
       setState(() => _playingWin = false);
+      await _saveDataAndComplete();
+    } else {
+      _tapTracker.recordMistake();
+      setState(() => _phase = _Phase.round2Wrong);
 
+      await _waitForWebp();
+      if (!mounted) return;
+
+      await _playAndWait(_narrationPlayer, _audioGreenLightWrong);
+
+      if (!mounted) return;
+      setState(() => _showTryAgain = true);
+    }
+  }
+
+  Future<void> _saveDataAndComplete() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final List<String> finalEmotions = stopAiCamera();
+
+    TownDatabaseService.saveGameData(
+      gameId: 'lumi_town_crossing',
+      activityName: 'Road Crossing',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    await TownProgressService.instance
+        .markLevelComplete(widget.level)
+        .catchError((e) {
+          debugPrint("Database Error marking level complete: $e");
+        });
+
+    if (mounted) {
       setState(() {
         _phase = _Phase.completed;
         _gameComplete = true;
       });
-    } else {
-      setState(() => _phase = _Phase.round2Wrong);
-
-      await _waitForWebp();
-
-      if (!mounted) return;
-
-      await _playAndWait(
-        _narrationPlayer,
-        _audioGreenLightWrong,
-      );
-
-      if (!mounted) return;
-
-      setState(() => _showTryAgain = true);
     }
   }
 
@@ -357,6 +392,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       _showTryAgain = false;
       _isProcessing = false;
       _inputEnabled = false;
+      _hasSavedResult = false;
+      _tapTracker.startSession();
     });
     _startRound1Narration();
   }
@@ -371,6 +408,7 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _cancelGlowTimers();
     _narrationPlayer.dispose();
     _completePlayer.dispose();
@@ -429,138 +467,146 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final w = constraints.maxWidth;
-          final h = constraints.maxHeight;
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth;
+            final h = constraints.maxHeight;
 
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: Image.asset(
-                    _backgroundAsset,
-                    key: ValueKey(_backgroundAsset),
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: Image.asset(
+                      _backgroundAsset,
+                      key: ValueKey(_backgroundAsset),
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                    ),
                   ),
                 ),
-              ),
 
-              if (_playingWin || _gameComplete)
+                if (_playingWin || _gameComplete)
                   Positioned(
-                  top: 75,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: SizedBox(
-                      height: h * 0.5,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Image.asset(_roxieSmileImage, fit: BoxFit.contain),
-                          const SizedBox(width: 16),
-                          Image.asset(_trWooSmileImage, fit: BoxFit.contain),
-                        ],
+                    top: 75,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: SizedBox(
+                        height: h * 0.5,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Image.asset(_roxieSmileImage, fit: BoxFit.contain),
+                            const SizedBox(width: 16),
+                            Image.asset(_trWooSmileImage, fit: BoxFit.contain),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else if (_backgroundAsset == _bgRedLight ||
+                    _backgroundAsset == _bgGreenLight)
+                  Positioned(
+                    top: 75,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: SizedBox(
+                        height: h * 0.5,
+                        child: Image.asset(_roxieImage, fit: BoxFit.contain),
                       ),
                     ),
                   ),
-                )
-              else if (_backgroundAsset == _bgRedLight || _backgroundAsset == _bgGreenLight)
+
+                // Decision buttons
+                if (_buttonsVisible) ...[
+                  Positioned(
+                    left: w * 0.04,
+                    bottom: h * 0.06,
+                    child: _DecisionButton(
+                      assetPath: _thumbsDown,
+                      size: w * 0.16,
+                      glowing: _thumbsDownGlow,
+                      enabled: _buttonsInteractive,
+                      onTap: () {
+                        if (_phase == _Phase.round1Answer) {
+                          _handleRound1Answer(false);
+                        } else if (_phase == _Phase.round2Answer) {
+                          _handleRound2Answer(false);
+                        }
+                      },
+                    ),
+                  ),
+                  Positioned(
+                    right: w * 0.04,
+                    bottom: h * 0.06,
+                    child: _DecisionButton(
+                      assetPath: _thumbsUp,
+                      size: w * 0.16,
+                      glowing: _thumbsUpGlow,
+                      enabled: _buttonsInteractive,
+                      onTap: () {
+                        if (_phase == _Phase.round1Answer) {
+                          _handleRound1Answer(true);
+                        } else if (_phase == _Phase.round2Answer) {
+                          _handleRound2Answer(true);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+
+                // Back button
                 Positioned(
-                  top: 75,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: SizedBox(
-                      height: h * 0.5,
-                      child: Image.asset(
-                        _roxieImage,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
+                  top: 25,
+                  left: 25,
+                  child: LumiXButton(onTap: _goBack),
                 ),
 
-              // Decision buttons
-              if (_buttonsVisible) ...[
-                Positioned(
-                  left: w * 0.04,
-                  bottom: h * 0.06,
-                  child: _DecisionButton(
-                    assetPath: _thumbsDown,
-                    size: w * 0.16,
-                    glowing: _thumbsDownGlow,
-                    enabled: _buttonsInteractive,
-                    onTap: () {
-                      if (_phase == _Phase.round1Answer) {
-                        _handleRound1Answer(false);
-                      } else if (_phase == _Phase.round2Answer) {
-                        _handleRound2Answer(false);
-                      }
+                if (hasCapturedFirstFrame &&
+                    !isFaceDetected &&
+                    !_hideLightingCard)
+                  LightingPromptCard(
+                    onClose: () {
+                      setState(() => _hideLightingCard = true);
+                      releaseFaceGate();
                     },
                   ),
-                ),
-                Positioned(
-                  right: w * 0.04,
-                  bottom: h * 0.06,
-                  child: _DecisionButton(
-                    assetPath: _thumbsUp,
-                    size: w * 0.16,
-                    glowing: _thumbsUpGlow,
-                    enabled: _buttonsInteractive,
-                    onTap: () {
-                      if (_phase == _Phase.round1Answer) {
-                        _handleRound1Answer(true);
-                      } else if (_phase == _Phase.round2Answer) {
-                        _handleRound2Answer(true);
+
+                // Try Again prompt after a wrong-answer explanation finishes
+                if (_showTryAgain)
+                  TryJobOverlay(
+                    characterImage: _trWooImage,
+                    onRestart: () {
+                      if (_phase == _Phase.round1Wrong) {
+                        _retryRound1();
+                      } else if (_phase == _Phase.round2Wrong) {
+                        _retryRound2();
                       }
                     },
+                    onBack: _goBack,
                   ),
-                ),
+
+                // Completion overlay
+                if (_gameComplete)
+                  GoodJobOverlay(
+                    characterImage: _trWooImage,
+                    // Note: No onNext in original source; kept exactly as it was.
+                    onRestart: _onRestart,
+                    onBack: _goBack,
+                  ),
               ],
-
-              // Back button
-              Positioned(
-                top: 25,
-                left: 25,
-                child: LumiXButton(onTap: _goBack),
-              ),
-
-              // Try Again prompt after a wrong-answer explanation finishes
-              if (_showTryAgain)
-                TryJobOverlay(
-                  characterImage: _trWooImage,
-                  onRestart: () {
-                    if (_phase == _Phase.round1Wrong) {
-                      _retryRound1();
-                    } else if (_phase == _Phase.round2Wrong) {
-                      _retryRound2();
-                    }
-                  },
-                  onBack: _goBack,
-                ),
-
-              // Completion overlay
-              if (_gameComplete)
-                GoodJobOverlay(
-                  characterImage: _trWooImage,
-                  onRestart: _onRestart,
-                  onBack: _goBack,
-                ),
-            ],
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
 }
-
-// ==================================================================
-// Decision button — large, child-friendly tap target with pulse glow
-// ==================================================================
 
 class _DecisionButton extends StatelessWidget {
   final String assetPath;

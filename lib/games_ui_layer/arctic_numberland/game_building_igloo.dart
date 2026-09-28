@@ -28,7 +28,11 @@ class BuildIglooScreen extends StatefulWidget {
 }
 
 class _BuildIglooScreenState extends State<BuildIglooScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get domaPlayer => _player;
 
@@ -36,11 +40,14 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
   static const int _totalRounds = 5;
   static const int _maxNumber = 5;
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
   static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/building_igloo_intro.wav';
-  static const String _audioInstruction = 'assets/audio/arctic_numberland/building_igloo_instruction.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/building_igloo_intro.wav';
+  static const String _audioInstruction =
+      'assets/audio/arctic_numberland/building_igloo_instruction.wav';
   static const String _audioBuild = 'assets/audio/sound_effects/build.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
@@ -55,10 +62,10 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
   bool _instructionPlayed = false;
   int _currentRound = 0;
 
-  late int _targetCount; 
+  late int _targetCount;
   late List<int?> _slotContents;
-  late List<bool> _slotHighlighted; 
-  late List<_IceBlockData> _sourceBlocks; 
+  late List<bool> _slotHighlighted;
+  late List<_IceBlockData> _sourceBlocks;
   late List<bool> _blockPlaced;
 
   int _placedCount = 0;
@@ -216,9 +223,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
 
   // ── Flow ───────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
-    await Future.delayed(
-      const Duration(milliseconds: 300),
-    );
+    await Future.delayed(const Duration(milliseconds: 300));
 
     await _playAudio(_audioIntro);
 
@@ -231,9 +236,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
 
     _setupRound();
 
-    await Future.delayed(
-      const Duration(milliseconds: 400),
-    );
+    await Future.delayed(const Duration(milliseconds: 400));
 
     if (!_instructionPlayed) {
       await _playAudio(_audioInstruction);
@@ -249,18 +252,14 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
 
   void _setupRound() {
     if (_roundPool.isEmpty) {
-      _roundPool =
-      List.generate(_maxNumber, (i) => i + 1)
-        ..shuffle();
+      _roundPool = List.generate(_maxNumber, (i) => i + 1)..shuffle();
     }
 
     _targetCount = _roundPool.removeLast();
 
-    _slotContents =
-        List.filled(_targetCount, null);
+    _slotContents = List.filled(_targetCount, null);
 
-    _slotHighlighted =
-        List.filled(_targetCount, false);
+    _slotHighlighted = List.filled(_targetCount, false);
 
     _placedCount = 0;
     _roundComplete = false;
@@ -276,12 +275,9 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
     _sourceBlocks = List.generate(6, (i) {
       return _IceBlockData(
         id: i,
-        pileOffsetX:
-        (rng.nextDouble() - 0.5) * 1.0,
-        pileOffsetY:
-        (rng.nextDouble() - 0.5) * 0.8,
-        rotation:
-        (rng.nextDouble() - 0.5) * 0.4,
+        pileOffsetX: (rng.nextDouble() - 0.5) * 1.0,
+        pileOffsetY: (rng.nextDouble() - 0.5) * 0.8,
+        rotation: (rng.nextDouble() - 0.5) * 0.4,
       );
     });
 
@@ -297,10 +293,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
   }
 
   // ── Drag Logic ─────────────────────────────────────────────────────────────
-  void _onDragStart(
-      int blockIndex,
-      Offset globalPos,
-      ) {
+  void _onDragStart(int blockIndex, Offset globalPos) {
     if (!_canInteract ||
         _blockPlaced[blockIndex] ||
         _roundComplete ||
@@ -315,20 +308,16 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
   }
 
   void _onDragUpdate(Offset globalPos) {
-    if (!_canInteract ||
-        _draggingBlockIndex == null) {
+    if (!_canInteract || _draggingBlockIndex == null) {
       return;
     }
 
     setState(() {
       _dragPosition = globalPos;
 
-      for (int i = 0;
-      i < _targetCount;
-      i++) {
+      for (int i = 0; i < _targetCount; i++) {
         _slotHighlighted[i] =
-            _isOverSlot(i, globalPos) &&
-                _slotContents[i] == null;
+            _isOverSlot(i, globalPos) && _slotContents[i] == null;
       }
     });
   }
@@ -346,8 +335,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
 
     // Check which slot the block was dropped on
     for (int i = 0; i < _targetCount; i++) {
-      if (_isOverSlot(i, globalPos) &&
-          _slotContents[i] == null) {
+      if (_isOverSlot(i, globalPos) && _slotContents[i] == null) {
         hitSlot = i;
         break;
       }
@@ -373,13 +361,13 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
 
       _slotFillCtrls[hitSlot].forward(from: 0);
 
-      await _playAudio('assets/audio/arctic_numberland/$_placedCount.wav',);
+      await _playAudio('assets/audio/arctic_numberland/$_placedCount.wav');
       if (!mounted) return;
 
       if (_placedCount == _targetCount) {
         _roundAdvancing = true;
 
-        await Future.delayed(const Duration(milliseconds: 300),);
+        await Future.delayed(const Duration(milliseconds: 300));
         if (!mounted) return;
 
         await _playAudio(_audioBuild);
@@ -391,26 +379,26 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
 
         _correctPulseCtrl.forward(from: 0);
 
-        showDomaReaction(DomaState.correct,);
-        await Future.delayed(const Duration(milliseconds: 700),);
+        showDomaReaction(DomaState.correct);
+        await Future.delayed(const Duration(milliseconds: 700));
         if (!mounted) return;
 
         if (_currentRound + 1 >= _totalRounds) {
           final List<String> finalEmotions = stopAiCamera();
 
-          try {
-            ArcticDatabaseService.saveGameData(
-              gameId: 'arctic_numberland_${widget.level}',
-              mistakes: _tapTracker.mistakeCount,
-              emotions: finalEmotions,
-            );
-          } catch (e) {
-            debugPrint(
-              'Database Error saving Arctic metrics: $e',
-            );
-          }
+          ArcticDatabaseService.saveGameData(
+            gameId: 'arctic_numberland_${widget.level}',
+            mistakes: _tapTracker.mistakeCount,
+            emotions: finalEmotions,
+          ).catchError((e) {
+            debugPrint("Database Error saving metrics: $e");
+          });
 
-          ArcticProgressService.instance.markLevelComplete(widget.level);
+          ArcticProgressService.instance
+              .markLevelComplete(widget.level)
+              .catchError((e) {
+                debugPrint("Database Error marking level complete: $e");
+              });
           if (!mounted) return;
 
           setState(() {
@@ -476,7 +464,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
 
   @override
   void dispose() {
-    disposeAiCamera(); 
+    disposeAiCamera();
     _minLoadTimer?.cancel();
     _player.dispose();
     _domaFloatCtrl.dispose();

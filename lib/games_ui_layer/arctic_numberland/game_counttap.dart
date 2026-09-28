@@ -32,15 +32,21 @@ class Number012TapCountScreen extends StatefulWidget {
 }
 
 class _Number012TapCountScreenState extends State<Number012TapCountScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin{
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get domaPlayer => _player;
   // ── Constants ──────────────────────────────────────────────────────────────
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _domaImage =
+      'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level8/012_countandtap.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level8/012_countandtap.wav';
 
   static const int _totalRounds = 5;
   static const int _poolSize = 5;
@@ -68,7 +74,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       asset: 'assets/images/objects/arctic/candy_cane.png',
       label: 'Candy Cane',
       color: Color(0xFFFFC857),
-    ), 
+    ),
     _RoundTheme(
       asset: 'assets/images/objects/arctic/igloo.png',
       label: 'Igloo',
@@ -78,7 +84,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   // ── State ──────────────────────────────────────────────────────────────────
 
-  int _round = 0; 
+  int _round = 0;
   late List<int> _roundOrder;
 
   int get _targetNumber => _roundOrder[_round];
@@ -240,7 +246,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   @override
   void dispose() {
-    disposeAiCamera(); 
+    disposeAiCamera();
     _minLoadTimer?.cancel();
     _numberDanceCtrl.dispose();
     _player.dispose();
@@ -282,9 +288,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
-    await _playAudio(
-      _audioIntro,
-    );
+    await _playAudio(_audioIntro);
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
   }
@@ -321,17 +325,19 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         // --- ADDED AI STOP & DATABASE SAVE ---
         List<String> finalEmotions = stopAiCamera();
 
-        try {
-          ArcticDatabaseService.saveGameData(
-            gameId: 'arctic_numberland_${widget.level}',
-            mistakes: _tapTracker.mistakeCount,
-            emotions: finalEmotions,
-          );
-        } catch (e) {
-          debugPrint("Database Error saving Arctic metrics: $e");
-        }
+        ArcticDatabaseService.saveGameData(
+          gameId: 'arctic_numberland_${widget.level}',
+          mistakes: _tapTracker.mistakeCount,
+          emotions: finalEmotions,
+        ).catchError((e) {
+          debugPrint("Database Error saving metrics: $e");
+        });
 
-        ArcticProgressService.instance.markLevelComplete(widget.level);
+        ArcticProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
         setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
@@ -377,12 +383,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
     final gameContent = Stack(
       children: [
-        Positioned.fill(
-          child: Image.asset(
-            _bgImage,
-            fit: BoxFit.cover,
-          ),
-        ),
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
         if (_screenPhase == _ScreenPhase.intro)
           _buildIntrolayer()
@@ -452,27 +453,17 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
             left: 0,
             right: 0,
             bottom: 15,
-            child: Center(
-              child: _buildProgressDots(),
-            ),
+            child: Center(child: _buildProgressDots()),
           ),
 
         // Doma
-        if (_screenPhase == _ScreenPhase.miniGame)
-          buildDoma(context),
+        if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
 
         // Check button
         if (_screenPhase == _ScreenPhase.miniGame && !_showWinDialog)
-          Positioned(
-            right: 25,
-            bottom: 25,
-            child: _buildCheckButton(),
-          ),
+          Positioned(right: 25, bottom: 25, child: _buildCheckButton()),
 
-        if (_showWinDialog)
-          Positioned.fill(
-            child: _buildGoodJobOverlay(),
-          ),
+        if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
 
@@ -557,10 +548,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(
-        _poolSize,
-        _buildObjectTile,
-      ),
+      children: List.generate(_poolSize, _buildObjectTile),
     );
   }
 

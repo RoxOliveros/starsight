@@ -1,50 +1,69 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-
-// IMPORTANT: Make sure this path matches where your sorry_5.dart is located!
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_5.dart';
-
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 class Sorry4Screen extends StatefulWidget {
-  const Sorry4Screen({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Sorry4Screen({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<Sorry4Screen> createState() => _Sorry4ScreenState();
 }
 
 class _Sorry4ScreenState extends State<Sorry4Screen>
-    with TickerProviderStateMixin {
-  // --- Animation Variables (Exact math from previous screens) ---
+    with TickerProviderStateMixin, AiCameraMixin<Sorry4Screen> {
   late final AnimationController _walkController;
   final Duration _walkDuration = const Duration(milliseconds: 1800);
   final Duration _stepDuration = const Duration(milliseconds: 260);
   final double _bounceHeightFraction = 0.045;
 
+  bool _hideLightingCard = false;
+
   @override
   void initState() {
     super.initState();
     _walkController = AnimationController(vsync: this, duration: _walkDuration);
-
     OrientationService.setLandscape();
 
-    // Start walking animation and navigate when it's done!
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startWalkAndTransition();
     });
   }
 
-  /// Plays the walking animation and immediately transitions to the puzzle!
   Future<void> _startWalkAndTransition() async {
     try {
-      // Wait for Jack's walking animation to completely finish (1.8 seconds)
       await _walkController.forward(from: 0);
       if (!mounted) return;
 
-      // Navigate straight to the 3-piece Puzzle (Scene 5)
+      final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
+
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const Sorry5Screen()),
+        MaterialPageRoute(
+          builder: (context) => Sorry5Screen(
+            priorEmotions: emotionsSoFar,
+            tapTracker: widget.tapTracker,
+          ),
+        ),
       );
     } catch (e) {
       debugPrint('Error transitioning from sorry_4: $e');
@@ -53,6 +72,7 @@ class _Sorry4ScreenState extends State<Sorry4Screen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _walkController.dispose();
     super.dispose();
   }
@@ -61,12 +81,9 @@ class _Sorry4ScreenState extends State<Sorry4Screen>
   Widget build(BuildContext context) {
     final sw = MediaQuery.of(context).size.width;
     final baseCharacterHeight = MediaQuery.of(context).size.height * 1.18;
-
-    // Both characters scale proportionally to the classroom
     final characterHeight = baseCharacterHeight * 0.70;
 
-    // Animation math for Jack walking from the right
-    final double startX = sw; // Starts off-screen right
+    final double startX = sw;
     final int stepCount =
         (_walkDuration.inMilliseconds / _stepDuration.inMilliseconds)
             .round()
@@ -74,90 +91,88 @@ class _Sorry4ScreenState extends State<Sorry4Screen>
     final double bounceHeightPx = characterHeight * _bounceHeightFraction;
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Background Layer
-          Image.asset(
-            'assets/images/backgrounds/bg_lumi_classroom.png',
-            fit: BoxFit.cover,
-            errorBuilder: (ctx, err, st) => const Center(
-              child: Text(
-                'Background could not be loaded.',
-                style: TextStyle(color: Colors.red),
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_lumi_classroom.png',
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, st) => const Center(
+                child: Text(
+                  'Background could not be loaded.',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
             ),
-          ),
 
-          // 2. Left Character Layer: Little Bear (Waiting on the left)
-          Positioned(
-            left: sw * 0.12,
-            bottom: -(baseCharacterHeight * 0.15),
-            child: SizedBox(
-              height: characterHeight,
-              child: Image.asset(
-                'assets/images/characters/littlebear_sad_tears.png',
-                fit: BoxFit.contain,
+            Positioned(
+              left: sw * 0.12,
+              bottom: -(baseCharacterHeight * 0.15),
+              child: SizedBox(
+                height: characterHeight,
+                child: Image.asset(
+                  'assets/images/characters/littlebear_sad_tears.png',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
-          ),
 
-          // 3. Right Animated Layer: Jack holding the Car walking in
-          AnimatedBuilder(
-            animation: _walkController,
-            builder: (context, child) {
-              final double t = _walkController.value;
-              final double easedT = Curves.easeOutCubic.transform(t);
+            AnimatedBuilder(
+              animation: _walkController,
+              builder: (context, child) {
+                final double t = _walkController.value;
+                final double easedT = Curves.easeOutCubic.transform(t);
 
-              // Horizontal sliding calculation
-              final double dx = startX * (1 - easedT);
+                final double dx = startX * (1 - easedT);
+                final double bounce = t < 1.0
+                    ? (math.sin(t * stepCount * math.pi)).abs() * bounceHeightPx
+                    : 0.0;
 
-              // Vertical bouncing calculation
-              final double bounce = t < 1.0
-                  ? (math.sin(t * stepCount * math.pi)).abs() * bounceHeightPx
-                  : 0.0;
-
-              return Positioned(
-                right: (sw * 0.12) - dx, // Slides into position on the right
-                bottom: -(baseCharacterHeight * 0.12) + bounce,
-                child: SizedBox(
-                  height: characterHeight,
-                  // We use a width roughly equivalent to his aspect ratio
-                  // so we can properly align the toy car over his body
-                  width: characterHeight * 0.85,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Layer A: Jack the Fox
-                      Image.asset(
-                        'assets/images/characters/jack_sad.png',
-                        height: characterHeight,
-                        fit: BoxFit.contain,
-                      ),
-
-                      // Layer B: The Toy Car (Positioned over his arm/paw)
-                      Positioned(
-                        bottom: characterHeight * 0.12, // Height near his paw
-                        left:
-                            characterHeight *
-                            0.08, // Shifted toward his front arm
-                        child: Image.asset(
-                          'assets/images/objects/lumi/car.png',
-                          // Car is scaled to be about 35% of Jack's height
-                          width: characterHeight * 0.35,
+                return Positioned(
+                  right: (sw * 0.12) - dx,
+                  bottom: -(baseCharacterHeight * 0.12) + bounce,
+                  child: SizedBox(
+                    height: characterHeight,
+                    width: characterHeight * 0.85,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        Image.asset(
+                          'assets/images/characters/jack_sad.png',
+                          height: characterHeight,
                           fit: BoxFit.contain,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
 
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-        ],
+                        Positioned(
+                          bottom: characterHeight * 0.12,
+                          left: characterHeight * 0.08,
+                          child: Image.asset(
+                            'assets/images/objects/lumi/car.png',
+                            width: characterHeight * 0.35,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

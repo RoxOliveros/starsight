@@ -11,6 +11,12 @@ import '../../ui_layer/lumi_town/lumi_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_road_crossing.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
+
 // ============================================================================
 // ASSETS
 // ============================================================================
@@ -42,13 +48,28 @@ class SafeObject {
   });
 }
 
-// Data-driven round list — add/remove objects here without touching game logic.
 const List<SafeObject> _allObjects = [
-  SafeObject(name: 'pillow', image: '${_objectBase}pillow_wb.png', isSafe: true),
-  SafeObject(name: 'airplane', image: '${_objectBase}airplane_wb.png', isSafe: true),
-  SafeObject(name: 'teddy_bear', image: '${_objectBase}teddybear_wb.png', isSafe: true),
+  SafeObject(
+    name: 'pillow',
+    image: '${_objectBase}pillow_wb.png',
+    isSafe: true,
+  ),
+  SafeObject(
+    name: 'airplane',
+    image: '${_objectBase}airplane_wb.png',
+    isSafe: true,
+  ),
+  SafeObject(
+    name: 'teddy_bear',
+    image: '${_objectBase}teddybear_wb.png',
+    isSafe: true,
+  ),
   SafeObject(name: 'fire', image: '${_objectBase}fire_wb.png', isSafe: false),
-  SafeObject(name: 'outlet', image: '${_objectBase}outlet_wb.png', isSafe: false),
+  SafeObject(
+    name: 'outlet',
+    image: '${_objectBase}outlet_wb.png',
+    isSafe: false,
+  ),
   SafeObject(name: 'knife', image: '${_objectBase}knife_wb.png', isSafe: false),
 ];
 
@@ -68,7 +89,7 @@ class SafeOrNotGameScreen extends StatefulWidget {
 }
 
 class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
-    with TrWooReactionMixin {
+    with TrWooReactionMixin, AiCameraMixin<SafeOrNotGameScreen> {
   @override
   AudioPlayer get trWooPlayer => _narrationPlayer;
 
@@ -77,6 +98,11 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
   // --- Audio ----------------------------------------------------------
   final AudioPlayer _narrationPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
+
+  // --- Tracker State --------------------------------------------------
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   // --- Game state -------------------------------------------------------
   late List<SafeObject> _objects;
@@ -100,9 +126,16 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
   @override
   void initState() {
     super.initState();
-    // Gameplay starts directly from initState — do not gate on any
-    // face-detection/camera callback, per established StarSight pattern.
     OrientationService.setLandscape();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _objects = _buildShuffledObjects();
     _initializeGame();
   }
@@ -130,6 +163,7 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _countdownTimer?.cancel();
     _narrationPlayer.dispose();
     _sfxPlayer.dispose();
@@ -162,8 +196,6 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
 
     try {
       await player.stop();
-      // AssetSource must not receive a path that already includes the
-      // 'assets/' prefix, or the path gets doubled.
       await player.play(AssetSource(asset.replaceFirst('assets/', '')));
       await completer.future;
     } catch (_) {
@@ -178,8 +210,6 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
   void _startRound() {
     if (!mounted) return;
 
-    // Always cancel any prior timer before starting a new one — the
-    // previous round's timer must never keep ticking into the next round.
     _countdownTimer?.cancel();
 
     setState(() {
@@ -216,6 +246,13 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
     _countdownTimer?.cancel();
 
     final correct = _currentObject.isSafe;
+
+    if (correct) {
+      _tapTracker.recordCorrectTap();
+    } else {
+      _tapTracker.recordMistake();
+    }
+
     _evaluateRound(correct: correct);
   }
 
@@ -275,7 +312,27 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
       _roundActive = false;
     });
 
-    TownProgressService.instance.markLevelComplete(widget.level);
+    if (!_hasSavedResult) {
+      _hasSavedResult = true;
+      List<String> finalEmotions = stopAiCamera();
+
+      TownDatabaseService.saveGameData(
+        gameId: 'lumi_town_safe_or_not',
+        activityName: 'Safe Or Not',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      ).catchError((e) {
+        debugPrint("Database Error saving metrics: $e");
+      });
+    }
+
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
 
     await _playAndWait(_narrationPlayer, _winAudio);
     if (!mounted) return;
@@ -295,6 +352,8 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
       _answerLocked = false;
       _gameComplete = false;
       _phase = _GamePhase.intro;
+      _hasSavedResult = false;
+      _tapTracker.startSession();
     });
 
     await _startIntroFlow();
@@ -323,114 +382,118 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
     final showWinScene = _phase == _GamePhase.complete && !_gameComplete;
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned.fill(
-            child: Image.asset(_playgroundBg, fit: BoxFit.cover),
-          ),
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: Image.asset(_playgroundBg, fit: BoxFit.cover),
+            ),
 
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
 
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  // INTRO / INSTRUCTION — Tr. Woo introduces the game.
-                  if (showIntroScene)
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: Image.asset(
-                          _trWooImage,
-                          width: width * 0.30,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-
-                  // WIN SCENE
-                  if (showWinScene)
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: Image.asset(
-                          _trWooSmileImage,
-                          width: width * 0.30,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-
-                  // GAMEPLAY
-                  if (showGameplayScene) ...[
-                    // Countdown — large, but kept clear of the object itself.
-                    Positioned(
-                      right: 15,
-                      bottom: 15,
-                      child: Center(
-                        child: _CountdownBadge(seconds: _secondsRemaining),
-                      ),
-                    ),
-
-                    // Progress indicator.
-                    Positioned(
-                      bottom: 15,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: _RoundDots(
-                          current: _currentRound,
-                          total: _objects.length,
-                        ),
-                      ),
-                    ),
-
-                    // The object — the tap target IS the answer, no buttons.
-                    Center(
-                      child: GestureDetector(
-                        onTap: _handleObjectTap,
-                        child: SizedBox(
-                          width: width * 0.32,
-                          height: width * 0.32,
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (showIntroScene)
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Center(
                           child: Image.asset(
-                            _currentObject.image,
+                            _trWooImage,
+                            width: width * 0.30,
                             fit: BoxFit.contain,
                           ),
                         ),
                       ),
-                    ),
 
-                    buildTrWoo(context),
+                    if (showWinScene)
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Image.asset(
+                            _trWooSmileImage,
+                            width: width * 0.30,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+
+                    if (showGameplayScene) ...[
+                      Positioned(
+                        right: 15,
+                        bottom: 15,
+                        child: Center(
+                          child: _CountdownBadge(seconds: _secondsRemaining),
+                        ),
+                      ),
+
+                      Positioned(
+                        bottom: 15,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: _RoundDots(
+                            current: _currentRound,
+                            total: _objects.length,
+                          ),
+                        ),
+                      ),
+
+                      Center(
+                        child: GestureDetector(
+                          onTap: _handleObjectTap,
+                          child: SizedBox(
+                            width: width * 0.32,
+                            height: width * 0.32,
+                            child: Image.asset(
+                              _currentObject.image,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      buildTrWoo(context),
+                    ],
                   ],
-                ],
-              );
-            },
-          ),
-
-          // Back button.
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-
-          // Completion overlay.
-          if (_gameComplete)
-            GoodJobOverlay(
-              characterImage: _trWooImage,
-              onNext: () async {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => CrossingGameScreen(level: widget.level + 1),
-                  ),
                 );
               },
-              onRestart: _restartGame,
-              onBack: _goBack,
             ),
-        ],
+
+            Positioned(top: 25, left: 25, child: LumiXButton(onTap: _goBack)),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_gameComplete)
+              GoodJobOverlay(
+                characterImage: _trWooImage,
+                onNext: () async {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          CrossingGameScreen(level: widget.level + 1),
+                    ),
+                  );
+                },
+                onRestart: _restartGame,
+                onBack: _goBack,
+              ),
+          ],
+        ),
       ),
     );
   }

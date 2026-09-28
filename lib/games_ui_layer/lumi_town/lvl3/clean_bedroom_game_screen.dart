@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../business_layer/orientation_service.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'clean_bedroom_data.dart';
 import 'clean_bedroom_round_screen.dart';
 
@@ -17,8 +21,14 @@ class CleanBedroomGameScreen extends StatefulWidget {
 }
 
 class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AiCameraMixin<CleanBedroomGameScreen> {
   final AudioPlayer _player = AudioPlayer();
+
+  // ── Tracking (camera + taps; this level spans the 4 rounds and ends at
+  // CleanBedroomEndingScreen, so this tracker and the emotions list travel
+  // with the player through every one of them) ──────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
 
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
@@ -28,6 +38,16 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     OrientationService.setLandscape();
+
+    // Starts immediately - never waits for a face. Session id/tap tracker
+    // are shared with every following screen in this level.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _fadeCtrl = AnimationController(
       vsync: this,
@@ -52,8 +72,17 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
     final allIds = List<String>.from(kAllToyIds)..shuffle();
     final rounds = List.generate(4, (i) => allIds.sublist(i * 3, i * 3 + 3));
 
+    final emotionsSoFar = stopAiCamera();
+
     Navigator.of(context).pushReplacement(
-      _fadeRoute(BedroomRoundScreen(roundIndex: 0, rounds: rounds)),
+      _fadeRoute(
+        BedroomRoundScreen(
+          roundIndex: 0,
+          rounds: rounds,
+          priorEmotions: emotionsSoFar,
+          tapTracker: _tapTracker,
+        ),
+      ),
     );
   }
 
@@ -69,6 +98,7 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _player.dispose();
     _fadeCtrl.dispose();
     super.dispose();
@@ -78,21 +108,30 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset(
-              'assets/images/backgrounds/bg_lumi_messy_bed.png',
-              fit: BoxFit.cover,
-            ),
-            Positioned(
-              top: 25,
-              left: 25,
-              child: LumiXButton(onTap: _onBack),
-            ),
-          ],
+      body: Listener(
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: FadeTransition(
+          opacity: _fadeAnim,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/images/backgrounds/bg_lumi_messy_bed.png',
+                fit: BoxFit.cover,
+              ),
+              Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );

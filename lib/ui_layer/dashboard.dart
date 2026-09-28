@@ -8,6 +8,7 @@ import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/business_layer/puzzle_database_service.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/ui_layer/puzzle_glade/puzzle_level.dart';
 import 'package:flutter/material.dart';
@@ -107,6 +108,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     LagoonDatabaseService.activeChildId = widget.nickname;
     PuzzleProgressService.instance.activeChildId = widget.nickname;
     PuzzleDatabaseService.activeChildId = widget.nickname;
+    TownDatabaseService.activeChildId = widget.nickname;
     TownProgressService.instance.activeChildId = widget.nickname;
 
     _floatController = AnimationController(

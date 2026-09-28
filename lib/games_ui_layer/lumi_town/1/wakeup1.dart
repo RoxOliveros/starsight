@@ -7,6 +7,10 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:lottie/lottie.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
@@ -30,7 +34,12 @@ class Lumi1ValuesWakeup extends StatefulWidget {
 }
 
 class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AiCameraMixin<Lumi1ValuesWakeup> {
+  // ── Tracking (camera + taps; Level 1 spans this screen AND wakeup2, so the
+  // same tracker keeps counting across both, and emotions are handed off) ──
+  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _hideLightingCard = false;
+
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _audioPlayer = AudioPlayer();
   StreamSubscription? _completeSub;
@@ -58,6 +67,16 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     super.initState();
     OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+    // Starts immediately - never waits for a face. Session id/tap tracker are
+    // shared with wakeup2, which continues this same level.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _fadeController = AnimationController(
       vsync: this,
@@ -188,6 +207,11 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
 
         // ONLY increase gradually
         if (detected > _gisingCount) {
+          final int newlyDetected =
+              detected.clamp(0, _gisingTarget) - _gisingCount;
+          for (int i = 0; i < newlyDetected; i++) {
+            _tapTracker.recordCorrectTap();
+          }
           setState(() {
             _gisingCount = detected.clamp(0, _gisingTarget);
           });
@@ -213,10 +237,16 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     _audioPlayer.stop();
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) {
+        // Level 1 continues on wakeup2 - hand off what's been captured so far
+        // instead of stopping/saving here.
+        final List<String> emotionsSoFar = stopAiCamera();
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (_, __, ___) => const Lumi2ValuesWakingup(),
+            pageBuilder: (_, __, ___) => Lumi2ValuesWakingup(
+              priorEmotions: emotionsSoFar,
+              tapTracker: _tapTracker,
+            ),
             transitionsBuilder: (_, animation, __, child) {
               return FadeTransition(opacity: animation, child: child);
             },
@@ -229,6 +259,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
 
   @override
   void dispose() {
+    disposeAiCamera();
     _completeSub?.cancel();
     _speech.stop();
     _audioPlayer.dispose();
@@ -244,40 +275,52 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     return Scaffold(
       backgroundColor: Colors.white,
       body: _animationReady
-          ? FadeTransition(
-              opacity: _fadeAnimation,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Lottie.asset(
-                    widget.imagePath,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    frameRate: FrameRate(30),
-                    errorBuilder: (context, error, stack) => _buildImageError(),
-                  ),
-                  if (_audioError != null) _buildAudioErrorBadge(),
-                  _buildMeter(),
-                  Positioned(
-                    top: 25,
-                    left: 25,
-                    child: LumiXButton(
-                      onTap: () {
-                        _speech.stop();
-                        Navigator.pop(context);
-                      },
+          ? Listener(
+              onPointerDown: (_) => _tapTracker.recordGenericTap(),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Lottie.asset(
+                      widget.imagePath,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      frameRate: FrameRate(30),
+                      errorBuilder: (context, error, stack) =>
+                          _buildImageError(),
                     ),
-                  ),
-                  if (_audioFinished)
+                    if (_audioError != null) _buildAudioErrorBadge(),
+                    _buildMeter(),
                     Positioned(
                       top: 25,
-                      right: 25,
-                      child: LumiSkipButton(
-                        onTap: () => _onCompleted(),
+                      left: 25,
+                      child: LumiXButton(
+                        onTap: () {
+                          _speech.stop();
+                          Navigator.pop(context);
+                        },
                       ),
                     ),
-                ],
+                    if (_audioFinished)
+                      Positioned(
+                        top: 25,
+                        right: 25,
+                        child: LumiSkipButton(onTap: () => _onCompleted()),
+                      ),
+
+                    if (hasCapturedFirstFrame &&
+                        !isFaceDetected &&
+                        !_hideLightingCard)
+                      LightingPromptCard(
+                        onClose: () {
+                          setState(() => _hideLightingCard = true);
+                          releaseFaceGate();
+                        },
+                      ),
+                  ],
+                ),
               ),
             )
           : LoadingScreen.lumiTown(),

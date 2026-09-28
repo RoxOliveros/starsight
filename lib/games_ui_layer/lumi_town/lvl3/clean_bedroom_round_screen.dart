@@ -4,25 +4,39 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../business_layer/orientation_service.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
 import '../lvl2/audio_helper.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'clean_bedroom_data.dart';
 import 'clean_bedroom_ending_screen.dart';
 
 class BedroomRoundScreen extends StatefulWidget {
   final int roundIndex;
   final List<List<String>> rounds;
-  const BedroomRoundScreen({super.key, required this.roundIndex, required this.rounds});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const BedroomRoundScreen({
+    super.key,
+    required this.roundIndex,
+    required this.rounds,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<BedroomRoundScreen> createState() => _BedroomRoundScreenState();
 }
 
 class _BedroomRoundScreenState extends State<BedroomRoundScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, AiCameraMixin<BedroomRoundScreen> {
   final AudioPlayer _player = AudioPlayer();
+  bool _hideLightingCard = false;
 
   // Which toy ids are in this round
   late List<String> _targetIds;
@@ -55,6 +69,15 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     OrientationService.setLandscape();
+
+    // Camera + tap tracking travel with the player across every round;
+    // the tracker instance is shared, emotions accumulate round-to-round.
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
     _targetIds = List.from(widget.rounds[widget.roundIndex]);
 
@@ -106,13 +129,17 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     )..repeat(reverse: true);
-    _hintPulseAnim = CurvedAnimation(parent: _hintPulseCtrl, curve: Curves.easeInOut);
+    _hintPulseAnim = CurvedAnimation(
+      parent: _hintPulseCtrl,
+      curve: Curves.easeInOut,
+    );
 
     _startHintTimer();
   }
 
   @override
   void dispose() {
+    disposeAiCamera();
     _hintTimer?.cancel();
     _hintPulseCtrl.dispose();
     _player.dispose();
@@ -144,6 +171,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
 
     if (droppedToyId == expectedToyId) {
       // ✅ Correct
+      widget.tapTracker.recordCorrectTap();
       setState(() {
         _filledSlots[slotIndex] = droppedToyId;
         _pickedUp.add(droppedToyId);
@@ -169,6 +197,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
       }
     } else {
       // ❌ Wrong slot
+      widget.tapTracker.recordMistake();
       _slotShakeCtrl[slotIndex].forward(from: 0);
       await playAssetAudio(
         _player,
@@ -194,14 +223,30 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
   }
 
   void _goToNextRound() {
+    // Fold this round's captured emotions into the running list before
+    // handing off to the next round (or the ending screen).
+    final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
+
     final nextIndex = widget.roundIndex + 1;
     if (nextIndex >= kRoundTargets.length) {
-      Navigator.of(
-        context,
-      ).pushReplacement(_fadeRoute(const CleanBedroomEndingScreen()));
+      Navigator.of(context).pushReplacement(
+        _fadeRoute(
+          CleanBedroomEndingScreen(
+            priorEmotions: emotionsSoFar,
+            tapTracker: widget.tapTracker,
+          ),
+        ),
+      );
     } else {
       Navigator.of(context).pushReplacement(
-        _fadeRoute(BedroomRoundScreen(roundIndex: nextIndex, rounds: widget.rounds)),
+        _fadeRoute(
+          BedroomRoundScreen(
+            roundIndex: nextIndex,
+            rounds: widget.rounds,
+            priorEmotions: emotionsSoFar,
+            tapTracker: widget.tapTracker,
+          ),
+        ),
       );
     }
   }
@@ -212,69 +257,86 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final screenW = constraints.maxWidth;
-          final screenH = constraints.maxHeight;
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenW = constraints.maxWidth;
+            final screenH = constraints.maxHeight;
 
-          // Responsive sizing
-          final panelW = screenW * 0.18; // right panel ~18% of width
-          final sceneW = screenW - panelW;
-          final toySize = screenW * 0.085; // toy icon size ~8.5% of width
-          final slotSize = panelW * 0.72; // slot fits inside panel
+            // Responsive sizing
+            final panelW = screenW * 0.18; // right panel ~18% of width
+            final sceneW = screenW - panelW;
+            final toySize = screenW * 0.085; // toy icon size ~8.5% of width
+            final slotSize = panelW * 0.72; // slot fits inside panel
 
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              // ── Background scene ──────────────────────────────────────────
-              Positioned(
-                left: 0,
-                top: 0,
-                width: sceneW,
-                height: screenH,
-                child: Image.asset(
-                  'assets/images/backgrounds/bg_lumi_bed.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
-
-              // ── Right panel ───────────────────────────────────────────────
-              Positioned(
-                right: 0,
-                top: 0,
-                width: panelW,
-                height: screenH,
-                child: _RightPanel(
-                  roundToyIds: _targetIds,
-                  filledSlots: _filledSlots,
-                  slotSize: slotSize,
-                  shakeAnims: _slotShakeAnim,
-                  popAnims: _slotPopAnim,
-                  onDrop: _onDropOnSlot,
-                ),
-              ),
-
-              // ── Scattered toys on scene ───────────────────────────────────
-              ..._buildScatteredToys(sceneW, screenH, toySize),
-
-              // ── Round indicator (top center of scene) ────────────────────
-              Positioned(
-                top: 12,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: _RoundDots(
-                    total: kRounds.length,
-                    current: widget.roundIndex,
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                // ── Background scene ──────────────────────────────────────────
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  width: sceneW,
+                  height: screenH,
+                  child: Image.asset(
+                    'assets/images/backgrounds/bg_lumi_bed.png',
+                    fit: BoxFit.cover,
                   ),
                 ),
-              ),
 
-              // ── X button ──────────────────────────────────────────────────
-              Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
-            ],
-          );
-        },
+                // ── Right panel ───────────────────────────────────────────────
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  width: panelW,
+                  height: screenH,
+                  child: _RightPanel(
+                    roundToyIds: _targetIds,
+                    filledSlots: _filledSlots,
+                    slotSize: slotSize,
+                    shakeAnims: _slotShakeAnim,
+                    popAnims: _slotPopAnim,
+                    onDrop: _onDropOnSlot,
+                  ),
+                ),
+
+                // ── Scattered toys on scene ───────────────────────────────────
+                ..._buildScatteredToys(sceneW, screenH, toySize),
+
+                // ── Round indicator (top center of scene) ────────────────────
+                Positioned(
+                  top: 12,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: _RoundDots(
+                      total: kRounds.length,
+                      current: widget.roundIndex,
+                    ),
+                  ),
+                ),
+
+                // ── X button ──────────────────────────────────────────────────
+                Positioned(
+                  top: 25,
+                  left: 25,
+                  child: LumiXButton(onTap: _onBack),
+                ),
+
+                if (hasCapturedFirstFrame &&
+                    !isFaceDetected &&
+                    !_hideLightingCard)
+                  LightingPromptCard(
+                    onClose: () {
+                      setState(() => _hideLightingCard = true);
+                      releaseFaceGate();
+                    },
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -455,10 +517,26 @@ class _SilhouetteToyImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColorFiltered(
       colorFilter: const ColorFilter.matrix([
-        0.2126, 0.7152, 0.0722, 0, 60,
-        0.2126, 0.7152, 0.0722, 0, 60,
-        0.2126, 0.7152, 0.0722, 0, 60,
-        0,      0,      0,      0.7, 0,
+        0.2126,
+        0.7152,
+        0.0722,
+        0,
+        60,
+        0.2126,
+        0.7152,
+        0.0722,
+        0,
+        60,
+        0.2126,
+        0.7152,
+        0.0722,
+        0,
+        60,
+        0,
+        0,
+        0,
+        0.7,
+        0,
       ]),
       child: ColorFiltered(
         colorFilter: ColorFilter.mode(

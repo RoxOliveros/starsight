@@ -281,17 +281,19 @@ class _Number1to5MatchSnowglobesScreenState
         // --- AI STOP & DATABASE SAVE ---
         List<String> finalEmotions = stopAiCamera();
 
-        try {
-          await ArcticDatabaseService.saveGameData(
-            gameId: 'arctic_numberland_${widget.level}',
-            mistakes: _tapTracker.mistakeCount,
-            emotions: finalEmotions,
-          );
-        } catch (e) {
-          debugPrint("Database Error saving Arctic metrics: $e");
-        }
+        ArcticDatabaseService.saveGameData(
+          gameId: 'arctic_numberland_${widget.level}',
+          mistakes: _tapTracker.mistakeCount,
+          emotions: finalEmotions,
+        ).catchError((e) {
+          debugPrint("Database Error saving metrics: $e");
+        });
 
-        await ArcticProgressService.instance.markLevelComplete(widget.level);
+        ArcticProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
         setState(() => _showWinDialog = true);
       } else {
         setState(() => _currentRound++);

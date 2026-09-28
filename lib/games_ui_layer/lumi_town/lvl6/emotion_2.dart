@@ -4,27 +4,36 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class Emotion2 extends StatefulWidget {
-  const Emotion2({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Emotion2({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<Emotion2> createState() => _Emotion2State();
 }
 
-class _Emotion2State extends State<Emotion2> {
+class _Emotion2State extends State<Emotion2> with AiCameraMixin<Emotion2> {
   final ScrollController _scrollController = ScrollController();
   Timer? _scrollTimer;
   Timer? _carouselAppearanceTimer;
 
-  // Audio configuration
   final AudioPlayer _audioPlayer = AudioPlayer();
   StreamSubscription? _audioCompleteSubscription;
 
-  // State to control when the images appear
   bool _showCarousel = false;
+  bool _hideLightingCard = false;
 
-  // List of your 6 scenario images
   final List<String> _scenarioImages = [
     'assets/images/objects/lumi/e1_wrong.png',
     'assets/images/objects/lumi/e2_wrong.png',
@@ -34,60 +43,56 @@ class _Emotion2State extends State<Emotion2> {
     'assets/images/objects/lumi/e6_wrong.png',
   ];
 
-  // Tagalog
   static const String _audioStart = 'audio/lumi_town/level6/emotion_start.wav';
-  static const String _audioTutorial = 'audio/lumi_town/level6/emotion_tutorial.wav';
-
-  // English
-  // static const String _audioStart = 'audio/lumi_town/level6/emotion_start_eng.wav';
-  // static const String _audioTutorial = 'audio/lumi_town/level6/emotion_tutorial_eng.wav';
+  static const String _audioTutorial =
+      'audio/lumi_town/level6/emotion_tutorial.wav';
 
   @override
   void initState() {
     super.initState();
-
     OrientationService.setLandscape();
 
-    // Initialize our audio and timing sequence
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _initAudioAndSequence();
   }
 
   void _initAudioAndSequence() async {
     bool isTutorialPlaying = true;
 
-    // 1. Listen for when the audio finishes
     _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((
       _,
     ) async {
       if (isTutorialPlaying) {
-        // The first audio (tutorial) finished. Play the second one.
         isTutorialPlaying = false;
-        await _audioPlayer.play(
-          AssetSource(_audioStart),
-        );
+        await _audioPlayer.play(AssetSource(_audioStart));
       } else {
-        // The second audio (start) finished! Navigate to Emotion3!
         if (mounted) {
+          final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const Emotion3Screen()),
+            MaterialPageRoute(
+              builder: (context) => Emotion3Screen(
+                priorEmotions: emotionsSoFar,
+                tapTracker: widget.tapTracker,
+              ),
+            ),
           );
         }
       }
     });
 
-    // 2. Start playing the tutorial audio immediately
-    await _audioPlayer.play(
-      AssetSource(_audioTutorial),
-    );
+    await _audioPlayer.play(AssetSource(_audioTutorial));
 
-    // 3. Set a timer to show the carousel after 6 seconds
     _carouselAppearanceTimer = Timer(const Duration(seconds: 6), () {
       if (mounted) {
         setState(() {
           _showCarousel = true;
         });
-
-        // Give the widget tree a moment to build the now-visible carousel, then scroll
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _startAutoScroll();
         });
@@ -106,75 +111,81 @@ class _Emotion2State extends State<Emotion2> {
 
   @override
   void dispose() {
-    // Always cancel timers and streams to prevent memory leaks
+    disposeAiCamera();
     _scrollTimer?.cancel();
     _carouselAppearanceTimer?.cancel();
     _audioCompleteSubscription?.cancel();
     _audioPlayer.dispose();
     _scrollController.dispose();
-
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final double screenWidth = constraints.maxWidth;
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double screenWidth = constraints.maxWidth;
 
-          return Stack(
-            children: [
-              // 1. Universal Background
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/images/backgrounds/bg_lumi_park_night.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
-
-              // 2. Dr. Woo (The Owl)
-              Positioned(
-                left: screenWidth * 0.15,
-                bottom: -55,
-                child: SizedBox(
-                  width: screenWidth * 0.35,
+            return Stack(
+              children: [
+                Positioned.fill(
                   child: Image.asset(
-                    'assets/images/characters/tr.woo_the_owl.png',
-                    fit: BoxFit.contain,
+                    'assets/images/backgrounds/bg_lumi_park_night.png',
+                    fit: BoxFit.cover,
                   ),
                 ),
-              ),
 
-              // 3. The Automatic Upward Carousel - Delayed Appearance
-              Positioned(
-                right: screenWidth * 0.08,
-                top: 0,
-                bottom: 0,
-                child: SizedBox(
-                  width: screenWidth * 0.25,
-                  // AnimatedOpacity creates a smooth fade-in effect when _showCarousel turns true
-                  child: AnimatedOpacity(
-                    opacity: _showCarousel ? 1.0 : 0.0,
-                    duration: const Duration(seconds: 1),
-                    child: _buildCarousel(),
+                Positioned(
+                  left: screenWidth * 0.15,
+                  bottom: -55,
+                  child: SizedBox(
+                    width: screenWidth * 0.35,
+                    child: Image.asset(
+                      'assets/images/characters/tr.woo_the_owl.png',
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
-              ),
 
-              Positioned(top: 25, left: 25, child: LumiXButton()),
-            ],
-          );
-        },
+                Positioned(
+                  right: screenWidth * 0.08,
+                  top: 0,
+                  bottom: 0,
+                  child: SizedBox(
+                    width: screenWidth * 0.25,
+                    child: AnimatedOpacity(
+                      opacity: _showCarousel ? 1.0 : 0.0,
+                      duration: const Duration(seconds: 1),
+                      child: _buildCarousel(),
+                    ),
+                  ),
+                ),
+
+                Positioned(top: 25, left: 25, child: LumiXButton()),
+
+                if (hasCapturedFirstFrame &&
+                    !isFaceDetected &&
+                    !_hideLightingCard)
+                  LightingPromptCard(
+                    onClose: () {
+                      setState(() => _hideLightingCard = true);
+                      releaseFaceGate();
+                    },
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  // The Carousel Widget
   Widget _buildCarousel() {
     return ListView.builder(
       controller: _scrollController,
-      // physics: const NeverScrollableScrollPhysics(), // Uncomment to prevent manual scrolling
       itemBuilder: (context, index) {
         final String imagePath =
             _scenarioImages[index % _scenarioImages.length];

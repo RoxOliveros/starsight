@@ -96,10 +96,30 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       ),
     ]),
     _RoundSpec([
-      _ShapeItem(id: 'orn_green', asset: '$_objBase/ornament_green.png', emoji: '🟢', shape: _ShapeKind.circle),
-      _ShapeItem(id: 'ice_1', asset: '$_objBase/ice.png', emoji: '🧊', shape: _ShapeKind.square),
-      _ShapeItem(id: 'tree_1', asset: '$_objBase/snowy_tree.png', emoji: '🌲', shape: _ShapeKind.triangle),
-      _ShapeItem(id: 'pkg_2', asset: '$_objBase/package_1.png', emoji: '📦', shape: _ShapeKind.square),
+      _ShapeItem(
+        id: 'orn_green',
+        asset: '$_objBase/ornament_green.png',
+        emoji: '🟢',
+        shape: _ShapeKind.circle,
+      ),
+      _ShapeItem(
+        id: 'ice_1',
+        asset: '$_objBase/ice.png',
+        emoji: '🧊',
+        shape: _ShapeKind.square,
+      ),
+      _ShapeItem(
+        id: 'tree_1',
+        asset: '$_objBase/snowy_tree.png',
+        emoji: '🌲',
+        shape: _ShapeKind.triangle,
+      ),
+      _ShapeItem(
+        id: 'pkg_2',
+        asset: '$_objBase/package_1.png',
+        emoji: '📦',
+        shape: _ShapeKind.square,
+      ),
     ]),
     _RoundSpec([
       _ShapeItem(
@@ -134,12 +154,42 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       ),
     ]),
     _RoundSpec([
-      _ShapeItem(id: 'orn_red', asset: '$_objBase/ornament_red.png', emoji: '🔴', shape: _ShapeKind.circle),
-      _ShapeItem(id: 'orn_yellow', asset: '$_objBase/ornament_yellow.png', emoji: '🟡', shape: _ShapeKind.circle),
-      _ShapeItem(id: 'tree_2', asset: '$_objBase/snowy_tree.png', emoji: '🌲', shape: _ShapeKind.triangle),
-      _ShapeItem(id: 'iceberg_2', asset: '$_objBase/iceberg.png', emoji: '🏔️', shape: _ShapeKind.triangle),
-      _ShapeItem(id: 'star_2', asset: 'assets/images/objects/puzzle/star.png', emoji: '⭐', shape: _ShapeKind.star),
-      _ShapeItem(id: 'ice_2', asset: '$_objBase/ice.png', emoji: '🧊', shape: _ShapeKind.square),
+      _ShapeItem(
+        id: 'orn_red',
+        asset: '$_objBase/ornament_red.png',
+        emoji: '🔴',
+        shape: _ShapeKind.circle,
+      ),
+      _ShapeItem(
+        id: 'orn_yellow',
+        asset: '$_objBase/ornament_yellow.png',
+        emoji: '🟡',
+        shape: _ShapeKind.circle,
+      ),
+      _ShapeItem(
+        id: 'tree_2',
+        asset: '$_objBase/snowy_tree.png',
+        emoji: '🌲',
+        shape: _ShapeKind.triangle,
+      ),
+      _ShapeItem(
+        id: 'iceberg_2',
+        asset: '$_objBase/iceberg.png',
+        emoji: '🏔️',
+        shape: _ShapeKind.triangle,
+      ),
+      _ShapeItem(
+        id: 'star_2',
+        asset: 'assets/images/objects/puzzle/star.png',
+        emoji: '⭐',
+        shape: _ShapeKind.star,
+      ),
+      _ShapeItem(
+        id: 'ice_2',
+        asset: '$_objBase/ice.png',
+        emoji: '🧊',
+        shape: _ShapeKind.square,
+      ),
     ]),
     _RoundSpec([
       _ShapeItem(
@@ -212,15 +262,13 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     _hasSavedResult = true;
 
     final finalEmotions = stopAiCamera();
-    try {
-      await ArcticDatabaseService.saveGameData(
-        gameId: 'arctic_numberland_${widget.level}',
-        mistakes: _tapTracker.mistakeCount,
-        emotions: finalEmotions,
-      );
-    } catch (e) {
-      debugPrint('Database Error saving Arctic metrics: $e');
-    }
+    ArcticDatabaseService.saveGameData(
+      gameId: 'arctic_numberland_${widget.level}',
+      mistakes: _tapTracker.mistakeCount,
+      emotions: finalEmotions,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
   }
 
   @override
@@ -332,7 +380,11 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     if (_currentRound + 1 >= _totalRounds) {
       await playVoice(_audioWin);
       await _saveGameResult();
-      await ArcticProgressService.instance.markLevelComplete(widget.level);
+      ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
+        (e) {
+          debugPrint("Database Error marking level complete: $e");
+        },
+      );
       if (!mounted) return;
       setState(() => _showWinDialog = true);
     } else {

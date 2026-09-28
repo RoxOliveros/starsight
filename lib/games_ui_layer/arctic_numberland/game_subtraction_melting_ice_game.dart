@@ -329,7 +329,11 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
 
     if (_currentRound + 1 >= _totalRounds) {
       _saveGameResult();
-      ArcticProgressService.instance.markLevelComplete(widget.level);
+      ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
+        (e) {
+          debugPrint("Database Error marking level complete: $e");
+        },
+      );
       if (!mounted) return;
 
       setState(() {

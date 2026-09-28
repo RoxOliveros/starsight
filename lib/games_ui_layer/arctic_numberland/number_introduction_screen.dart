@@ -704,17 +704,19 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       // --- ADDED AI STOP & DATABASE SAVE ---
       List<String> finalEmotions = stopAiCamera();
 
-      try {
-        ArcticDatabaseService.saveGameData(
-          gameId: 'arctic_numberland_${widget.level}',
-          mistakes: _tapTracker.mistakeCount,
-          emotions: finalEmotions,
-        );
-      } catch (e) {
-        debugPrint("Database Error saving Arctic metrics: $e");
-      }
+      ArcticDatabaseService.saveGameData(
+        gameId: 'arctic_numberland_${widget.level}',
+        mistakes: _tapTracker.mistakeCount,
+        emotions: finalEmotions,
+      ).catchError((e) {
+        debugPrint("Database Error saving metrics: $e");
+      });
 
-      ArcticProgressService.instance.markLevelComplete(widget.level);
+      ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
+        (e) {
+          debugPrint("Database Error marking level complete: $e");
+        },
+      );
 
       if (!mounted) return;
       setState(() => _showWinDialog = true);
@@ -1004,7 +1006,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                   }
                 },
                 level: widget.level,
-                tapTracker: _tapTracker, 
+                tapTracker: _tapTracker,
               )
             else ...[
               if (_miniGameIndex != 1)

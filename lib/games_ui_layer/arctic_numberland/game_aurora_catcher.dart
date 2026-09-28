@@ -198,15 +198,13 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     _hasSavedResult = true;
 
     final finalEmotions = stopAiCamera();
-    try {
-      await ArcticDatabaseService.saveGameData(
-        gameId: 'arctic_numberland_${widget.level}',
-        mistakes: _tapTracker.mistakeCount,
-        emotions: finalEmotions,
-      );
-    } catch (e) {
-      debugPrint('Database Error saving Arctic metrics: $e');
-    }
+    ArcticDatabaseService.saveGameData(
+      gameId: 'arctic_numberland_${widget.level}',
+      mistakes: _tapTracker.mistakeCount,
+      emotions: finalEmotions,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
   }
 
   @override
@@ -364,7 +362,11 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
       setState(() => _showWinAurora = true);
       await playVoice(_audioWin);
       await _saveGameResult();
-      await ArcticProgressService.instance.markLevelComplete(widget.level);
+      ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
+        (e) {
+          debugPrint("Database Error marking level complete: $e");
+        },
+      );
       if (!mounted) return;
       setState(() {
         _showWinAurora = false;

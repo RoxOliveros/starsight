@@ -8,59 +8,72 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
 class Sorry5Screen extends StatefulWidget {
-  const Sorry5Screen({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Sorry5Screen({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<Sorry5Screen> createState() => _Sorry5ScreenState();
 }
 
-class _Sorry5ScreenState extends State<Sorry5Screen> {
+class _Sorry5ScreenState extends State<Sorry5Screen>
+    with AiCameraMixin<Sorry5Screen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // --- Interaction State ---
-  // Pieces remain locked until sorry_5.wav finishes playing!
   bool _canDrag = false;
 
-  // --- Puzzle Placement State ---
   bool _imPlaced = false;
   bool _sorryPlaced = false;
   bool _littleBearPlaced = false;
+
+  bool _hideLightingCard = false;
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
-    // Start audio and unlock puzzle pieces when it completes
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startIntroAudio();
     });
   }
 
-  /// Plays sorry_5.wav and unlocks dragging once the narration finishes
   Future<void> _startIntroAudio() async {
     try {
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level9/sorry_5.wav'),
       );
 
-      // Wait for the audio to completely finish playing
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 
-      // Unlock the puzzle pieces so the user can now drag them!
       setState(() {
         _canDrag = true;
       });
     } catch (e) {
       debugPrint('Error playing sorry_5.wav: $e');
-      // Fallback: If audio fails to load, unlock immediately so the child isn't stuck
       if (mounted) setState(() => _canDrag = true);
     }
   }
 
-  /// Checks if all 3 pieces are in place and triggers the victory sequence
   void _checkCompletion() {
     if (_imPlaced && _sorryPlaced && _littleBearPlaced) {
       debugPrint('Puzzle Complete!');
@@ -70,24 +83,27 @@ class _Sorry5ScreenState extends State<Sorry5Screen> {
 
   Future<void> _playVictorySequence() async {
     try {
-      // 1. Stop any background narration that might still be playing
       await _audioPlayer.stop();
 
-      // 2. Play the shine sound effect and wait for it to finish!
       await _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 
-      // 3. Play sorry_6.wav right after the shine sound finishes
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level9/sorry_6.wav'),
       );
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 
-      // 4. Navigate smoothly to the classroom scene!
+      final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
+
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const Sorry6Screen()),
+        MaterialPageRoute(
+          builder: (context) => Sorry6Screen(
+            priorEmotions: emotionsSoFar,
+            tapTracker: widget.tapTracker,
+          ),
+        ),
       );
     } catch (e) {
       debugPrint('Error in victory sequence: $e');
@@ -96,6 +112,7 @@ class _Sorry5ScreenState extends State<Sorry5Screen> {
 
   @override
   void dispose() {
+    disposeAiCamera();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -105,198 +122,171 @@ class _Sorry5ScreenState extends State<Sorry5Screen> {
     final double sw = MediaQuery.of(context).size.width;
     final double sh = MediaQuery.of(context).size.height;
 
-    // Piece size scaling (Roughly 18% of screen width so all 3 fit nicely)
     final double pieceWidth = sw * 0.18;
-    final double pieceHeight =
-        pieceWidth; // Square aspect ratio for puzzle boxes
+    final double pieceHeight = pieceWidth;
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Background Image
-          Image.asset(
-            'assets/images/backgrounds/bg_lumi_puzzle.jpg',
-            fit: BoxFit.cover,
-            errorBuilder: (ctx, err, st) => Container(
-              // Fallback split color matching the mockup image_e757db.png
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFFBE4C3), // Upper tan area
-                    Color(0xFFFBE4C3),
-                    Color(0xFFECA352), // Lower orange table area
-                    Color(0xFFECA352),
-                  ],
-                  stops: [0.0, 0.60, 0.60, 1.0],
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_lumi_puzzle.jpg',
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, st) => Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFFFBE4C3),
+                      Color(0xFFFBE4C3),
+                      Color(0xFFECA352),
+                      Color(0xFFECA352),
+                    ],
+                    stops: [0.0, 0.60, 0.60, 1.0],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // 2. Top Area: Target Placeholders (Where pieces are dropped)
-          //
-          // NOTE: Instead of manually offsetting each piece by a different
-          // guessed amount (which is fragile and hard to keep in sync),
-          // all 3 pieces share ONE `overlapAmount`. Each piece is placed at
-          // `index * (pieceWidth - overlapAmount)`, guaranteeing identical
-          // spacing/connection between every pair, regardless of how many
-          // pieces there are. Tune `overlapAmount` below to match how much
-          // of the tab/notch on your PNGs should visually interlock.
-          Positioned(
-            top: sh * 0.15,
-            left: 0,
-            right: 0,
-            child: Builder(
-              builder: (context) {
-                // How much each piece overlaps the next (in px).
-                // Increase this if there's still a visible gap between
-                // pieces; decrease it if they overlap too much.
-                final double overlapAmount = pieceWidth * 0.26;
-                final double step = pieceWidth - overlapAmount;
-                final double totalWidth = pieceWidth + step * 2;
+            Positioned(
+              top: sh * 0.15,
+              left: 0,
+              right: 0,
+              child: Builder(
+                builder: (context) {
+                  final double overlapAmount = pieceWidth * 0.26;
+                  final double step = pieceWidth - overlapAmount;
+                  final double totalWidth = pieceWidth + step * 2;
 
-                return Center(
-                  child: SizedBox(
-                    width: totalWidth,
-                    height: pieceHeight,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Slot 1: "I'M"
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          child: _buildDragTarget(
-                            id: 'IM',
-                            isPlaced: _imPlaced,
-                            placeholderAsset:
-                                'assets/images/objects/lumi/im_placeholder.png',
-                            placedAsset: 'assets/images/objects/lumi/im_rp.png',
-                            width: pieceWidth,
-                            height: pieceHeight,
-                            onAccept: () => setState(() {
-                              _imPlaced = true;
-                              _checkCompletion();
-                            }),
+                  return Center(
+                    child: SizedBox(
+                      width: totalWidth,
+                      height: pieceHeight,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned(
+                            left: 0,
+                            top: 0,
+                            child: _buildDragTarget(
+                              id: 'IM',
+                              isPlaced: _imPlaced,
+                              placeholderAsset:
+                                  'assets/images/objects/lumi/im_placeholder.png',
+                              placedAsset:
+                                  'assets/images/objects/lumi/im_rp.png',
+                              width: pieceWidth,
+                              height: pieceHeight,
+                              onAccept: () => setState(() {
+                                _imPlaced = true;
+                                _checkCompletion();
+                              }),
+                            ),
                           ),
-                        ),
 
-                        // Slot 2: "SORRY"
-                        Positioned(
-                          left: step,
-                          top: 0,
-                          child: _buildDragTarget(
-                            id: 'SORRY',
-                            isPlaced: _sorryPlaced,
-                            placeholderAsset:
-                                'assets/images/objects/lumi/sorry_placeholder.png',
-                            placedAsset:
-                                'assets/images/objects/lumi/sorry_rp.png',
-                            width: pieceWidth,
-                            height: pieceHeight,
-                            onAccept: () => setState(() {
-                              _sorryPlaced = true;
-                              _checkCompletion();
-                            }),
+                          Positioned(
+                            left: step,
+                            top: 0,
+                            child: _buildDragTarget(
+                              id: 'SORRY',
+                              isPlaced: _sorryPlaced,
+                              placeholderAsset:
+                                  'assets/images/objects/lumi/sorry_placeholder.png',
+                              placedAsset:
+                                  'assets/images/objects/lumi/sorry_rp.png',
+                              width: pieceWidth,
+                              height: pieceHeight,
+                              onAccept: () => setState(() {
+                                _sorryPlaced = true;
+                                _checkCompletion();
+                              }),
+                            ),
                           ),
-                        ),
 
-                        // Slot 3: "LITTLE BEAR"
-                        Positioned(
-                          // CHANGED: We subtract an extra offset (pieceWidth * 0.08)
-                          // to pull this end piece further left so its socket slides over Slot 2's tab!
-                          left: (step * 2) - (pieceWidth * 0.05),
-                          top: 0,
-                          child: _buildDragTarget(
-                            id: 'LITTLE_BEAR',
-                            isPlaced: _littleBearPlaced,
-                            placeholderAsset:
-                                'assets/images/objects/lumi/littlebear_placeholder.png',
-                            placedAsset:
-                                'assets/images/objects/lumi/littlebear_rp.png',
-                            width: pieceWidth,
-                            height: pieceHeight,
-                            onAccept: () => setState(() {
-                              _littleBearPlaced = true;
-                              _checkCompletion();
-                            }),
+                          Positioned(
+                            left: (step * 2) - (pieceWidth * 0.05),
+                            top: 0,
+                            child: _buildDragTarget(
+                              id: 'LITTLE_BEAR',
+                              isPlaced: _littleBearPlaced,
+                              placeholderAsset:
+                                  'assets/images/objects/lumi/littlebear_placeholder.png',
+                              placedAsset:
+                                  'assets/images/objects/lumi/littlebear_rp.png',
+                              width: pieceWidth,
+                              height: pieceHeight,
+                              onAccept: () => setState(() {
+                                _littleBearPlaced = true;
+                                _checkCompletion();
+                              }),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
-          // 3. Bottom Area: Draggable Puzzle Pieces (Source)
-          //
-          // Previously this used `spaceEvenly` across the *entire* width
-          // between left/right insets, which spreads pieces apart based on
-          // total available screen width — on a wide screen that pushes
-          // the 3rd piece way out toward the edge instead of keeping the
-          // trio clustered together in the middle like the mockup.
-          //
-          // Fix: center a fixed-size cluster with a small, explicit gap
-          // between pieces, so spacing stays tight and consistent
-          // regardless of screen width.
-          Positioned(
-            bottom: sh * 0.08,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Piece 1: "I'M"
-                  _buildDraggablePiece(
-                    id: 'IM',
-                    isPlaced: _imPlaced,
-                    assetPath: 'assets/images/objects/lumi/im_rp.png',
-                    width: pieceWidth,
-                    height: pieceHeight,
-                  ),
-
-                  SizedBox(width: pieceWidth * 0.35),
-
-                  // Piece 2: "SORRY"
-                  _buildDraggablePiece(
-                    id: 'SORRY',
-                    isPlaced: _sorryPlaced,
-                    assetPath: 'assets/images/objects/lumi/sorry_rp.png',
-                    width: pieceWidth,
-                    height: pieceHeight,
-                  ),
-
-                  SizedBox(width: pieceWidth * 0.35),
-
-                  // Piece 3: "LITTLE BEAR"
-                  _buildDraggablePiece(
-                    id: 'LITTLE_BEAR',
-                    isPlaced: _littleBearPlaced,
-                    assetPath: 'assets/images/objects/lumi/littlebear_rp.png',
-                    width: pieceWidth,
-                    height: pieceHeight,
-                  ),
-                ],
+                  );
+                },
               ),
             ),
-          ),
 
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-        ],
+            Positioned(
+              bottom: sh * 0.08,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildDraggablePiece(
+                      id: 'IM',
+                      isPlaced: _imPlaced,
+                      assetPath: 'assets/images/objects/lumi/im_rp.png',
+                      width: pieceWidth,
+                      height: pieceHeight,
+                    ),
+
+                    SizedBox(width: pieceWidth * 0.35),
+
+                    _buildDraggablePiece(
+                      id: 'SORRY',
+                      isPlaced: _sorryPlaced,
+                      assetPath: 'assets/images/objects/lumi/sorry_rp.png',
+                      width: pieceWidth,
+                      height: pieceHeight,
+                    ),
+
+                    SizedBox(width: pieceWidth * 0.35),
+
+                    _buildDraggablePiece(
+                      id: 'LITTLE_BEAR',
+                      isPlaced: _littleBearPlaced,
+                      assetPath: 'assets/images/objects/lumi/littlebear_rp.png',
+                      width: pieceWidth,
+                      height: pieceHeight,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  // ============================================================================
-  // DRAG & DROP HELPER WIDGETS
-  // ============================================================================
-
-  /// Builds a drop target slot for a specific puzzle piece
   Widget _buildDragTarget({
     required String id,
     required bool isPlaced,
@@ -307,15 +297,12 @@ class _Sorry5ScreenState extends State<Sorry5Screen> {
     required VoidCallback onAccept,
   }) {
     return DragTarget<String>(
-      // Only accept the piece if its ID matches this target slot!
       onWillAcceptWithDetails: (details) => details.data == id && !isPlaced,
       onAcceptWithDetails: (details) {
-        // Play a snap sound if you have one!
-        // _audioPlayer.play(AssetSource('audio/lumi_town/level9/snap.wav'));
+        widget.tapTracker.recordCorrectTap();
         onAccept();
       },
       builder: (context, candidateData, rejectedData) {
-        // If the piece is hovering over the correct target, give it a slight brightness boost
         final bool isHovered = candidateData.isNotEmpty;
 
         return AnimatedContainer(
@@ -362,7 +349,6 @@ class _Sorry5ScreenState extends State<Sorry5Screen> {
     );
   }
 
-  /// Builds a draggable puzzle piece sitting in the bottom row
   Widget _buildDraggablePiece({
     required String id,
     required bool isPlaced,
@@ -370,7 +356,6 @@ class _Sorry5ScreenState extends State<Sorry5Screen> {
     required double width,
     required double height,
   }) {
-    // If the piece is already placed in the top slot, hide it from the bottom row!
     if (isPlaced) {
       return SizedBox(width: width, height: height);
     }
@@ -400,27 +385,22 @@ class _Sorry5ScreenState extends State<Sorry5Screen> {
       ),
     );
 
-    // If dragging is disabled while audio plays, wrap in an IgnorePointer
     if (!_canDrag) {
-      return Opacity(
-        opacity: 0.65, // Slightly dimmed to show it is not interactable yet
-        child: pieceImage,
-      );
+      return Opacity(opacity: 0.65, child: pieceImage);
     }
 
     return Draggable<String>(
       data: id,
-      // What the user sees under their finger while dragging:
+      onDragEnd: (details) {
+        if (!details.wasAccepted) {
+          widget.tapTracker.recordMistake();
+        }
+      },
       feedback: Material(
         color: Colors.transparent,
-        child: Transform.scale(
-          scale: 1.10, // Make it pop slightly larger while dragging
-          child: pieceImage,
-        ),
+        child: Transform.scale(scale: 1.10, child: pieceImage),
       ),
-      // What remains in the bottom row while the piece is being dragged:
       childWhenDragging: Opacity(opacity: 0.25, child: pieceImage),
-      // The normal interactive piece:
       child: pieceImage
           .animate(target: _canDrag ? 1 : 0)
           .scale(

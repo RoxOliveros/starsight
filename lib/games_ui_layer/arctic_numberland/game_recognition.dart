@@ -30,18 +30,26 @@ class Number012RecognitionScreen extends StatefulWidget {
 }
 
 class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
-    with TickerProviderStateMixin, GameLoadingMixin, DomaReactionMixin, AiCameraMixin{
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin,
+        DomaReactionMixin,
+        AiCameraMixin {
   @override
   AudioPlayer get domaPlayer => _player;
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _domaImage =
+      'assets/images/characters/doma_the_penguin.png';
   static const String _speakerImage = 'assets/images/icons/speaker.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/012_recog_intro.wav';
-  static const String _audioInstruction = 'assets/audio/arctic_numberland/012_recog_instruction.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/012_recog_intro.wav';
+  static const String _audioInstruction =
+      'assets/audio/arctic_numberland/012_recog_instruction.wav';
 
-  static const String _audioBubblePop = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioBubblePop =
+      'assets/audio/sound_effects/bubble_pop.wav';
 
   late int _correctNumber;
   late List<int> _choices;
@@ -97,7 +105,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   @override
   void dispose() {
-    disposeAiCamera(); 
+    disposeAiCamera();
     _numberDanceCtrl.dispose();
     _player.dispose();
     OrientationService.setLandscape();
@@ -128,17 +136,19 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
       if (_round >= _totalRounds) {
         List<String> finalEmotions = stopAiCamera();
 
-        try {
-          ArcticDatabaseService.saveGameData(
-            gameId: 'arctic_numberland_${widget.level}',
-            mistakes: _tapTracker.mistakeCount,
-            emotions: finalEmotions,
-          );
-        } catch (e) {
-          debugPrint("Database Error saving Arctic metrics: $e");
-        }
+        ArcticDatabaseService.saveGameData(
+          gameId: 'arctic_numberland_${widget.level}',
+          mistakes: _tapTracker.mistakeCount,
+          emotions: finalEmotions,
+        ).catchError((e) {
+          debugPrint("Database Error saving metrics: $e");
+        });
 
-        ArcticProgressService.instance.markLevelComplete(widget.level);
+        ArcticProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+              debugPrint("Database Error marking level complete: $e");
+            });
         setState(() => _showWinDialog = true);
       } else {
         setState(() {
@@ -177,9 +187,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   }
 
   Future<void> _playCurrentNumber() async {
-    await _playAudio(
-      'assets/audio/arctic_numberland/$_correctNumber.wav',
-    );
+    await _playAudio('assets/audio/arctic_numberland/$_correctNumber.wav');
   }
 
   Future<void> _onSpeakerTap() async {
@@ -260,12 +268,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
           loadingScreen: LoadingScreen.arctic(),
           gameBuilder: () => Stack(
             children: [
-              Positioned.fill(
-                child: Image.asset(
-                  _bgImage,
-                  fit: BoxFit.cover,
-                ),
-              ),
+              Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
               if (_screenPhase == _ScreenPhase.intro)
                 _buildIntroLayer()
               else
@@ -312,7 +315,8 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: ArcticColorTheme.pictonblue.withValues(alpha: 0.35),
+                                    color: ArcticColorTheme.pictonblue
+                                        .withValues(alpha: 0.35),
                                     blurRadius: 8,
                                     offset: const Offset(0, 3),
                                   ),
@@ -322,8 +326,11 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                               child: Image.asset(
                                 _speakerImage,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.volume_up, color: Colors.white, size: 40),
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.volume_up,
+                                  color: Colors.white,
+                                  size: 40,
+                                ),
                               ),
                             ),
                           ),
@@ -333,7 +340,9 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: List.generate(_choices.length, (index) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
                                 child: GestureDetector(
                                   onTap: _isInputLocked
                                       ? null
@@ -351,7 +360,9 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: _choiceColor(index).withValues(alpha: 0.35),
+                                          color: _choiceColor(
+                                            index,
+                                          ).withValues(alpha: 0.35),
                                           blurRadius: 8,
                                           offset: const Offset(0, 3),
                                         ),
@@ -366,7 +377,8 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
                                           child: Text(
                                             '${_choices[index]}',
                                             style: const TextStyle(
-                                              fontFamily: ArcticAppTextStyles.fredoka,
+                                              fontFamily:
+                                                  ArcticAppTextStyles.fredoka,
                                               fontSize: 40,
                                               fontWeight: FontWeight.bold,
                                               color: ArcticColorTheme.cotton,

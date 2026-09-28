@@ -9,119 +9,139 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/town_database_service.dart';
+
 class Sorry8Screen extends StatefulWidget {
-  const Sorry8Screen({super.key});
+  final List<String> priorEmotions;
+  final GameTapTracker tapTracker;
+
+  const Sorry8Screen({
+    super.key,
+    required this.priorEmotions,
+    required this.tapTracker,
+  });
 
   @override
   State<Sorry8Screen> createState() => _Sorry8ScreenState();
 }
 
 class _Sorry8ScreenState extends State<Sorry8Screen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, AiCameraMixin<Sorry8Screen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // --- Animation Controllers ---
-  late final AnimationController _walkController; // Jack walking to Little Bear
-  late final AnimationController _carSlideController; // Car handoff slide
-  late final AnimationController _jumpController; // Celebration jump
+  late final AnimationController _walkController;
+  late final AnimationController _carSlideController;
+  late final AnimationController _jumpController;
 
-  // --- Scene State ---
   bool _isCarWithJack = true;
   bool _showGoodJob = false;
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
-    // Jack's walk over to Little Bear
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
     _walkController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     );
 
-    // Car sliding from Jack's hand to Little Bear's hand
     _carSlideController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
 
-    // Two quick celebration bounces
     _jumpController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
 
-    // Start the story sequence as soon as the screen renders
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playStorySequence();
     });
   }
 
-  /// 1. Plays audio -> 2. Jack walks over -> 3. Hands over the car ->
-  /// 4. Both characters jump!
   Future<void> _playStorySequence() async {
     try {
-      debugPrint('[Sorry8] Starting story sequence...');
-
-      // 1. Play the final dialogue audio ("Salamat Jack... Salamat little bear")
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level9/sorry_9.wav'),
       );
-      debugPrint(
-        '[Sorry8] sorry_9.wav playback started, waiting for completion...',
-      );
 
-      // Wait for the dialogue to finish completely
       await _audioPlayer.onPlayerComplete.first;
-      debugPrint('[Sorry8] sorry_9.wav COMPLETE');
       if (!mounted) return;
 
-      // 2. Jack walks over to Little Bear (car travels with him, still in his hand)
       await _walkController.forward(from: 0);
-      debugPrint('[Sorry8] Walk COMPLETE');
       if (!mounted) return;
 
-      // Small pause so the handoff doesn't feel instant
       await Future.delayed(const Duration(milliseconds: 250));
       if (!mounted) return;
 
-      // 3. Hand the car over to Little Bear — slide it across explicitly so
-      // it stays perfectly in sync with the bounce animation that follows.
       setState(() {
         _isCarWithJack = false;
       });
       await _carSlideController.forward(from: 0);
-      debugPrint('[Sorry8] Car slide COMPLETE');
       if (!mounted) return;
 
-      // 4. Trigger the celebration jump!
-      debugPrint('[Sorry8] Starting jump...');
       await _jumpController.forward(from: 0);
-      debugPrint('[Sorry8] Jump COMPLETE');
       if (!mounted) return;
 
-      // 5. Once they've stopped jumping, play the ending line...
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level9/sorry_ending.wav'),
       );
       await _audioPlayer.onPlayerComplete.first;
-      debugPrint('[Sorry8] sorry_ending.wav COMPLETE');
       if (!mounted) return;
 
-      // ...then reveal the Good Job overlay
-      setState(() {
-        _showGoodJob = true;
-      });
-      debugPrint('[Sorry8] Good Job overlay shown');
+      await _saveDataAndShowGoodJob();
     } catch (e, stackTrace) {
       debugPrint('[Sorry8] ERROR in story sequence: $e');
       debugPrint('[Sorry8] Stack trace: $stackTrace');
     }
   }
 
+  Future<void> _saveDataAndShowGoodJob() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+
+    final finalEmotions = [...widget.priorEmotions, ...stopAiCamera()];
+
+    TownDatabaseService.saveGameData(
+      gameId: 'lumi_town_sorry',
+      activityName: 'Sorry Game',
+      emotions: finalEmotions,
+      totalTaps: widget.tapTracker.totalTaps,
+      mistakes: widget.tapTracker.mistakeCount,
+      timePlayedSeconds: widget.tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+    TownProgressService.instance.markLevelComplete(9).catchError((e) {
+      debugPrint("Database Error marking level complete: $e");
+    });
+
+    if (mounted) {
+      setState(() {
+        _showGoodJob = true;
+      });
+    }
+  }
+
   @override
   void dispose() {
+    disposeAiCamera();
     _walkController.dispose();
     _carSlideController.dispose();
     _jumpController.dispose();
@@ -134,159 +154,139 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
     final double sw = MediaQuery.of(context).size.width;
     final double sh = MediaQuery.of(context).size.height;
 
-    // Base scaling logic
     final double baseCharacterHeight = sh * 1.18;
     final double characterHeight = baseCharacterHeight * 0.70;
     final double baseBottomOffset = -(baseCharacterHeight * 0.15);
 
-    // --- Absolute Coordinates ---
-    // Little Bear is fixed on the left
     final double bearLeft = sw * 0.12;
-    // Little Bear's hand area (roughly 45% across his body)
     final double bearHandX = bearLeft + (characterHeight * 0.45);
 
-    // Jack's STARTING position, on the right
     final double jackRight = sw * 0.12;
     final double jackStartLeft = sw - jackRight - (characterHeight * 0.85);
 
-    // Jack's MEETING position, right next to Little Bear.
-    // Tweak the multiplier below to control how close Jack stands to Bear.
     final double jackMeetingLeft = bearLeft + (characterHeight * 0.85);
 
-    // The height where the car sits in their hands
     final double handY = baseBottomOffset + (characterHeight * 0.12);
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 1. Background Layer
-          Image.asset(
-            'assets/images/backgrounds/bg_lumi_classroom.png',
-            fit: BoxFit.cover,
-          ),
+      body: Listener(
+        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_lumi_classroom.png',
+              fit: BoxFit.cover,
+            ),
 
-          // 2. Animated Builder driving both the walk and the jump
-          AnimatedBuilder(
-            animation: Listenable.merge([
-              _walkController,
-              _carSlideController,
-              _jumpController,
-            ]),
-            builder: (context, child) {
-              // Jack's current horizontal position: interpolates from his
-              // starting spot to the meeting spot next to Little Bear.
-              final double walkT = Curves.easeInOut.transform(
-                _walkController.value,
-              );
-              final double jackCurrentLeft =
-                  jackStartLeft + (jackMeetingLeft - jackStartLeft) * walkT;
+            AnimatedBuilder(
+              animation: Listenable.merge([
+                _walkController,
+                _carSlideController,
+                _jumpController,
+              ]),
+              builder: (context, child) {
+                final double walkT = Curves.easeInOut.transform(
+                  _walkController.value,
+                );
+                final double jackCurrentLeft =
+                    jackStartLeft + (jackMeetingLeft - jackStartLeft) * walkT;
 
-              // Jack's hand position follows him as he walks
-              final double jackHandX =
-                  jackCurrentLeft + (characterHeight * 0.08);
+                final double jackHandX =
+                    jackCurrentLeft + (characterHeight * 0.08);
 
-              // Two smooth bounces using math.sin and .abs()
-              final double t = _jumpController.value;
-              final double bounce =
-                  (math.sin(t * math.pi * 2)).abs() * (characterHeight * 0.08);
+                final double t = _jumpController.value;
+                final double bounce =
+                    (math.sin(t * math.pi * 2)).abs() *
+                    (characterHeight * 0.08);
 
-              // Car's horizontal position: stays glued to Jack's hand while
-              // he's holding it, then slides over to Bear's hand. Computed
-              // manually (not via AnimatedPositioned) so it updates on the
-              // exact same frame as the bounce above — otherwise the car's
-              // own implicit animation lags behind the quick jump bounces
-              // and looks like it's floating separately from Bear's hand.
-              final double slideT = Curves.easeInOutCubic.transform(
-                _carSlideController.value,
-              );
-              final double carLeft = _isCarWithJack
-                  ? jackHandX
-                  : jackHandX + (bearHandX - jackHandX) * slideT;
+                final double slideT = Curves.easeInOutCubic.transform(
+                  _carSlideController.value,
+                );
+                final double carLeft = _isCarWithJack
+                    ? jackHandX
+                    : jackHandX + (bearHandX - jackHandX) * slideT;
 
-              return Stack(
-                fit: StackFit.expand,
-                clipBehavior: Clip.none,
-                children: [
-                  // --- LITTLE BEAR (Left, stays put, jumps at the end) ---
-                  Positioned(
-                    left: bearLeft,
-                    bottom: baseBottomOffset + bounce,
-                    child: SizedBox(
-                      height: characterHeight,
+                return Stack(
+                  fit: StackFit.expand,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      left: bearLeft,
+                      bottom: baseBottomOffset + bounce,
+                      child: SizedBox(
+                        height: characterHeight,
+                        child: Image.asset(
+                          'assets/images/characters/little_bear_uniform.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+
+                    Positioned(
+                      left: jackCurrentLeft,
+                      bottom: baseBottomOffset + bounce,
+                      child: SizedBox(
+                        height: characterHeight,
+                        width: characterHeight * 0.85,
+                        child: Image.asset(
+                          'assets/images/characters/jack_smiling.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+
+                    Positioned(
+                      bottom: handY + bounce,
+                      left: carLeft,
                       child: Image.asset(
-                        'assets/images/characters/little_bear_uniform.png',
+                        'assets/images/objects/lumi/car.png',
+                        width: characterHeight * 0.35,
                         fit: BoxFit.contain,
                       ),
                     ),
-                  ),
-
-                  // --- JACK THE FOX (walks left toward Bear, then jumps) ---
-                  Positioned(
-                    left: jackCurrentLeft,
-                    bottom: baseBottomOffset + bounce,
-                    child: SizedBox(
-                      height: characterHeight,
-                      width: characterHeight * 0.85,
-                      child: Image.asset(
-                        'assets/images/characters/jack_smiling.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-
-                  // --- THE TOY CAR (in Jack's hand while he walks, then
-                  // slides over to Bear's hand once he arrives — bottom and
-                  // left are both driven manually every frame so it never
-                  // desyncs from the characters' bounce) ---
-                  Positioned(
-                    bottom: handY + bounce,
-                    left: carLeft,
-                    child: Image.asset(
-                      'assets/images/objects/lumi/car.png',
-                      width: characterHeight * 0.35,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-
-          // 3. "Good Job!" overlay — shown after the jump + ending line
-          if (_showGoodJob)
-            GoodJobOverlay(
-              // Swap for whichever character should headline this level's
-              // completion screen (Little Bear, Jack, or another asset)
-              characterImage: 'assets/images/characters/tr.woo_smiling.png',
-              
-              onNext: () async {
-                await TownProgressService.instance.markLevelComplete(9);
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => const PickingTrashGame(),
-                  ),
+                  ],
                 );
-              },
-              onRestart: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const Sorry1Screen()),
-                );
-              },
-              onBack: () async {
-                await TownProgressService.instance.markLevelComplete(9);
-
-                if (mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const Sorry1Screen()),
-                    (route) => route.isFirst,
-                  );
-                }
               },
             ),
 
-          Positioned(top: 25, left: 25, child: LumiXButton()),
-        ],
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+
+            if (_showGoodJob)
+              GoodJobOverlay(
+                characterImage: 'assets/images/characters/tr.woo_smiling.png',
+
+                onNext: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (context) => const PickingTrashGame(),
+                    ),
+                  );
+                },
+                onRestart: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const Sorry1Screen()),
+                  );
+                },
+                onBack: () {
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const Sorry1Screen()),
+                      (route) => route.isFirst,
+                    );
+                  }
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
