@@ -7,6 +7,8 @@ import 'app_dialog.dart';
 import 'avatar_picker_dialog.dart';
 import '../business_layer/orientation_service.dart';
 import '../business_layer/database_service.dart';
+import '../business_layer/screen_time_service.dart';
+import 'screen_time_screen.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -94,6 +96,8 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     super.initState();
 
     OrientationService.setPortrait();
+    // Time spent in the Parent's Area shouldn't count as the child's play time.
+    ScreenTimeService.instance.pause();
     _loadChildren();
   }
 
@@ -103,6 +107,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
       OrientationService.setLandscape();
     }
 
+    ScreenTimeService.instance.resume();
     super.dispose();
   }
 
@@ -179,6 +184,15 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
             ),
           );
         }
+        break;
+      case 'Screen Time':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                ScreenTimeScreen(initialChildId: _selectedChild?.id),
+          ),
+        );
         break;
       // TODO: wire the remaining items to their real screens as you build
       // them, e.g. ScreenTimeScreen(), AccountSettingsScreen(),

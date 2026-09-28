@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:lottie/lottie.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -52,6 +53,10 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   int _gisingCount = 0;
   static const int _gisingTarget = 3;
   bool _completed = false;
+  // Set when we deliberately shut speech down (X button, finished, or the
+  // screen closing) so nothing is allowed to restart it.
+  bool _speechStopped = false;
+  Timer? _restartTimer;
 
   // ── Animation (subtle fade-in) ─────────────────────────────────────────────
   late AnimationController _fadeController;
@@ -143,22 +148,24 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
 
   Future<void> _initSpeech() async {
     _speechAvailable = await _speech.initialize(
-      onError: (e) {
-        debugPrint('[Speech] Error: $e');
-        if (!_completed) {
-          Future.delayed(const Duration(milliseconds: 300), _startListening);
-        }
-      },
-      onStatus: (s) {
-        debugPrint('[Speech] Status: $s');
-        // Restart whenever it goes idle/done, unless we intentionally stopped
-        if ((s == 'done' || s == 'notListening') && !_completed) {
-          Future.delayed(const Duration(milliseconds: 300), _startListening);
-        }
-      },
+      onError: _onSpeechError,
+      onStatus: _onSpeechStatus,
     );
 
+    // The screen was closed while speech was still initializing.
+    if (!mounted || _speechStopped) {
+      _detachSpeechListeners();
+      return;
+    }
+
+    // SpeechToText() is a shared singleton and initialize() ignores new
+    // callbacks if it was already initialized (e.g. on an earlier visit to
+    // this screen), so always point the listeners at THIS screen.
+    _speech.errorListener = _onSpeechError;
+    _speech.statusListener = _onSpeechStatus;
+
     final locales = await _speech.locales();
+    if (!mounted || _speechStopped) return;
     final hasFil = locales.any((l) => l.localeId == 'fil_PH');
 
     _localeId = hasFil ? 'fil_PH' : 'en_US';
@@ -170,8 +177,46 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     }
   }
 
+  void _onSpeechError(SpeechRecognitionError e) {
+    debugPrint('[Speech] Error: $e');
+    _scheduleRestart();
+  }
+
+  void _onSpeechStatus(String s) {
+    debugPrint('[Speech] Status: $s');
+    // Restart whenever it goes idle/done, unless we intentionally stopped.
+    if (s == 'done' || s == 'notListening') _scheduleRestart();
+  }
+
+  /// Restarts listening after a short delay. A single timer is used so an
+  /// error and a "done" status arriving together can't start two listeners.
+  void _scheduleRestart() {
+    if (!mounted || _completed || _speechStopped) return;
+    _restartTimer?.cancel();
+    _restartTimer = Timer(const Duration(milliseconds: 300), _startListening);
+  }
+
+  void _detachSpeechListeners() {
+    // Only clear them if they're still ours (not a newer screen's).
+    if (_speech.errorListener == _onSpeechError) {
+      _speech.errorListener = null;
+    }
+    if (_speech.statusListener == _onSpeechStatus) {
+      _speech.statusListener = null;
+    }
+  }
+
+  /// Fully shuts speech recognition down and stops it from ever restarting.
+  void _stopSpeech() {
+    _speechStopped = true;
+    _restartTimer?.cancel();
+    _restartTimer = null;
+    _detachSpeechListeners();
+    _speech.cancel();
+  }
+
   void _startListening() {
-    if (!_speechAvailable || _completed) return;
+    if (!mounted || _speechStopped || !_speechAvailable || _completed) return;
 
     debugPrint('[Speech] Started continuous listening...');
 
@@ -180,6 +225,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
       listenFor: const Duration(minutes: 1),
       pauseFor: const Duration(minutes: 1),
       onResult: (result) {
+        if (!mounted || _speechStopped) return;
         debugPrint('[Speech] Heard: "${result.recognizedWords}"');
 
         const variants = [
@@ -233,7 +279,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   void _onCompleted() {
     if (_completed) return;
     setState(() => _completed = true);
-    _speech.stop();
+    _stopSpeech();
     _audioPlayer.stop();
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) {
@@ -261,7 +307,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   void dispose() {
     disposeAiCamera();
     _completeSub?.cancel();
-    _speech.stop();
+    _stopSpeech();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -298,7 +344,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
                       left: 25,
                       child: LumiXButton(
                         onTap: () {
-                          _speech.stop();
+                          _stopSpeech();
                           Navigator.pop(context);
                         },
                       ),

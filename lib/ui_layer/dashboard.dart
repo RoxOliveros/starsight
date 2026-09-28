@@ -7,6 +7,7 @@ import 'package:StarSight/business_layer/lagoon_database_service.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/business_layer/puzzle_database_service.dart';
+import 'package:StarSight/business_layer/screen_time_service.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
@@ -111,6 +112,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     TownDatabaseService.activeChildId = widget.nickname;
     TownProgressService.instance.activeChildId = widget.nickname;
 
+    // Start counting this child's play time against today's limit.
+    ScreenTimeService.instance.startSession(widget.nickname, this);
+
     _floatController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
@@ -124,6 +128,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
+    ScreenTimeService.instance.stopSession(this);
     _floatController.dispose();
     super.dispose();
   }

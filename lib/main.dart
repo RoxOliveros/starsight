@@ -1,4 +1,5 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
+import 'package:StarSight/ui_layer/screen_time_gate.dart';
 import 'package:StarSight/ui_layer/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -23,6 +24,11 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: SplashScreen());
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      // Shows the "Time's up" lock screen over every screen once the child's daily screen time limit is reached.
+      builder: (context, child) => ScreenTimeGate(child: child),
+      home: SplashScreen(),
+    );
   }
 }
