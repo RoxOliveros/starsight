@@ -57,19 +57,15 @@ class _MazePathScreenState extends State<MazePathScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _chickenImage = 'assets/images/characters/chicken.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _flagImage = 'assets/images/objects/puzzle/flag.png';
   static const String _starImage = 'assets/images/objects/puzzle/star.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/maze_path_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/maze_path_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/maze_path_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/maze_path_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/maze_path_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/maze_path_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -90,8 +86,6 @@ class _MazePathScreenState extends State<MazePathScreen>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
-
-  final GlobalKey _mazeAreaKey = GlobalKey();
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -267,20 +261,18 @@ class _MazePathScreenState extends State<MazePathScreen>
     _enterCtrl.forward(from: 0);
   }
 
-  Cell? _cellAtLocalOffset(Offset local, double cellSize) {
-    final col = (local.dx / cellSize).floor();
-    final row = (local.dy / cellSize).floor();
-    if (row < 0 || row >= _rows || col < 0 || col >= _cols) return null;
-    return (row, col);
-  }
 
-  void _handlePanUpdate(Offset globalPosition, double cellSize) {
-    final box = _mazeAreaKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    final local = box.globalToLocal(globalPosition);
-    final cell = _cellAtLocalOffset(local, cellSize);
-    if (cell == null) return;
-    _attemptMove(cell);
+  void _move(int dRow, int dCol) {
+    if (_isCompleting) return;
+
+    final target = (_currentCell.$1 + dRow, _currentCell.$2 + dCol);
+
+    if (target.$1 < 0 || target.$1 >= _rows || target.$2 < 0 || target.$2 >= _cols) {
+      _handleWrongMove();
+      return;
+    }
+
+    _attemptMove(target);
   }
 
   bool _isAdjacent(Cell a, Cell b) {
@@ -579,7 +571,7 @@ class _MazePathScreenState extends State<MazePathScreen>
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
+            padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
@@ -590,7 +582,19 @@ class _MazePathScreenState extends State<MazePathScreen>
               ],
             ),
           ),
-          Expanded(child: Center(child: _buildMazeArea())),
+          Expanded(
+            child: Stack(
+              children: [
+                Center(child: _buildMazeArea()),
+                Positioned(
+                  right: 30,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(child: _buildDPad()),
+                ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(bottom: 15),
             child: PuzzleProgressDots(
@@ -612,69 +616,64 @@ class _MazePathScreenState extends State<MazePathScreen>
         final mazeWidth = cellSize * _cols;
         final mazeHeight = cellSize * _rows;
 
-        return GestureDetector(
-          onPanUpdate: (details) =>
-              _handlePanUpdate(details.globalPosition, cellSize),
-          child: Container(
-            key: _mazeAreaKey,
-            width: mazeWidth,
-            height: mazeHeight,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                    alpha: 0.15,
+        return Container(
+          width: mazeWidth,
+          height: mazeHeight,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                  alpha: 0.15,
+                ),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              children: [
+                CustomPaint(
+                  size: Size(mazeWidth, mazeHeight),
+                  painter: _MazePainter(
+                    rows: _rows,
+                    cols: _cols,
+                    cellSize: cellSize,
+                    openEdges: _openEdges,
+                    trail: _trail,
+                    start: _start,
+                    goal: _goal,
+                    wrongCell: _wrongBump ? _currentCell : null,
                   ),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+                ),
+                _buildMazeIcon(
+                  _start,
+                  cellSize,
+                  _flagImage,
+                  show: _currentCell != _start,
+                ),
+                _buildMazeIcon(_goal, cellSize, _starImage),
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  left: _currentCell.$2 * cellSize + cellSize * 0.12,
+                  top: _currentCell.$1 * cellSize + cellSize * 0.12,
+                  width: cellSize * 0.76,
+                  height: cellSize * 0.76,
+                  child: AnimatedScale(
+                    scale: _wrongBump ? 0.85 : 1.0,
+                    duration: const Duration(milliseconds: 150),
+                    child: Image.asset(
+                      _chickenImage,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                      const Text('🐰', style: TextStyle(fontSize: 28)),
+                    ),
+                  ),
                 ),
               ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Stack(
-                children: [
-                  CustomPaint(
-                    size: Size(mazeWidth, mazeHeight),
-                    painter: _MazePainter(
-                      rows: _rows,
-                      cols: _cols,
-                      cellSize: cellSize,
-                      openEdges: _openEdges,
-                      trail: _trail,
-                      start: _start,
-                      goal: _goal,
-                      wrongCell: _wrongBump ? _currentCell : null,
-                    ),
-                  ),
-                  _buildMazeIcon(
-                    _start,
-                    cellSize,
-                    _flagImage,
-                    show: _currentCell != _start,
-                  ),
-                  _buildMazeIcon(_goal, cellSize, _starImage),
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOut,
-                    left: _currentCell.$2 * cellSize + cellSize * 0.12,
-                    top: _currentCell.$1 * cellSize + cellSize * 0.12,
-                    width: cellSize * 0.76,
-                    height: cellSize * 0.76,
-                    child: AnimatedScale(
-                      scale: _wrongBump ? 0.85 : 1.0,
-                      duration: const Duration(milliseconds: 150),
-                      child: Image.asset(
-                        _chickenImage,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            const Text('🐰', style: TextStyle(fontSize: 28)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         );
@@ -702,6 +701,27 @@ class _MazePathScreenState extends State<MazePathScreen>
           fit: BoxFit.contain,
         ),
       ),
+    );
+  }
+
+  Widget _buildDPad() {
+    const gap = 8.0;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _DirButton(icon: Icons.keyboard_arrow_up_rounded, onTap: () => _move(-1, 0)),
+        const SizedBox(height: gap),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _DirButton(icon: Icons.keyboard_arrow_left_rounded, onTap: () => _move(0, -1)),
+            const SizedBox(width: 56 + gap * 2), // center gap
+            _DirButton(icon: Icons.keyboard_arrow_right_rounded, onTap: () => _move(0, 1)),
+          ],
+        ),
+        const SizedBox(height: gap),
+        _DirButton(icon: Icons.keyboard_arrow_down_rounded, onTap: () => _move(1, 0)),
+      ],
     );
   }
 
@@ -793,6 +813,35 @@ class _MazePathScreenState extends State<MazePathScreen>
         break;
       }
     }
+  }
+}
+
+class _DirButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _DirButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.9),
+      shape: const CircleBorder(),
+      elevation: 4,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: Icon(
+            icon,
+            size: 40,
+            color: PuzzleColorTheme.darkdesaturatedblue,
+          ),
+        ),
+      ),
+    );
   }
 }
 
