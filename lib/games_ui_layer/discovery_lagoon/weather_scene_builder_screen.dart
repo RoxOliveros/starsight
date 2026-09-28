@@ -8,10 +8,8 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/animal_lifecycle_game.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_clothes_match.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'audio_helper.dart';
@@ -52,30 +50,32 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
+  static const String _introAudio = 'assets/audio/discovery_lagoon/weather_builder_intro.wav';
+  static const String _shineAudio = 'assets/audio/sound_effects/shine.wav';
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_closeup2.png';
+  static const String _kikiFishboneImage = 'assets/images/characters/cat_holding_fishbone.png';
+
   // ── Data ─────────────────────────────────────────────────────────────────
 
   final List<Map<String, String>> _weathers = [
     {
       'id': 'sunny',
-      'label': 'Build a Sunny Day!',
       'qKey': 'weather_q_sunny',
       'winKey': 'weather_win_sunny',
     },
     {
       'id': 'rainy',
-      'label': 'Build a Rainy Day!',
       'qKey': 'weather_q_rainy',
       'winKey': 'weather_win_rainy',
     },
     {
       'id': 'cloudy',
-      'label': 'Build a Cloudy Day!',
       'qKey': 'weather_q_cloudy',
       'winKey': 'weather_win_cloudy',
     },
     {
       'id': 'windy',
-      'label': 'Build a Windy Day!',
       'qKey': 'weather_q_windy',
       'winKey': 'weather_win_windy',
     },
@@ -171,8 +171,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
 
     initLagoonIntro();
     startLagoonIntro(
-      introAudioAsset:
-          'assets/audio/discovery_lagoon/weather_builder_intro.wav',
+      introAudioAsset: _introAudio,
       onGameStart: () {
         if (!mounted) return;
         setState(() => _screenPhase = LagoonScreenPhase.game);
@@ -227,22 +226,34 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
 
     if (el.weatherId == _currentWeather['id']) {
       _tapTracker.recordCorrectTap();
+
+      await AudioPlayer().play(AssetSource(
+        _shineAudio.replaceFirst('assets/', ''),
+      ));
+
+      if (!mounted) return;
+
       setState(() => _placed.add(el.id));
       _itemCtrls[el.id]?.forward(from: 0);
 
       if (_placed.length == _currentElements.length) {
         _roundLocked = true;
-        LagoonAudio.instance.playThenCallback(_currentWeather['winKey']!, () {
-          if (!mounted) return;
-          if (_roundIndex >= _weathers.length - 1) {
-            _saveDataAndShowSuccessDialog();
-          } else {
-            setState(() {
-              _roundIndex++;
-              _startRound();
-            });
-          }
-        });
+
+        LagoonAudio.instance.playThenCallback(
+          _currentWeather['winKey']!,
+              () {
+            if (!mounted) return;
+
+            if (_roundIndex >= _weathers.length - 1) {
+              _saveDataAndShowSuccessDialog();
+            } else {
+              setState(() {
+                _roundIndex++;
+                _startRound();
+              });
+            }
+          },
+        );
       }
     } else {
       _tapTracker.recordMistake();
@@ -286,8 +297,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
       useSafeArea: false,
       barrierColor: Colors.black54,
       builder: (_) => GoodJobOverlay(
-        characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-
+        characterImage: _kikiFishboneImage,
         characterSizeFactor: 0.9,
         onNext: () {
           if (context.mounted) {
@@ -309,7 +319,10 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
             _startRound();
           });
         },
-        onBack: () => Navigator.of(context).pop(),
+        onBack: () {
+          Navigator.pop(context);
+          Navigator.pop(context);
+        },
       ),
     );
   }
@@ -324,7 +337,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
           Positioned.fill(
             child: _screenPhase == LagoonScreenPhase.intro
                 ? Image.asset(
-                    'assets/images/backgrounds/bg_game_lagoon.png',
+                    _bgImage,
                     fit: BoxFit.cover,
                   )
                 : AnimatedSwitcher(
@@ -385,39 +398,6 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
   Widget _buildGameContent() {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 0),
-          child: SizedBox(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: LagoonColorTheme.pastelorange,
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: LagoonColorTheme.wasteland,
-                      width: 5,
-                    ),
-                  ),
-                  child: Text(
-                    _currentWeather['label']!,
-                    style: TextStyle(
-                      fontFamily: LagoonAppTextStyles.fredoka,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: LagoonColorTheme.darkbrown,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
 
         const Spacer(),
 

@@ -30,7 +30,6 @@ enum KikiState { normal, correct, wrong }
 mixin KikiReactionMixin<T extends StatefulWidget> on State<T> {
   KikiState kikiState = KikiState.normal;
 
-  // Override this in your screen to provide the AudioPlayer
   AudioPlayer get kikiPlayer;
 
   Future<void> showKikiReaction(KikiState state) async {
@@ -63,12 +62,15 @@ mixin KikiReactionMixin<T extends StatefulWidget> on State<T> {
     }
   }
 
-  Widget buildKiki(BuildContext context) {
+  Widget buildKiki(
+      BuildContext context, {
+        double heightFactor = 0.50,
+      }) {
     return Positioned(
       left: 0,
       bottom: 0,
       child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.50,
+        height: MediaQuery.of(context).size.height * heightFactor,
         child: switch (kikiState) {
           KikiState.correct => Image.asset(
             'assets/animations/characters/kiki_cheering.webp',

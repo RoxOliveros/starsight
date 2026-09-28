@@ -214,9 +214,12 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
   }
 
   @override
-  Widget buildKiki(BuildContext context) {
+  Widget buildKiki(
+      BuildContext context, {
+        double heightFactor = 0.78,
+      }) {
     final kikiWidget = SizedBox(
-      height: MediaQuery.of(context).size.height * 0.78,
+      height: MediaQuery.of(context).size.height * heightFactor,
       child: switch (kikiState) {
         KikiState.correct => Image.asset(
           'assets/animations/characters/kiki_cheering.webp',
@@ -238,11 +241,18 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
         left: 0,
         right: 0,
         bottom: -35,
-        child: Align(alignment: Alignment.bottomCenter, child: kikiWidget),
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: kikiWidget,
+        ),
       );
     }
 
-    return Positioned(left: 16, bottom: -35, child: kikiWidget);
+    return Positioned(
+      left: 16,
+      bottom: -35,
+      child: kikiWidget,
+    );
   }
 
   @override

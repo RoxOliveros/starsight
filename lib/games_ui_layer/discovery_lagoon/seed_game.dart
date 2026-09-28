@@ -10,7 +10,6 @@ import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
 
@@ -26,19 +25,28 @@ class SeedGame extends StatefulWidget {
 class _SeedGameState extends State<SeedGame> with AiCameraMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
+  final double kikiVerticalOffset = 40.0;
+  late List<String> currentSequence;
 
   bool showIntro = true;
   bool showGoodJob = false;
   bool _disposed = false;
-
+  bool _isProcessingRound = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
-
-  final double kikiVerticalOffset = 40.0;
+  bool isCorrect = false;
 
   int currentLevelIndex = 0;
-  bool isCorrect = false;
-  late List<String> currentSequence;
+
+  final List<String> roundAudio = [
+    'audio/discovery_lagoon/seed_game_flower_round.wav',
+    'audio/discovery_lagoon/seed_game_strawberry_round.wav',
+    'audio/discovery_lagoon/seed_game_mango_round.wav',
+  ];
+
+  static const String _thankYouAudio = 'audio/discovery_lagoon/seed_game_thankyou.wav';
+  static const String _introAudio = 'audio/discovery_lagoon/seed_game_intro.wav';
+  static const String _shineAudio = 'audio/sound_effects/shine.wav';
 
   final List<List<String>> allCorrectSequences = [
     [
@@ -99,23 +107,59 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
     _playIntro();
   }
 
-  Future<void> _waitForAudioComplete() async {
+  Future<void> _playAudioAndWait(String audioPath) async {
+    if (_disposed) return;
+
+    final completer = Completer<void>();
+
+    late StreamSubscription subscription;
+
+    subscription = _audioPlayer.onPlayerComplete.listen((_) {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+      subscription.cancel();
+    });
+
     try {
-      await _audioPlayer.onPlayerComplete.first;
-    } catch (_) {}
+      await _audioPlayer.play(
+        AssetSource(audioPath),
+      );
+
+      await completer.future;
+    } catch (e) {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+
+      await subscription.cancel();
+
+      debugPrint('Audio Error: $e');
+    }
   }
 
-  void _playIntro() async {
+  Future<void> _playIntro() async {
     if (_disposed) return;
-    await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/seed_game_intro.wav'),
+
+    await _playAudioAndWait(
+      _introAudio,
     );
 
-    _waitForAudioComplete().then((_) {
-      if (!mounted || _disposed) return;
-      setState(() {
-        showIntro = false;
-      });
+    if (!mounted || _disposed) return;
+
+    setState(() {
+      showIntro = false;
+      _isProcessingRound = true;
+    });
+
+    await _playAudioAndWait(
+      roundAudio[currentLevelIndex],
+    );
+
+    if (!mounted || _disposed) return;
+
+    setState(() {
+      _isProcessingRound = false;
     });
   }
 
@@ -129,58 +173,93 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
   }
 
   void _onItemDropped(int oldIndex, int newIndex) {
-    if (isCorrect || showGoodJob) return;
+    if (isCorrect || showGoodJob || _isProcessingRound) return;
 
     setState(() {
       final temp = currentSequence[oldIndex];
       currentSequence[oldIndex] = currentSequence[newIndex];
       currentSequence[newIndex] = temp;
-
-      _checkWinCondition();
     });
+
+    _checkWinCondition();
   }
 
-  void _checkWinCondition() {
+  Future<void> _checkWinCondition() async {
+    if (_isProcessingRound || isCorrect || showGoodJob) return;
+
     bool win = true;
+
     for (int i = 0; i < allCorrectSequences[currentLevelIndex].length; i++) {
-      if (currentSequence[i] != allCorrectSequences[currentLevelIndex][i]) {
+      if (
+      currentSequence[i] !=
+          allCorrectSequences[currentLevelIndex][i]
+      ) {
         win = false;
         break;
       }
     }
 
+    if (!win) {
+      _tapTracker.recordMistake();
+      return;
+    }
+
+    _tapTracker.recordCorrectTap();
+
     setState(() {
-      isCorrect = win;
+      isCorrect = true;
+      _isProcessingRound = true;
     });
 
-    if (isCorrect) {
-      _tapTracker.recordCorrectTap();
-      _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+    await _playAudioAndWait(_shineAudio);
 
-      if (currentLevelIndex < allCorrectSequences.length - 1) {
-        Future.delayed(const Duration(seconds: 2), () {
-          if (!mounted) return;
+    if (!mounted || _disposed) return;
 
-          setState(() {
-            currentLevelIndex++;
-            currentSequence = List.from(allInitialSequences[currentLevelIndex]);
-            isCorrect = false;
-          });
-        });
-      } else {
-        Future.delayed(const Duration(seconds: 2), () {
-          if (!mounted) return;
-          _saveDataAndShowGoodJob();
-        });
-      }
+    if (currentLevelIndex < allCorrectSequences.length - 1) {
+      await Future.delayed(
+        const Duration(milliseconds: 800),
+      );
+
+      if (!mounted || _disposed) return;
+
+      setState(() {
+        currentLevelIndex++;
+        currentSequence =
+            List.from(allInitialSequences[currentLevelIndex]);
+        isCorrect = false;
+      });
+
+      await _playAudioAndWait(
+        roundAudio[currentLevelIndex],
+      );
+
+      if (!mounted || _disposed) return;
+
+      setState(() {
+        _isProcessingRound = false;
+      });
     } else {
-      _tapTracker.recordMistake();
+      await Future.delayed(
+        const Duration(milliseconds: 800),
+      );
+
+      if (!mounted || _disposed) return;
+
+      await _playAudioAndWait(
+        _thankYouAudio,
+      );
+
+      if (!mounted || _disposed) return;
+
+      await _saveDataAndShowGoodJob();
     }
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
     if (_hasSavedResult) return;
+
     _hasSavedResult = true;
+
     List<String> finalEmotions = stopAiCamera();
 
     LagoonDatabaseService.saveGameData(
@@ -193,14 +272,16 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
     ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
     });
-    LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
-      e,
-    ) {
+
+    LagoonProgressService.instance
+        .markLevelComplete(widget.level)
+        .catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
 
     if (mounted) {
       setState(() {
+        _isProcessingRound = false;
         showGoodJob = true;
       });
     }
@@ -338,7 +419,7 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
       builder: (context, candidateData, rejectedData) {
         return Draggable<int>(
           data: index,
-          maxSimultaneousDrags: isCorrect || showGoodJob ? 0 : 1,
+          maxSimultaneousDrags: isCorrect || showGoodJob || _isProcessingRound ? 0 : 1,
           feedback: Material(
             color: Colors.transparent,
             child: _buildCardUI(currentSequence[index], true, cardSize),

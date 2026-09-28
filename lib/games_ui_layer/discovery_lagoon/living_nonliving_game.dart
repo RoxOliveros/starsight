@@ -36,6 +36,7 @@ class AssetConfig {
   final double? coloredBottomOffset;
   final double? coloredWidthOffset;
   final double? coloredHeightOffset;
+  final String? soundAsset;
 
   const AssetConfig({
     required this.imagePath,
@@ -55,6 +56,7 @@ class AssetConfig {
     this.coloredBottomOffset,
     this.coloredWidthOffset,
     this.coloredHeightOffset,
+    this.soundAsset,
   });
 }
 
@@ -77,6 +79,8 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final Set<AssetConfig> _tappedAssets = {};
   final GameTapTracker _tapTracker = GameTapTracker();
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _objectPlayer = AudioPlayer();
+
   late List<AssetConfig> _gameItems;
 
   GamePhase _phase = GamePhase.intro1;
@@ -84,6 +88,8 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool _isTransitioning = false;
+
+  int _soundToken = 0;
 
   static const String _bgFieldImage = 'assets/images/backgrounds/bg_lagoon_fields_closeup.png';
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
@@ -129,6 +135,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
     disposeAiCamera();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
+    _objectPlayer.dispose();
     super.dispose();
   }
 
@@ -154,6 +161,20 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
     await _audioPlayer.play(
       AssetSource('audio/discovery_lagoon/living_nonliving_game_part2.wav'),
     );
+  }
+
+  Future<bool> _playObjectSound(String? asset) async {
+    final token = ++_soundToken;
+    if (asset == null) return true;
+    try {
+      await _objectPlayer.stop();
+      final done = _objectPlayer.onPlayerComplete.first;
+      await _objectPlayer.play(AssetSource(asset));
+      await done.timeout(const Duration(seconds: 15));
+    } catch (e) {
+      debugPrint('Object SFX error: $e');
+    }
+    return token == _soundToken;
   }
 
   Future<void> _checkProgress() async {
@@ -211,7 +232,8 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
 
   final AssetConfig sun = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/sun_nc.png',
-    coloredImagePath: 'assets/images/objects/lagoon/sun_wb.png',
+    coloredImagePath: 'assets/images/objects/lagoon/sun.png',
+    soundAsset: 'audio/discovery_lagoon/sun.wav',
     topOffset: 0.10,
     rightOffset: 0.33,
     widthOffset: 0.12,
@@ -220,6 +242,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig cloud1 = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/cloud_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/cloud_wc.png',
+    soundAsset: 'audio/discovery_lagoon/cloud.wav',
     topOffset: 0.160,
     leftOffset: 0.78,
     widthOffset: 0.16,
@@ -228,6 +251,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig cloud2 = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/cloud_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/cloud_wc.png',
+    soundAsset: 'audio/discovery_lagoon/cloud.wav',
     topOffset: -0.03,
     leftOffset: 0.65,
     widthOffset: 0.16,
@@ -236,6 +260,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig bird = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/bird_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/bird_wc.png',
+    soundAsset: 'audio/discovery_lagoon/bird.wav',
     isLiving: true,
     topOffset: 0.12,
     leftOffset: 0.35,
@@ -245,6 +270,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig tree = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/tree_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/t5_tree.png',
+    soundAsset: 'audio/discovery_lagoon/tree.wav',
     isLiving: true,
     topOffset: -0.14,
     leftOffset: -0.02,
@@ -257,6 +283,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig flowerbed = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/flowerbed_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/flowerbed_wc.png',
+    soundAsset: 'audio/discovery_lagoon/flowers.wav',
     isLiving: true,
     topOffset: 0.53,
     leftOffset: 0.35,
@@ -266,6 +293,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig butterfly = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/butterfly_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/b4_butterfly.png',
+    soundAsset: 'audio/discovery_lagoon/butterfly.wav',
     isLiving: true,
     topOffset: 0.43,
     leftOffset: 0.55,
@@ -276,6 +304,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig wateringCan = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/wateringcan_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/wateringcan_wc.png',
+    soundAsset: 'audio/discovery_lagoon/watering_can.wav',
     topOffset: 0.62,
     leftOffset: 0.58,
     widthOffset: 0.07,
@@ -284,6 +313,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig puddle = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/puddle_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/puddle_wc.png',
+    soundAsset: 'audio/discovery_lagoon/puddle.wav',
     bottomOffset: 0.20,
     leftOffset: 0.28,
     widthOffset: 0.07,
@@ -292,6 +322,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig antnest = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/antnest_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/antnest_wc.png',
+    soundAsset: 'audio/discovery_lagoon/ant_nest.wav',
     bottomOffset: 0.01,
     leftOffset: 0.03,
     widthOffset: 0.08,
@@ -300,6 +331,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig rock = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/rock_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/rock_wc.png',
+    soundAsset: 'audio/discovery_lagoon/rock.wav',
     bottomOffset: 0.13,
     leftOffset: 0.35,
     widthOffset: 0.08,
@@ -308,6 +340,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig blanket = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/blanket_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/blanket_wc.png',
+    soundAsset: 'audio/discovery_lagoon/blanket.wav',
     bottomOffset: 0.02,
     leftOffset: 0.42,
     widthOffset: 0.32,
@@ -316,6 +349,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig basket = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/basket_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/basket.png',
+    soundAsset: 'audio/discovery_lagoon/basket.wav',
     bottomOffset: 0.14,
     leftOffset: 0.48,
     widthOffset: 0.1,
@@ -324,6 +358,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig apple = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/apple_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/apple_colored.png',
+    soundAsset: 'audio/discovery_lagoon/apple.wav',
     bottomOffset: 0.10,
     leftOffset: 0.60,
     widthOffset: 0.06,
@@ -333,6 +368,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig ant = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/ant_nc.png',
     coloredImagePath: 'assets/images/objects/lagoon/ant_wc.png',
+    soundAsset: 'audio/discovery_lagoon/ant.wav',
     isLiving: true,
     bottomOffset: 0.08,
     leftOffset: 0.45,
@@ -342,6 +378,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final AssetConfig kiki = const AssetConfig(
     imagePath: 'assets/images/objects/lagoon/kiki_nc.png',
     coloredImagePath: 'assets/images/characters/kiki_the_cat.png',
+    soundAsset: 'audio/discovery_lagoon/kiki.wav',
     isLiving: true,
     bottomOffset: 0.05,
     rightOffset: 0.04,
@@ -403,13 +440,17 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
         }
 
         _tapTracker.recordCorrectTap();
-        showKikiReaction(KikiState.correct);
 
         setState(() {
           _tappedAssets.add(config);
         });
 
-        unawaited(_checkProgress());
+        unawaited(
+          _playObjectSound(config.soundAsset).then((isLatest) async {
+            if (!mounted || !isLatest) return;
+            await _checkProgress();
+          }),
+        );
       },
       behavior: HitTestBehavior.deferToChild,
       child: Image.asset(

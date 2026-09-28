@@ -10,8 +10,6 @@ import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/seed_game.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
 
@@ -36,14 +34,27 @@ class HabitantGame extends StatefulWidget {
   State<HabitantGame> createState() => _HabitantGameState();
 }
 
-class _HabitantGameState extends State<HabitantGame> with AiCameraMixin {
+class _HabitantGameState extends State<HabitantGame>
+    with AiCameraMixin {
+
   final AudioPlayer _audioPlayer = AudioPlayer();
-  StreamSubscription? _audioSubscription;
   final GameTapTracker _tapTracker = GameTapTracker();
+  StreamSubscription? _audioSubscription;
+
+  static const String _introAudio = 'audio/discovery_lagoon/habitant_game_intro.wav';
+  static const String _wrongAudio = 'audio/discovery_lagoon/habitant_game_wrong.wav';
+  static const String _winAudio = 'audio/discovery_lagoon/habitant_game_win.wav';
+
+  static const Map<String, String> _correctAudio = {
+    'dog': 'audio/discovery_lagoon/habitant_game_dog_correct.wav',
+    'frog': 'audio/discovery_lagoon/habitant_game_frog_correct.wav',
+    'bear': 'audio/discovery_lagoon/habitant_game_bear_correct.wav',
+    'penguin': 'audio/discovery_lagoon/habitant_game_penguin_correct.wav',
+  };
 
   bool _showIntro = true;
   bool _isGameWon = false;
-
+  bool _isProcessingMove = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -132,7 +143,7 @@ class _HabitantGameState extends State<HabitantGame> with AiCameraMixin {
     });
 
     await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/habitant_game_intro_tutorial.wav'),
+      AssetSource(_introAudio),
     );
   }
 
@@ -145,10 +156,53 @@ class _HabitantGameState extends State<HabitantGame> with AiCameraMixin {
     super.dispose();
   }
 
-  Future<void> _playSound(bool isCorrect) async {
-    if (isCorrect) {
-      await _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
-    }
+  Future<void> _playPlacementAudio(
+      String characterId,
+      bool isCorrect,
+      ) async {
+    final audioPath = isCorrect
+        ? _correctAudio[characterId]
+        : _wrongAudio;
+
+    if (audioPath == null) return;
+
+    final completer = Completer<void>();
+
+    late StreamSubscription subscription;
+
+    subscription = _audioPlayer.onPlayerComplete.listen((_) {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+
+      subscription.cancel();
+    });
+
+    await _audioPlayer.play(
+      AssetSource(audioPath),
+    );
+
+    await completer.future;
+  }
+
+  Future<void> _playWinAudio() async {
+    final completer = Completer<void>();
+
+    late StreamSubscription subscription;
+
+    subscription = _audioPlayer.onPlayerComplete.listen((_) {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+
+      subscription.cancel();
+    });
+
+    await _audioPlayer.play(
+      AssetSource(_winAudio),
+    );
+
+    await completer.future;
   }
 
   String _getCharacterImage(String characterId, String currentZone) {
@@ -158,17 +212,16 @@ class _HabitantGameState extends State<HabitantGame> with AiCameraMixin {
     return sadImages[characterId]!;
   }
 
-  void _checkForWin() {
+  bool _checkForWin() {
     bool allCorrect = true;
+
     currentPlacements.forEach((zoneId, characterId) {
       if (correctHabitats[characterId] != zoneId) {
         allCorrect = false;
       }
     });
 
-    if (allCorrect) {
-      _saveDataAndShowGoodJob();
-    }
+    return allCorrect;
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
@@ -325,26 +378,62 @@ class _HabitantGameState extends State<HabitantGame> with AiCameraMixin {
 
     return DragTarget<String>(
       onWillAcceptWithDetails: (details) => details.data != zoneId,
-      onAcceptWithDetails: (details) {
-        String sourceZoneId = details.data;
-        setState(() {
+      onAcceptWithDetails: (details) async {
+        if (_isProcessingMove) return;
+
+        _isProcessingMove = true;
+
+        try {
+          String sourceZoneId = details.data;
+
           String movingCharacter = currentPlacements[sourceZoneId]!;
           String displacedCharacter = currentPlacements[zoneId]!;
 
-          currentPlacements[zoneId] = movingCharacter;
-          currentPlacements[sourceZoneId] = displacedCharacter;
+          setState(() {
+            currentPlacements[zoneId] = movingCharacter;
+            currentPlacements[sourceZoneId] = displacedCharacter;
+          });
 
-          bool isCorrect = correctHabitats[movingCharacter] == zoneId;
+          bool movingAnimalCorrect = correctHabitats[movingCharacter] == zoneId;
+          bool displacedAnimalCorrect = correctHabitats[displacedCharacter] == sourceZoneId;
 
-          if (isCorrect) {
+          if (movingAnimalCorrect || displacedAnimalCorrect) {
             _tapTracker.recordCorrectTap();
           } else {
             _tapTracker.recordMistake();
           }
 
-          _playSound(isCorrect);
-          _checkForWin();
-        });
+          final List<String> correctAnimals = [];
+
+          if (movingAnimalCorrect) {
+            correctAnimals.add(movingCharacter);
+          }
+
+          if (displacedAnimalCorrect) {
+            correctAnimals.add(displacedCharacter);
+          }
+
+          if (correctAnimals.isEmpty) {
+            await _playPlacementAudio(
+              movingCharacter,
+              false,
+            );
+          } else {
+            for (final characterId in correctAnimals) {
+              await _playPlacementAudio(
+                characterId,
+                true,
+              );
+            }
+          }
+
+          if (_checkForWin()) {
+            await _playWinAudio();
+            await _saveDataAndShowGoodJob();
+          }
+        } finally {
+          _isProcessingMove = false;
+        }
       },
       builder: (context, candidateData, rejectedData) {
         return Container(
