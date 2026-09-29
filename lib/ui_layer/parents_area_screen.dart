@@ -30,9 +30,73 @@ abstract class AppTextStyles {
   static const String fredoka = 'Fredoka';
 }
 
+/// A child's age derived from their stored birthdate.
+class ChildAge {
+  final int years;
+  final int months;
+
+  /// False when only a birth year is on file, so months can't be trusted.
+  final bool monthsKnown;
+
+  const ChildAge({
+    required this.years,
+    required this.months,
+    this.monthsKnown = true,
+  });
+
+  /// Fractional years, e.g. 3.5 for 3 years 6 months.
+  double get inYears => years + months / 12;
+
+  String get label {
+    if (years == 0) {
+      return months == 0 ? 'Less than 1 month old' : '$months mo old';
+    }
+    if (!monthsKnown || months == 0) {
+      return '$years ${years == 1 ? 'year' : 'years'} old';
+    }
+    return '$years yr $months mo old';
+  }
+}
+
+ChildAge? childAgeFromBirthdate(String? raw, {DateTime? now}) {
+  final s = raw?.trim();
+  if (s == null || s.isEmpty) return null;
+  final today = now ?? DateTime.now();
+
+  if (RegExp(r'^\d{4}$').hasMatch(s)) {
+    final years = today.year - int.parse(s);
+    if (years < 0) return null;
+    return ChildAge(years: years, months: 0, monthsKnown: false);
+  }
+
+  DateTime? birth = DateTime.tryParse(s);
+  if (birth == null) {
+    final m = RegExp(r'^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$').firstMatch(s);
+    if (m != null) {
+      final month = int.parse(m.group(1)!);
+      final day = int.parse(m.group(2)!);
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        birth = DateTime(int.parse(m.group(3)!), month, day);
+      }
+    }
+  }
+  if (birth == null) return null;
+
+  var years = today.year - birth.year;
+  var months = today.month - birth.month;
+  if (today.day < birth.day) months--;
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+  if (years < 0) return null; // birthdate in the future
+  return ChildAge(years: years, months: months);
+}
+
 class ChildProfile {
   final String id; // Firestore doc ID — currently the nickname itself
   final String name;
+  final String? birthdate; // raw string as saved at sign-up / add-child
   final List<String> goals;
   final String avatarPath;
   final double progress; // 0.0 - 1.0 — not tracked yet, defaults to 0
@@ -41,11 +105,15 @@ class ChildProfile {
   const ChildProfile({
     required this.id,
     required this.name,
+    this.birthdate,
     this.goals = const [],
     this.avatarPath = kDefaultAvatarPath,
     this.progress = 0.0,
     this.screenTimeToday = Duration.zero,
   });
+
+  /// Age calculated from [birthdate]; null if it's missing or unreadable.
+  ChildAge? get age => childAgeFromBirthdate(birthdate);
 
   factory ChildProfile.fromMap(
     String id,
@@ -57,6 +125,7 @@ class ChildProfile {
       name: (data['nickname'] as String?)?.trim().isNotEmpty == true
           ? data['nickname'] as String
           : id,
+      birthdate: data['birthdate'] as String?,
       goals: (data['goals'] as List?)?.cast<String>() ?? const [],
       // No per-child avatarPath field in Firestore yet, so this falls back
       // to the real avatar the account picked in AvatarPickerDialog
@@ -615,9 +684,6 @@ class _MenuRowData {
   });
 }
 
-/// A single row used inside the yellow "Your Children" card and the
-/// outlined Settings / Support cards: icon, label, chevron — no filled
-/// icon-circle background, just a thin divider between rows.
 class _CardMenuRow extends StatelessWidget {
   final IconData icon;
   final String label;
