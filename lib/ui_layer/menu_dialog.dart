@@ -167,7 +167,8 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                     if (authenticated == true) {
                       navigator.push(
                         MaterialPageRoute(
-                          builder: (_) => const AnalysisReportsScreen(),
+                          builder: (_) =>
+                              AnalysisReportsScreen(childNickname: widget.name),
                         ),
                       );
                     }
