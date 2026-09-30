@@ -62,15 +62,18 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
 
   // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
+  int _heldPieceId = -1;
+
   late String _currentObject;
   late List<_Piece> _trayPieces;
-  int _heldPieceId = -1;
   late List<int> _slotContents;
-  List<bool> _slotHighlight = List.filled(4, false);
-  bool _roundComplete = false;
-  bool _showWinDialog = false;
   late List<int> _correctMapping;
 
+  List<bool> _slotHighlight = List.filled(4, false);
+
+  bool _roundComplete = false;
+  bool _showWinDialog = false;
+  bool _isInstructionPlaying = true;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -212,6 +215,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
+
     _roxieSlideCtrl.forward();
 
     _speechBubbleCtrl.forward(from: 0);
@@ -225,8 +229,18 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
 
     _gameEnterCtrl.forward();
     _startRound();
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
+
+    setState(() {
+      _screenPhase = _ScreenPhase.game;
+      _isInstructionPlaying = true;
+    });
+
     await _playBgAudio(_audioInstructions);
+    if (!mounted) return;
+
+    setState(() {
+      _isInstructionPlaying = false;
+    });
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -280,11 +294,14 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
   }
 
   void _pickUpPiece(int pieceId) {
-    if (_roundComplete) return;
+    if (_roundComplete || _isInstructionPlaying) return;
+
     setState(() => _heldPieceId = pieceId);
   }
 
   Future<void> _dropOnSlot(int slotIndex, {int? pieceId}) async {
+    if (_isInstructionPlaying) return;
+
     final incoming = pieceId ?? _heldPieceId;
     if (incoming == -1 || _roundComplete) return;
 
@@ -680,13 +697,16 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
         : Colors.transparent;
 
     return DragTarget<int>(
-      onWillAcceptWithDetails: (details) => !filled,
+      onWillAcceptWithDetails: (details) => !filled && !_isInstructionPlaying,
       onAcceptWithDetails: (details) =>
           _dropOnSlot(slotIndex, pieceId: details.data),
       builder: (context, candidateData, rejectedData) {
         final isDragOver = candidateData.isNotEmpty && !filled;
         return GestureDetector(
-          onTap: () => _dropOnSlot(slotIndex),
+          onTap: () {
+            if (_isInstructionPlaying) return;
+            _dropOnSlot(slotIndex);
+          },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             decoration: BoxDecoration(
@@ -908,6 +928,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
 
     return Draggable<int>(
       data: piece.id,
+      maxSimultaneousDrags: (_roundComplete || _isInstructionPlaying) ? 0 : 1,
       onDragStarted: () => setState(() => _heldPieceId = piece.id),
       onDraggableCanceled: (_, __) => setState(() => _heldPieceId = -1),
       onDragCompleted: () => setState(() => _heldPieceId = -1),
@@ -937,6 +958,8 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
       childWhenDragging: Opacity(opacity: 0.25, child: pieceWidget),
       child: GestureDetector(
         onTap: () {
+          if (_isInstructionPlaying) return;
+
           if (isHeld) {
             setState(() => _heldPieceId = -1);
           } else {

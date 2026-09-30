@@ -96,6 +96,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   bool _hasSavedResult = false;
 
   bool _itemHeld = false;
+  bool _isInstructionPlaying = true;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -264,9 +265,18 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
     _gameEnterCtrl.forward();
     _startRound();
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
+
+    setState(() {
+      _screenPhase = _ScreenPhase.game;
+      _isInstructionPlaying = true;
+    });
 
     await _playAudio(_audioInstructions);
+    if (!mounted) return;
+
+    setState(() {
+      _isInstructionPlaying = false;
+    });
   }
 
   Future<void> _playAudio(String asset) async {
@@ -346,7 +356,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   }
 
   Future<void> _dropOnBasket(String basketObject) async {
-    if (_roundComplete) return;
+    if (_isInstructionPlaying || _roundComplete) return;
     if (_currentItemIndex >= _itemQueue.length) return;
 
     final currentItem = _itemQueue[_currentItemIndex];
@@ -741,20 +751,49 @@ class _BasketSortScreenState extends State<BasketSortScreen>
       },
       child: Draggable<String>(
         data: currentObject,
-        onDragStarted: () => setState(() => _itemHeld = true),
-        onDraggableCanceled: (_, __) => setState(() => _itemHeld = false),
-        onDragCompleted: () => setState(() => _itemHeld = false),
+        maxSimultaneousDrags: (_roundComplete || _isInstructionPlaying) ? 0 : 1,
+
+        onDragStarted: () {
+          if (_isInstructionPlaying) return;
+          setState(() => _itemHeld = true);
+        },
+
+        onDraggableCanceled: (_, __) {
+          setState(() => _itemHeld = false);
+        },
+
+        onDragCompleted: () {
+          setState(() => _itemHeld = false);
+        },
+
         feedback: Material(
           color: Colors.transparent,
-          child: _buildItemTile(currentObject, size: 82, isDragging: true),
+          child: _buildItemTile(
+            currentObject,
+            size: 82,
+            isDragging: true,
+          ),
         ),
+
         childWhenDragging: Opacity(
           opacity: 0.25,
-          child: _buildItemTile(currentObject, size: 80),
+          child: _buildItemTile(
+            currentObject,
+            size: 80,
+          ),
         ),
+
         child: GestureDetector(
-          onTap: () => setState(() => _itemHeld = !_itemHeld),
-          child: _buildItemTile(currentObject, size: 80, isHeld: _itemHeld),
+          onTap: () {
+            if (_isInstructionPlaying) return;
+
+            setState(() => _itemHeld = !_itemHeld);
+          },
+          child: _buildItemTile(
+            currentObject,
+            size: 80,
+            isHeld: _itemHeld,
+          ),
         ),
       ),
     );
@@ -763,25 +802,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
       mainAxisSize: MainAxisSize.min,
       children: [
         itemWidget,
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.75),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            '$remaining left',
-            style: TextStyle(
-              fontFamily: PuzzleAppTextStyles.fredoka,
-              fontSize: 14,
-              color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                alpha: 0.65,
-              ),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -839,11 +859,16 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     final hasItem = _currentItemIndex < _itemQueue.length && !_roundComplete;
 
     return DragTarget<String>(
-      onWillAcceptWithDetails: (details) => true,
-      onAcceptWithDetails: (details) => _dropOnBasket(objectName),
+      onWillAcceptWithDetails: (details) => !_isInstructionPlaying && hasItem,
+      onAcceptWithDetails: (details) {
+        if (_isInstructionPlaying) return;
+        _dropOnBasket(objectName);
+      },
       builder: (context, candidateData, _) {
         return GestureDetector(
-          onTap: hasItem ? () => _dropOnBasket(objectName) : null,
+          onTap: hasItem && !_isInstructionPlaying
+              ? () => _dropOnBasket(objectName)
+              : null,
           child: ScaleTransition(
             scale: bounceAnim,
             child: SizedBox(
