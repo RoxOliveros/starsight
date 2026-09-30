@@ -132,7 +132,7 @@ class ScreenTimeService with WidgetsBindingObserver {
   /// Lets a parent (after entering their PIN) lift the lock temporarily so
   /// they can reach the Parent's Area and raise the limit. Counting continues,
   /// so if the limit isn't raised the lock comes back when this expires.
-  void grantParentGrace({Duration duration = const Duration(minutes: 5)}) {
+  void grantParentGrace({Duration duration = const Duration(minutes: 60)}) {
     _graceUntil = DateTime.now().add(duration);
     _evaluate();
   }

@@ -6,7 +6,6 @@ import 'package:StarSight/games_ui_layer/lumi_town/lvl11/throwing_trash_game.dar
 import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
@@ -14,7 +13,9 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 
 class PickingTrashGame extends StatefulWidget {
-  const PickingTrashGame({super.key});
+  final int level;
+
+  const PickingTrashGame({super.key, required this.level});
 
   @override
   State<PickingTrashGame> createState() => _PickingTrashGameState();
@@ -98,7 +99,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
           size: 0.07,
         ),
         TrashItemData(
-          image: 'assets/images/objects/lumi/trash_spoon.png',
+          image: 'assets/images/objects/lumi/trash_spork.png',
           x: 0.35,
           y: 0.49,
           size: 0.06,
@@ -353,7 +354,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
                     if (mounted) {
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(
-                          builder: (_) => const ThrowingTrashGame(),
+                          builder: (_) => ThrowingTrashGame(level: widget.level + 1),
                         ),
                         (route) => route.isFirst,
                       );
