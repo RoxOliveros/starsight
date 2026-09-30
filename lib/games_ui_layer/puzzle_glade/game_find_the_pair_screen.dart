@@ -40,11 +40,7 @@ class FindThePairScreen extends StatefulWidget {
 }
 
 class _FindThePairScreenState extends State<FindThePairScreen>
-    with
-        TickerProviderStateMixin,
-        RoxieReactionMixin<FindThePairScreen>,
-        GameLoadingMixin,
-        AiCameraMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
@@ -63,17 +59,21 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
 
   // ── Round state ────────────────────────────────────────────────────────────
-  int _round = 1;
   late String _matchingObject;
   late List<String> _choices;
+
   final Set<String> _usedMatches = {};
+
+  int _round = 1;
   int? _firstSelectedIndex;
   int? _secondSelectedIndex;
-  bool _wrongFlash = false;
   int? _wrongIndex;
+
+  bool _wrongFlash = false;
   bool _roundComplete = false;
   bool _showWinDialog = false;
-
+  bool _isPlayingCompleteAudio = false;
+  bool _isInstructionPlaying = true;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -245,9 +245,18 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     _gameEnterCtrl.forward();
 
     _startRound();
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
+
+    setState(() {
+      _screenPhase = _ScreenPhase.game;
+      _isInstructionPlaying = true;
+    });
+
     await _playBgAudio(_audioInstructions);
     if (!mounted) return;
+
+    setState(() {
+      _isInstructionPlaying = false;
+    });
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -296,7 +305,12 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   }
 
   Future<void> _onObjectTapped(int index) async {
-    if (_roundComplete || _wrongFlash) return;
+    if (_roundComplete ||
+        _wrongFlash ||
+        _isPlayingCompleteAudio ||
+        _isInstructionPlaying) {
+      return;
+    }
 
     if (_firstSelectedIndex == null) {
       setState(() => _firstSelectedIndex = index);
@@ -329,9 +343,15 @@ class _FindThePairScreenState extends State<FindThePairScreen>
 
         if (!mounted) return;
 
+        setState(() {
+          _isPlayingCompleteAudio = true;
+        });
+
         final completer = Completer<void>();
         final sub = _completePlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
+          if (!completer.isCompleted) {
+            completer.complete();
+          }
         });
 
         try {
@@ -339,20 +359,29 @@ class _FindThePairScreenState extends State<FindThePairScreen>
             AssetSource(_audioComplete.replaceFirst('assets/', '')),
           );
 
-          await completer.future.timeout(const Duration(seconds: 10));
+          await completer.future.timeout(
+            const Duration(seconds: 10),
+          );
+        } catch (e) {
+          debugPrint('Complete audio error: $e');
         } finally {
           await sub.cancel();
         }
 
         if (!mounted) return;
 
+        setState(() {
+          _isPlayingCompleteAudio = false;
+        });
+
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-              debugPrint("Database Error marking level complete: $e");
-            });
+          debugPrint("Database Error marking level complete: $e");
+        });
 
         if (!mounted) return;
+
         await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
