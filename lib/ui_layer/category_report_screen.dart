@@ -38,10 +38,29 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   static const int _maxStoredCycles = 2;
   Map<int, int> _slotToPlaythroughNumber = {};
 
+  final ScrollController _scrollController = ScrollController();
+  bool _scrolled = false;
+
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _initReportData();
+  }
+
+  void _onScroll() {
+    final scrolled =
+        _scrollController.hasClients && _scrollController.offset > 4;
+    if (scrolled != _scrolled && mounted) {
+      setState(() => _scrolled = scrolled);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
   }
 
   // --- DYNAMIC HEADER HELPERS ---
@@ -195,6 +214,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       _isLoading = true;
       _error = null;
       _cycleDateText = "";
+      _scrolled = false; // the report is rebuilt at the top
     });
 
     try {
@@ -655,6 +675,9 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       appBar: AppBar(
         backgroundColor: ColorTheme.cream,
         elevation: 0,
+        // Stop Material 3 from tinting the app bar when content scrolls.
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
@@ -678,159 +701,175 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         child: Column(
           children: [
             // --- HEADER & DROPDOWN ---
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-              child: Column(
-                children: [
-                  // 1. THE DYNAMIC MOCKUP HEADER
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Image.asset(
-                        _getCharacterAsset(widget.categoryName),
-                        width: 90,
-                        height: 90,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stack) => const Icon(
-                          Icons.abc_rounded,
-                          size: 60,
-                          color: ColorTheme.orange,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.categoryName.toUpperCase(),
-                              style: const TextStyle(
-                                fontFamily: AppTextStyles.fredoka,
-                                fontSize: 21,
-                                fontWeight: FontWeight.w800,
-                                color: ColorTheme.deepNavyBlue,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _getSubjectDescription(widget.categoryName),
-                              textAlign: TextAlign.justify,
-                              style: const TextStyle(
-                                fontFamily: 'Nunito',
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                height: 1.35,
-                                color: ColorTheme.brown,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+            // Solid background so nothing can show through the fixed header.
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: ColorTheme.cream,
+                border: Border(
+                  bottom: BorderSide(
+                    color: _scrolled
+                        ? ColorTheme.brown.withOpacity(0.2)
+                        : Colors.transparent,
+                    width: 1,
                   ),
-                  const SizedBox(height: 30),
-
-                  // 2. THE DROPDOWN & CALENDAR DATE
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // The Cycle Selector Dropdown
-                      if (_availableCycles.length > 1)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: ColorTheme.teal,
-                              width: 2,
-                            ),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<int>(
-                              value: _selectedCycle,
-                              icon: const Icon(
-                                Icons.arrow_drop_down_rounded,
-                                color: ColorTheme.teal,
-                              ),
-                              dropdownColor: Colors.white,
-                              style: const TextStyle(
-                                fontFamily: AppTextStyles.fredoka,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: ColorTheme.teal,
-                              ),
-                              items: _availableCycles.map((cycle) {
-                                return DropdownMenuItem<int>(
-                                  value: cycle,
-                                  child: Text(
-                                    _playLabel(
-                                      _slotToPlaythroughNumber[cycle] ?? cycle,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (newValue) {
-                                if (newValue != null &&
-                                    newValue != _selectedCycle) {
-                                  setState(() => _selectedCycle = newValue);
-                                  _loadSpecificCycle(newValue);
-                                }
-                              },
-                            ),
-                          ),
-                        )
-                      else
-                        Text(
-                          _playLabel(
-                            _slotToPlaythroughNumber[_selectedCycle] ??
-                                _selectedCycle,
-                          ),
-                          style: const TextStyle(
-                            fontFamily: AppTextStyles.fredoka,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: ColorTheme.teal,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                child: Column(
+                  children: [
+                    // 1. THE DYNAMIC MOCKUP HEADER
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Image.asset(
+                          _getCharacterAsset(widget.categoryName),
+                          width: 90,
+                          height: 90,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stack) => const Icon(
+                            Icons.abc_rounded,
+                            size: 60,
+                            color: ColorTheme.orange,
                           ),
                         ),
-
-                      const SizedBox(width: 8),
-
-                      // The Date & Time (Now with flex wrapping!)
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                _cycleDateText,
-                                textAlign: TextAlign.right,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text(
+                                widget.categoryName.toUpperCase(),
                                 style: const TextStyle(
                                   fontFamily: AppTextStyles.fredoka,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 21,
+                                  fontWeight: FontWeight.w800,
                                   color: ColorTheme.deepNavyBlue,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Icon(
-                              Icons.calendar_today_rounded,
-                              color: ColorTheme.deepNavyBlue,
-                              size: 18,
-                            ),
-                          ],
+                              const SizedBox(height: 6),
+                              Text(
+                                _getSubjectDescription(widget.categoryName),
+                                textAlign: TextAlign.justify,
+                                style: const TextStyle(
+                                  fontFamily: 'Nunito',
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.35,
+                                  color: ColorTheme.brown,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+
+                    // 2. THE DROPDOWN & CALENDAR DATE
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // The Cycle Selector Dropdown
+                        if (_availableCycles.length > 1)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 0,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: ColorTheme.teal,
+                                width: 2,
+                              ),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                value: _selectedCycle,
+                                icon: const Icon(
+                                  Icons.arrow_drop_down_rounded,
+                                  color: ColorTheme.teal,
+                                ),
+                                dropdownColor: Colors.white,
+                                style: const TextStyle(
+                                  fontFamily: AppTextStyles.fredoka,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: ColorTheme.teal,
+                                ),
+                                items: _availableCycles.map((cycle) {
+                                  return DropdownMenuItem<int>(
+                                    value: cycle,
+                                    child: Text(
+                                      _playLabel(
+                                        _slotToPlaythroughNumber[cycle] ??
+                                            cycle,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (newValue) {
+                                  if (newValue != null &&
+                                      newValue != _selectedCycle) {
+                                    setState(() => _selectedCycle = newValue);
+                                    _loadSpecificCycle(newValue);
+                                  }
+                                },
+                              ),
+                            ),
+                          )
+                        else
+                          Text(
+                            _playLabel(
+                              _slotToPlaythroughNumber[_selectedCycle] ??
+                                  _selectedCycle,
+                            ),
+                            style: const TextStyle(
+                              fontFamily: AppTextStyles.fredoka,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: ColorTheme.teal,
+                            ),
+                          ),
+
+                        const SizedBox(width: 8),
+
+                        // The Date & Time (Now with flex wrapping!)
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  _cycleDateText,
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(
+                                    fontFamily: AppTextStyles.fredoka,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: ColorTheme.deepNavyBlue,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.calendar_today_rounded,
+                                color: ColorTheme.deepNavyBlue,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -871,7 +910,9 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                       ),
                     )
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                      controller: _scrollController,
+                      clipBehavior: Clip.hardEdge,
+                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
