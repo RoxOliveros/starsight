@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../lumi_game_ui_layer.dart';
 import 'respect_1.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,7 +13,9 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class LumiClassroomScreen extends StatefulWidget {
-  const LumiClassroomScreen({Key? key}) : super(key: key);
+  final int level;
+
+  const LumiClassroomScreen({Key? key, required this.level}) : super(key: key);
 
   @override
   State<LumiClassroomScreen> createState() => _LumiClassroomScreenState();
@@ -90,6 +93,7 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
           builder: (context) => Respect1Screen(
             priorEmotions: emotionsSoFar,
             tapTracker: _tapTracker,
+            level: widget.level
           ),
         ),
       );
@@ -143,6 +147,7 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
             ),
             buildTrWoo(context),
             Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {

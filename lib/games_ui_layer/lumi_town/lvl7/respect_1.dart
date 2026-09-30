@@ -2,25 +2,25 @@ import 'dart:math' as math;
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/respect_2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
+import '../lumi_game_ui_layer.dart';
+
 class Respect1Screen extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const Respect1Screen({
     Key? key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   }) : super(key: key);
 
   @override
@@ -28,19 +28,18 @@ class Respect1Screen extends StatefulWidget {
 }
 
 class _Respect1ScreenState extends State<Respect1Screen>
-    with
-        TickerProviderStateMixin,
-        TrWooReactionMixin,
-        AiCameraMixin<Respect1Screen> {
-  late final AudioPlayer _audioPlayer;
-  bool _showButtons = false;
+    with TickerProviderStateMixin, TrWooReactionMixin, AiCameraMixin<Respect1Screen> {
 
+  late final AudioPlayer _audioPlayer;
   late final AnimationController _walkController;
+
   final Duration _walkDuration = const Duration(milliseconds: 1800);
   final Duration _stepDuration = const Duration(milliseconds: 260);
   final double _bounceHeightFraction = 0.045;
 
+  bool _showButtons = false;
   bool _hideLightingCard = false;
+  bool _answered = false;
 
   @override
   void initState() {
@@ -185,6 +184,8 @@ class _Respect1ScreenState extends State<Respect1Screen>
                 bottom: 40,
                 child: GestureDetector(
                   onTap: () async {
+                    if (_answered) return;
+                    setState(() => _answered = true);
                     widget.tapTracker.recordCorrectTap();
                     _audioPlayer.play(
                       AssetSource(
@@ -207,6 +208,7 @@ class _Respect1ScreenState extends State<Respect1Screen>
                         builder: (context) => Respect2Screen(
                           priorEmotions: emotionsSoFar,
                           tapTracker: widget.tapTracker,
+                          level: widget.level
                         ),
                       ),
                     );
@@ -224,6 +226,7 @@ class _Respect1ScreenState extends State<Respect1Screen>
                 bottom: 40,
                 child: GestureDetector(
                   onTap: () {
+                    if (_answered) return;
                     widget.tapTracker.recordMistake();
                     showTrWooReaction(TrWooState.wrong);
                   },
@@ -237,6 +240,7 @@ class _Respect1ScreenState extends State<Respect1Screen>
             ],
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

@@ -213,7 +213,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                         await _saveDataAndMarkComplete();
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
-                            builder: (context) => const LumiClassroomScreen(),
+                            builder: (context) => LumiClassroomScreen(level: widget.level + 1),
                           ),
                         );
                       },

@@ -332,7 +332,7 @@ class _LevelTile extends StatelessWidget {
       case 6:
         return EmotionStarsScreen(level: 6);
       case 7:
-        return LumiClassroomScreen();
+        return LumiClassroomScreen(level: 7);
       case 8:
         return Prayer1();
       case 9:
