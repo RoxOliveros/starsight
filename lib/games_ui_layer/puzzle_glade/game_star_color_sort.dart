@@ -50,6 +50,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
   static const String _jarImage = 'assets/images/objects/puzzle/jar_bnw.png';
+
   static final ImageProvider _starProvider = ResizeImage(const AssetImage(_starImage), width: 160);
   static final ImageProvider _jarProvider = ResizeImage(const AssetImage(_jarImage), width: 240);
 
@@ -59,10 +60,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   int _countA = 3;
   int _countB = 3;
   int _countC = 0;
-  bool _isTripleJar = false;
-  late _JarPair _jarC;
-  List<_Ball> _jarCBalls = [];
-  bool _wrongFlashC = false;
 
   static const _allPairs = [
     _JarPair(
@@ -99,17 +96,22 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
   late _JarPair _jarA;
   late _JarPair _jarB;
+  late _JarPair _jarC;
   late List<_Ball> _poolBalls;
   late List<_Ball> _jarABalls;
   late List<_Ball> _jarBBalls;
+  late List<_Ball> _jarCBalls = [];
 
   bool _wrongFlashA = false;
   bool _wrongFlashB = false;
+  bool _wrongFlashC = false;
   bool _roundComplete = false;
   bool _showWinDialog = false;
   bool _assetsReady = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _canDrag = false;
+  bool _isTripleJar = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _player = AudioPlayer();
@@ -236,6 +238,8 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     }
 
     await _playAudio(_audioInstructions);
+    if (!mounted) return;
+    setState(() => _canDrag = true);
   }
 
   Future<void> _playAudio(String asset) async {
@@ -352,9 +356,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
         if (_round >= _totalRounds) {
           await Future.delayed(const Duration(milliseconds: 300));
-          await _player.play(
-            AssetSource(_audioGameComplete.replaceFirst('assets/', '')),
-          );
+          await _playAudio(_audioGameComplete);
           await Future.delayed(const Duration(milliseconds: 800));
 
           await _saveDataAndShowWinDialog();
@@ -654,9 +656,13 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     return RepaintBoundary(
       child: Draggable<_Ball>(
         data: ball,
+        maxSimultaneousDrags: _canDrag ? 1 : 0,
         feedback: Material(color: Colors.transparent, child: starWidget(62)),
         childWhenDragging: Opacity(opacity: 0.25, child: starWidget(54)),
-        child: starWidget(54),
+        child: Opacity(
+          opacity: _canDrag ? 1 : 0.6,
+          child: starWidget(54),
+        ),
       ),
     );
   }
@@ -733,23 +739,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
                           fontSize: 13,
                           color: PuzzleColorTheme.darkbrown,
                           fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  if (isFull)
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 16,
                         ),
                       ),
                     ),
