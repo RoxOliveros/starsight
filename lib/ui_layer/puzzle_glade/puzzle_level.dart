@@ -141,7 +141,6 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
               builder: (context, constraints) {
                 final screenW = constraints.maxWidth;
                 final screenH = constraints.maxHeight;
-
                 final cardWidth = (screenW * 0.75).clamp(320.0, 700.0);
                 final cardHeight = (screenH * 0.80).clamp(220.0, 320.0);
                 final tileSize = (cardWidth / 4 - 24).clamp(48.0, 90.0);
