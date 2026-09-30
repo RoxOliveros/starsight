@@ -17,7 +17,9 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 enum _CameraGestureState { checking, granted, denied }
 
 class Sharing1 extends StatefulWidget {
-  const Sharing1({super.key});
+  final int level;
+
+  const Sharing1({super.key, required this.level});
 
   @override
   State<Sharing1> createState() => _Sharing1State();
@@ -134,7 +136,11 @@ class _Sharing1State extends State<Sharing1> with AiCameraMixin<Sharing1> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) =>
-            Sharing2(priorEmotions: emotionsSoFar, tapTracker: _tapTracker),
+            Sharing2(
+                priorEmotions: emotionsSoFar,
+                tapTracker: _tapTracker,
+                level: widget.level
+            ),
       ),
     );
   }

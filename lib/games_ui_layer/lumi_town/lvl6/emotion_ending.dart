@@ -12,14 +12,18 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 
+import '../lumi_game_ui_layer.dart';
+import 'emotion_stars_screen.dart';
+
 class EmotionEndingScreen extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const EmotionEndingScreen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -40,8 +44,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  static const String _audioEnding =
-      'audio/lumi_town/level6/emotion_ending.wav';
+  static const String _audioEnding = 'audio/lumi_town/level6/emotion_ending.wav';
 
   @override
   void initState() {
@@ -190,6 +193,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                 ),
 
                 Positioned(top: 25, left: 25, child: LumiXButton()),
+                Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&
@@ -213,11 +217,14 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                           ),
                         );
                       },
-                      onRestart: () {
-                        setState(() {
-                          _selectedStarPath = null;
-                          _showGoodJobOverlay = false;
-                        });
+                      onRestart: () async {
+                        await _saveDataAndMarkComplete();
+                        if (!mounted) return;
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => EmotionStarsScreen(level: widget.level),
+                          ),
+                        );
                       },
                       onBack: () async {
                         await _saveDataAndMarkComplete();
