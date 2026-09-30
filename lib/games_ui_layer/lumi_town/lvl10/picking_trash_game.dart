@@ -12,6 +12,10 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 
+import '../../../ui_layer/game_loading_mixin.dart';
+import '../../../ui_layer/loading_screen.dart';
+import '../lumi_game_ui_layer.dart';
+
 class PickingTrashGame extends StatefulWidget {
   final int level;
 
@@ -22,7 +26,7 @@ class PickingTrashGame extends StatefulWidget {
 }
 
 class _PickingTrashGameState extends State<PickingTrashGame>
-    with AiCameraMixin<PickingTrashGame> {
+    with AiCameraMixin<PickingTrashGame>, GameLoadingMixin {
   // ==========================================
   // GAME STATE
   // ==========================================
@@ -56,12 +60,17 @@ class _PickingTrashGameState extends State<PickingTrashGame>
     };
 
     _audioPlayer = AudioPlayer();
-    _resetLevel();
+
+    finishLoading(_startGameAfterLoading);
   }
 
   // ==========================================
   // LEVEL INITIALIZATION & RESTART
   // ==========================================
+  void _startGameAfterLoading() {
+    _resetLevel();
+  }
+
   void _resetLevel() {
     setState(() {
       _isGameFinished = false;
@@ -160,9 +169,9 @@ class _PickingTrashGameState extends State<PickingTrashGame>
         ),
         TrashItemData(
           image: 'assets/images/objects/lumi/trash_glassbottle.png',
-          x: 0.84,
+          x: 0.90,
           y: 0.48,
-          size: 0.06,
+          size: 0.04,
         ),
         TrashItemData(
           image: 'assets/images/objects/lumi/trash_fishbone.png',
@@ -299,78 +308,101 @@ class _PickingTrashGameState extends State<PickingTrashGame>
     final Size screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
-      body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                'assets/images/backgrounds/bg_park_sunny.png',
-                fit: BoxFit.cover,
-              ),
-            ),
-
-            ...trashItems.where((item) => !item.isCollected).map((item) {
-              return AnimatedPositioned(
-                key: ValueKey(item.image),
-                duration: const Duration(milliseconds: 800),
-                curve: Curves.easeInOut,
-                left: screenSize.width * item.x,
-                top: screenSize.height * item.y,
-                width: screenSize.width * item.size,
-                child: GestureDetector(
-                  onTap: () => _handleTrashTap(item),
-                  child: Image.asset(item.image, fit: BoxFit.contain),
-                ),
-              );
-            }),
-
-            Positioned(top: 25, left: 25, child: LumiBackButton()),
-
-            if (_showDrWoo)
-              Positioned(
-                left: screenSize.width * drWooX,
-                top: screenSize.height * drWooY,
-                width: screenSize.width * drWooSize,
-                child: Image.asset(
-                  'assets/images/characters/tr.woo_the_owl.png',
-                  fit: BoxFit.contain,
-                ),
-              ),
-
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-
-            if (_isGameFinished)
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.lumiTown(),
+        gameBuilder: () => Listener(
+          onPointerDown: (_) => _tapTracker.recordGenericTap(),
+          child: Stack(
+            children: [
               Positioned.fill(
-                child: GoodJobOverlay(
-                  characterImage: 'assets/images/characters/tr.woo_the_owl.png',
-                  onNext: () {
-                    if (mounted) {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (_) => ThrowingTrashGame(level: widget.level + 1),
-                        ),
-                        (route) => route.isFirst,
-                      );
-                    }
-                  },
-                  onRestart: () {
-                    _hasSavedResult = false;
-                    _tapTracker.startSession();
-                    _resetLevel();
-                  },
-                  onBack: () {
-                    Navigator.of(context).pop();
-                  },
+                child: Image.asset(
+                  'assets/images/backgrounds/bg_park_sunny.png',
+                  fit: BoxFit.cover,
                 ),
               ),
-          ],
+
+              ...trashItems
+                  .where((item) => !item.isCollected)
+                  .map((item) {
+                return AnimatedPositioned(
+                  key: ValueKey(item.image),
+                  duration: const Duration(milliseconds: 800),
+                  curve: Curves.easeInOut,
+                  left: screenSize.width * item.x,
+                  top: screenSize.height * item.y,
+                  width: screenSize.width * item.size,
+                  child: GestureDetector(
+                    onTap: () => _handleTrashTap(item),
+                    child: Image.asset(
+                      item.image,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                );
+              }),
+
+              Positioned(
+                top: 25,
+                left: 25,
+                child: LumiXButton(),
+              ),
+
+              Positioned(
+                top: 25,
+                right: 25,
+                child: LumiLevelBadge(level: widget.level),
+              ),
+
+              if (_showDrWoo)
+                Positioned(
+                  left: screenSize.width * drWooX,
+                  top: screenSize.height * drWooY,
+                  width: screenSize.width * drWooSize,
+                  child: Image.asset(
+                    'assets/images/characters/tr.woo_the_owl.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_isGameFinished)
+                Positioned.fill(
+                  child: GoodJobOverlay(
+                    characterImage:
+                    'assets/images/characters/tr.woo_the_owl.png',
+                    onNext: () {
+                      if (mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => ThrowingTrashGame(
+                              level: widget.level + 1,
+                            ),
+                          ),
+                              (route) => route.isFirst,
+                        );
+                      }
+                    },
+                    onRestart: () {
+                      _hasSavedResult = false;
+                      _tapTracker.startSession();
+                      _resetLevel();
+                    },
+                    onBack: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
