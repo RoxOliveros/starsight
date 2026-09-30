@@ -2,6 +2,8 @@ import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_2.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/game_loading_mixin.dart';
+import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,15 +11,19 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
+import '../lumi_game_ui_layer.dart';
+
 class Sorry1Screen extends StatefulWidget {
-  const Sorry1Screen({super.key});
+  final int level;
+
+  const Sorry1Screen({super.key, required this.level});
 
   @override
   State<Sorry1Screen> createState() => _Sorry1ScreenState();
 }
 
 class _Sorry1ScreenState extends State<Sorry1Screen>
-    with AiCameraMixin<Sorry1Screen> {
+    with AiCameraMixin<Sorry1Screen>, GameLoadingMixin {
   late final AudioPlayer _audioPlayer;
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -35,12 +41,12 @@ class _Sorry1ScreenState extends State<Sorry1Screen>
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
+    _audioPlayer = AudioPlayer();
 
-    _initAndPlayAudio();
+    finishLoading(_initAndPlayAudio);
   }
 
   Future<void> _initAndPlayAudio() async {
-    _audioPlayer = AudioPlayer();
     try {
       await _audioPlayer.play(
         AssetSource('audio/lumi_town/level9/sorry_narration_1.wav'),
@@ -56,6 +62,7 @@ class _Sorry1ScreenState extends State<Sorry1Screen>
           builder: (context) => Sorry2Screen(
             priorEmotions: emotionsSoFar,
             tapTracker: _tapTracker,
+            level: widget.level
           ),
         ),
       );
@@ -74,37 +81,43 @@ class _Sorry1ScreenState extends State<Sorry1Screen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
-        child: SizedBox.expand(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset(
-                'assets/images/objects/lumi/lvl9_scene1.png',
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Center(
-                    child: Text(
-                      'Scene asset could not be loaded.',
-                      style: TextStyle(color: Colors.red, fontSize: 16),
-                    ),
-                  );
-                },
-              ),
-              Positioned(top: 25, left: 25, child: LumiXButton()),
-
-              if (hasCapturedFirstFrame &&
-                  !isFaceDetected &&
-                  !_hideLightingCard)
-                LightingPromptCard(
-                  onClose: () {
-                    setState(() => _hideLightingCard = true);
-                    releaseFaceGate();
+      body: buildWithLoading(
+        loadingScreen: Container(
+          color: Colors.white,
+          child: LoadingScreen.lumiTown(),
+        ),
+        gameBuilder: () => Listener(
+          onPointerDown: (_) => _tapTracker.recordGenericTap(),
+          child: SizedBox.expand(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'assets/images/objects/lumi/lvl9_scene1.png',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Text(
+                        'Scene asset could not be loaded.',
+                        style: TextStyle(color: Colors.red, fontSize: 16),
+                      ),
+                    );
                   },
                 ),
-            ],
+                Positioned(top: 25, left: 25, child: LumiXButton()),
+                Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+                if (hasCapturedFirstFrame &&
+                    !isFaceDetected &&
+                    !_hideLightingCard)
+                  LightingPromptCard(
+                    onClose: () {
+                      setState(() => _hideLightingCard = true);
+                      releaseFaceGate();
+                    },
+                  ),
+              ],
+            ),
           ),
         ),
       ),

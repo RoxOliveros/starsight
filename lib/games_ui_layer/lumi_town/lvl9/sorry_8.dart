@@ -15,14 +15,18 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 
+import '../../../ui_layer/lumi_town/town_level.dart';
+import '../lumi_game_ui_layer.dart';
+
 class Sorry8Screen extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const Sorry8Screen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -251,6 +255,7 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -263,7 +268,6 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
             if (_showGoodJob)
               GoodJobOverlay(
                 characterImage: 'assets/images/characters/tr.woo_smiling.png',
-
                 onNext: () {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
@@ -273,16 +277,13 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
                 },
                 onRestart: () {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const Sorry1Screen()),
+                    MaterialPageRoute(builder: (_) => Sorry1Screen(level: widget.level)),
                   );
                 },
                 onBack: () {
-                  if (mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const Sorry1Screen()),
-                      (route) => route.isFirst,
-                    );
-                  }
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => LumiLevelScreen()),
+                  );
                 },
               ),
           ],
