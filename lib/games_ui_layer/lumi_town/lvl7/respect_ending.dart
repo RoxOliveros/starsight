@@ -230,7 +230,7 @@ class _RespectEndingState extends State<RespectEnding>
                 onNext: () async {
                   await _saveDataAndMarkComplete();
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) => const Prayer1()),
+                    MaterialPageRoute(builder: (context) => Prayer1(level: widget.level + 1)),
                   );
                 },
                 onRestart: () {

@@ -4,20 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
+import '../lumi_game_ui_layer.dart';
+
 class Sorry2Screen extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const Sorry2Screen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -86,6 +88,7 @@ class _Sorry2ScreenState extends State<Sorry2Screen>
           builder: (context) => Sorry3Screen(
             priorEmotions: emotionsSoFar,
             tapTracker: widget.tapTracker,
+            level: widget.level
           ),
         ),
       );
@@ -165,6 +168,7 @@ class _Sorry2ScreenState extends State<Sorry2Screen>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

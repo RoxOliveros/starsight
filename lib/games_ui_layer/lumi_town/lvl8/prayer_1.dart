@@ -10,6 +10,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../../../ui_layer/lumi_town/town_level.dart';
 import 'prayer_prompt_card.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -19,7 +20,9 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 
 class Prayer1 extends StatefulWidget {
-  const Prayer1({super.key});
+  final int level;
+
+  const Prayer1({super.key, required this.level});
 
   @override
   State<Prayer1> createState() => _Prayer1State();
@@ -306,22 +309,19 @@ class _Prayer1State extends State<Prayer1> with AiCameraMixin<Prayer1> {
                 onNext: () {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (context) => const Sorry1Screen(),
+                      builder: (context) => Sorry1Screen(level: widget.level + 1),
                     ),
                   );
                 },
                 onRestart: () {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const Prayer1()),
+                    MaterialPageRoute(builder: (_) => Prayer1(level: widget.level)),
                   );
                 },
                 onBack: () {
-                  if (mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const Prayer1()),
-                      (route) => route.isFirst,
-                    );
-                  }
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => LumiLevelScreen()),
+                  );
                 },
               ),
           ],
