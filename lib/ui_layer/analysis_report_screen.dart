@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
 import 'parents_area_screen.dart';
@@ -6,6 +7,10 @@ import 'avatar_picker_dialog.dart'; // for kDefaultAvatarPath, AvatarStorage
 import '../business_layer/orientation_service.dart';
 import '../business_layer/database_service.dart';
 import 'category_report_screen.dart';
+import '../business_layer/forest_progress_service.dart';
+import '../business_layer/arctic_progress_service.dart';
+import '../business_layer/lagoon_progress_service.dart';
+import '../business_layer/puzzle_progress_service.dart';
 
 /// The four constructs every subject is analyzed on.
 enum LearningConstruct { engagement, attention, focus, learning }
@@ -134,9 +139,6 @@ class SubjectAnalysis {
   final List<ConstructInsight> insights;
   final DateTime lastUpdated;
 
-  /// Number of game sessions played for this subject. Powers the
-  /// "Games Played" / "Most Played" stat cards up top.
-  /// TODO: replace with a real count from your analytics/session pipeline.
   final int sessionsPlayed;
 
   const SubjectAnalysis({
@@ -227,10 +229,23 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         // active child, else (last resort) the first one.
         final wantedNickname =
             widget.childNickname ?? await DatabaseService().getNickname();
-        final childData = rawChildren.firstWhere(
+        final matches = rawChildren.where(
           (c) => c['id'] == wantedNickname || c['nickname'] == wantedNickname,
-          orElse: () => rawChildren.first,
         );
+
+        // Never silently show a different child's data: if we know who we
+        // want but can't find them, say so instead of falling back.
+        if (matches.isEmpty && wantedNickname != null) {
+          if (!mounted) return;
+          setState(() {
+            _loading = false;
+            _error = "Couldn't find this child's profile.";
+          });
+          return;
+        }
+        final childData = matches.isNotEmpty
+            ? matches.first
+            : rawChildren.first;
 
         // Same avatar fallback logic as ParentsAreaScreen: use the real
         // avatar this account picked if the child doc has none of its own.
@@ -246,7 +261,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       // TODO: once wired up, fetch with
       // AnalysisService().getSubjectAnalyses(childId: child.id)
       await Future.delayed(const Duration(milliseconds: 400));
-      final subjects = _mockAnalysesFor(child.id);
+      final completed = await _loadCompletedGames(child.id);
+      final subjects = _mockAnalysesFor(child.id, completed);
       if (!mounted) return;
       setState(() {
         _resolvedChild = child;
@@ -616,10 +632,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   // ── Stats row: games played (teal) + most played subject (orange) ────
 
   Widget _buildStatsRow() {
-    final totalGames = _subjects.fold<int>(
-      0,
-      (sum, s) => sum + s.sessionsPlayed,
-    );
+    final totalGames = _subjects
+        .fold<int>(0, (sum, s) => sum + s.sessionsPlayed)
+        .clamp(0, _totalLevelsAllCategories)
+        .toInt();
 
     SubjectAnalysis? topSubject;
     for (final s in _subjects) {
@@ -628,7 +644,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       }
     }
 
-    final topSubjectName = topSubject != null
+    final topSubjectName = topSubject != null && topSubject.sessionsPlayed > 0
         ? topSubject.name.replaceFirst(' ', '\n')
         : '—';
 
@@ -644,8 +660,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
               valueFontSize: 40,
               infoTitle: 'Games Completed',
               infoMessage:
-                  'This counts every game session your child has finished '
-                  'across all subjects.',
+                  'This counts the different games your child has finished '
+                  'across all subjects, out of $_totalLevelsAllCategories in total.',
             ),
           ),
           const SizedBox(width: 14),
@@ -657,8 +673,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
               valueFontSize: 18,
               infoTitle: 'Most Played Subject',
               infoMessage:
-                  'This shows whichever subject your child has completed the '
-                  'most game sessions in so far.',
+                  'This shows the subject where your child has finished the '
+                  'most games so far.',
             ),
           ),
         ],
@@ -901,7 +917,75 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
   // ---- Mock data -----------------------------------------------------
 
-  List<SubjectAnalysis> _mockAnalysesFor(String childId) {
+  // ── Real "games completed" data ─────────────────────────────────────
+
+  /// Total levels in Lumitown. TODO: swap for
+  /// TownProgressService.totalLevels if that constant exists.
+  static const int _townTotalLevels = 20;
+
+  /// Total levels per category — the ceiling for "games completed".
+  static final Map<String, int> _categoryTotalLevels = {
+    'alphabet_forest': ForestProgressService.totalLevels,
+    'lumitown': _townTotalLevels,
+    'arctic_numberland': ArcticProgressService.totalLevels,
+    'discovery_lagoon': LagoonProgressService.totalLevels,
+    'puzzle_glade': PuzzleProgressService.totalLevels,
+  };
+
+  static int get _totalLevelsAllCategories =>
+      _categoryTotalLevels.values.fold<int>(0, (a, b) => a + b);
+
+  /// Keep in sync with _maxStoredCycles in CategoryReportScreen.
+  static const int _maxStoredCycles = 2;
+
+  /// Distinct games this child has finished per category, read from the
+  /// same `games_played` docs the category report uses. Replays of the
+  /// same game don't add to the count, and each category is capped at its
+  /// total number of levels.
+  Future<Map<String, int>> _loadCompletedGames(String childId) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return {};
+
+    final progressRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('children')
+        .doc(childId)
+        .collection('category_progress');
+
+    final result = <String, int>{};
+    await Future.wait(
+      _categoryTotalLevels.entries.map((entry) async {
+        try {
+          final snaps = await Future.wait(
+            List.generate(_maxStoredCycles, (i) => i + 1).map(
+              (slot) => progressRef
+                  .doc(entry.key)
+                  .collection('cycles')
+                  .doc('cycle_$slot')
+                  .collection('games_played')
+                  .get(),
+            ),
+          );
+          final gameIds = <String>{};
+          for (final snap in snaps) {
+            for (final doc in snap.docs) {
+              gameIds.add(doc.data()['gameId'] as String? ?? doc.id);
+            }
+          }
+          result[entry.key] = gameIds.length.clamp(0, entry.value).toInt();
+        } catch (_) {
+          result[entry.key] = 0; // one bad category shouldn't break the page
+        }
+      }),
+    );
+    return result;
+  }
+
+  List<SubjectAnalysis> _mockAnalysesFor(
+    String childId,
+    Map<String, int> completedByCategory,
+  ) {
     final now = DateTime.now();
     final seed = childId.hashCode.abs();
 
@@ -976,7 +1060,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         tagline: tagline,
         insights: insights,
         lastUpdated: now.subtract(Duration(days: s)),
-        sessionsPlayed: 4 + ((seed + s * 9) % 22),
+        sessionsPlayed: completedByCategory[id] ?? 0,
       );
     });
   }
