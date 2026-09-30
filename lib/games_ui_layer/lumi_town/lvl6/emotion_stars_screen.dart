@@ -9,22 +9,28 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/game_loading_mixin.dart';
+import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../lumi_game_ui_layer.dart';
 
 class EmotionStarsScreen extends StatefulWidget {
-  const EmotionStarsScreen({super.key});
+  final int level;
+  const EmotionStarsScreen({super.key, required this.level});
 
   @override
   State<EmotionStarsScreen> createState() => _EmotionStarsScreenState();
 }
 
 class _EmotionStarsScreenState extends State<EmotionStarsScreen>
-    with SingleTickerProviderStateMixin, AiCameraMixin<EmotionStarsScreen> {
+    with SingleTickerProviderStateMixin, AiCameraMixin<EmotionStarsScreen>, GameLoadingMixin {
+
   late AnimationController _fadeController;
   late Animation<double> _opacityAnimation;
   late AudioPlayer _audioPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
+
   bool _hideLightingCard = false;
 
   static const String _audioIntro = 'audio/lumi_town/level6/emotion_intro.wav';
@@ -107,6 +113,11 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
       }
     });
 
+    finishLoading(_startIntroFlow);
+  }
+
+  void _startIntroFlow() {
+    if (!mounted) return;
     _fadeController.forward();
   }
 
@@ -117,7 +128,11 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) =>
-                Emotion2(priorEmotions: emotionsSoFar, tapTracker: _tapTracker),
+                Emotion2(
+                    priorEmotions: emotionsSoFar,
+                    tapTracker: _tapTracker,
+                    level: widget.level
+                ),
           ),
         );
       }
@@ -136,8 +151,12 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Listener(
+    return buildWithLoading(
+      loadingScreen: ColoredBox(
+        color: Colors.white,
+        child: LoadingScreen.lumiTown(),
+      ),
+      gameBuilder: () => Listener(
         onPointerDown: (_) => _tapTracker.recordGenericTap(),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -214,6 +233,7 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
                 ),
 
                 Positioned(top: 25, left: 25, child: LumiXButton()),
+                Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&

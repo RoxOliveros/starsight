@@ -8,15 +8,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import '../lumi_game_ui_layer.dart';
 
 class Emotion3Screen extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const Emotion3Screen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -65,6 +67,7 @@ class _Emotion3ScreenState extends State<Emotion3Screen>
               builder: (context) => Emotion4Screen(
                 priorEmotions: emotionsSoFar,
                 tapTracker: widget.tapTracker,
+                level: widget.level
               ),
             ),
           );
@@ -126,7 +129,7 @@ class _Emotion3ScreenState extends State<Emotion3Screen>
 
     final double centerImageWidth = screenWidth * 0.60;
     final double centerImageHeight = screenHeight * 0.75;
-    final double starButtonSize = screenHeight * 0.28;
+    final double starButtonSize = screenHeight * 0.24;
     final double paddingEdge = screenWidth * 0.04;
 
     return Scaffold(
@@ -216,11 +219,12 @@ class _Emotion3ScreenState extends State<Emotion3Screen>
               ),
 
               Positioned(top: 25, left: 25, child: LumiXButton()),
+              Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
               Positioned(
                 right: paddingEdge,
-                top: 0,
-                bottom: 0,
+                top: screenHeight * 0.20,
+                bottom: screenHeight * 0.02,
                 child: IgnorePointer(
                   ignoring: !_showStars,
                   child: AnimatedOpacity(
@@ -234,13 +238,13 @@ class _Emotion3ScreenState extends State<Emotion3Screen>
                           TrWooState.wrong,
                           starButtonSize,
                         ),
-                        SizedBox(height: screenHeight * 0.03),
+                        SizedBox(height: screenHeight * 0.01),
                         _buildReactionDraggable(
                           'assets/images/objects/lumi/disgust_wb.png',
                           TrWooState.wrong,
                           starButtonSize,
                         ),
-                        SizedBox(height: screenHeight * 0.03),
+                        SizedBox(height: screenHeight * 0.01),
                         _buildReactionDraggable(
                           'assets/images/objects/lumi/happy_wb.png',
                           TrWooState.correct,

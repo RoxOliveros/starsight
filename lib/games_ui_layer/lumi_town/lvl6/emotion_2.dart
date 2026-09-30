@@ -9,14 +9,17 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
+import '../lumi_game_ui_layer.dart';
+
 class Emotion2 extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const Emotion2({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -44,8 +47,7 @@ class _Emotion2State extends State<Emotion2> with AiCameraMixin<Emotion2> {
   ];
 
   static const String _audioStart = 'audio/lumi_town/level6/emotion_start.wav';
-  static const String _audioTutorial =
-      'audio/lumi_town/level6/emotion_tutorial.wav';
+  static const String _audioTutorial = 'audio/lumi_town/level6/emotion_tutorial.wav';
 
   @override
   void initState() {
@@ -79,6 +81,7 @@ class _Emotion2State extends State<Emotion2> with AiCameraMixin<Emotion2> {
               builder: (context) => Emotion3Screen(
                 priorEmotions: emotionsSoFar,
                 tapTracker: widget.tapTracker,
+                level: widget.level,
               ),
             ),
           );
@@ -165,6 +168,7 @@ class _Emotion2State extends State<Emotion2> with AiCameraMixin<Emotion2> {
                 ),
 
                 Positioned(top: 25, left: 25, child: LumiXButton()),
+                Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&

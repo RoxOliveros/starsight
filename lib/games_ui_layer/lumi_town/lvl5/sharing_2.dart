@@ -21,11 +21,12 @@ import 'package:StarSight/business_layer/town_database_service.dart';
 class Sharing2 extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const Sharing2({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -831,7 +832,7 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
                         onNext: () {
                           Navigator.of(context).pushReplacement(
                             MaterialPageRoute(
-                              builder: (context) => const EmotionStarsScreen(),
+                              builder: (context) => EmotionStarsScreen(level: widget.level + 1),
                             ),
                           );
                         },

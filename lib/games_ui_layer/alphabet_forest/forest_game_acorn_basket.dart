@@ -437,11 +437,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
         const Positioned(top: 25, left: 25, child: ForestXButton()),
 
-        Positioned(
-          top: 25,
-          right: 20,
-          child: ForestLevelBadge(level: widget.level),
-        ),
+        Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
 
         Center(
           child: Row(
