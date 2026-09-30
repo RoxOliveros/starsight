@@ -58,28 +58,20 @@ class MemoryMatchScreen extends StatefulWidget {
 }
 
 class _MemoryMatchScreenState extends State<MemoryMatchScreen>
-    with
-        TickerProviderStateMixin,
-        RoxieReactionMixin,
-        GameLoadingMixin,
-        AiCameraMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/memory_match_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/memory_match_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/memory_match_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/memory_match_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/memory_match_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/memory_match_complete.wav';
 
   // ── Phase state ────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -475,24 +467,22 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );
-        return ClipRect(
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: SlideTransition(
-              position: _roxieSlide,
-              child: FadeTransition(
-                opacity: _roxieFade,
-                child: AnimatedBuilder(
-                  animation: _roxieFloatCtrl,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(0, floatY),
-                    child: child,
-                  ),
-                  child: Image.asset(
-                    _characterImage,
-                    height: roxieH,
-                    fit: BoxFit.contain,
-                  ),
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: SlideTransition(
+            position: _roxieSlide,
+            child: FadeTransition(
+              opacity: _roxieFade,
+              child: AnimatedBuilder(
+                animation: _roxieFloatCtrl,
+                builder: (_, child) => Transform.translate(
+                  offset: Offset(0, floatY),
+                  child: child,
+                ),
+                child: Image.asset(
+                  _characterImage,
+                  height: roxieH,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),

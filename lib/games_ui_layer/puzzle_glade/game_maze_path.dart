@@ -25,7 +25,6 @@ typedef Cell = (int row, int col);
 
 const int _kTotalRounds = 5;
 
-// Moved to top-level so both _MazePathScreenState and _MazePainter can use it
 String _edgeKey(Cell a, Cell b) {
   final cells = [a, b]
     ..sort((x, y) {
@@ -45,12 +44,7 @@ class MazePathScreen extends StatefulWidget {
 }
 
 class _MazePathScreenState extends State<MazePathScreen>
-    with
-        TickerProviderStateMixin,
-        RoxieReactionMixin<MazePathScreen>,
-        GameLoadingMixin,
-        PuzzleAudioMixin,
-        AiCameraMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, PuzzleAudioMixin, AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _roxieSfxPlayer;
 
@@ -475,26 +469,25 @@ class _MazePathScreenState extends State<MazePathScreen>
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );
-        return ClipRect(
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: SlideTransition(
-              position: _roxieSlide,
-              child: FadeTransition(
-                opacity: _roxieFade,
-                child: AnimatedBuilder(
-                  animation: _roxieFloatCtrl,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(0, floatY),
-                    child: child,
-                  ),
-                  child: Image.asset(
-                    _characterImage,
-                    height: roxieH,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        Text('🐰', style: TextStyle(fontSize: roxieH * 0.5)),
-                  ),
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: SlideTransition(
+            position: _roxieSlide,
+            child: FadeTransition(
+              opacity: _roxieFade,
+              child: AnimatedBuilder(
+                animation: _roxieFloatCtrl,
+                builder: (_, child) =>
+                    Transform.translate(
+                      offset: Offset(0, floatY),
+                      child: child,
+                    ),
+                child: Image.asset(
+                  _characterImage,
+                  height: roxieH,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      Text('🐰', style: TextStyle(fontSize: roxieH * 0.5)),
                 ),
               ),
             ),
