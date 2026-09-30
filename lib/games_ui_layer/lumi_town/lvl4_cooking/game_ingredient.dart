@@ -166,61 +166,41 @@ class WhiskWidget extends StatefulWidget {
 }
 
 class _WhiskWidgetState extends State<WhiskWidget> {
-  Offset _position = const Offset(0, 0);
-  double _rotation = 0;
-  bool _isDragging = false;
-  Offset? _lastPos;
+  Offset _position = Offset.zero;
+  bool _dragging = false;
   double _totalDistance = 0;
   static const double _requiredDistance = 600;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onPanStart: (details) {
-        setState(() {
-          _isDragging = true;
-          _lastPos = details.localPosition;
-        });
-      },
+      onPanStart: (_) => _dragging = true,
       onPanUpdate: (details) {
-        if (_lastPos != null) {
-          final delta = details.localPosition - _lastPos!;
-          _totalDistance += delta.distance;
-          _rotation += delta.dx * 0.05;
+        if (!_dragging) return;
+        final delta = details.delta;
+        _totalDistance += delta.distance;
+        setState(() => _position += delta);
 
-          setState(() {
-            _position += delta;
-            _lastPos = details.localPosition;
-          });
-
-          widget.onProgress((_totalDistance / _requiredDistance).clamp(0, 1));
-          if (_totalDistance >= _requiredDistance) {
-            widget.onComplete();
-          }
+        widget.onProgress((_totalDistance / _requiredDistance).clamp(0, 1));
+        if (_totalDistance >= _requiredDistance) {
+          widget.onComplete();
         }
       },
-      onPanEnd: (_) {
-        setState(() {
-          _isDragging = false;
-          _lastPos = null;
-          // Spring back
-          _position = Offset.zero;
-        });
-      },
+      onPanEnd: (_) => setState(() {
+        _dragging = false;
+        _position = Offset.zero;
+      }),
       child: Transform.translate(
         offset: _position,
-        child: Transform.rotate(
-          angle: _rotation,
-          child: Image.asset(
-            'assets/images/objects/lumi/whisk.png',
-            width: 80,
-            height: 80,
-            fit: BoxFit.contain,
-            errorBuilder: (ctx, err, st) => const Icon(
-              Icons.cable,
-              size: 60,
-              color: Color(0xFF8B5E10),
-            ),
+        child: Image.asset(
+          'assets/images/objects/lumi/whisk.png',
+          width: 80,
+          height: 80,
+          fit: BoxFit.contain,
+          errorBuilder: (ctx, err, st) => const Icon(
+            Icons.cable,
+            size: 60,
+            color: Color(0xFF8B5E10),
           ),
         ),
       ),

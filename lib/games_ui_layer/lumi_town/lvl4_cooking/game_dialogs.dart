@@ -13,6 +13,21 @@ class GameDialog {
 }
 
 class GameDialogs {
+  // ─── SCENE TRANSITIONS ───
+  static const letsCook = GameDialog(
+    id: 'lets_cook',
+    bearText: '',
+    instruction: null,
+    audioFile: 'lets_cook.wav',
+  );
+
+  static const letsPlate = GameDialog(
+    id: 'lets_plate',
+    bearText: '',
+    instruction: null,
+    audioFile: 'lets_plate.wav',
+  );
+
   // ─────────────────────────────────────────────
   //  SCENE 1 — INTRO
   // ─────────────────────────────────────────────

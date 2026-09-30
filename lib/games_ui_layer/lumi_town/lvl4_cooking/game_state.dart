@@ -5,7 +5,9 @@ enum GameScene {
   dryIngredients,
   wetIngredients,
   whisking,
+  cookIntro,
   cooking,
+  plateIntro,
   plating,
   outro,
 }
