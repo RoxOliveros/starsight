@@ -133,7 +133,7 @@ class _BubblePainter extends CustomPainter {
     const radius = 20.0;
     const tailHeight = 20.0;
     const tailWidth = 24.0;
-    const tailX = 40.0;
+    const tailOut = 18.0;
     final h = size.height - tailHeight;
 
     path.moveTo(radius, 0);
@@ -141,9 +141,8 @@ class _BubblePainter extends CustomPainter {
     path.quadraticBezierTo(size.width, 0, size.width, radius);
     path.lineTo(size.width, h - radius);
     path.quadraticBezierTo(size.width, h, size.width - radius, h);
-    path.lineTo(tailX + tailWidth, h);
-    path.lineTo(tailX + tailWidth / 2, size.height);
-    path.lineTo(tailX, h);
+    path.lineTo(radius + tailWidth, h);
+    path.lineTo(-tailOut, size.height);
     path.lineTo(radius, h);
     path.quadraticBezierTo(0, h, 0, h - radius);
     path.lineTo(0, radius);
