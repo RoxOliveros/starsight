@@ -87,21 +87,18 @@ class _SizeSortScreenState extends State<SizeSortScreen>
 
   // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
-
   int _itemCountForRound(int round) => round >= 4 ? 4 : 3;
-  List<double> get _sizesForRound =>
-      _itemCountForRound(_round) == 4 ? _kSizes4 : _kSizes3;
-  List<String> get _labelsForRound =>
-      _itemCountForRound(_round) == 4 ? _kSizeLabels4 : _kSizeLabels3;
 
   late String _currentObject;
 
+  List<double> get _sizesForRound => _itemCountForRound(_round) == 4 ? _kSizes4 : _kSizes3;
+  List<String> get _labelsForRound => _itemCountForRound(_round) == 4 ? _kSizeLabels4 : _kSizeLabels3;
   List<_SizeItem?> _slots = [null, null, null];
   List<bool> _flashSlot = [false, false, false];
 
   bool _roundComplete = false;
   bool _showWinDialog = false;
-
+  bool _isInstructionPlaying = true;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -224,18 +221,29 @@ class _SizeSortScreenState extends State<SizeSortScreen>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
+
     _roxieSlideCtrl.forward();
 
     await _playAudio(_audioIntro);
     if (!mounted) return;
+
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
 
     _gameEnterCtrl.forward();
     _startRound();
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
-    if (!mounted) return;
+
+    setState(() {
+      _screenPhase = _ScreenPhase.game;
+      _isInstructionPlaying = true;
+    });
+
     await _playAudio(_audioInstructions);
+    if (!mounted) return;
+
+    setState(() {
+      _isInstructionPlaying = false;
+    });
   }
 
   Future<void> _playAudio(String asset) async {
@@ -293,7 +301,7 @@ class _SizeSortScreenState extends State<SizeSortScreen>
   }
 
   void _onDragAccepted(int toSlot, int fromSlot) async {
-    if (_roundComplete) return;
+    if (_isInstructionPlaying || _roundComplete) return;
     if (fromSlot == toSlot) return;
 
     setState(() {
@@ -649,6 +657,7 @@ class _SizeSortScreenState extends State<SizeSortScreen>
                 final isHovered = candidateData.isNotEmpty;
                 return Draggable<int>(
                   data: slotIndex,
+                  maxSimultaneousDrags: (_roundComplete || _isInstructionPlaying) ? 0 : 1,
                   feedback: Material(
                     color: Colors.transparent,
                     child: Opacity(

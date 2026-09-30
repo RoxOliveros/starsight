@@ -64,13 +64,15 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
 
   // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
+  int? _tappedIndex;
+
   late String _answerObject;
   late List<String> _choices;
+
   bool _wrongFlash = false;
   bool _roundComplete = false;
-  int? _tappedIndex;
   bool _showWinDialog = false;
-
+  bool _isInstructionPlaying = true;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -207,17 +209,30 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    _roxieSlideCtrl.forward();
+    if (!mounted) return;
 
+    _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
+
     await _playBgAudio(_audioIntro);
+    if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
 
     _gameEnterCtrl.forward();
     _startRound();
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
+
+    setState(() {
+      _screenPhase = _ScreenPhase.game;
+      _isInstructionPlaying = true;
+    });
+
     await _playBgAudio(_audioInstructions);
+    if (!mounted) return;
+
+    setState(() {
+      _isInstructionPlaying = false;
+    });
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -258,6 +273,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   }
 
   Future<void> _onChoiceDropped(String tapped, int index) async {
+    if (_isInstructionPlaying) return;
     if (_roundComplete || _wrongFlash) return;
 
     if (tapped == _answerObject) {
@@ -554,7 +570,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
 
   Widget _buildSilhouetteCard() {
     return DragTarget<String>(
-      onWillAcceptWithDetails: (details) => !_roundComplete,
+      onWillAcceptWithDetails: (details) => !_roundComplete && !_isInstructionPlaying,
       onAcceptWithDetails: (details) {
         final index = _choices.indexOf(details.data);
         _onChoiceDropped(details.data, index);
@@ -715,7 +731,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     return Draggable<String>(
       key: ValueKey(object),
       data: object,
-      maxSimultaneousDrags: (_roundComplete || _wrongFlash) ? 0 : 1,
+      maxSimultaneousDrags: (_roundComplete || _wrongFlash || _isInstructionPlaying) ? 0 : 1,
       feedback: Material(color: Colors.transparent, child: child),
       childWhenDragging: Container(
         width: 82,
