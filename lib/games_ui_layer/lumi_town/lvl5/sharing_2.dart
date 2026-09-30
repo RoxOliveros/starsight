@@ -8,12 +8,10 @@ import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
-
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../tryagain_prompt.dart';
 import 'character_entrance.dart';
 import 'sharing_tutorial_prompt.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
@@ -38,8 +36,11 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   // ── State Variables ──────────────────────────────────────────────────
-  bool _showCancelBtn = false;
   Timer? _cancelBtnTimer;
+
+  String _currentMood = 'normal';
+
+  bool _showCancelBtn = false;
   bool _readyForEntrance = false;
   bool _showSadBearFailedUI = false;
   bool _showAllCharactersSuccessUI = false;
@@ -47,19 +48,19 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
   bool _showTryAgainButton = false;
   bool _showTutorial = true;
   bool _secondFoxCanceled = false;
-  String _currentMood = 'normal';
-
+  bool _canGive = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _hasGivenPancake = false;
+  bool _hasGivenWater = false;
+  bool _bearPhase = false;
+  bool _isCancelProcessing = false;
 
   int _pancakesLeft = 7;
   int _waterLeft = 7;
-
-  bool _hasGivenPancake = false;
-  bool _hasGivenWater = false;
-
   int _charIndex = 0;
-  int _retryCount = 0;
+
+  final int _retryCount = 0;
 
   static const Map<String, String> characters = {
     'bunny': 'assets/images/characters/roxie_the_rabbit.png',
@@ -99,6 +100,8 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
   ];
 
   String get currentCharacterImage {
+    if (_bearPhase) return 'assets/images/characters/little_bear_uniform.png';
+
     String charKey = _sequence[_charIndex];
 
     if (_currentMood == 'smiling') {
@@ -145,6 +148,11 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
     _startRoundAudioAndTimers();
   }
 
+  void _setReady(bool ready) {
+    _readyForEntrance = ready;
+    _canGive = false;
+  }
+
   Future<void> _lockOrientationThenStartEntrance() async {
     OrientationService.setLandscape();
 
@@ -153,7 +161,7 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
 
     if (mounted) {
       setState(() {
-        _readyForEntrance = true;
+        _setReady(true);
       });
     }
   }
@@ -169,16 +177,19 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
   }
 
   Future<void> _checkNextCharacter() async {
-    if (_hasGivenPancake && _hasGivenWater) {
+    final bool done = _hasGivenPancake && _hasGivenWater;
+
+    if (done) {
       String currentCharKey = _sequence[_charIndex];
 
       setState(() {
         _currentMood = 'smiling';
       });
 
-      String audioPath =
-          characterThankYouVoiceovers[currentCharKey] ??
-          'audio/lumi_town/level5/share_yes.wav';
+      String audioPath = _bearPhase
+          ? 'audio/lumi_town/level5/littlebear_thankyou.wav'
+          : (characterThankYouVoiceovers[currentCharKey] ??
+          'audio/lumi_town/level5/littlebear_thankyou.wav');
 
       await _audioPlayer.play(AssetSource(audioPath));
 
@@ -187,7 +198,7 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
 
         if (_charIndex < _sequence.length - 1) {
           setState(() {
-            _readyForEntrance = false;
+            _setReady(false);
             _charIndex++;
             _hasGivenPancake = false;
             _hasGivenWater = false;
@@ -197,12 +208,27 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
           Future.delayed(const Duration(milliseconds: 200), () {
             if (!mounted) return;
             setState(() {
-              _readyForEntrance = true;
+              _setReady(true);
             });
           });
-        } else {
+        } else if (_secondFoxCanceled && !_bearPhase) {
+        setState(() {
+          _setReady(false);
+          _bearPhase = true;
+          _hasGivenPancake = false;
+          _hasGivenWater = false;
+          _currentMood = 'normal';
+        });
+
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (!mounted) return;
           setState(() {
-            _readyForEntrance = false;
+            _setReady(true);
+          });
+        });
+      } else {
+          setState(() {
+            _setReady(false);
           });
 
           if (_secondFoxCanceled) {
@@ -262,42 +288,52 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
   }
 
   void _handleCancel() {
+    if (_isCancelProcessing) return;
+
     if (_charIndex != 5) {
       widget.tapTracker.recordMistake();
-      _audioPlayer.play(AssetSource('audio/lumi_town/level5/cancel_wrong.wav'));
+      _audioPlayer.play(
+        AssetSource('audio/lumi_town/level5/cancel_wrong.wav'),
+      );
       return;
     }
 
-    if (_charIndex == 5) {
-      widget.tapTracker.recordCorrectTap();
+    _isCancelProcessing = true;
+
+    widget.tapTracker.recordCorrectTap();
+
+    setState(() {
+      _showCancelBtn = false;
+
+      _secondFoxCanceled = true;
+      _currentMood = 'sad';
+      _canGive = false;
+
+      if (_hasGivenPancake) _pancakesLeft++;
+      if (_hasGivenWater) _waterLeft++;
+
+      _hasGivenPancake = false;
+      _hasGivenWater = false;
+    });
+
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted) return;
+
       setState(() {
-        _secondFoxCanceled = true;
-        _currentMood = 'sad';
-
-        if (_hasGivenPancake) _pancakesLeft++;
-        if (_hasGivenWater) _waterLeft++;
-
-        _hasGivenPancake = false;
-        _hasGivenWater = false;
+        _setReady(false);
+        _charIndex++;
+        _currentMood = 'normal';
       });
 
-      Future.delayed(const Duration(milliseconds: 1500), () {
+      Future.delayed(const Duration(milliseconds: 300), () {
         if (!mounted) return;
-        setState(() {
-          _readyForEntrance = false;
-          _charIndex++;
-          _currentMood = 'normal';
-        });
 
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (!mounted) return;
-          setState(() {
-            _readyForEntrance = true;
-          });
+        setState(() {
+          _setReady(true);
+          _isCancelProcessing = false;
         });
       });
-      return;
-    }
+    });
   }
 
   Widget _positionedCharacter(
@@ -368,8 +404,8 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
               right: 0,
               child: DragTarget<String>(
                 onWillAcceptWithDetails: (details) {
-                  if (details.data == 'pancake' && !_hasGivenPancake)
-                    return true;
+                  if (!_canGive) return false;
+                  if (details.data == 'pancake' && !_hasGivenPancake) return true;
                   if (details.data == 'water' && !_hasGivenWater) return true;
                   return false;
                 },
@@ -396,7 +432,7 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
                       children: [
                         if (_readyForEntrance)
                           CharacterEntrance(
-                            key: ValueKey('$_charIndex-$_retryCount'),
+                            key: ValueKey('$_charIndex-$_retryCount-$_bearPhase'),
                             characterImagePath: currentCharacterImage,
                             characterHeightFraction: 0.95,
                             plateWidthFraction: 0.18,
@@ -413,6 +449,14 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
                             from: AxisDirection.right,
                             walkDuration: const Duration(milliseconds: 3000),
                             stepDuration: const Duration(milliseconds: 380),
+                            onArrived: () {
+                              if (!mounted) return;
+
+                              setState(() {
+                                _canGive = true;
+                                _showCancelBtn = true;
+                              });
+                            },
                           )
                         else
                           const SizedBox.shrink(),
@@ -458,7 +502,9 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
                         errorBuilder: (ctx, err, st) => Container(
                           width: plateWidth,
                           height: 14,
-                          decoration: BoxDecoration(color: Colors.white),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -477,26 +523,32 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
                       final positionedPancake = Positioned(
                         bottom: stackBaseOffset + (index * pancakeThickness),
                         left: plateWidth / 2 - pancakeWidth / 2 + dx,
-                        child: isTop
-                            ? Draggable<String>(
-                                data: 'pancake',
-                                onDragEnd: (details) {
-                                  if (!details.wasAccepted) {
-                                    widget.tapTracker.recordMistake();
-                                  }
-                                },
-                                feedback: Material(
-                                  color: Colors.transparent,
-                                  child: pancakeWidget,
-                                ),
-                                childWhenDragging: Opacity(
-                                  opacity: 0.3,
-                                  child: pancakeWidget,
-                                ),
-                                child: pancakeWidget,
-                              )
-                            : pancakeWidget,
+                        child: AnimatedOpacity(
+                          opacity: _canGive ? 1.0 : 0.35,
+                          duration: const Duration(milliseconds: 250),
+                          child: isTop
+                              ? Draggable<String>(
+                            data: 'pancake',
+                            maxSimultaneousDrags: _canGive ? 1 : 0,
+                            onDragEnd: (details) {
+                              if (!details.wasAccepted) {
+                                widget.tapTracker.recordMistake();
+                              }
+                            },
+                            feedback: Material(
+                              color: Colors.transparent,
+                              child: pancakeWidget,
+                            ),
+                            childWhenDragging: Opacity(
+                              opacity: 0.3,
+                              child: pancakeWidget,
+                            ),
+                            child: pancakeWidget,
+                          )
+                              : pancakeWidget,
+                        ),
                       );
+
                       return positionedPancake;
                     }),
                   ],
@@ -533,22 +585,27 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
                       return Positioned(
                         bottom: bottom,
                         left: left,
-                        child: Draggable<String>(
-                          data: 'water',
-                          onDragEnd: (details) {
-                            if (!details.wasAccepted) {
-                              widget.tapTracker.recordMistake();
-                            }
-                          },
-                          feedback: Material(
-                            color: Colors.transparent,
+                        child: AnimatedOpacity(
+                          opacity: _canGive ? 1.0 : 0.35,
+                          duration: const Duration(milliseconds: 250),
+                          child: Draggable<String>(
+                            data: 'water',
+                            maxSimultaneousDrags: _canGive ? 1 : 0,
+                            onDragEnd: (details) {
+                              if (!details.wasAccepted) {
+                                widget.tapTracker.recordMistake();
+                              }
+                            },
+                            feedback: Material(
+                              color: Colors.transparent,
+                              child: glassWidget,
+                            ),
+                            childWhenDragging: Opacity(
+                              opacity: 0.3,
+                              child: glassWidget,
+                            ),
                             child: glassWidget,
                           ),
-                          childWhenDragging: Opacity(
-                            opacity: 0.3,
-                            child: glassWidget,
-                          ),
-                          child: glassWidget,
                         ),
                       );
                     }),
@@ -561,32 +618,39 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
               Positioned(
                 bottom: sh * 0.05,
                 right: sw * 0.02,
-                child: GestureDetector(
-                  onTap: _handleCancel,
-                  child:
+                child: IgnorePointer(
+                  ignoring: !_canGive,
+                  child: AnimatedOpacity(
+                    opacity: _canGive ? 1.0 : 0.35,
+                    duration: const Duration(milliseconds: 250),
+                    child: GestureDetector(
+                      onTap: _canGive ? _handleCancel : null,
+                      child:
                       Image.asset(
-                            'assets/images/objects/lumi/cancel_btn.png',
-                            width: sw * 0.10,
-                            errorBuilder: (ctx, err, st) => Icon(
-                              Icons.cancel,
-                              color: Colors.red,
-                              size: sw * 0.10,
-                            ),
-                          )
+                        'assets/images/objects/lumi/cancel_btn.png',
+                        width: sw * 0.10,
+                        errorBuilder: (ctx, err, st) => Icon(
+                          Icons.cancel,
+                          color: Colors.red,
+                          size: sw * 0.10,
+                        ),
+                      )
                           .animate(onPlay: (c) => c.repeat(reverse: true))
                           .scale(
-                            begin: const Offset(1.0, 1.0),
-                            end: const Offset(1.06, 1.06),
-                            duration: const Duration(milliseconds: 800),
-                            curve: Curves.easeInOut,
-                          )
+                        begin: const Offset(1.0, 1.0),
+                        end: const Offset(1.06, 1.06),
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.easeInOut,
+                      )
                           .animate()
                           .scale(
-                            begin: const Offset(0.0, 0.0),
-                            end: const Offset(1.0, 1.0),
-                            duration: const Duration(milliseconds: 600),
-                            curve: Curves.elasticOut,
-                          ),
+                        begin: const Offset(0.0, 0.0),
+                        end: const Offset(1.0, 1.0),
+                        duration: const Duration(milliseconds: 600),
+                        curve: Curves.elasticOut,
+                      ),
+                    ),
+                  ),
                 ),
               ),
 
@@ -665,11 +729,10 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
                               _waterLeft = 7;
                               _hasGivenPancake = false;
                               _hasGivenWater = false;
-                              _readyForEntrance = true;
+                              _setReady(true);
                               _secondFoxCanceled = false;
                               _currentMood = 'normal';
-
-                              // Reset the tracking session
+                              _bearPhase = false;
                               _hasSavedResult = false;
                               widget.tapTracker.startSession();
                             });
@@ -781,11 +844,10 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
                             _waterLeft = 7;
                             _hasGivenPancake = false;
                             _hasGivenWater = false;
-                            _readyForEntrance = true;
+                            _setReady(true);
                             _secondFoxCanceled = false;
                             _currentMood = 'normal';
-
-                            // Reset the tracking session
+                            _bearPhase = false;
                             _hasSavedResult = false;
                             widget.tapTracker.startSession();
                           });
