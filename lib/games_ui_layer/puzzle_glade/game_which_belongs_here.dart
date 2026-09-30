@@ -134,43 +134,28 @@ class WhichBelongsHereScreen extends StatefulWidget {
 }
 
 class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
-    with
-        TickerProviderStateMixin,
-        RoxieReactionMixin<WhichBelongsHereScreen>,
-        GameLoadingMixin,
-        AiCameraMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
   static const String _sceneAssetPath = 'assets/images/backgrounds';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/which_belongs_here_intro.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/which_belongs_here_complete.wav';
-  static const String _audioBathroom =
-      'assets/audio/puzzle_glade/which_belongs_here_bathroom.wav';
-  static const String _audioBeach =
-      'assets/audio/puzzle_glade/which_belongs_here_beach.wav';
-  static const String _audioClassroom =
-      'assets/audio/puzzle_glade/which_belongs_here_classroom.wav';
-  static const String _audioGarden =
-      'assets/audio/puzzle_glade/which_belongs_here_garden.wav';
-  static const String _audioKitchen =
-      'assets/audio/puzzle_glade/which_belongs_here_kitchen.wav';
-  static const String _audioLivingRoom =
-      'assets/audio/puzzle_glade/which_belongs_here_living_room.wav';
-  static const String _audioPark =
-      'assets/audio/puzzle_glade/which_belongs_here_park.wav';
-  static const String _audioBedroom =
-      'assets/audio/puzzle_glade/which_belongs_here_bedroom.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/which_belongs_here_intro.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/which_belongs_here_complete.wav';
+  static const String _audioBathroom = 'assets/audio/puzzle_glade/which_belongs_here_bathroom.wav';
+  static const String _audioBeach = 'assets/audio/puzzle_glade/which_belongs_here_beach.wav';
+  static const String _audioClassroom = 'assets/audio/puzzle_glade/which_belongs_here_classroom.wav';
+  static const String _audioGarden = 'assets/audio/puzzle_glade/which_belongs_here_garden.wav';
+  static const String _audioKitchen = 'assets/audio/puzzle_glade/which_belongs_here_kitchen.wav';
+  static const String _audioLivingRoom = 'assets/audio/puzzle_glade/which_belongs_here_living_room.wav';
+  static const String _audioPark = 'assets/audio/puzzle_glade/which_belongs_here_park.wav';
+  static const String _audioBedroom = 'assets/audio/puzzle_glade/which_belongs_here_bedroom.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -187,7 +172,6 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
   bool _buttonsDisabled = true;
   bool _roundComplete = false;
   bool _showWinDialog = false;
-  bool _instructionPlayed = false;
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -663,24 +647,22 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );
-        return ClipRect(
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: SlideTransition(
-              position: _roxieSlide,
-              child: FadeTransition(
-                opacity: _roxieFade,
-                child: AnimatedBuilder(
-                  animation: _roxieFloatCtrl,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(0, floatY),
-                    child: child,
-                  ),
-                  child: Image.asset(
-                    _characterImage,
-                    height: roxieH,
-                    fit: BoxFit.contain,
-                  ),
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: SlideTransition(
+            position: _roxieSlide,
+            child: FadeTransition(
+              opacity: _roxieFade,
+              child: AnimatedBuilder(
+                animation: _roxieFloatCtrl,
+                builder: (_, child) => Transform.translate(
+                  offset: Offset(0, floatY),
+                  child: child,
+                ),
+                child: Image.asset(
+                  _characterImage,
+                  height: roxieH,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),

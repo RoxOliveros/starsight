@@ -118,27 +118,19 @@ class ConnectTheDotsScreen extends StatefulWidget {
 }
 
 class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
-    with
-        TickerProviderStateMixin,
-        RoxieReactionMixin<ConnectTheDotsScreen>,
-        GameLoadingMixin,
-        AiCameraMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/connect_the_dots_intro.wav';
-  static const String _audioInstruction =
-      'assets/audio/puzzle_glade/connect_the_dots_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/connect_the_dots_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/connect_the_dots_intro.wav';
+  static const String _audioInstruction = 'assets/audio/puzzle_glade/connect_the_dots_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/connect_the_dots_complete.wav';
   static const String _audioPop = 'audio/puzzle_glade/sfx_pop.mp3';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
@@ -663,28 +655,28 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
         final floatY = Tween<double>(begin: -8, end: 8).evaluate(
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );
-        return ClipRect(
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: SlideTransition(
-              position: _roxieSlide,
-              child: FadeTransition(
-                opacity: _roxieFade,
-                child: AnimatedBuilder(
-                  animation: _roxieFloatCtrl,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(0, floatY),
-                    child: child,
-                  ),
-                  child: Image.asset(
-                    _characterImage,
-                    height: roxieH,
-                    fit: BoxFit.contain,
-                  ),
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: SlideTransition(
+            position: _roxieSlide,
+            child: FadeTransition(
+              opacity: _roxieFade,
+              child: AnimatedBuilder(
+                animation: _roxieFloatCtrl,
+                builder: (_, child) =>
+                    Transform.translate(
+                      offset: Offset(0, floatY),
+                      child: child,
+                    ),
+                child: Image.asset(
+                  _characterImage,
+                  height: roxieH,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
           ),
+
         );
       },
     );
