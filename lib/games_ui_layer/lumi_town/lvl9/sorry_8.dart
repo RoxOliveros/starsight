@@ -271,7 +271,7 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
                 onNext: () {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (context) => const PickingTrashGame(),
+                      builder: (context) => PickingTrashGame(level: widget.level + 1),
                     ),
                   );
                 },

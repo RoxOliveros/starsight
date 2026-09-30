@@ -14,25 +14,31 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 
+import '../../../ui_layer/game_loading_mixin.dart';
+import '../../../ui_layer/loading_screen.dart';
+import '../lumi_game_ui_layer.dart';
+
 // ==========================================
 // 🛠️ TRASH ITEM DATA MODEL
 // ==========================================
 class TrashItem {
   final String imagePath;
-  final int correctBinId; // 1 = Green, 2 = Blue, 3 = Yellow
+  final int correctBinId;
 
   TrashItem(this.imagePath, this.correctBinId);
 }
 
 class ThrowingTrashGame extends StatefulWidget {
-  const ThrowingTrashGame({super.key});
+  final int level;
+
+  const ThrowingTrashGame({super.key, required this.level});
 
   @override
   State<ThrowingTrashGame> createState() => _ThrowingTrashGameState();
 }
 
 class _ThrowingTrashGameState extends State<ThrowingTrashGame>
-    with TickerProviderStateMixin, AiCameraMixin<ThrowingTrashGame> {
+    with TickerProviderStateMixin, AiCameraMixin<ThrowingTrashGame>, GameLoadingMixin {
   // ==========================================
   // 🛠️ ADJUSTERS
   // ==========================================
@@ -126,10 +132,16 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
       }
     });
 
+    finishLoading(_startIntroFlow);
+  }
+
+  void _startIntroFlow() {
     _walkCtrl.forward().then((_) {
       if (mounted) {
         setState(() => _introStep = 1);
-        _playAudio('audio/lumi_town/level11/throwing_trash_game_intro.wav');
+        _playAudio(
+          'audio/lumi_town/level11/throwing_trash_game_intro.wav',
+        );
       }
     });
   }
@@ -149,7 +161,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
       TrashItem('assets/images/objects/lumi/trash_styro.png', 2),
       TrashItem('assets/images/objects/lumi/trash_chips1.png', 2),
       TrashItem('assets/images/objects/lumi/trash_plasticbag.png', 2),
-      TrashItem('assets/images/objects/lumi/trash_spoon.png', 2),
+      TrashItem('assets/images/objects/lumi/trash_spork.png', 2),
       TrashItem('assets/images/objects/lumi/trash_plastic1.png', 2),
       TrashItem('assets/images/objects/lumi/trash_drink.png', 2),
       TrashItem('assets/images/objects/lumi/trash_garbagebag1.png', 2),
@@ -308,11 +320,13 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
         : trashcanIntroBottomOffset;
 
     return Scaffold(
-      body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.lumiTown(),
+          gameBuilder: () => Listener(
+            onPointerDown: (_) => _tapTracker.recordGenericTap(),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
             Image.asset(
               'assets/images/backgrounds/bg_park_sunny.png',
               fit: BoxFit.cover,
@@ -457,6 +471,9 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
                 ),
               ),
 
+            const Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {
@@ -490,11 +507,10 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
                   onBack: () => Navigator.of(context).pop(),
                 ),
               ),
-
-            const Positioned(top: 25, left: 25, child: LumiXButton()),
           ],
         ),
       ),
+        ),
     );
   }
 }

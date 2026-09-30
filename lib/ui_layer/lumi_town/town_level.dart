@@ -338,9 +338,9 @@ class _LevelTile extends StatelessWidget {
       case 9:
         return Sorry1Screen(level: 9);
       case 10:
-        return PickingTrashGame();
+        return PickingTrashGame(level: 10);
       case 11:
-        return ThrowingTrashGame();
+        return ThrowingTrashGame(level: 11);
       case 12:
         return AppreciationGame();
       case 13:
