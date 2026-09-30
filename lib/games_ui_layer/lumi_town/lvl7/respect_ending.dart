@@ -9,21 +9,23 @@ import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 
+import '../lumi_game_ui_layer.dart';
+
 class RespectEnding extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const RespectEnding({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -211,6 +213,7 @@ class _RespectEndingState extends State<RespectEnding>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -235,7 +238,7 @@ class _RespectEndingState extends State<RespectEnding>
 
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (_) => const LumiClassroomScreen(),
+                      builder: (_) => LumiClassroomScreen(level: widget.level),
                     ),
                   );
                 },
