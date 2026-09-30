@@ -27,6 +27,7 @@ import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'puzzle_buttons.dart';
 import 'puzzle_theme.dart';
+import '../starsight_setup_dialog.dart';
 
 class PuzzleLevelScreen extends StatefulWidget {
   const PuzzleLevelScreen({super.key});
@@ -61,6 +62,16 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
     setState(() {
       _unlockedLevel = unlocked;
       _isLoadingProgress = false;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      StarsightSetupTutorial.show(
+        context,
+        levelId: 'puzzle_glade',
+        forceShow: true,
+        onDone: () {},
+      );
     });
   }
 

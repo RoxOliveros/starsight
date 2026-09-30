@@ -28,7 +28,7 @@ import '../../ui_layer/app_dialog.dart';
 import '../loading_screen.dart';
 import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import '../starsight_setup_dialog.dart';
 import 'lagoon_theme.dart';
 
 class LagoonLevelScreen extends StatefulWidget {
@@ -58,8 +58,8 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
 
   void _listenToProgress() {
     _progressSub = LagoonProgressService.instance.streamUnlockedLevel().listen((
-      level,
-    ) async {
+        level,
+        ) async {
       if (!mounted) return;
 
       if (_isLoading) {
@@ -71,10 +71,24 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
         if (!mounted) return;
       }
 
+      final wasLoading = _isLoading;
+
       setState(() {
         _unlockedLevel = level;
         _isLoading = false;
       });
+
+      if (wasLoading) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          StarsightSetupTutorial.show(
+            context,
+            levelId: 'discovery_lagoon',
+            forceShow: true,
+            onDone: () {},
+          );
+        });
+      }
     });
   }
 
@@ -283,26 +297,26 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
   }
 }
 
-String? _lagoonCalibratedSessionId;
-
-Future<void> _ensureLagoonCalibrated(BuildContext context) async {
-  final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-  if (_lagoonCalibratedSessionId == uid) return;
-  _lagoonCalibratedSessionId = uid;
-
-  await Navigator.push(
-    context,
-
-    PageRouteBuilder(
-      opaque: false,
-      pageBuilder: (context, animation, secondaryAnimation) =>
-          CalibrationScreen(
-            childSessionId: uid,
-            onCalibrationDone: () => Navigator.pop(context),
-          ),
-    ),
-  );
-}
+// String? _lagoonCalibratedSessionId;
+//
+// Future<void> _ensureLagoonCalibrated(BuildContext context) async {
+//   final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+//   if (_lagoonCalibratedSessionId == uid) return;
+//   _lagoonCalibratedSessionId = uid;
+//
+//   await Navigator.push(
+//     context,
+//
+//     PageRouteBuilder(
+//       opaque: false,
+//       pageBuilder: (context, animation, secondaryAnimation) =>
+//           CalibrationScreen(
+//             childSessionId: uid,
+//             onCalibrationDone: () => Navigator.pop(context),
+//           ),
+//     ),
+//   );
+// }
 
 class _LevelTile extends StatelessWidget {
   final int level;
@@ -314,7 +328,7 @@ class _LevelTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        await _ensureLagoonCalibrated(context);
+        //await _ensureLagoonCalibrated(context);
         if (!context.mounted) return;
         switch (level) {
           case 1:
