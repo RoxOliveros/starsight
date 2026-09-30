@@ -28,6 +28,7 @@ import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'lumi_buttons.dart';
 import 'lumi_theme.dart';
+import '../starsight_setup_dialog.dart';
 
 class LumiLevelScreen extends StatefulWidget {
   const LumiLevelScreen({super.key});
@@ -37,6 +38,10 @@ class LumiLevelScreen extends StatefulWidget {
 }
 
 class _LumiLevelScreenState extends State<LumiLevelScreen> {
+  // Lives outside the State instance, so it survives the screen being re-created.
+  // Resets only when the app is restarted.
+  static bool _setupTutorialShownThisSession = false;
+
   int _unlockedLevel = 1;
   int _page = 0;
   bool _isLoadingProgress = true;
@@ -52,13 +57,14 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
 
   void _listenToProgress() {
     _progressSub = TownProgressService.instance.streamUnlockedLevel().listen((
-      level,
-    ) async {
+        level,
+        ) async {
       if (!mounted) return;
+
+      final wasLoading = _isLoadingProgress;
 
       if (_isLoadingProgress) {
         final elapsed = DateTime.now().difference(_loadStart);
-        //Loading time
         final remaining = const Duration(milliseconds: 1500) - elapsed;
         if (remaining > Duration.zero) {
           await Future.delayed(remaining);
@@ -70,6 +76,21 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
         _unlockedLevel = level;
         _isLoadingProgress = false;
       });
+
+      // Only show once per app session, and only on the first data event.
+      if (wasLoading && !_setupTutorialShownThisSession) {
+        _setupTutorialShownThisSession = true; // set immediately to block duplicates
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          StarsightSetupTutorial.show(
+            context,
+            levelId: 'lumi_town',
+            forceShow: true,
+            onDone: () {},
+          );
+        });
+      }
     });
   }
 
@@ -289,27 +310,27 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
   }
 }
 
-String? _townCalibratedSessionId;
-
-/// Shows the camera calibration
-Future<void> _ensureTownCalibrated(BuildContext context) async {
-  final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-  if (_townCalibratedSessionId == uid) return;
-  _townCalibratedSessionId = uid;
-
-  await Navigator.push(
-    context,
-
-    PageRouteBuilder(
-      opaque: false,
-      pageBuilder: (context, animation, secondaryAnimation) =>
-          CalibrationScreen(
-            childSessionId: uid,
-            onCalibrationDone: () => Navigator.pop(context),
-          ),
-    ),
-  );
-}
+// String? _townCalibratedSessionId;
+//
+// /// Shows the camera calibration
+// Future<void> _ensureTownCalibrated(BuildContext context) async {
+//   final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+//   if (_townCalibratedSessionId == uid) return;
+//   _townCalibratedSessionId = uid;
+//
+//   await Navigator.push(
+//     context,
+//
+//     PageRouteBuilder(
+//       opaque: false,
+//       pageBuilder: (context, animation, secondaryAnimation) =>
+//           CalibrationScreen(
+//             childSessionId: uid,
+//             onCalibrationDone: () => Navigator.pop(context),
+//           ),
+//     ),
+//   );
+// }
 
 class _LevelTile extends StatelessWidget {
   final int level;
@@ -371,7 +392,7 @@ class _LevelTile extends StatelessWidget {
       onTap: () async {
         final screen = _screenForLevel();
         if (screen == null) return;
-        await _ensureTownCalibrated(context);
+       // await _ensureTownCalibrated(context);
         if (!context.mounted) return;
         Navigator.push(
           context,

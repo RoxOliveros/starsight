@@ -24,6 +24,7 @@ import '../../games_ui_layer/alphabet_forest/forest_game_stick_letter_builder.da
 import '../../games_ui_layer/alphabet_forest/forest_game_train.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_yak_zebra_race.dart';
 import '../loading_screen.dart';
+import '../starsight_setup_dialog.dart';
 
 abstract class ColorTheme {
   static const Color darkbrown = Color(0xFF4E360D);
@@ -66,22 +67,40 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
 
   void _listenToProgress() {
     _progressSub = ForestProgressService.instance.streamUnlockedLevel().listen((
-      level,
-    ) async {
+        level,
+        ) async {
       if (!mounted) return;
 
-      final elapsed = DateTime.now().difference(_loadStart);
-      // Loading time
-      final remaining = const Duration(milliseconds: 1500) - elapsed;
-      if (remaining > Duration.zero) {
-        await Future.delayed(remaining);
+      final wasLoading = _isLoadingProgress;
+
+      if (_isLoadingProgress) {
+        final elapsed = DateTime.now().difference(_loadStart);
+        // Loading time
+        final remaining = const Duration(milliseconds: 1500) - elapsed;
+        if (remaining > Duration.zero) {
+          await Future.delayed(remaining);
+        }
+        if (!mounted) return;
       }
-      if (!mounted) return;
 
       setState(() {
         _unlockedLevel = level;
         _isLoadingProgress = false;
       });
+
+      // Only show the tutorial once, right after the first load finishes —
+      // not on every subsequent progress update (e.g. when a level is completed).
+      if (wasLoading) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          StarsightSetupTutorial.show(
+            context,
+            levelId: 'alphabet_forest',
+            forceShow: true,
+            onDone: () {},
+          );
+        });
+      }
     });
   }
 

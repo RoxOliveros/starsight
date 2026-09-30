@@ -34,6 +34,7 @@ import '../../games_ui_layer/arctic_numberland/game_subtraction_compare_game.dar
 import '../../games_ui_layer/arctic_numberland/game_subtraction_melting_ice_game.dart';
 import '../loading_screen.dart';
 import 'arctic_theme.dart';
+import '../starsight_setup_dialog.dart';
 
 class ArcticLevelScreen extends StatefulWidget {
   const ArcticLevelScreen({super.key});
@@ -49,6 +50,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   final DateTime _loadStart = DateTime.now();
 
   bool _hasCalibratedThisVisit = false;
+  bool _hasShownTutorial = false; // NEW: guard flag
 
   @override
   void initState() {
@@ -72,7 +74,23 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
       _unlockedLevel = unlocked;
       _isLoading = false;
     });
+
+    // Only show the tutorial the first time progress loads —
+    // not every time _loadProgress() re-runs after finishing a level.
+    if (!_hasShownTutorial) {
+      _hasShownTutorial = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        StarsightSetupTutorial.show(
+          context,
+          levelId: 'arctic_numberland',
+          forceShow: true,
+          onDone: () {},
+        );
+      });
+    }
   }
+
 
   Future<void> _openLevel(Widget screen) async {
     if (!_hasCalibratedThisVisit) {
