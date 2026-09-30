@@ -32,33 +32,26 @@ class StarColorSortScreen extends StatefulWidget {
 }
 
 class _StarColorSortScreenState extends State<StarColorSortScreen>
-    with
-        TickerProviderStateMixin,
-        RoxieReactionMixin,
-        GameLoadingMixin,
-        AiCameraMixin {
+    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
   @override
   AudioPlayer get roxiePlayer => _player;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/star_sort_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/star_sort_instruction.wav';
-  static const String _audioGameComplete =
-      'assets/audio/puzzle_glade/star_sort_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/star_sort_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/star_sort_instruction.wav';
+  static const String _audioGameComplete = 'assets/audio/puzzle_glade/star_sort_complete.wav';
 
-  static const String _audioCorrect =
-      'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
 
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
   static const String _jarImage = 'assets/images/objects/puzzle/jar_bnw.png';
+  static final ImageProvider _starProvider = ResizeImage(const AssetImage(_starImage), width: 160);
+  static final ImageProvider _jarProvider = ResizeImage(const AssetImage(_jarImage), width: 240);
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -73,32 +66,26 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
   static const _allPairs = [
     _JarPair(
-      label: 'Red',
       jarColor: Color(0xFFFF6B6B),
       ballColor: Color(0xFFFF6B6B),
     ),
     _JarPair(
-      label: 'Blue',
       jarColor: Color(0xFF1E88E5),
       ballColor: Color(0xFF1E88E5),
     ),
     _JarPair(
-      label: 'Green',
       jarColor: Color(0xFF43A047),
       ballColor: Color(0xFF43A047),
     ),
     _JarPair(
-      label: 'Yellow',
       jarColor: Color(0xFFFDD835),
       ballColor: Color(0xFFFDD835),
     ),
     _JarPair(
-      label: 'Purple',
       jarColor: Color(0xFFCE93D8),
       ballColor: Color(0xFFCE93D8),
     ),
     _JarPair(
-      label: 'Orange',
       jarColor: Color(0xFFFF9800),
       ballColor: Color(0xFFFF9800),
     ),
@@ -109,16 +96,18 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
   // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
+
   late _JarPair _jarA;
   late _JarPair _jarB;
   late List<_Ball> _poolBalls;
   late List<_Ball> _jarABalls;
   late List<_Ball> _jarBBalls;
+
   bool _wrongFlashA = false;
   bool _wrongFlashB = false;
   bool _roundComplete = false;
   bool _showWinDialog = false;
-
+  bool _assetsReady = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -152,7 +141,15 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
     _initAnimations();
     _startRound();
-    finishLoading(_startIntroFlow);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _precacheAssets();
+      if (!mounted) return;
+      setState(() => _assetsReady = true);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      finishLoading(_startIntroFlow);
+    });
   }
 
   @override
@@ -256,6 +253,26 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     } finally {
       await sub?.cancel();
     }
+  }
+
+  Future<void> _precacheOne(ImageProvider p) => precacheImage(
+    p,
+    context,
+    onError: (e, st) => debugPrint('Precache FAILED: $e'),
+  );
+
+  Future<void> _precacheAssets() async {
+    final cache = PaintingBinding.instance.imageCache;
+    cache.maximumSizeBytes = 300 << 20;
+    cache.maximumSize = 200;
+
+    await Future.wait([_starProvider, _jarProvider].map(_precacheOne));
+    await Future.wait([
+      AssetImage(_characterImage),
+      AssetImage(_bgImage),
+    ].map(_precacheOne));
+
+    await WidgetsBinding.instance.endOfFrame;
   }
 
   void _setIntroPhase(_IntroPhase p) {
@@ -474,26 +491,22 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
           CurvedAnimation(parent: _roxieFloatCtrl, curve: Curves.easeInOut),
         );
 
-        return ClipRect(
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: SlideTransition(
-              position: _roxieSlide,
-              child: FadeTransition(
-                opacity: _roxieFade,
-                child: AnimatedBuilder(
-                  animation: _roxieFloatCtrl,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(0, floatY),
-                    child: child,
-                  ),
-                  child: Image.asset(
-                    _characterImage,
-                    height: roxieH,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
-                        Text('🐰', style: TextStyle(fontSize: roxieH * 0.5)),
-                  ),
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: SlideTransition(
+            position: _roxieSlide,
+            child: FadeTransition(
+              opacity: _roxieFade,
+              child: AnimatedBuilder(
+                animation: _roxieFloatCtrl,
+                builder: (_, child) =>
+                    Transform.translate(offset: Offset(0, floatY), child: child),
+                child: Image.asset(
+                  _characterImage,
+                  height: roxieH,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      Text('🐰', style: TextStyle(fontSize: roxieH * 0.5)),
                 ),
               ),
             ),
@@ -504,54 +517,48 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   }
 
   Widget _buildIntroDancingJars() {
-    return AnimatedBuilder(
-      animation: _jarDanceCtrl,
-      builder: (_, __) {
-        return Center(
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            runAlignment: WrapAlignment.center,
-            spacing: 20,
-            runSpacing: 24,
-            children: _allPairs.asMap().entries.map((entry) {
-              final i = entry.key;
-              final pair = entry.value;
-              final angle = _jarDance.value * ((i % 2 == 0) ? 1 : -1);
+    return AnimatedOpacity(
+      opacity: _assetsReady ? 1 : 0.01,
+      duration: const Duration(milliseconds: 200),
+      child: AnimatedBuilder(
+        animation: _jarDanceCtrl,
+        builder: (_, __) {
+          return Center(
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              runAlignment: WrapAlignment.center,
+              spacing: 20,
+              runSpacing: 24,
+              children: _allPairs
+                  .asMap()
+                  .entries
+                  .map((entry) {
+                final i = entry.key;
+                final pair = entry.value;
+                final angle = _jarDance.value * ((i % 2 == 0) ? 1 : -1);
 
-              return Transform.rotate(
-                angle: angle,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
-                      _starImage,
-                      width: 58,
-                      height: 58,
-                      color: pair.ballColor,
-                      colorBlendMode: BlendMode.modulate,
-                      errorBuilder: (_, __, ___) =>
-                          const Text('⭐', style: TextStyle(fontSize: 42)),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      pair.label,
-                      style: TextStyle(
-                        fontFamily: PuzzleAppTextStyles.fredoka,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: pair.jarColor,
-                        shadows: const [
-                          Shadow(color: Colors.black26, blurRadius: 4),
-                        ],
+                return Transform.rotate(
+                  angle: angle,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image(
+                        image: _starProvider,
+                        width: 58,
+                        height: 58,
+                        color: pair.ballColor,
+                        colorBlendMode: BlendMode.modulate,
+                        errorBuilder: (_, __, ___) =>
+                        const Text('⭐', style: TextStyle(fontSize: 42)),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        );
-      },
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -634,8 +641,8 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   }
 
   Widget _buildDraggableBall(_Ball ball) {
-    Widget starWidget(double size) => Image.asset(
-      _starImage,
+    Widget starWidget(double size) => Image(
+      image: _starProvider,
       width: size,
       height: size,
       color: ball.pair.ballColor,
@@ -689,30 +696,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: pair.jarColor.withValues(alpha: 0.5),
-                    width: 1.5,
-                  ),
-                ),
-                child: Text(
-                  pair.label,
-                  style: TextStyle(
-                    fontFamily: PuzzleAppTextStyles.fredoka,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: pair.jarColor,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
               Stack(
                 alignment: Alignment.bottomCenter,
                 children: [
@@ -720,8 +703,8 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
                     duration: const Duration(milliseconds: 200),
                     width: isHovering ? 115 : 105,
                     height: isHovering ? 130 : 120,
-                    child: Image.asset(
-                      _jarImage,
+                    child: Image(
+                      image: _jarProvider,
                       fit: BoxFit.fill,
                       color: wrongFlash
                           ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.6)
@@ -780,8 +763,8 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   }
 
   Widget _buildStarsInJar(List<_Ball> contents) {
-    Widget star(_Ball b) => Image.asset(
-      _starImage,
+    Widget star(_Ball b) => Image(
+      image: _starProvider,
       width: 24,
       height: 24,
       color: b.pair.ballColor,
@@ -863,12 +846,10 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 }
 
 class _JarPair {
-  final String label;
   final Color jarColor;
   final Color ballColor;
 
   const _JarPair({
-    required this.label,
     required this.jarColor,
     required this.ballColor,
   });
