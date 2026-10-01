@@ -129,10 +129,10 @@ class _AddChildScreenState extends State<AddChildScreen> {
     final int childYear = _selectedDate!.year;
     final int childAge = currentYear - childYear;
 
-    if (childAge < 3 || childAge > 5) {
+    if (childAge < 3) {
       AppDialog.showError(
         context,
-        message: "The child must be between 3 and 5 years old to register.",
+        message: "The child must be at least 3 years old to register.",
       );
       return;
     }
@@ -140,11 +140,11 @@ class _AddChildScreenState extends State<AddChildScreen> {
     final int? parentYear = int.tryParse(_parentBirthYear ?? '');
     if (parentYear != null) {
       final int ageDifference = childYear - parentYear;
-      if (ageDifference < 20) {
+      if (ageDifference < 18) {
         AppDialog.showError(
           context,
           message:
-              "Invalid birthdate. The parent must be at least 20 years older than the child.",
+              "Invalid birthdate. The parent must be at least 18 years older than the child.",
         );
         return;
       }

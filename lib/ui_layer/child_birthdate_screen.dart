@@ -74,11 +74,11 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
       return;
     }
 
-    if (ageDifference < 20) {
+    if (ageDifference < 18) {
       AppDialog.showError(
         context,
         message:
-            "Invalid birthdate. The parent must be at least 20 years older than the child.",
+            "Invalid birthdate. The parent must be at least 18 years older than the child.",
       );
       return;
     }
