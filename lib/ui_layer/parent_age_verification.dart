@@ -77,7 +77,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
       setState(() => _digits.clear());
       AppDialog.showError(
         context,
-        message: "Access Denied. Parents must be between 20 and 60 years old.",
+        message: "Access Denied. Grownups must be between 20 and 60 years old.",
       );
     }
   }
