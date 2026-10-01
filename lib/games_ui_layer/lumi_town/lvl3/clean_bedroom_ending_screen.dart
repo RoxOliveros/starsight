@@ -8,6 +8,7 @@ import '../../../../business_layer/orientation_service.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../goodjob_prompt.dart';
+import '../lumi_game_ui_layer.dart';
 import '../lvl2/audio_helper.dart';
 import '../lvl4_cooking/game_screen.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -18,11 +19,12 @@ import 'clean_bedroom_game_screen.dart';
 class CleanBedroomEndingScreen extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const CleanBedroomEndingScreen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -31,10 +33,10 @@ class CleanBedroomEndingScreen extends StatefulWidget {
 }
 
 class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
-    with
-        SingleTickerProviderStateMixin,
-        AiCameraMixin<CleanBedroomEndingScreen> {
+    with SingleTickerProviderStateMixin, AiCameraMixin<CleanBedroomEndingScreen> {
+
   final AudioPlayer _player = AudioPlayer();
+
   bool _showOverlay = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -71,7 +73,12 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
       'assets/audio/lumi_town/level3/vo_ending.wav',
     );
     await waitForAudio(_player);
-    if (mounted) setState(() => _showOverlay = true);
+    if (!mounted) return;
+
+    await _saveDataAndMarkComplete();
+    if (!mounted) return;
+
+    setState(() => _showOverlay = true);
   }
 
   @override
@@ -102,7 +109,7 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(3).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
   }
@@ -123,7 +130,8 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
                 fit: BoxFit.cover,
               ),
 
-              Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
+              Positioned(top: 25, left: 25, child: LumiXButton()),
+              Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
               if (_showOverlay)
                 GoodJobOverlay(
@@ -150,30 +158,22 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
   }
 
   Future<void> _onNext() async {
-    await _saveDataAndMarkComplete();
-
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const CookingGameScreen()),
+     Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => CookingGameScreen(level: widget.level + 1)),
         (route) => route.isFirst,
       );
-    }
   }
 
   void _onRestart() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const CleanBedroomGameScreen()),
+      MaterialPageRoute(builder: (_) => CleanBedroomGameScreen(level: widget.level)),
     );
   }
 
   Future<void> _onBack() async {
-    await _saveDataAndMarkComplete();
-
-    if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
         (route) => route.isFirst,
       );
-    }
   }
 }

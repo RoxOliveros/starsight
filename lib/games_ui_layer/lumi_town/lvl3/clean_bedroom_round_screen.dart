@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../business_layer/orientation_service.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
+import '../lumi_game_ui_layer.dart';
 import '../lvl2/audio_helper.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
@@ -20,13 +20,14 @@ class BedroomRoundScreen extends StatefulWidget {
   final List<List<String>> rounds;
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const BedroomRoundScreen({
     super.key,
     required this.roundIndex,
     required this.rounds,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -223,8 +224,6 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
   }
 
   void _goToNextRound() {
-    // Fold this round's captured emotions into the running list before
-    // handing off to the next round (or the ending screen).
     final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
 
     final nextIndex = widget.roundIndex + 1;
@@ -234,6 +233,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
           CleanBedroomEndingScreen(
             priorEmotions: emotionsSoFar,
             tapTracker: widget.tapTracker,
+            level: widget.level
           ),
         ),
       );
@@ -245,6 +245,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
             rounds: widget.rounds,
             priorEmotions: emotionsSoFar,
             tapTracker: widget.tapTracker,
+            level: widget.level
           ),
         ),
       );
@@ -264,11 +265,10 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
             final screenW = constraints.maxWidth;
             final screenH = constraints.maxHeight;
 
-            // Responsive sizing
-            final panelW = screenW * 0.18; // right panel ~18% of width
+            final panelW = screenW * 0.18;
             final sceneW = screenW - panelW;
-            final toySize = screenW * 0.085; // toy icon size ~8.5% of width
-            final slotSize = panelW * 0.72; // slot fits inside panel
+            final toySize = screenW * 0.085;
+            final slotSize = panelW * 0.55;
 
             return Stack(
               fit: StackFit.expand,
@@ -317,12 +317,8 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
                   ),
                 ),
 
-                // ── X button ──────────────────────────────────────────────────
-                Positioned(
-                  top: 25,
-                  left: 25,
-                  child: LumiXButton(onTap: _onBack),
-                ),
+                Positioned(top: 25, left: 25, child: LumiXButton()),
+                Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&
@@ -382,14 +378,6 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
       );
     });
   }
-
-  void _onBack() {
-    _player.stop();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-      (route) => route.isFirst,
-    );
-  }
 }
 
 // ── Right panel with 3 silhouette slots ──────────────────────────────────────
@@ -415,7 +403,7 @@ class _RightPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Color(0xFF376477),
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.fromLTRB(10, 85, 10, 10),
       child: DottedBorder(
         color: Colors.white.withValues(alpha: 0.8),
         strokeWidth: 2,

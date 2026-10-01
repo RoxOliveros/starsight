@@ -10,37 +10,39 @@ import '../../../../ui_layer/lumi_town/town_level.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import '../../../ui_layer/game_loading_mixin.dart';
+import '../../../ui_layer/loading_screen.dart';
+import '../lumi_game_ui_layer.dart';
 import 'clean_bedroom_data.dart';
 import 'clean_bedroom_round_screen.dart';
 
 class CleanBedroomGameScreen extends StatefulWidget {
-  const CleanBedroomGameScreen({super.key});
+  final int level;
+
+  const CleanBedroomGameScreen({super.key, required this.level});
 
   @override
   State<CleanBedroomGameScreen> createState() => _CleanBedroomGameScreenState();
 }
 
 class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
-    with SingleTickerProviderStateMixin, AiCameraMixin<CleanBedroomGameScreen> {
-  final AudioPlayer _player = AudioPlayer();
+    with SingleTickerProviderStateMixin, AiCameraMixin<CleanBedroomGameScreen>, GameLoadingMixin {
 
-  // ── Tracking (camera + taps; this level spans the 4 rounds and ends at
-  // CleanBedroomEndingScreen, so this tracker and the emotions list travel
-  // with the player through every one of them) ──────────────────────────────
+  final AudioPlayer _player = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
+
   bool _hideLightingCard = false;
 
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
 
   @override
+  @override
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     OrientationService.setLandscape();
 
-    // Starts immediately - never waits for a face. Session id/tap tracker
-    // are shared with every following screen in this level.
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
@@ -54,12 +56,12 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
       duration: const Duration(milliseconds: 800),
     );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeIn);
-    _fadeCtrl.forward();
 
-    _playIntroThenProceed();
+    finishLoading(_playIntroThenProceed);
   }
 
   Future<void> _playIntroThenProceed() async {
+    _fadeCtrl.forward();
     try {
       await _playAudio('assets/audio/lumi_town/level3/vo_intro.wav');
       await _player.onPlayerComplete.first;
@@ -81,6 +83,7 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
           rounds: rounds,
           priorEmotions: emotionsSoFar,
           tapTracker: _tapTracker,
+          level: widget.level
         ),
       ),
     );
@@ -107,41 +110,37 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
-        child: FadeTransition(
-          opacity: _fadeAnim,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset(
-                'assets/images/backgrounds/bg_lumi_messy_bed.png',
-                fit: BoxFit.cover,
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.lumiTown(), gameBuilder: () =>
+          Listener(
+            onPointerDown: (_) => _tapTracker.recordGenericTap(),
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    'assets/images/backgrounds/bg_lumi_messy_bed.png',
+                    fit: BoxFit.cover,
+                  ),
+
+                  Positioned(top: 25, left: 25, child: LumiXButton()),
+                  Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+
+                  if (hasCapturedFirstFrame &&
+                      !isFaceDetected &&
+                      !_hideLightingCard)
+                    LightingPromptCard(
+                      onClose: () {
+                        setState(() => _hideLightingCard = true);
+                        releaseFaceGate();
+                      },
+                    ),
+                ],
               ),
-              Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
-
-              if (hasCapturedFirstFrame &&
-                  !isFaceDetected &&
-                  !_hideLightingCard)
-                LightingPromptCard(
-                  onClose: () {
-                    setState(() => _hideLightingCard = true);
-                    releaseFaceGate();
-                  },
-                ),
-            ],
+            ),
           ),
-        ),
       ),
-    );
-  }
-
-  void _onBack() {
-    _player.stop();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-      (route) => route.isFirst,
     );
   }
 }

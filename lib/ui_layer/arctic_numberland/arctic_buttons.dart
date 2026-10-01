@@ -54,7 +54,7 @@ class ArcticSkipButton extends StatelessWidget {
       onTap: onTap,
       child: Image.asset(
         'assets/images/buttons/skip_arctic.png',
-        width: 72,
+        width: 90,
         fit: BoxFit.contain,
       ),
     );

@@ -240,7 +240,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
     ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
     });
-    TownProgressService.instance.markLevelComplete(10).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -341,17 +341,8 @@ class _PickingTrashGameState extends State<PickingTrashGame>
                 );
               }),
 
-              Positioned(
-                top: 25,
-                left: 25,
-                child: LumiXButton(),
-              ),
-
-              Positioned(
-                top: 25,
-                right: 25,
-                child: LumiLevelBadge(level: widget.level),
-              ),
+              Positioned(top: 25, left: 25, child: LumiXButton()),
+              Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
               if (_showDrWoo)
                 Positioned(

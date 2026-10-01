@@ -14,19 +14,21 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../lumi_game_ui_layer.dart';
 
 class Lumi1ValuesWakeup extends StatefulWidget {
   final String imagePath;
   final String audioBinPath2;
   final bool loopAudio;
   final double volume;
+  final int level;
 
   const Lumi1ValuesWakeup({
     super.key,
     this.imagePath = 'assets/animations/sleeping.webp',
     this.audioBinPath2 = 'assets/audio/lumi_town/level1/gising.wav',
     this.loopAudio = false,
-    this.volume = 1.0,
+    this.volume = 1.0, required this.level,
   });
 
   @override
@@ -278,8 +280,6 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     _audioPlayer.stop();
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) {
-        // Level 1 continues on wakeup2 - hand off what's been captured so far
-        // instead of stopping/saving here.
         final List<String> emotionsSoFar = stopAiCamera();
         Navigator.pushReplacement(
           context,
@@ -287,6 +287,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
             pageBuilder: (_, __, ___) => Lumi2ValuesWakingup(
               priorEmotions: emotionsSoFar,
               tapTracker: _tapTracker,
+              level: widget.level
             ),
             transitionsBuilder: (_, animation, __, child) {
               return FadeTransition(opacity: animation, child: child);
@@ -317,52 +318,39 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
       backgroundColor: Colors.white,
       body: _animationReady
           ? Listener(
-              onPointerDown: (_) => _tapTracker.recordGenericTap(),
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.asset(
-                      widget.imagePath,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      errorBuilder: (context, error, stack) =>
-                          _buildImageError(),
-                    ),
-                    if (_audioError != null) _buildAudioErrorBadge(),
-                    _buildMeter(),
-                    Positioned(
-                      top: 25,
-                      left: 25,
-                      child: LumiXButton(
-                        onTap: () {
-                          _stopSpeech();
-                          Navigator.pop(context);
-                        },
-                      ),
-                    ),
-                    if (_audioFinished)
-                      Positioned(
-                        top: 25,
-                        right: 25,
-                        child: LumiSkipButton(onTap: () => _onCompleted()),
-                      ),
-
-                    if (hasCapturedFirstFrame &&
-                        !isFaceDetected &&
-                        !_hideLightingCard)
-                      LightingPromptCard(
-                        onClose: () {
-                          setState(() => _hideLightingCard = true);
-                          releaseFaceGate();
-                        },
-                      ),
-                  ],
-                ),
+        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                widget.imagePath,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (context, error, stack) =>
+                    _buildImageError(),
               ),
-            )
+              if (_audioError != null) _buildAudioErrorBadge(),
+              _buildMeter(),
+
+              Positioned(top: 25, left: 25, child: LumiXButton()),
+              Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
+        ),
+      )
           : LoadingScreen.lumiTown(),
     );
   }
@@ -398,7 +386,16 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
       right: 0,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children:[
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 48),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: LumiSkipButton(onTap: () => _onCompleted()),
+            ),
+          ),
+          const SizedBox(height: 15),
+
           // Bar track
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),

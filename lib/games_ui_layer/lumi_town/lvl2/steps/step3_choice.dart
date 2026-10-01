@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
+import '../../lumi_game_ui_layer.dart';
 import '../audio_helper.dart';
 import '../widgets/shake_widget.dart';
 import 'step3_combing.dart';
@@ -14,11 +15,12 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 class Step3ChoiceScreen extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const Step3ChoiceScreen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -83,6 +85,7 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
         Step3CombingScreen(
           priorEmotions: emotionsSoFar,
           tapTracker: widget.tapTracker,
+          level: widget.level
         ),
       ),
     );
@@ -179,7 +182,8 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
               ),
             ),
 
-            Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -191,14 +195,6 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
           ],
         ),
       ),
-    );
-  }
-
-  void _onBack() {
-    _player.stop();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-      (route) => route.isFirst,
     );
   }
 }

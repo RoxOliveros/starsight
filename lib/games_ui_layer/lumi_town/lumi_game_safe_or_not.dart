@@ -10,12 +10,12 @@ import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../ui_layer/lumi_town/lumi_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_road_crossing.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
+import 'lumi_game_ui_layer.dart';
 
 // ============================================================================
 // ASSETS
@@ -468,7 +468,8 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
               },
             ),
 
-            Positioned(top: 25, left: 25, child: LumiXButton(onTap: _goBack)),
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

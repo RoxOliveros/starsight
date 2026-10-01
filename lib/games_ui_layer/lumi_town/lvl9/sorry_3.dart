@@ -11,7 +11,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-
 import '../lumi_game_ui_layer.dart';
 
 enum _CameraGestureState { checking, granted, denied }
@@ -44,8 +43,9 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
   _CameraGestureState _cameraState = _CameraGestureState.checking;
   static const _noHandsTimeout = Duration(seconds: 8);
   Timer? _noHandsTimer;
-  bool _showNoHandsPrompt = false;
-  bool _forceButtonFallback = false;
+  bool _showButtons = false;
+
+  final Completer<void> _promptDone = Completer<void>();
 
   @override
   void initState() {
@@ -61,6 +61,17 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
 
     _startStorySequence();
     _requestCameraPermission();
+  }
+
+  Future<void> _requestCameraPermission() async {
+    final status = await Permission.camera.request();
+    if (!mounted) return;
+
+    setState(() {
+      _cameraState = status.isGranted
+          ? _CameraGestureState.granted
+          : _CameraGestureState.denied;
+    });
   }
 
   Future<void> _startStorySequence() async {
@@ -99,46 +110,34 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
       setState(() {
         _introFinished = true;
       });
+      await _playThumbsPrompt();
     } catch (e) {
       debugPrint('Error playing story sequence: $e');
       if (mounted) setState(() => _introFinished = true);
+      if (!_promptDone.isCompleted) _promptDone.complete();
     }
   }
 
-  Future<void> _requestCameraPermission() async {
-    final status = await Permission.camera.request();
-    if (!mounted) return;
-
-    setState(() {
-      _cameraState = status.isGranted
-          ? _CameraGestureState.granted
-          : _CameraGestureState.denied;
-    });
-  }
-
-  void _onAnyGestureDetected() {
-    _noHandsTimer?.cancel();
-    _noHandsTimer = Timer(_noHandsTimeout, () {
-      if (mounted) setState(() => _showNoHandsPrompt = true);
-    });
-
-    if (_showNoHandsPrompt) {
-      setState(() => _showNoHandsPrompt = false);
+  Future<void> _playThumbsPrompt() async {
+    try {
+      final done = _audioPlayer.onPlayerComplete.first;
+      await _audioPlayer.play(
+        AssetSource('audio/lumi_town/thumbsup_thumbsdown.wav'),
+      );
+      await done;
+    } catch (e) {
+      debugPrint('Error playing thumbsup_thumbsdown.wav: $e');
+    } finally {
+      if (!_promptDone.isCompleted) _promptDone.complete();
+      _startNoHandsTimer();
     }
   }
 
-  void _ensureNoHandsWatcherStarted() {
-    if (_noHandsTimer != null) return;
-    _noHandsTimer = Timer(_noHandsTimeout, () {
-      if (mounted) setState(() => _showNoHandsPrompt = true);
-    });
-  }
-
-  void _switchToButtonFallback() {
+  void _startNoHandsTimer() {
     _noHandsTimer?.cancel();
-    setState(() {
-      _forceButtonFallback = true;
-      _showNoHandsPrompt = false;
+    if (_showButtons || !mounted || !_promptDone.isCompleted) return;
+    _noHandsTimer = Timer(_noHandsTimeout, () {
+      if (mounted) setState(() => _showButtons = true);
     });
   }
 
@@ -155,11 +154,13 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
     if (_actionTaken) return;
     _actionTaken = true;
 
+    await _promptDone.future;
+    if (!mounted) return;
+
     widget.tapTracker.recordCorrectTap();
 
     _noHandsTimer?.cancel();
     _noHandsTimer = null;
-    if (_showNoHandsPrompt) setState(() => _showNoHandsPrompt = false);
 
     try {
       await _audioPlayer.stop();
@@ -190,11 +191,13 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
     if (_actionTaken) return;
     _actionTaken = true;
 
+    await _promptDone.future;
+    if (!mounted) return;
+
     widget.tapTracker.recordMistake();
 
     _noHandsTimer?.cancel();
     _noHandsTimer = null;
-    if (_showNoHandsPrompt) setState(() => _showNoHandsPrompt = false);
 
     try {
       await _audioPlayer.stop();
@@ -211,7 +214,7 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
     setState(() {
       _actionTaken = false;
     });
-    _ensureNoHandsWatcherStarted();
+    _startNoHandsTimer();
   }
 
   @override
@@ -241,54 +244,21 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
               ),
             ),
 
-            if (_introFinished &&
-                _cameraState == _CameraGestureState.granted &&
-                !_forceButtonFallback) ...[
+            if (_introFinished && _cameraState == _CameraGestureState.granted)
               _HiddenGestureDetector(
                 onGesture: (result) {
-                  _onAnyGestureDetected();
+                  _startNoHandsTimer();
                   if (result.isThumbsUp) {
                     _handleThumbsUp();
                   } else if (result.isThumbsDown) {
                     _handleThumbsDown();
                   }
                 },
-                onMounted: _ensureNoHandsWatcherStarted,
+                onMounted: _startNoHandsTimer,
               ),
 
-              Positioned(
-                bottom: sh * 0.10,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Text(
-                      'Show a thumbs up or thumbs down!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Fredoka',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Color(0xFF5E463E),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              if (_showNoHandsPrompt)
-                _NoHandsPrompt(onUseButtons: _switchToButtonFallback),
-            ] else if (_introFinished &&
-                (_cameraState == _CameraGestureState.denied ||
-                    _forceButtonFallback)) ...[
+            if (_introFinished &&
+                (_showButtons || _cameraState == _CameraGestureState.denied))
               Positioned(
                 bottom: sh * 0.10,
                 left: 0,
@@ -323,7 +293,6 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
                   ),
                 ),
               ),
-            ],
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
             Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
@@ -374,86 +343,6 @@ class _HiddenGestureDetectorState extends State<_HiddenGestureDetector> {
             width: 4,
             height: 4,
             child: GestureCameraView(onGesture: widget.onGesture),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NoHandsPrompt extends StatelessWidget {
-  final VoidCallback onUseButtons;
-
-  const _NoHandsPrompt({required this.onUseButtons});
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.45),
-        child: Center(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 40),
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFAF7EB),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "We can't see your hands!",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Fredoka',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: Color(0xFFE8A037),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Try showing your thumb again, or use the buttons instead.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Fredoka',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF5E463E),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                ElevatedButton(
-                  onPressed: onUseButtons,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF266589),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    'Use buttons instead',
-                    style: TextStyle(
-                      fontFamily: 'Fredoka',
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ),

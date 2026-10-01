@@ -8,7 +8,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-
 import '../lumi_game_ui_layer.dart';
 
 class Emotion7Screen extends StatefulWidget {
@@ -94,7 +93,7 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
   @override
   Widget buildTrWoo(BuildContext context) {
     return Positioned(
-      left: -40,
+      left: 10,
       bottom: 0,
       child: FractionalTranslation(
         translation: const Offset(0, 0.02),
@@ -148,79 +147,72 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
           child: Stack(
             children: [
               Center(
-                child: Container(
-                  width: centerImageWidth,
-                  height: centerImageHeight,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: const Color(0xFFE5D5BA),
-                      width: screenHeight * 0.015,
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: DragTarget<TrWooState>(
-                      onAcceptWithDetails: (details) async {
-                        final droppedState = details.data;
-                        showTrWooReaction(droppedState);
+                child: SizedBox(
+                  width: centerImageWidth - (screenHeight * 0.015 * 2),
+                  height: centerImageHeight - (screenHeight * 0.015 * 2),
+                  child: DragTarget<TrWooState>(
+                    onAcceptWithDetails: (details) async {
+                      final droppedState = details.data;
+                      showTrWooReaction(droppedState);
 
-                        if (droppedState == TrWooState.correct &&
-                            !_isCorrectlyAnswered) {
-                          widget.tapTracker.recordCorrectTap();
-                          _isCorrectlyAnswered = true;
-                          _isSuccessAudioPlaying = true;
+                      if (droppedState == TrWooState.correct &&
+                          !_isCorrectlyAnswered) {
+                        widget.tapTracker.recordCorrectTap();
+                        _isCorrectlyAnswered = true;
+                        _isSuccessAudioPlaying = true;
+                        setState(() => _showStars = false);
 
-                          await Future.delayed(
-                            const Duration(milliseconds: 500),
-                          );
-                          await _narratorPlayer.stop();
-                          await _narratorPlayer.play(AssetSource(_audioP5Rc));
+                        await Future.delayed(
+                          const Duration(milliseconds: 500),
+                        );
+                        await _narratorPlayer.stop();
+                        await _narratorPlayer.play(AssetSource(_audioP5Rc));
 
-                          setState(() => _showSparkles = true);
-                          await Future.delayed(const Duration(seconds: 1));
+                        setState(() => _showSparkles = true);
+                        await Future.delayed(const Duration(seconds: 1));
 
-                          if (mounted) {
-                            setState(() {
-                              _showSparkles = false;
-                            });
-                          }
-                        } else if (!_isCorrectlyAnswered) {
-                          widget.tapTracker.recordMistake();
+                        if (mounted) {
+                          setState(() {
+                            _showSparkles = false;
+                          });
                         }
-                      },
-                      builder: (context, candidateData, rejectedData) {
-                        return Stack(
-                          alignment: Alignment.center,
-                          fit: StackFit.expand,
-                          children: [
-                            Image.asset(
-                              _isCorrectlyAnswered
-                                  ? 'assets/images/objects/lumi/e5_right.png'
-                                  : 'assets/images/objects/lumi/e5_wrong.png',
-                              fit: BoxFit.cover,
-                            ),
-                            AnimatedOpacity(
+                      } else if (!_isCorrectlyAnswered) {
+                        widget.tapTracker.recordMistake();
+                      }
+                    },
+                    builder: (context, candidateData, rejectedData) {
+                      return Stack(
+                        alignment: Alignment.center,
+                        fit: StackFit.expand,
+                        children: [
+                          Image.asset(
+                            _isCorrectlyAnswered
+                                ? 'assets/images/objects/lumi/e5_right.png'
+                                : 'assets/images/objects/lumi/e5_wrong.png',
+                            fit: BoxFit.contain,
+                          ),
+                          IgnorePointer(
+                            child: AnimatedOpacity(
                               opacity: _showSparkles ? 1.0 : 0.0,
                               duration: const Duration(milliseconds: 400),
-                              child: Container(
-                                color: Colors.white.withValues(alpha: 0.4),
-                                child: Image.asset(
-                                  'assets/images/objects/lumi/sparkle.png',
-                                  fit: BoxFit.cover,
-                                ),
+                              child: Image.asset(
+                                'assets/images/objects/lumi/sparkle.png',
+                                fit: BoxFit.contain,
                               ),
                             ),
-                          ],
-                        );
-                      },
-                    ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
 
+
               Positioned(top: 25, left: 25, child: LumiXButton()),
-              Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+              Positioned(top: 25,
+                  right: 25,
+                  child: LumiLevelBadge(level: widget.level)),
 
               Positioned(
                 right: paddingEdge,

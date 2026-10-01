@@ -25,17 +25,12 @@ class TutorialPromptCard extends StatefulWidget {
   final String title;
   final String instructionText;
 
-  /// The animated illustration explaining the mechanic (e.g. items sliding
-  /// toward a character). Pass null to skip this section entirely.
   final Widget? demoVisual;
 
-  /// Optional hint shown after [hintDelay] (e.g. "tap Cancel if they come back").
-  /// Both [hintText] and [hintImagePath] must be provided together, or omit both.
   final String? hintText;
   final String? hintImagePath;
   final Duration hintDelay;
 
-  /// Audio asset to play as soon as the card appears. Pass null for silence.
   final String? audioAssetPath;
 
   final VoidCallback? onClose;
@@ -73,7 +68,6 @@ class _TutorialPromptCardState extends State<TutorialPromptCard> {
   void initState() {
     super.initState();
 
-    // Play instructional/round audio immediately when the prompt appears.
     final audioPath = widget.audioAssetPath;
     if (audioPath != null) {
       _audioPlayer.play(AssetSource(audioPath));
@@ -81,7 +75,7 @@ class _TutorialPromptCardState extends State<TutorialPromptCard> {
       if (widget.autoCloseOnAudioComplete && widget.onClose != null) {
         _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
           if (mounted) {
-            widget.onClose!(); // Auto-dismiss the tutorial when audio ends!
+            widget.onClose!();
           }
         });
       }
@@ -109,17 +103,12 @@ class _TutorialPromptCardState extends State<TutorialPromptCard> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    // Card is 85% of screen width, capped at 450 — but never wider than the
-    // screen minus a small safety margin, so it works on tiny/foldable
-    // screens too instead of overflowing.
     final cardWidth = (screenSize.width * 0.85)
         .clamp(0, screenSize.width - 24)
         .clamp(0, 450)
         .toDouble();
 
     return Container(
-      // Semi-transparent dark background matching other prompt cards
-      // (e.g. LightingPromptCard) so overlays look consistent app-wide.
       color: Colors.black.withValues(alpha: 0.6),
       child: Center(
         child: ConstrainedBox(
@@ -148,9 +137,6 @@ class _TutorialPromptCardState extends State<TutorialPromptCard> {
                     horizontal: 24.0,
                     vertical: 28.0,
                   ),
-                  // Swaps the "how to play" instructions for the "tap
-                  // Cancel" hint after [hintDelay] instead of showing both
-                  // at once — keeps the card compact and un-scrollable.
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 400),
                     transitionBuilder: (child, animation) => FadeTransition(
@@ -171,32 +157,11 @@ class _TutorialPromptCardState extends State<TutorialPromptCard> {
                             cardWidth: cardWidth,
                           )
                         : Column(
-                            key: const ValueKey('howToPlay'),
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                widget.title,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontFamily: 'Fredoka',
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 26,
-                                  color: Color(0xFFE8A037),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              Text(
-                                widget.instructionText,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontFamily: 'Fredoka',
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF5E463E),
-                                ),
-                              ),
-
+                              key: const ValueKey('howToPlay'),
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
                               if (widget.demoVisual != null) ...[
                                 const SizedBox(height: 16),
                                 widget.demoVisual!,
@@ -206,8 +171,6 @@ class _TutorialPromptCardState extends State<TutorialPromptCard> {
                   ),
                 ),
 
-                // Close Button (Top Right) styled identically across all
-                // prompt cards.
                 if (widget.onClose != null)
                   Positioned(
                     top: 12,
