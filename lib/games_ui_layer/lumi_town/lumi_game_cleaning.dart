@@ -9,17 +9,17 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_dont_talk_to_strangers.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 
+import 'lumi_game_ui_layer.dart';
+
 const String _introBg = 'assets/images/backgrounds/mama_little_bear_scene.png';
 const String _gameBg = 'assets/images/backgrounds/bg_sky.png';
-const String _completeBg =
-    'assets/images/backgrounds/mama_little_bear_happy_cleaning.png';
+const String _completeBg = 'assets/images/backgrounds/mama_little_bear_happy_cleaning.png';
 const String _teacherWooImage = 'assets/images/characters/tr.woo_the_owl.png';
 
 const String _audioBase = 'assets/audio/lumi_town/';
@@ -553,6 +553,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
               ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -607,11 +608,9 @@ class _CleaningRound extends StatelessWidget {
         final spacing = (constraints.maxHeight * 0.03);
         final totalSpacing = spacing * (count - 1);
 
-        final maxCardWidth = constraints.maxWidth * 0.16;
+        final maxCardWidth = constraints.maxWidth * 0.13;
         final maxCardHeightFit = (constraints.maxHeight - totalSpacing) / count;
-        final cardSize =
-            (maxCardWidth < maxCardHeightFit ? maxCardWidth : maxCardHeightFit)
-                .clamp(60.0, 130.0);
+        final cardSize = (maxCardWidth < maxCardHeightFit ? maxCardWidth : maxCardHeightFit).clamp(60.0, 100.0);
 
         return Row(
           children: [
@@ -648,21 +647,24 @@ class _CleaningRound extends StatelessWidget {
             SizedBox(width: spacing * 8),
             SizedBox(
               width: cardSize,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (int i = 0; i < choiceOrder.length; i++) ...[
-                    if (i != 0) SizedBox(height: spacing),
-                    _MaterialAnswerCard(
-                      key: ValueKey(choiceOrder[i]),
-                      material: choiceOrder[i],
-                      color: _choiceColors[i % _choiceColors.length],
-                      size: cardSize,
-                      enabled: inputEnabled,
-                      onTap: () => onSelect(choiceOrder[i]),
-                    ),
+              child: Padding(
+                padding: EdgeInsets.only(top: 15),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (int i = 0; i < choiceOrder.length; i++) ...[
+                      if (i != 0) SizedBox(height: spacing),
+                      _MaterialAnswerCard(
+                        key: ValueKey(choiceOrder[i]),
+                        material: choiceOrder[i],
+                        color: _choiceColors[i % _choiceColors.length],
+                        size: cardSize,
+                        enabled: inputEnabled,
+                        onTap: () => onSelect(choiceOrder[i]),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ],

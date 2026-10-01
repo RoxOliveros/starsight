@@ -11,10 +11,10 @@ class SharingTutorialPrompt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TutorialPromptCard(
-      title: 'How to Play!',
-      instructionText: 'Drag the pancake and water to share with your friends!',
+      title: '',
+      instructionText: '',
       demoVisual: const _SharingDemoVisual(),
-      hintText: 'If they come back, tap the Cancel button!',
+      hintText: '',
       hintImagePath: 'assets/images/objects/lumi/cancel_btn.png',
 
       hintDelay: const Duration(seconds: 3),

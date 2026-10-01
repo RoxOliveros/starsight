@@ -108,7 +108,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(6).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
   }
@@ -210,7 +210,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                     child: GoodJobOverlay(
                       characterImage: _selectedStarPath!,
                       onNext: () async {
-                        await _saveDataAndMarkComplete();
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
                             builder: (context) => LumiClassroomScreen(level: widget.level + 1),
@@ -218,8 +217,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                         );
                       },
                       onRestart: () async {
-                        await _saveDataAndMarkComplete();
-                        if (!mounted) return;
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
                             builder: (_) => EmotionStarsScreen(level: widget.level),
@@ -227,15 +224,12 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                         );
                       },
                       onBack: () async {
-                        await _saveDataAndMarkComplete();
-                        if (mounted) {
                           Navigator.of(context).pushAndRemoveUntil(
                             MaterialPageRoute(
                               builder: (_) => const LumiLevelScreen(),
                             ),
                             (route) => route.isFirst,
                           );
-                        }
                       },
                     ),
                   ),
@@ -304,8 +298,10 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                 });
 
                 if (!isSelected) {
-                  Future.delayed(const Duration(milliseconds: 1000), () {
+                  Future.delayed(const Duration(milliseconds: 1000), () async {
                     if (mounted && _selectedStarPath == imagePath) {
+                      await _saveDataAndMarkComplete();
+                      if (!mounted) return;
                       setState(() {
                         _showGoodJobOverlay = true;
                       });

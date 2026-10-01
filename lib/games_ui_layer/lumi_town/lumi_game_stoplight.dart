@@ -2,19 +2,18 @@ import 'dart:async';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_diary.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
+import 'lumi_game_ui_layer.dart';
 
 // ============================================================================
 // ASSET PATHS — replace if your exact filenames/folders differ
@@ -31,11 +30,10 @@ const String _introAudio = '${_audioBase}stoplight_intro.wav';
 const String _instructionAudio = '${_audioBase}stoplight_instruction.wav';
 const String _completeAudio = '${_audioBase}stoplight_complete.wav';
 
-const String _sleepingScene = 'assets/animations/sleeping.json';
+const String _sleepingScene = 'assets/animations/sleeping.webp';
 const String _bikingScene = 'assets/images/objects/lumi/biking_scene.png';
 const String _snacksScene = 'assets/images/objects/lumi/snacks_scene.png';
-const String _watchingTvScene =
-    'assets/images/objects/lumi/watching_tv_scene.png';
+const String _watchingTvScene = 'assets/images/objects/lumi/watching_tv_scene.png';
 const String _gamingScene = 'assets/images/objects/lumi/gaming_scene.png';
 
 // ============================================================================
@@ -52,7 +50,6 @@ class StoplightScenario {
   final StoplightAnswer correctAnswer;
   final String? imageAsset;
   final bool isComposite;
-  final bool isLottie;
 
   const StoplightScenario({
     required this.id,
@@ -60,7 +57,6 @@ class StoplightScenario {
     required this.correctAnswer,
     this.imageAsset,
     this.isComposite = false,
-    this.isLottie = false,
   });
 }
 
@@ -70,7 +66,6 @@ final List<StoplightScenario> _scenarios = [
     audio: '${_audioBase}stoplight_sleeping.wav',
     correctAnswer: StoplightAnswer.green,
     imageAsset: _sleepingScene,
-    isLottie: true,
   ),
   const StoplightScenario(
     id: 'biking',
@@ -436,6 +431,10 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
           children: [
             Positioned.fill(child: Image.asset(_roadBg, fit: BoxFit.cover)),
 
+            Offstage(
+              child: Image.asset(_sleepingScene, width: 1, height: 1),
+            ),
+
             LayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.maxWidth;
@@ -502,6 +501,7 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
               buildTrWoo(context),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -673,13 +673,19 @@ class _ScenarioCard extends StatelessWidget {
                   ),
                 ],
               )
-            : scenario.isLottie
-            ? Lottie.asset(
+            : Image.asset(
                 scenario.imageAsset!,
                 fit: BoxFit.cover,
-                repeat: true,
-              )
-            : Image.asset(scenario.imageAsset!, fit: BoxFit.cover),
+                gaplessPlayback: true,
+                frameBuilder: (context, child, frame, wasSyncLoaded) {
+                  if (wasSyncLoaded) return child;
+                  return AnimatedOpacity(
+                    opacity: frame == null ? 0 : 1,
+                    duration: const Duration(milliseconds: 200),
+                    child: child,
+                  );
+                },
+              ),
       ),
     );
   }

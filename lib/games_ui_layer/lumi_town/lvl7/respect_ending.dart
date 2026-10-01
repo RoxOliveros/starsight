@@ -71,12 +71,13 @@ class _RespectEndingState extends State<RespectEnding>
       AssetSource('audio/lumi_town/level7/respect_success.wav'),
     );
 
-    Future.delayed(const Duration(seconds: 20), () {
-      if (mounted) {
-        setState(() {
+    Future.delayed(const Duration(seconds: 20), () async {
+      if (!mounted) return;
+      await _saveDataAndMarkComplete();
+      if (!mounted) return;
+       setState(() {
           _showGoodJobOverlay = true;
         });
-      }
     });
   }
 
@@ -104,7 +105,7 @@ class _RespectEndingState extends State<RespectEnding>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(7).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
   }
@@ -228,14 +229,11 @@ class _RespectEndingState extends State<RespectEnding>
                 characterImage: 'assets/images/characters/tr.woo_smiling.png',
 
                 onNext: () async {
-                  await _saveDataAndMarkComplete();
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(builder: (context) => Prayer1(level: widget.level + 1)),
                   );
                 },
                 onRestart: () {
-                  _audioPlayer.stop();
-
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
                       builder: (_) => LumiClassroomScreen(level: widget.level),
@@ -243,16 +241,12 @@ class _RespectEndingState extends State<RespectEnding>
                   );
                 },
                 onBack: () async {
-                  await _saveDataAndMarkComplete();
-
-                  if (mounted) {
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(
                         builder: (_) => const LumiLevelScreen(),
                       ),
                       (route) => route.isFirst,
                     );
-                  }
                 },
               ),
           ],

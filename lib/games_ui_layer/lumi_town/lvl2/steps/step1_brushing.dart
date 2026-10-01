@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
+import '../../lumi_game_ui_layer.dart';
 import '../audio_helper.dart';
 import '../widgets/bubble_overlay.dart';
 import '../widgets/sparkle_overlay.dart';
@@ -15,11 +16,12 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 class Step1BrushingScreen extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const Step1BrushingScreen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -29,13 +31,12 @@ class Step1BrushingScreen extends StatefulWidget {
 class _Step1BrushingScreenState extends State<Step1BrushingScreen>
     with SingleTickerProviderStateMixin, AiCameraMixin<Step1BrushingScreen> {
   final AudioPlayer _player = AudioPlayer();
-  bool _hideLightingCard = false;
 
-  bool _dropped = false; // toothbrush has been dragged to mouth
+  bool _hideLightingCard = false;
+  bool _dropped = false;
   BubbleState _bubbleState = BubbleState.none;
   StarState _starState = StarState.none;
 
-  // Wobble animation for the draggable toothbrush hint
   late AnimationController _wobbleCtrl;
   late Animation<double> _wobbleAnim;
 
@@ -90,7 +91,7 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
   Future<void> _onBrushComplete() async {
     widget.tapTracker.recordCorrectTap();
     setState(() => _bubbleState = BubbleState.none);
-    setState(() => _starState = StarState.lot); //TODO
+    setState(() => _starState = StarState.lot);
     _wobbleCtrl.stop();
     await playAssetAudio(
       _player,
@@ -104,6 +105,7 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
         Step2ChoiceScreen(
           priorEmotions: emotionsSoFar,
           tapTracker: widget.tapTracker,
+          level: widget.level
         ),
       ),
     );
@@ -296,12 +298,8 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
                 ),
               ),
 
-            // X button
-            Positioned(
-              top: 25,
-              left: 25,
-              child: LumiXButton(onTap: _onBack),
-            ), // was unwired: X did nothing before
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -313,14 +311,6 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
           ],
         ),
       ),
-    );
-  }
-
-  void _onBack() {
-    _player.stop();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-      (route) => route.isFirst,
     );
   }
 }

@@ -4,8 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/game_loading_mixin.dart';
+import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/town_level.dart';
+import '../lumi_game_ui_layer.dart';
 import 'steps/step1_choice.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -13,19 +16,18 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 class Lvl2BathroomGameScreen extends StatefulWidget {
-  const Lvl2BathroomGameScreen({super.key});
+  final int level;
+
+  const Lvl2BathroomGameScreen({super.key, required this.level});
 
   @override
   State<Lvl2BathroomGameScreen> createState() => _Lvl2BathroomGameScreenState();
 }
 
 class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
-    with SingleTickerProviderStateMixin, AiCameraMixin<Lvl2BathroomGameScreen> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
+    with SingleTickerProviderStateMixin, AiCameraMixin<Lvl2BathroomGameScreen>, GameLoadingMixin {
 
-  // ── Tracking (camera + taps; this level spans 8 screens ending at
-  // StepEndingScreen, so this tracker and the emotions list travel with the
-  // player through every one of them) ─────────────────────────────────────
+  final AudioPlayer _audioPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
 
@@ -38,8 +40,6 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     OrientationService.setLandscape();
 
-    // Starts immediately - never waits for a face. Session id/tap tracker
-    // are shared with every following screen in this level.
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
@@ -53,12 +53,13 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
       duration: const Duration(milliseconds: 800),
     );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeIn);
-    _fadeCtrl.forward();
 
-    _playIntroThenProceed();
+    finishLoading(_playIntroThenProceed);
   }
 
   Future<void> _playIntroThenProceed() async {
+    _fadeCtrl.forward();
+
     try {
       await _playAudio('assets/audio/lumi_town/level2/vo_intro.wav');
       await _audioPlayer.onPlayerComplete.first;
@@ -74,6 +75,7 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
         Step1ChoiceScreen(
           priorEmotions: emotionsSoFar,
           tapTracker: _tapTracker,
+          level: widget.level
         ),
       ),
     );
@@ -100,69 +102,63 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
-        child: FadeTransition(
-          opacity: _fadeAnim,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // 1. Background
-              Image.asset(
-                'assets/images/backgrounds/bg_lumi_bathroom.png',
-                fit: BoxFit.cover,
-              ),
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.lumiTown(),
+        gameBuilder: () =>
+            Listener(
+              onPointerDown: (_) => _tapTracker.recordGenericTap(),
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // 1. Background
+                    Image.asset(
+                      'assets/images/backgrounds/bg_lumi_bathroom.png',
+                      fit: BoxFit.cover,
+                    ),
 
-              // 2. Bear — behind choices
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final bearH = MediaQuery.of(context).size.height * 0.80;
-                      return Image.asset(
-                        'assets/images/characters/little_bear.png',
-                        height: bearH,
-                        fit: BoxFit.contain,
-                      );
-                    },
-                  ),
+                    // 2. Bear — behind choices
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final bearH = MediaQuery
+                                .of(context)
+                                .size
+                                .height * 0.80;
+                            return Image.asset(
+                              'assets/images/characters/little_bear.png',
+                              height: bearH,
+                              fit: BoxFit.contain,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+
+                    Positioned(top: 25, left: 25, child: LumiXButton()),
+                    Positioned(top: 25,
+                        right: 25,
+                        child: LumiLevelBadge(level: widget.level)),
+
+                    if (hasCapturedFirstFrame &&
+                        !isFaceDetected &&
+                        !_hideLightingCard)
+                      LightingPromptCard(
+                        onClose: () {
+                          setState(() => _hideLightingCard = true);
+                          releaseFaceGate();
+                        },
+                      ),
+                  ],
                 ),
               ),
-
-              // 3. X button — always on top
-              Positioned(
-                top: 25,
-                left: 25,
-                child: LumiXButton(
-                  onTap: _onBack,
-                ), // was unwired: X did nothing before
-              ),
-
-              if (hasCapturedFirstFrame &&
-                  !isFaceDetected &&
-                  !_hideLightingCard)
-                LightingPromptCard(
-                  onClose: () {
-                    setState(() => _hideLightingCard = true);
-                    releaseFaceGate();
-                  },
-                ),
-            ],
-          ),
-        ),
+            ),
       ),
-    );
-  }
-
-  void _onBack() {
-    _audioPlayer.stop();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-      (route) => route.isFirst,
     );
   }
 }

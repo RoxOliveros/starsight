@@ -1,13 +1,11 @@
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';

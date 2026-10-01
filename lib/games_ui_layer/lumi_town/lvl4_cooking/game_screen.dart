@@ -8,9 +8,13 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../../ui_layer/game_loading_mixin.dart';
+import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/town_level.dart';
 import '../../goodjob_prompt.dart';
+import '../lumi_game_ui_layer.dart';
+import '../lvl5/sharing_1.dart';
 import 'audio_manager.dart';
 import 'bear_speech_bubble.dart';
 import 'game_dialogs.dart';
@@ -19,14 +23,16 @@ import 'game_state.dart';
 import 'game_ui.dart';
 
 class CookingGameScreen extends StatefulWidget {
-  const CookingGameScreen({super.key});
+  final int level;
+
+  const CookingGameScreen({super.key, required this.level});
 
   @override
   State<CookingGameScreen> createState() => _CookingGameScreenState();
 }
 
 class _CookingGameScreenState extends State<CookingGameScreen>
-    with TickerProviderStateMixin, AiCameraMixin<CookingGameScreen> {
+    with TickerProviderStateMixin, AiCameraMixin<CookingGameScreen>, GameLoadingMixin {
   late GameState _state;
   final AudioManager _audio = AudioManager();
   late AnimationController _shakeController;
@@ -133,7 +139,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _playIntro();
+      if (mounted) finishLoading(_playIntro);
     });
   }
 
@@ -458,6 +464,10 @@ class _CookingGameScreenState extends State<CookingGameScreen>
   Future<void> _playLastOutro() async {
     await _showDialog(GameDialogs.outro3);
     if (_disposed || !mounted || !_voiceDone) return;
+
+    await _saveDataAndMarkComplete();
+    if (!mounted) return;
+
     setState(() => _outroDone = true);
   }
 
@@ -507,19 +517,16 @@ class _CookingGameScreenState extends State<CookingGameScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(4).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
   }
 
   Future<void> _onBack() async {
-    await _saveDataAndMarkComplete();
-    if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
             (route) => route.isFirst,
       );
-    }
   }
 
   // ─────────────────── BUILD ──────────────────────────────
@@ -529,7 +536,10 @@ class _CookingGameScreenState extends State<CookingGameScreen>
     _sw = MediaQuery.of(context).size.width;
     _sh = MediaQuery.of(context).size.height;
     return Scaffold(
-      body: Listener(
+      body: buildWithLoading(
+      loadingScreen: LoadingScreen.lumiTown(),
+      gameBuilder: () =>
+          Listener(
         onPointerDown: (_) => _tapTracker.recordGenericTap(),
         child: GestureDetector(
           onTap: null,
@@ -551,7 +561,8 @@ class _CookingGameScreenState extends State<CookingGameScreen>
                 ),
               ),
 
-              Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
+              Positioned(top: 25, left: 25, child: LumiXButton()),
+              Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
               // Scene content
               IgnorePointer(
@@ -628,6 +639,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -1195,7 +1207,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
         ),
         Positioned(
           top: 20,
-          right: _sw * 0.10,
+          right: _sw * 0.16,
           child: Center(
             child: BearSpeechBubble(
               text: '',
@@ -1278,12 +1290,10 @@ class _CookingGameScreenState extends State<CookingGameScreen>
           GoodJobOverlay(
             characterImage: 'assets/images/characters/tr.woo_the_owl.png',
             onNext: () {
-              if (mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
+                  MaterialPageRoute(builder: (_) => Sharing1(level: widget.level + 1)),
                       (route) => route.isFirst,
                 );
-              }
             },
             onRestart: _restartGame,
             onBack: _onBack,

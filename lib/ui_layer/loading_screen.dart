@@ -10,10 +10,10 @@ import 'package:flutter/material.dart';
 // _startIntroFlow to finishLoading(_startIntroFlow);
 //
 // in build
-// return Scaffold( body: buildWithLoading(
-// loadingScreen: LoadingScreen.arctic(), gameBuilder: () =>
-// Stack (...),
-// ),
+// return Scaffold(
+// body: buildWithLoading(
+// loadingScreen: LoadingScreen.arctic(),
+// gameBuilder: () =>
 //
 //──────────────────────────────────────────────────────────────────────────────────────────────────
 //──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -129,13 +129,9 @@ class _LoadingScreenState extends State<LoadingScreen> {
 
 class _DancingDots extends StatefulWidget {
   final Color color;
-  final int dotCount;
-  final double dotSize;
 
   const _DancingDots({
     required this.color,
-    this.dotCount = 4,
-    this.dotSize = 12,
   });
 
   @override
@@ -168,8 +164,8 @@ class _DancingDotsState extends State<_DancingDots>
       builder: (context, _) {
         return Row(
           mainAxisSize: MainAxisSize.min,
-          children: List.generate(widget.dotCount, (index) {
-            final delay = index / widget.dotCount;
+          children: List.generate(4, (index) {
+            final delay = index / 4;
             final t = (_controller.value - delay) % 1.0;
             final bounce = (t < 0.5)
                 ? Curves.easeOut.transform(t * 2)
@@ -181,8 +177,8 @@ class _DancingDotsState extends State<_DancingDots>
               child: Transform.translate(
                 offset: Offset(0, offsetY),
                 child: Container(
-                  width: widget.dotSize,
-                  height: widget.dotSize,
+                  width: 12,
+                  height: 12,
                   decoration: BoxDecoration(
                     color: widget.color,
                     shape: BoxShape.circle,

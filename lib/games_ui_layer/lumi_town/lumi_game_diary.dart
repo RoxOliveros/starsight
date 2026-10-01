@@ -17,6 +17,8 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 
+import 'lumi_game_ui_layer.dart';
+
 // ============================================================================
 // ASSET PATHS — replace if your exact filenames/folders differ
 // ============================================================================
@@ -335,7 +337,6 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
     if (_isLoading) {
       return Scaffold(body: LoadingScreen.lumiTown());
     }
-
     return Scaffold(
       body: Listener(
         onPointerDown: (_) => _tapTracker.recordGenericTap(),
@@ -381,7 +382,7 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
                       Positioned(
                         left: width * 0.10,
                         right: width * 0.10,
-                        top: height * 0.10,
+                        top: height * 0.15,
                         bottom: height * 0.08,
                         child: _DiaryGrid(
                           slotScenes: _slotScenes,
@@ -397,6 +398,7 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

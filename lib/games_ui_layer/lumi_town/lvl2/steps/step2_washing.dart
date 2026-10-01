@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
+import '../../lumi_game_ui_layer.dart';
 import '../audio_helper.dart';
 import '../widgets/sparkle_overlay.dart';
 import 'step3_choice.dart';
@@ -16,11 +17,12 @@ enum _WashPhase { washing, drying, done, dragging }
 class Step2WashingScreen extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const Step2WashingScreen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -103,6 +105,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
         Step3ChoiceScreen(
           priorEmotions: emotionsSoFar,
           tapTracker: widget.tapTracker,
+          level: widget.level
         ),
       ),
     );
@@ -347,7 +350,8 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
                 ),
               ),
 
-            Positioned(top: 25, left: 25, child: LumiXButton(onTap: _onBack)),
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -359,14 +363,6 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
           ],
         ),
       ),
-    );
-  }
-
-  void _onBack() {
-    _player.stop();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-      (route) => route.isFirst,
     );
   }
 }

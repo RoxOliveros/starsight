@@ -12,18 +12,19 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
-import '../../../ui_layer/lumi_town/lumi_theme.dart';
 import '../../goodjob_prompt.dart';
+import '../lumi_game_ui_layer.dart';
 import '../lvl2/bathroom_game_screen.dart';
 
 class Lumi2ValuesWakingup extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const Lumi2ValuesWakingup({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -73,15 +74,17 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
     }
   }
 
-  Future<void> _playAlarm() =>
-      _playAudio('assets/audio/sound_effects/alarmclock.wav');
+  Future<void> _playAlarm() => _playAudio('assets/audio/sound_effects/alarmclock.wav');
 
   Future<void> _playNext() async {
     await _playAudio('assets/audio/lumi_town/level1/salamat.wav');
     await _audioPlayer.onPlayerComplete.first;
-    if (mounted) setState(() => _showGoodJob = true);
-  }
 
+    await _saveDataAndMarkComplete();
+    if (!mounted) return;
+
+    setState(() => _showGoodJob = true);
+  }
   @override
   void dispose() {
     disposeAiCamera();
@@ -109,7 +112,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(1).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
   }
@@ -127,6 +130,9 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
               child: _showNext ? _buildNext() : _buildAwake(),
             ),
 
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {
@@ -138,37 +144,29 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
             if (_showGoodJob)
               GoodJobOverlay(
                 characterImage: 'assets/images/characters/tr.woo_the_owl.png',
-
                 onNext: () async {
-                  await _saveDataAndMarkComplete();
-
-                  if (mounted) {
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
-                        builder: (_) => const Lvl2BathroomGameScreen(),
+                        builder: (_) => Lvl2BathroomGameScreen(level: widget.level + 1),
                       ),
                     );
-                  }
+
                 },
                 onRestart: () {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (_) => const Lumi1ValuesWakeup(),
+                      builder: (_) => Lumi1ValuesWakeup(level: widget.level),
                     ),
                   );
                 },
                 onBack: () async {
-                  // Unlock level 2 even after they tap the back btn
-                  await _saveDataAndMarkComplete();
-
-                  if (mounted) {
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(
                         builder: (_) => const LumiLevelScreen(),
                       ),
                       (route) => route.isFirst,
                     );
-                  }
+
                 },
               ),
           ],
@@ -189,9 +187,6 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
             width: double.infinity,
             height: double.infinity,
           ),
-
-          //X button
-          Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),
     );
@@ -218,8 +213,6 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
               ),
             ),
           ),
-          //X button
-          Positioned(top: 25, left: 25, child: LumiXButton()),
         ],
       ),
     );

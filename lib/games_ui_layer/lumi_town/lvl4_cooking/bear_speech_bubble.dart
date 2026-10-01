@@ -31,9 +31,13 @@ class BearSpeechBubble extends StatelessWidget {
           curve: Curves.easeOutBack,
         ),
       ],
-      child: showImageBubble && bubbleImagePath != null
-          ? _ImageSpeechBubble(imagePath: bubbleImagePath!)
-          : _TextSpeechBubble(text: text, instruction: instruction),
+      child: Transform.scale(
+        scale: 0.8,
+        alignment: Alignment.topCenter,
+        child: showImageBubble && bubbleImagePath != null
+            ? _ImageSpeechBubble(imagePath: bubbleImagePath!)
+            : _TextSpeechBubble(text: text, instruction: instruction),
+      ),
     );
   }
 }

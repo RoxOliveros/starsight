@@ -3,7 +3,6 @@ import 'package:StarSight/business_layer/gesture_camera_view.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
-import 'package:StarSight/ui_layer/lumi_town/lumi_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -11,8 +10,8 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/town_level.dart';
+import '../lumi_game_ui_layer.dart';
 import 'prayer_prompt_card.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
@@ -123,7 +122,6 @@ class _Prayer1State extends State<Prayer1> with AiCameraMixin<Prayer1> {
   }
 
   Future<void> _triggerSuccessSequence() async {
-    // Cancel any pending timers
     _scene2Timer?.cancel();
     _scene3Timer?.cancel();
     _promptTimer?.cancel();
@@ -133,7 +131,7 @@ class _Prayer1State extends State<Prayer1> with AiCameraMixin<Prayer1> {
       _gestureDetected = true;
       _isWaitingForPrayerGesture = false;
       _showPromptCard = false;
-      _showSkipButton = false; // Hide the skip button if it was used!
+      _showSkipButton = false;
       _currentScene = 'assets/images/objects/lumi/lvl8_scene4.png';
     });
 
@@ -171,7 +169,7 @@ class _Prayer1State extends State<Prayer1> with AiCameraMixin<Prayer1> {
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(8).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -239,6 +237,7 @@ class _Prayer1State extends State<Prayer1> with AiCameraMixin<Prayer1> {
               ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -269,37 +268,13 @@ class _Prayer1State extends State<Prayer1> with AiCameraMixin<Prayer1> {
               Positioned(
                 bottom: 25,
                 right: 25,
-                child: GestureDetector(
+                child: LumiSkipButton(
                   onTap: () {
                     if (!_gestureDetected) {
-                      _tapTracker
-                          .recordMistake(); // Skipping counts as needing help / a mistake
+                      _tapTracker.recordMistake();
                       _triggerSuccessSequence();
                     }
                   },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: LumiColorTheme.seaglass,
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(
-                        color: LumiColorTheme.darkolive,
-                        width: 5,
-                      ),
-                    ),
-                    child: const Text(
-                      'Skip',
-                      style: TextStyle(
-                        fontFamily: LumiAppTextStyles.fredoka,
-                        fontSize: 18,
-                        color: LumiColorTheme.darkolive,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
                 ),
               ),
 

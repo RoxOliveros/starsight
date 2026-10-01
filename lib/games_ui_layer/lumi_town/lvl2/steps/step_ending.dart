@@ -3,8 +3,10 @@ import 'package:StarSight/games_ui_layer/lumi_town/lvl3/clean_bedroom_game_scree
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../../ui_layer/lumi_town/town_level.dart';
 import '../../../goodjob_prompt.dart';
+import '../../lumi_game_ui_layer.dart';
 import '../audio_helper.dart';
 import '../bathroom_game_screen.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
@@ -16,11 +18,12 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 class StepEndingScreen extends StatefulWidget {
   final List<String> priorEmotions;
   final GameTapTracker tapTracker;
+  final int level;
 
   const StepEndingScreen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker,
+    required this.tapTracker, required this.level,
   });
 
   @override
@@ -56,7 +59,12 @@ class _StepEndingScreenState extends State<StepEndingScreen>
       'assets/audio/lumi_town/level2/vo_ending.wav',
     );
     await waitForAudio(_player);
-    if (mounted) setState(() => _showOverlay = true);
+    if (!mounted) return;
+
+    await _saveDataAndMarkComplete();
+    if (!mounted) return;
+
+    setState(() => _showOverlay = true);
   }
 
   @override
@@ -85,7 +93,7 @@ class _StepEndingScreenState extends State<StepEndingScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(2).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
   }
@@ -124,6 +132,9 @@ class _StepEndingScreenState extends State<StepEndingScreen>
               ),
             ),
 
+            Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {
@@ -135,7 +146,6 @@ class _StepEndingScreenState extends State<StepEndingScreen>
             // Good Job overlay appears after ending audio
             if (_showOverlay)
               GoodJobOverlay(
-                // Mr. Woo the owl appears in the Good Job screen
                 characterImage: 'assets/images/characters/tr.woo_the_owl.png',
                 onNext: _onNext,
                 onRestart: _onRestart,
@@ -148,30 +158,21 @@ class _StepEndingScreenState extends State<StepEndingScreen>
   }
 
   Future<void> _onNext() async {
-    await _saveDataAndMarkComplete();
-
-    if (mounted) {
-      // Navigate directly to Level 3!
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const CleanBedroomGameScreen()),
+     Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => CleanBedroomGameScreen(level: widget.level + 1)),
       );
-    }
   }
 
   void _onRestart() {
-    // Restart from the very beginning of this game
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const Lvl2BathroomGameScreen()),
+      MaterialPageRoute(builder: (_) => Lvl2BathroomGameScreen(level: widget.level)),
     );
   }
 
   Future<void> _onBack() async {
-    await _saveDataAndMarkComplete();
-    if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
         (route) => route.isFirst,
       );
-    }
   }
 }

@@ -105,8 +105,10 @@ class _Sorry1ScreenState extends State<Sorry1Screen>
                     );
                   },
                 ),
+
                 Positioned(top: 25, left: 25, child: LumiXButton()),
                 Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&
                     !_hideLightingCard)

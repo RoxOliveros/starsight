@@ -104,7 +104,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
   late AnimationController _tofiFloatCtrl;
   late AnimationController _swayCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late List<AnimationController> _harvestShakeCtrls;
@@ -157,13 +156,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,

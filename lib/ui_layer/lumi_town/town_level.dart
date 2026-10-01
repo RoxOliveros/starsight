@@ -341,13 +341,13 @@ class _LevelTile extends StatelessWidget {
   Widget? _screenForLevel() {
     switch (level) {
       case 1:
-        return Lumi1ValuesWakeup();
+        return Lumi1ValuesWakeup(level: 1);
       case 2:
-        return Lvl2BathroomGameScreen();
+        return Lvl2BathroomGameScreen(level: 2);
       case 3:
-        return CleanBedroomGameScreen();
+        return CleanBedroomGameScreen(level: 3);
       case 4:
-        return CookingGameScreen();
+        return CookingGameScreen(level: 4);
       case 5:
         return Sharing1(level: 5);
       case 6:
@@ -363,9 +363,9 @@ class _LevelTile extends StatelessWidget {
       case 11:
         return ThrowingTrashGame(level: 11);
       case 12:
-        return AppreciationGame();
+        return AppreciationGame(level: 12);
       case 13:
-        return FamilyTreeGame();
+        return FamilyTreeGame(level: 13);
       case 14:
         return StoplightGameScreen(level: 14);
       case 15:

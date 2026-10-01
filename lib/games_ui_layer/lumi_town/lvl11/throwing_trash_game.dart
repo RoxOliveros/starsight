@@ -7,13 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-
 import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';
 import '../lumi_game_ui_layer.dart';
@@ -207,7 +205,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(11).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -471,7 +469,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
                 ),
               ),
 
-            const Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, left: 25, child: LumiXButton()),
             Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
@@ -490,7 +488,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
                     if (mounted) {
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(
-                          builder: (_) => const AppreciationGame(),
+                          builder: (_) => AppreciationGame(level: widget.level + 1),
                         ),
                         (route) => route.isFirst,
                       );

@@ -7,12 +7,15 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:StarSight/business_layer/gesture_camera_view.dart';
+import '../../../ui_layer/game_loading_mixin.dart';
+import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+
+import '../lumi_game_ui_layer.dart';
 
 enum _CameraGestureState { checking, granted, denied }
 
@@ -25,7 +28,8 @@ class Sharing1 extends StatefulWidget {
   State<Sharing1> createState() => _Sharing1State();
 }
 
-class _Sharing1State extends State<Sharing1> with AiCameraMixin<Sharing1> {
+class _Sharing1State extends State<Sharing1>
+    with AiCameraMixin<Sharing1>, GameLoadingMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -34,12 +38,14 @@ class _Sharing1State extends State<Sharing1> with AiCameraMixin<Sharing1> {
   bool _actionTaken = false;
   bool _introFinished = false;
 
+  StreamSubscription<void>? _introSub;
+  bool _hideLightingCard = false;
+
   static const _noHandsTimeout = Duration(seconds: 8);
   Timer? _noHandsTimer;
+  bool _showButtons = false;
 
-  bool _showNoHandsPrompt = false;
-  bool _forceButtonFallback = false;
-  bool _hideLightingCard = false;
+  final Completer<void> _promptDone = Completer<void>();
 
   @override
   void initState() {
@@ -54,16 +60,32 @@ class _Sharing1State extends State<Sharing1> with AiCameraMixin<Sharing1> {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    _audioPlayer.play(AssetSource('audio/lumi_town/level5/intro.wav'));
-    _audioPlayer.onPlayerComplete.listen((_) {
-      if (mounted && !_introFinished) {
-        setState(() {
-          _introFinished = true;
-        });
+    _requestCameraPermission();
+
+    finishLoading(_playIntro);
+  }
+
+  Future<void> _playIntro() async {
+    if (!mounted) return;
+    _introSub = _audioPlayer.onPlayerComplete.listen((_) async {
+      _introSub?.cancel();
+      if (!mounted || _introFinished) return;
+      setState(() => _introFinished = true);
+      _startNoHandsTimer();
+
+      try {
+        final done = _audioPlayer.onPlayerComplete.first; // subscribe first
+        await _audioPlayer.play(
+          AssetSource('audio/lumi_town/thumbsup_thumbsdown.wav'),
+        );
+        await done;
+      } catch (e) {
+        debugPrint('[Sharing1] Prompt audio error: $e');
+      } finally {
+        if (!_promptDone.isCompleted) _promptDone.complete();
       }
     });
-
-    _requestCameraPermission();
+    await _audioPlayer.play(AssetSource('audio/lumi_town/level5/intro.wav'));
   }
 
   Future<void> _requestCameraPermission() async {
@@ -75,31 +97,21 @@ class _Sharing1State extends State<Sharing1> with AiCameraMixin<Sharing1> {
           ? _CameraGestureState.granted
           : _CameraGestureState.denied;
     });
+    if (_introFinished) _startNoHandsTimer();
   }
 
-  void _onAnyGestureDetected() {
+  void _startNoHandsTimer() {
     _noHandsTimer?.cancel();
-    _noHandsTimer = Timer(_noHandsTimeout, () {
-      if (mounted) setState(() => _showNoHandsPrompt = true);
-    });
+    if (_showButtons || !mounted) return;
 
-    if (_showNoHandsPrompt) {
-      setState(() => _showNoHandsPrompt = false);
+    if (_cameraState == _CameraGestureState.denied) {
+      setState(() => _showButtons = true);
+      return;
     }
-  }
+    if (_cameraState == _CameraGestureState.checking) return;
 
-  void _ensureNoHandsWatcherStarted() {
-    if (_noHandsTimer != null) return;
     _noHandsTimer = Timer(_noHandsTimeout, () {
-      if (mounted) setState(() => _showNoHandsPrompt = true);
-    });
-  }
-
-  void _switchToButtonFallback() {
-    _noHandsTimer?.cancel();
-    setState(() {
-      _forceButtonFallback = true;
-      _showNoHandsPrompt = false;
+      if (mounted) setState(() => _showButtons = true);
     });
   }
 
@@ -107,6 +119,7 @@ class _Sharing1State extends State<Sharing1> with AiCameraMixin<Sharing1> {
   void dispose() {
     disposeAiCamera();
     _audioPlayer.dispose();
+    _introSub?.cancel();
     _noHandsTimer?.cancel();
     super.dispose();
   }
@@ -115,13 +128,12 @@ class _Sharing1State extends State<Sharing1> with AiCameraMixin<Sharing1> {
     if (_actionTaken) return;
     _actionTaken = true;
 
-    _tapTracker.recordCorrectTap();
+    // Let the prompt finish before reacting, so it never gets cut off.
+    await _promptDone.future;
+    if (!mounted) return;
 
+    _tapTracker.recordCorrectTap();
     _noHandsTimer?.cancel();
-    _noHandsTimer = null;
-    if (_showNoHandsPrompt) {
-      setState(() => _showNoHandsPrompt = false);
-    }
 
     debugPrint('Thumbs Up!');
     await _audioPlayer.stop();
@@ -149,13 +161,11 @@ class _Sharing1State extends State<Sharing1> with AiCameraMixin<Sharing1> {
     if (_actionTaken) return;
     _actionTaken = true;
 
-    _tapTracker.recordMistake();
+    // Let the prompt finish before reacting, so it never gets cut off.
+    await _promptDone.future;
+    if (!mounted) return;
 
-    _noHandsTimer?.cancel();
-    _noHandsTimer = null;
-    if (_showNoHandsPrompt) {
-      setState(() => _showNoHandsPrompt = false);
-    }
+    _tapTracker.recordMistake();
 
     debugPrint('Thumbs Down!');
     await _audioPlayer.stop();
@@ -165,7 +175,6 @@ class _Sharing1State extends State<Sharing1> with AiCameraMixin<Sharing1> {
     setState(() {
       _actionTaken = false;
     });
-    _ensureNoHandsWatcherStarted();
   }
 
   @override
@@ -187,262 +196,234 @@ class _Sharing1State extends State<Sharing1> with AiCameraMixin<Sharing1> {
     final rng = math.Random(7);
     final List<double> jitterDx = List.generate(
       plainPancakeCount + 1,
-      (_) => (rng.nextDouble() - 0.5) * pancakeWidth * 0.18,
+          (_) => (rng.nextDouble() - 0.5) * pancakeWidth * 0.18,
     );
 
     final double thumbSize = sw * 0.11;
     final double thumbBtnSize = sw * 0.135;
 
     return Scaffold(
-      body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset(
-              'assets/images/backgrounds/bg_game_kitchen.png',
-              fit: BoxFit.cover,
-              errorBuilder: (ctx, err, st) => Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFFFFF3C8), Color(0xFFE8C97A)],
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.lumiTown(),
+        gameBuilder: () =>
+            Listener(
+              onPointerDown: (_) => _tapTracker.recordGenericTap(),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    'assets/images/backgrounds/bg_game_kitchen.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (ctx, err, st) =>
+                        Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Color(0xFFFFF3C8), Color(0xFFE8C97A)],
+                            ),
+                          ),
+                        ),
                   ),
-                ),
-              ),
-            ),
 
-            Positioned(
-              bottom: bearBottom,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Image.asset(
-                  'assets/images/characters/little_bear_uniform.png',
-                  height: bearHeight,
-                  fit: BoxFit.contain,
-                  errorBuilder: (ctx, err, st) => const SizedBox(),
-                ),
-              ),
-            ),
-
-            Positioned(
-              bottom: tableBottom,
-              left: 0,
-              right: 0,
-              child: Image.asset(
-                'assets/images/objects/lumi/table.png',
-                width: tableWidth,
-                fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => Container(
-                  height: sh * 0.22,
-                  color: const Color(0xFFCD853F),
-                ),
-              ),
-            ),
-
-            Positioned(
-              bottom: stackBaseOffset,
-              right: sw * 0.04,
-              child: SizedBox(
-                width: plateWidth,
-                height: sh * 1.1,
-                child: Stack(
-                  alignment: Alignment.bottomCenter,
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      bottom: 0,
+                  Positioned(
+                    bottom: bearBottom,
+                    left: 0,
+                    right: 0,
+                    child: Center(
                       child: Image.asset(
-                        'assets/images/objects/lumi/plate.png',
-                        width: plateWidth,
-                        errorBuilder: (ctx, err, st) => Container(
-                          width: plateWidth,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                        ),
+                        'assets/images/characters/little_bear_uniform.png',
+                        height: bearHeight,
+                        fit: BoxFit.contain,
+                        errorBuilder: (ctx, err, st) => const SizedBox(),
                       ),
                     ),
+                  ),
 
-                    ...List.generate(plainPancakeCount, (index) {
-                      final dx = jitterDx[index];
-                      return Positioned(
-                        bottom: stackBaseOffset + (index * pancakeThickness),
-                        left: plateWidth / 2 - pancakeWidth / 2 + dx,
-                        child: Image.asset(
-                          'assets/images/objects/lumi/pancake.png',
-                          width: pancakeWidth,
-                          errorBuilder: (ctx, err, st) => Container(
-                            width: pancakeWidth,
-                            height: pancakeThickness * 0.55,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8A037),
-                              borderRadius: BorderRadius.circular(
-                                pancakeWidth / 2,
-                              ),
-                              border: Border.all(
-                                color: const Color(0xFFB8641A),
-                                width: 1.5,
-                              ),
+                  Positioned(
+                    bottom: tableBottom,
+                    left: 0,
+                    right: 0,
+                    child: Image.asset(
+                      'assets/images/objects/lumi/table.png',
+                      width: tableWidth,
+                      fit: BoxFit.contain,
+                      errorBuilder: (ctx, err, st) =>
+                          Container(
+                            height: sh * 0.22,
+                            color: const Color(0xFFCD853F),
+                          ),
+                    ),
+                  ),
+
+                  Positioned(
+                    bottom: stackBaseOffset,
+                    right: sw * 0.04,
+                    child: SizedBox(
+                      width: plateWidth,
+                      height: sh * 1.1,
+                      child: Stack(
+                        alignment: Alignment.bottomCenter,
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned(
+                            bottom: 0,
+                            child: Image.asset(
+                              'assets/images/objects/lumi/plate.png',
+                              width: plateWidth,
+                              errorBuilder: (ctx, err, st) =>
+                                  Container(
+                                    width: plateWidth,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                          color: Colors.grey.shade300),
+                                    ),
+                                  ),
                             ),
                           ),
-                        ),
-                      );
-                    }),
 
+                          ...List.generate(plainPancakeCount, (index) {
+                            final dx = jitterDx[index];
+                            return Positioned(
+                              bottom: stackBaseOffset +
+                                  (index * pancakeThickness),
+                              left: plateWidth / 2 - pancakeWidth / 2 + dx,
+                              child: Image.asset(
+                                'assets/images/objects/lumi/pancake.png',
+                                width: pancakeWidth,
+                                errorBuilder: (ctx, err, st) =>
+                                    Container(
+                                      width: pancakeWidth,
+                                      height: pancakeThickness * 0.55,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE8A037),
+                                        borderRadius: BorderRadius.circular(
+                                          pancakeWidth / 2,
+                                        ),
+                                        border: Border.all(
+                                          color: const Color(0xFFB8641A),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                              ),
+                            );
+                          }),
+
+                          Positioned(
+                            bottom:
+                            stackBaseOffset +
+                                (plainPancakeCount * pancakeThickness),
+                            left:
+                            plateWidth / 2 -
+                                pancakeWidth / 2 +
+                                jitterDx[plainPancakeCount],
+                            child: Image.asset(
+                              'assets/images/objects/lumi/pancke_maple_syrup_butter.png',
+                              width: pancakeWidth,
+                              errorBuilder: (ctx, err, st) =>
+                                  Container(
+                                    width: pancakeWidth,
+                                    height: pancakeThickness * 0.55,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFD4843A),
+                                      borderRadius: BorderRadius.circular(
+                                        pancakeWidth / 2,
+                                      ),
+                                      border: Border.all(
+                                        color: const Color(0xFFB8641A),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ).animate().fadeIn(
+                        duration: const Duration(milliseconds: 500)),
+                  ),
+
+                  // Gesture detection stays active when the camera is allowed,
+                  // but the buttons are always visible as soon as the intro ends.
+                  if (_introFinished &&
+                      _cameraState == _CameraGestureState.granted)
+                    _HiddenGestureDetector(
+                      onGesture: (result) {
+                        _startNoHandsTimer(); // hand seen: restart countdown
+                        if (result.isThumbsUp) {
+                          _handleThumbsUp();
+                        } else if (result.isThumbsDown) {
+                          _handleThumbsDown();
+                        }
+                      },
+                    ),
+
+                  if (_showButtons)
                     Positioned(
-                      bottom:
-                          stackBaseOffset +
-                          (plainPancakeCount * pancakeThickness),
-                      left:
-                          plateWidth / 2 -
-                          pancakeWidth / 2 +
-                          jitterDx[plainPancakeCount],
-                      child: Image.asset(
-                        'assets/images/objects/lumi/pancke_maple_syrup_butter.png',
-                        width: pancakeWidth,
-                        errorBuilder: (ctx, err, st) => Container(
-                          width: pancakeWidth,
-                          height: pancakeThickness * 0.55,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD4843A),
-                            borderRadius: BorderRadius.circular(
-                              pancakeWidth / 2,
+                      bottom: sh * 0.10,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GestureDetector(
+                              onTap: _handleThumbsUp,
+                              child: _ThumbButton(
+                                imagePath:
+                                'assets/images/objects/lumi/thumbs_up.png',
+                                backgroundColor:
+                                const Color.fromARGB(0, 0, 0, 0),
+                                size: thumbBtnSize,
+                                iconSize: thumbSize,
+                                animDelay: Duration.zero,
+                              ),
                             ),
-                            border: Border.all(
-                              color: const Color(0xFFB8641A),
-                              width: 1.5,
+                            SizedBox(width: sw * 0.04),
+                            GestureDetector(
+                              onTap: _handleThumbsDown,
+                              child: _ThumbButton(
+                                imagePath:
+                                'assets/images/objects/lumi/thumbs_down.png',
+                                backgroundColor:
+                                const Color.fromARGB(0, 0, 0, 0),
+                                size: thumbBtnSize,
+                                iconSize: thumbSize,
+                                animDelay: const Duration(milliseconds: 400),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ).animate().fadeIn(duration: const Duration(milliseconds: 500)),
+
+                  Positioned(top: 25, left: 25, child: LumiXButton()),
+                  Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+
+                  if (hasCapturedFirstFrame && !isFaceDetected &&
+                      !_hideLightingCard)
+                    LightingPromptCard(
+                      onClose: () {
+                        setState(() => _hideLightingCard = true);
+                        releaseFaceGate();
+                      },
+                    ),
+                ],
+              ),
             ),
-
-            if (_introFinished &&
-                _cameraState == _CameraGestureState.granted &&
-                !_forceButtonFallback) ...[
-              _HiddenGestureDetector(
-                onGesture: (result) {
-                  _onAnyGestureDetected();
-                  if (result.isThumbsUp) {
-                    _handleThumbsUp();
-                  } else if (result.isThumbsDown) {
-                    _handleThumbsDown();
-                  }
-                },
-                onMounted: _ensureNoHandsWatcherStarted,
-              ),
-              Positioned(
-                bottom: sh * 0.10,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Text(
-                      'Show a thumbs up or thumbs down!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Fredoka',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Color(0xFF5E463E),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (_showNoHandsPrompt)
-                _NoHandsPrompt(onUseButtons: _switchToButtonFallback),
-            ] else if (_introFinished &&
-                (_cameraState == _CameraGestureState.denied ||
-                    _forceButtonFallback))
-              Positioned(
-                bottom: sh * 0.10,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GestureDetector(
-                        onTap: _handleThumbsUp,
-                        child: _ThumbButton(
-                          imagePath: 'assets/images/objects/lumi/thumbs_up.png',
-                          backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-                          size: thumbBtnSize,
-                          iconSize: thumbSize,
-                          animDelay: Duration.zero,
-                        ),
-                      ),
-                      SizedBox(width: sw * 0.04),
-                      GestureDetector(
-                        onTap: _handleThumbsDown,
-                        child: _ThumbButton(
-                          imagePath:
-                              'assets/images/objects/lumi/thumbs_down.png',
-                          backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-                          size: thumbBtnSize,
-                          iconSize: thumbSize,
-                          animDelay: const Duration(milliseconds: 400),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-            Positioned(top: 25, left: 25, child: LumiXButton()),
-
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
-        ),
       ),
     );
   }
 }
 
-class _HiddenGestureDetector extends StatefulWidget {
+class _HiddenGestureDetector extends StatelessWidget {
   final void Function(GestureResult result) onGesture;
-  final VoidCallback onMounted;
 
-  const _HiddenGestureDetector({
-    required this.onGesture,
-    required this.onMounted,
-  });
-
-  @override
-  State<_HiddenGestureDetector> createState() => _HiddenGestureDetectorState();
-}
-
-class _HiddenGestureDetectorState extends State<_HiddenGestureDetector> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onMounted());
-  }
+  const _HiddenGestureDetector({required this.onGesture});
 
   @override
   Widget build(BuildContext context) {
@@ -455,87 +436,7 @@ class _HiddenGestureDetectorState extends State<_HiddenGestureDetector> {
           child: SizedBox(
             width: 4,
             height: 4,
-            child: GestureCameraView(onGesture: widget.onGesture),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NoHandsPrompt extends StatelessWidget {
-  final VoidCallback onUseButtons;
-
-  const _NoHandsPrompt({required this.onUseButtons});
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.45),
-        child: Center(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 40),
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFAF7EB),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "We can't see your hands!",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Fredoka',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: Color(0xFFE8A037),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Try showing your thumb again, or use the buttons instead.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Fredoka',
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF5E463E),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                ElevatedButton(
-                  onPressed: onUseButtons,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF266589),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    'Use buttons instead',
-                    style: TextStyle(
-                      fontFamily: 'Fredoka',
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            child: GestureCameraView(onGesture: onGesture),
           ),
         ),
       ),
@@ -561,36 +462,35 @@ class _ThumbButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(size * 0.22),
-            boxShadow: [
-              BoxShadow(
-                color: backgroundColor.withValues(alpha: 0.45),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(size * 0.22),
+        boxShadow: [
+          BoxShadow(
+            color: backgroundColor.withValues(alpha: 0.45),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
-          padding: EdgeInsets.all(size * 0.10),
-          child: Image.asset(
-            imagePath,
-            fit: BoxFit.contain,
-            errorBuilder: (ctx, err, st) => Icon(
-              imagePath.contains('up') ? Icons.thumb_up : Icons.thumb_down,
-              color: Colors.white,
-              size: iconSize * 0.7,
-            ),
-          ),
-        )
+        ],
+      ),
+      padding: EdgeInsets.all(size * 0.10),
+      child: Image.asset(
+        imagePath,
+        fit: BoxFit.contain,
+        errorBuilder: (ctx, err, st) {
+          debugPrint('[ThumbButton] Could not load $imagePath: $err');
+          return const SizedBox.shrink();
+        },
+      ),
+    )
         .animate(delay: animDelay, onPlay: (c) => c.repeat(reverse: true))
         .scale(
-          begin: const Offset(1.0, 1.0),
-          end: const Offset(1.06, 1.06),
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeInOut,
-        );
+      begin: const Offset(1.0, 1.0),
+      end: const Offset(1.06, 1.06),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeInOut,
+    );
   }
 }

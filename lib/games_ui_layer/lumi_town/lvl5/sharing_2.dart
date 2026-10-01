@@ -10,6 +10,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../tryagain_prompt.dart';
+import '../lumi_game_ui_layer.dart';
 import 'character_entrance.dart';
 import 'sharing_tutorial_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -269,7 +270,7 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
     ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
     });
-    TownProgressService.instance.markLevelComplete(5).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -656,6 +657,7 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
               ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
+            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -667,6 +669,7 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
 
             if (_showTutorial)
               Positioned.fill(
+                key: const ValueKey('sharing_tutorial'),
                 child: SharingTutorialPrompt(onClose: _handleTutorialClose),
               ),
 
@@ -769,6 +772,10 @@ class _Sharing2State extends State<Sharing2> with AiCameraMixin<Sharing2> {
                         clipBehavior: Clip.hardEdge,
                         alignment: Alignment.bottomCenter,
                         children: [
+
+                          Positioned(top: 25, left: 25, child: LumiXButton()),
+                          Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+
                           _positionedCharacter(
                             charactersSmiling['dog']!,
                             left: -sw * 0.02,
