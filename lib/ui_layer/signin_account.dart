@@ -323,7 +323,7 @@ class _SignInAccountState extends State<SignInAccount>
                                   children: [
                                     TextSpan(
                                       text:
-                                          'Welcome back Parents!\nLog in to your ',
+                                          'Welcome back Grownups!\nLog in to your ',
                                     ),
                                     TextSpan(
                                       text: 'StarSight',

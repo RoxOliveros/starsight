@@ -276,7 +276,7 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
                                 child: Text(
                                   _isConfirmStep
                                       ? 'Re-enter your PIN to confirm'
-                                      : 'Parents, please create a 4-digit PIN',
+                                      : 'Grownups, please create a 4-digit PIN',
                                   style: const TextStyle(
                                     color: Color(0xFFFAF7EB),
                                     fontSize: 18,
