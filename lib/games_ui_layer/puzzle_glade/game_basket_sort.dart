@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -45,19 +46,28 @@ class BasketSortScreen extends StatefulWidget {
 }
 
 class _BasketSortScreenState extends State<BasketSortScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<BasketSortScreen> {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/basket_sort_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/basket_sort_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/basket_sort_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/basket_sort_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/basket_sort_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/basket_sort_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -102,6 +112,9 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   AudioPlayer? _introPlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_sfxPlayer, _completePlayer];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -768,19 +781,12 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
         feedback: Material(
           color: Colors.transparent,
-          child: _buildItemTile(
-            currentObject,
-            size: 82,
-            isDragging: true,
-          ),
+          child: _buildItemTile(currentObject, size: 82, isDragging: true),
         ),
 
         childWhenDragging: Opacity(
           opacity: 0.25,
-          child: _buildItemTile(
-            currentObject,
-            size: 80,
-          ),
+          child: _buildItemTile(currentObject, size: 80),
         ),
 
         child: GestureDetector(
@@ -789,21 +795,12 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
             setState(() => _itemHeld = !_itemHeld);
           },
-          child: _buildItemTile(
-            currentObject,
-            size: 80,
-            isHeld: _itemHeld,
-          ),
+          child: _buildItemTile(currentObject, size: 80, isHeld: _itemHeld),
         ),
       ),
     );
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        itemWidget,
-      ],
-    );
+    return Column(mainAxisSize: MainAxisSize.min, children: [itemWidget]);
   }
 
   Widget _buildItemTile(

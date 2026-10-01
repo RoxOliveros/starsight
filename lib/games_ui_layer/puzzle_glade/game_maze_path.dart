@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -44,22 +45,32 @@ class MazePathScreen extends StatefulWidget {
 }
 
 class _MazePathScreenState extends State<MazePathScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, PuzzleAudioMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        PuzzleAudioMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<MazePathScreen> {
   @override
   AudioPlayer get roxiePlayer => _roxieSfxPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _chickenImage = 'assets/images/characters/chicken.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _flagImage = 'assets/images/objects/puzzle/flag.png';
   static const String _starImage = 'assets/images/objects/puzzle/star.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/maze_path_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/maze_path_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/maze_path_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/maze_path_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/maze_path_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/maze_path_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -86,6 +97,13 @@ class _MazePathScreenState extends State<MazePathScreen>
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _roxieSfxPlayer = AudioPlayer();
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _bgPlayer,
+    _sfxPlayer,
+    _completePlayer,
+    _roxieSfxPlayer,
+  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -255,13 +273,15 @@ class _MazePathScreenState extends State<MazePathScreen>
     _enterCtrl.forward(from: 0);
   }
 
-
   void _move(int dRow, int dCol) {
     if (_isCompleting) return;
 
     final target = (_currentCell.$1 + dRow, _currentCell.$2 + dCol);
 
-    if (target.$1 < 0 || target.$1 >= _rows || target.$2 < 0 || target.$2 >= _cols) {
+    if (target.$1 < 0 ||
+        target.$1 >= _rows ||
+        target.$2 < 0 ||
+        target.$2 >= _cols) {
       _handleWrongMove();
       return;
     }
@@ -477,11 +497,10 @@ class _MazePathScreenState extends State<MazePathScreen>
               opacity: _roxieFade,
               child: AnimatedBuilder(
                 animation: _roxieFloatCtrl,
-                builder: (_, child) =>
-                    Transform.translate(
-                      offset: Offset(0, floatY),
-                      child: child,
-                    ),
+                builder: (_, child) => Transform.translate(
+                  offset: Offset(0, floatY),
+                  child: child,
+                ),
                 child: Image.asset(
                   _characterImage,
                   height: roxieH,
@@ -662,7 +681,7 @@ class _MazePathScreenState extends State<MazePathScreen>
                       _chickenImage,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>
-                      const Text('🐰', style: TextStyle(fontSize: 28)),
+                          const Text('🐰', style: TextStyle(fontSize: 28)),
                     ),
                   ),
                 ),
@@ -702,18 +721,30 @@ class _MazePathScreenState extends State<MazePathScreen>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _DirButton(icon: Icons.keyboard_arrow_up_rounded, onTap: () => _move(-1, 0)),
+        _DirButton(
+          icon: Icons.keyboard_arrow_up_rounded,
+          onTap: () => _move(-1, 0),
+        ),
         const SizedBox(height: gap),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _DirButton(icon: Icons.keyboard_arrow_left_rounded, onTap: () => _move(0, -1)),
+            _DirButton(
+              icon: Icons.keyboard_arrow_left_rounded,
+              onTap: () => _move(0, -1),
+            ),
             const SizedBox(width: 56 + gap * 2), // center gap
-            _DirButton(icon: Icons.keyboard_arrow_right_rounded, onTap: () => _move(0, 1)),
+            _DirButton(
+              icon: Icons.keyboard_arrow_right_rounded,
+              onTap: () => _move(0, 1),
+            ),
           ],
         ),
         const SizedBox(height: gap),
-        _DirButton(icon: Icons.keyboard_arrow_down_rounded, onTap: () => _move(1, 0)),
+        _DirButton(
+          icon: Icons.keyboard_arrow_down_rounded,
+          onTap: () => _move(1, 0),
+        ),
       ],
     );
   }

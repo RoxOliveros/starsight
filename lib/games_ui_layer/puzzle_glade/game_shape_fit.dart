@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -49,20 +50,30 @@ class ShapeFitScreen extends StatefulWidget {
 }
 
 class _ShapeFitScreenState extends State<ShapeFitScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, PuzzleAudioMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        PuzzleAudioMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<ShapeFitScreen> {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/shape_fit_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/shape_fit_instruction.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/shape_fit_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/shape_fit_instruction.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/shape_fit_complete.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/shape_fit_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -87,6 +98,13 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _roxiePlayer,
+    _bgPlayer,
+    _sfxPlayer,
+    _completePlayer,
+  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
