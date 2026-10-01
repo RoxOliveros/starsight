@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -54,9 +55,15 @@ class CatchingGameScreen extends StatefulWidget {
 }
 
 class _CatchingGameScreenState extends State<CatchingGameScreen>
-    with SingleTickerProviderStateMixin, AiCameraMixin {
+    with
+        SingleTickerProviderStateMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<CatchingGameScreen> {
   late AnimationController _gameLoopController;
   late final AudioPlayer _audioPlayer;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+
   final Random _random = Random();
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -81,7 +88,8 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   static const double _catchBottom = 0.90;
   static const double _catchHalfWidth = 0.085;
 
-  final String _catchMissedFoods = 'audio/discovery_lagoon/catching_missed_food.wav';
+  final String _catchMissedFoods =
+      'audio/discovery_lagoon/catching_missed_food.wav';
 
   final List<String> _sweetFoodImages = [
     'assets/images/objects/lagoon/cookie.png',
@@ -404,8 +412,8 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
         if (_fallingItems[i].y >= _catchTop &&
             _fallingItems[i].y <= _catchBottom) {
-          final double horizontalDistance =
-          (_fallingItems[i].x - _basketX).abs();
+          final double horizontalDistance = (_fallingItems[i].x - _basketX)
+              .abs();
 
           if (horizontalDistance < _catchHalfWidth) {
             final caughtItem = _fallingItems[i];

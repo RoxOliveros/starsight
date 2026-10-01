@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -60,8 +61,12 @@ class PickupGame extends StatefulWidget {
   State<PickupGame> createState() => _PickupGameState();
 }
 
-class _PickupGameState extends State<PickupGame> with AiCameraMixin {
+class _PickupGameState extends State<PickupGame>
+    with AiCameraMixin, AppAudioLifecycleMixin<PickupGame> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+
   final GameTapTracker _tapTracker = GameTapTracker();
   final math.Random _random = math.Random();
 
@@ -287,8 +292,8 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
 
     final int childCount =
         1 +
-            (_assignedWrong1 != null ? 1 : 0) +
-            (_assignedWrong2 != null ? 1 : 0);
+        (_assignedWrong1 != null ? 1 : 0) +
+        (_assignedWrong2 != null ? 1 : 0);
 
     late List<double> positions;
 
@@ -306,11 +311,9 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
 
     _targetChoiceLeft = positions[index++];
 
-    _wrong1ChoiceLeft =
-    _assignedWrong1 != null ? positions[index++] : null;
+    _wrong1ChoiceLeft = _assignedWrong1 != null ? positions[index++] : null;
 
-    _wrong2ChoiceLeft =
-    _assignedWrong2 != null ? positions[index++] : null;
+    _wrong2ChoiceLeft = _assignedWrong2 != null ? positions[index++] : null;
   }
 
   void _triggerEntranceAnimation() {
@@ -615,9 +618,7 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
                     if (!_isTargetMoving &&
                         !_isWalkingAway &&
                         !_isChildrenEntering) {
-                      _playAudio(
-                        'audio/discovery_lagoon/kiki_tryagain.wav',
-                      );
+                      _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
                     }
                   },
                   child: _WalkingAnimalEntrance(
@@ -629,9 +630,7 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
               ),
             ),
 
-          if (!_isIntro &&
-              !_showSuccessUI &&
-              _assignedWrong1 != null)
+          if (!_isIntro && !_showSuccessUI && _assignedWrong1 != null)
             _buildChildCharacter(
               config: _assignedWrong1!,
               isTarget: false,
@@ -639,9 +638,7 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
               choiceLeftOffset: _wrong1ChoiceLeft!,
             ),
 
-          if (!_isIntro &&
-              !_showSuccessUI &&
-              _assignedWrong2 != null)
+          if (!_isIntro && !_showSuccessUI && _assignedWrong2 != null)
             _buildChildCharacter(
               config: _assignedWrong2!,
               isTarget: false,
@@ -649,9 +646,7 @@ class _PickupGameState extends State<PickupGame> with AiCameraMixin {
               choiceLeftOffset: _wrong2ChoiceLeft!,
             ),
 
-          if (!_isIntro &&
-              !_showSuccessUI &&
-              _assignedTarget != null)
+          if (!_isIntro && !_showSuccessUI && _assignedTarget != null)
             _buildChildCharacter(
               config: _assignedTarget!,
               isTarget: true,

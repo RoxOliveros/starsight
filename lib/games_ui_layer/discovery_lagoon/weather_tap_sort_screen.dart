@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -46,7 +47,11 @@ class WeatherTapSortScreen extends StatefulWidget {
 }
 
 class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
-    with TickerProviderStateMixin, LagoonIntroMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        LagoonIntroMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<WeatherTapSortScreen> {
   // ── Intro phase ────────────────────────────────────────────────────────
 
   final AudioPlayer _introPlayer = AudioPlayer();
@@ -55,32 +60,24 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
 
   @override
   AudioPlayer get introAudioPlayer => _introPlayer;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_introPlayer, _sfxPlayer];
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
-  static const String _introAudio = 'assets/audio/discovery_lagoon/tapsort_intro.wav';
+  static const String _introAudio =
+      'assets/audio/discovery_lagoon/tapsort_intro.wav';
   static const String _shineAudio = 'assets/audio/sound_effects/shine.wav';
-  static const String _bubblePopAudio = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _bubblePopAudio =
+      'assets/audio/sound_effects/bubble_pop.wav';
 
   // ── Game data ────────────────────────────────────────────────────────────
 
   final List<Map<String, dynamic>> _weathers = [
-    {
-      'id': 'sunny',
-      'color': const Color(0xFFFFE066),
-    },
-    {
-      'id': 'rainy',
-      'color': const Color(0xFF90CAF9),
-    },
-    {
-      'id': 'cloudy',
-      'color': const Color(0xFFCFD8DC),
-    },
-    {
-      'id': 'windy',
-      'color': const Color(0xFFB2EBF2),
-    },
+    {'id': 'sunny', 'color': const Color(0xFFFFE066)},
+    {'id': 'rainy', 'color': const Color(0xFF90CAF9)},
+    {'id': 'cloudy', 'color': const Color(0xFFCFD8DC)},
+    {'id': 'windy', 'color': const Color(0xFFB2EBF2)},
   ];
 
   final Map<String, String> _weatherBgImage = {

@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
@@ -35,15 +36,21 @@ class HabitantGame extends StatefulWidget {
 }
 
 class _HabitantGameState extends State<HabitantGame>
-    with AiCameraMixin {
-
+    with AiCameraMixin, AppAudioLifecycleMixin<HabitantGame> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+
   final GameTapTracker _tapTracker = GameTapTracker();
   StreamSubscription? _audioSubscription;
 
-  static const String _introAudio = 'audio/discovery_lagoon/habitant_game_intro.wav';
-  static const String _wrongAudio = 'audio/discovery_lagoon/habitant_game_wrong.wav';
-  static const String _winAudio = 'audio/discovery_lagoon/habitant_game_win.wav';
+  static const String _introAudio =
+      'audio/discovery_lagoon/habitant_game_intro.wav';
+  static const String _wrongAudio =
+      'audio/discovery_lagoon/habitant_game_wrong.wav';
+  static const String _winAudio =
+      'audio/discovery_lagoon/habitant_game_win.wav';
 
   static const Map<String, String> _correctAudio = {
     'dog': 'audio/discovery_lagoon/habitant_game_dog_correct.wav',
@@ -142,9 +149,7 @@ class _HabitantGameState extends State<HabitantGame>
       }
     });
 
-    await _audioPlayer.play(
-      AssetSource(_introAudio),
-    );
+    await _audioPlayer.play(AssetSource(_introAudio));
   }
 
   @override
@@ -156,13 +161,8 @@ class _HabitantGameState extends State<HabitantGame>
     super.dispose();
   }
 
-  Future<void> _playPlacementAudio(
-      String characterId,
-      bool isCorrect,
-      ) async {
-    final audioPath = isCorrect
-        ? _correctAudio[characterId]
-        : _wrongAudio;
+  Future<void> _playPlacementAudio(String characterId, bool isCorrect) async {
+    final audioPath = isCorrect ? _correctAudio[characterId] : _wrongAudio;
 
     if (audioPath == null) return;
 
@@ -178,9 +178,7 @@ class _HabitantGameState extends State<HabitantGame>
       subscription.cancel();
     });
 
-    await _audioPlayer.play(
-      AssetSource(audioPath),
-    );
+    await _audioPlayer.play(AssetSource(audioPath));
 
     await completer.future;
   }
@@ -198,9 +196,7 @@ class _HabitantGameState extends State<HabitantGame>
       subscription.cancel();
     });
 
-    await _audioPlayer.play(
-      AssetSource(_winAudio),
-    );
+    await _audioPlayer.play(AssetSource(_winAudio));
 
     await completer.future;
   }
@@ -395,7 +391,8 @@ class _HabitantGameState extends State<HabitantGame>
           });
 
           bool movingAnimalCorrect = correctHabitats[movingCharacter] == zoneId;
-          bool displacedAnimalCorrect = correctHabitats[displacedCharacter] == sourceZoneId;
+          bool displacedAnimalCorrect =
+              correctHabitats[displacedCharacter] == sourceZoneId;
 
           if (movingAnimalCorrect || displacedAnimalCorrect) {
             _tapTracker.recordCorrectTap();
@@ -414,16 +411,10 @@ class _HabitantGameState extends State<HabitantGame>
           }
 
           if (correctAnimals.isEmpty) {
-            await _playPlacementAudio(
-              movingCharacter,
-              false,
-            );
+            await _playPlacementAudio(movingCharacter, false);
           } else {
             for (final characterId in correctAnimals) {
-              await _playPlacementAudio(
-                characterId,
-                true,
-              );
+              await _playPlacementAudio(characterId, true);
             }
           }
 

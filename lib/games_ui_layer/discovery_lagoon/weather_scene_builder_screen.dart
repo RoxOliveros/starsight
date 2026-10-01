@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -39,10 +40,18 @@ class WeatherSceneBuilderScreen extends StatefulWidget {
 }
 
 class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
-    with TickerProviderStateMixin, LagoonIntroMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        LagoonIntroMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<WeatherSceneBuilderScreen> {
   // ── Intro phase ──────────────────────────────────────────────────────────
 
   final AudioPlayer _introPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_introPlayer];
+
   final GameTapTracker _tapTracker = GameTapTracker();
 
   @override
@@ -50,35 +59,26 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
-  static const String _introAudio = 'assets/audio/discovery_lagoon/weather_builder_intro.wav';
+  static const String _introAudio =
+      'assets/audio/discovery_lagoon/weather_builder_intro.wav';
   static const String _shineAudio = 'assets/audio/sound_effects/shine.wav';
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_closeup2.png';
-  static const String _kikiFishboneImage = 'assets/images/characters/cat_holding_fishbone.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_rainbow_closeup2.png';
+  static const String _kikiFishboneImage =
+      'assets/images/characters/cat_holding_fishbone.png';
 
   // ── Data ─────────────────────────────────────────────────────────────────
 
   final List<Map<String, String>> _weathers = [
-    {
-      'id': 'sunny',
-      'qKey': 'weather_q_sunny',
-      'winKey': 'weather_win_sunny',
-    },
-    {
-      'id': 'rainy',
-      'qKey': 'weather_q_rainy',
-      'winKey': 'weather_win_rainy',
-    },
+    {'id': 'sunny', 'qKey': 'weather_q_sunny', 'winKey': 'weather_win_sunny'},
+    {'id': 'rainy', 'qKey': 'weather_q_rainy', 'winKey': 'weather_win_rainy'},
     {
       'id': 'cloudy',
       'qKey': 'weather_q_cloudy',
       'winKey': 'weather_win_cloudy',
     },
-    {
-      'id': 'windy',
-      'qKey': 'weather_q_windy',
-      'winKey': 'weather_win_windy',
-    },
+    {'id': 'windy', 'qKey': 'weather_q_windy', 'winKey': 'weather_win_windy'},
   ];
 
   final List<WeatherElement> _allElements = [
@@ -227,9 +227,9 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
     if (el.weatherId == _currentWeather['id']) {
       _tapTracker.recordCorrectTap();
 
-      await AudioPlayer().play(AssetSource(
-        _shineAudio.replaceFirst('assets/', ''),
-      ));
+      await AudioPlayer().play(
+        AssetSource(_shineAudio.replaceFirst('assets/', '')),
+      );
 
       if (!mounted) return;
 
@@ -239,21 +239,18 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
       if (_placed.length == _currentElements.length) {
         _roundLocked = true;
 
-        LagoonAudio.instance.playThenCallback(
-          _currentWeather['winKey']!,
-              () {
-            if (!mounted) return;
+        LagoonAudio.instance.playThenCallback(_currentWeather['winKey']!, () {
+          if (!mounted) return;
 
-            if (_roundIndex >= _weathers.length - 1) {
-              _saveDataAndShowSuccessDialog();
-            } else {
-              setState(() {
-                _roundIndex++;
-                _startRound();
-              });
-            }
-          },
-        );
+          if (_roundIndex >= _weathers.length - 1) {
+            _saveDataAndShowSuccessDialog();
+          } else {
+            setState(() {
+              _roundIndex++;
+              _startRound();
+            });
+          }
+        });
       }
     } else {
       _tapTracker.recordMistake();
@@ -336,10 +333,7 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
         children: [
           Positioned.fill(
             child: _screenPhase == LagoonScreenPhase.intro
-                ? Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                  )
+                ? Image.asset(_bgImage, fit: BoxFit.cover)
                 : AnimatedSwitcher(
                     duration: const Duration(milliseconds: 800),
                     layoutBuilder: (currentChild, previousChildren) => Stack(
@@ -398,7 +392,6 @@ class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
   Widget _buildGameContent() {
     return Column(
       children: [
-
         const Spacer(),
 
         Container(

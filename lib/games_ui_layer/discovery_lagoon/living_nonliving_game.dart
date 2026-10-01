@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -70,8 +71,10 @@ class LivingNonLivingGame extends StatefulWidget {
 }
 
 class _LivingNonLivingGameState extends State<LivingNonLivingGame>
-    with AiCameraMixin, KikiReactionMixin {
-
+    with
+        AiCameraMixin,
+        KikiReactionMixin,
+        AppAudioLifecycleMixin<LivingNonLivingGame> {
   @override
   AudioPlayer get kikiPlayer => _kikiPlayer;
 
@@ -80,6 +83,13 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   final GameTapTracker _tapTracker = GameTapTracker();
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _objectPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _kikiPlayer,
+    _audioPlayer,
+    _objectPlayer,
+  ];
 
   late List<AssetConfig> _gameItems;
 
@@ -91,9 +101,11 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
 
   int _soundToken = 0;
 
-  static const String _bgFieldImage = 'assets/images/backgrounds/bg_lagoon_fields_closeup.png';
+  static const String _bgFieldImage =
+      'assets/images/backgrounds/bg_lagoon_fields_closeup.png';
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
-  static const String _kikiFishboneImage = 'assets/images/characters/cat_holding_fishbone.png';
+  static const String _kikiFishboneImage =
+      'assets/images/characters/cat_holding_fishbone.png';
 
   @override
   void initState() {
@@ -185,7 +197,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
       if (tappedLiving >= totalLiving && !_isTransitioning) {
         _isTransitioning = true;
 
-        await Future.delayed(const Duration(milliseconds: 1500),);
+        await Future.delayed(const Duration(milliseconds: 1500));
 
         if (!mounted) return;
 
@@ -425,9 +437,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
         if (_phase == GamePhase.playLiving && !config.isLiving) {
           _tapTracker.recordMistake();
 
-          unawaited(
-            showKikiReaction(KikiState.wrong),
-          );
+          unawaited(showKikiReaction(KikiState.wrong));
 
           return;
         }

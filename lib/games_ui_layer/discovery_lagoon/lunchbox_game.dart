@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -145,9 +146,7 @@ class _LunchboxGameUnhealthyEndingState
       final completed = _audioPlayer.onPlayerComplete.first;
 
       await _audioPlayer.play(
-        AssetSource(
-          'audio/discovery_lagoon/lunchboxgame_wrong_ending.wav',
-        ),
+        AssetSource('audio/discovery_lagoon/lunchboxgame_wrong_ending.wav'),
       );
 
       await completed;
@@ -181,8 +180,7 @@ class _LunchboxGameUnhealthyEndingState
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            LunchboxGameIntro(level: widget.level),
+        builder: (context) => LunchboxGameIntro(level: widget.level),
       ),
     );
   }
@@ -244,7 +242,8 @@ class _LunchboxGameUnhealthyEndingState
               if (_showTryAgain)
                 Positioned.fill(
                   child: TryJobOverlay(
-                    characterImage: 'assets/images/characters/cat_holding_fishbone.png',
+                    characterImage:
+                        'assets/images/characters/cat_holding_fishbone.png',
                     characterSizeFactor: 0.9,
                     onRestart: _restartGame,
                     onBack: () => Navigator.of(context).pop(),
@@ -397,11 +396,18 @@ class LunchboxGame extends StatefulWidget {
 }
 
 class _LunchboxGameState extends State<LunchboxGame>
-    with AiCameraMixin {
+    with AiCameraMixin, AppAudioLifecycleMixin<LunchboxGame> {
   final GameTapTracker _tapTracker = GameTapTracker();
   final AudioPlayer _foodAudioPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _roundAudioPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _foodAudioPlayer,
+    _sfxPlayer,
+    _roundAudioPlayer,
+  ];
 
   int currentBatch = 1;
 
@@ -476,9 +482,7 @@ class _LunchboxGameState extends State<LunchboxGame>
 
       final completed = _roundAudioPlayer.onPlayerComplete.first;
 
-      await _roundAudioPlayer.play(
-        AssetSource(audioPath),
-      );
+      await _roundAudioPlayer.play(AssetSource(audioPath));
 
       await completed;
     } catch (e) {
@@ -527,9 +531,7 @@ class _LunchboxGameState extends State<LunchboxGame>
     try {
       await _foodAudioPlayer.stop();
 
-      await _foodAudioPlayer.play(
-        AssetSource(audioPath),
-      );
+      await _foodAudioPlayer.play(AssetSource(audioPath));
 
       await _foodAudioPlayer.onPlayerComplete.first;
     } catch (e) {
@@ -543,9 +545,7 @@ class _LunchboxGameState extends State<LunchboxGame>
 
       final completed = _sfxPlayer.onPlayerComplete.first;
 
-      await _sfxPlayer.play(
-        AssetSource('audio/sound_effects/bubble_pop.wav'),
-      );
+      await _sfxPlayer.play(AssetSource('audio/sound_effects/bubble_pop.wav'));
 
       await completed;
     } catch (e) {
@@ -774,11 +774,7 @@ class _LunchboxGameState extends State<LunchboxGame>
     );
   }
 
-  Widget _buildDrinkOption(
-      String id,
-      Alignment alignment,
-      double size,
-      ) {
+  Widget _buildDrinkOption(String id, Alignment alignment, double size) {
     final isSelected = selectedDrinkId == id;
 
     return Align(
@@ -808,19 +804,16 @@ class _LunchboxGameState extends State<LunchboxGame>
             shape: BoxShape.circle,
             boxShadow: isSelected
                 ? [
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.6),
-                blurRadius: 15,
-                spreadRadius: 5,
-              ),
-            ]
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      blurRadius: 15,
+                      spreadRadius: 5,
+                    ),
+                  ]
                 : [],
           ),
           padding: const EdgeInsets.all(6.0),
-          child: Image.asset(
-            getFoodAsset(id),
-            fit: BoxFit.contain,
-          ),
+          child: Image.asset(getFoodAsset(id), fit: BoxFit.contain),
         ),
       ),
     );
@@ -1147,7 +1140,7 @@ class _LunchboxGameState extends State<LunchboxGame>
                           size: plateSize * 0.85,
                           isTilted: true,
                           tiltAngle: -1.57,
-                    onDragStarted: () => _playFoodAudio('chips'),
+                          onDragStarted: () => _playFoodAudio('chips'),
                         )
                       : SizedBox(width: plateSize * 0.85),
                 ),
@@ -1240,12 +1233,12 @@ class _LunchboxGameState extends State<LunchboxGame>
                     onPressed: !_canInteract
                         ? null
                         : () async {
-                      setState(() {
-                        currentBatch = 5;
-                      });
+                            setState(() {
+                              currentBatch = 5;
+                            });
 
-                      await _playRoundAudio(5);
-                    },
+                            await _playRoundAudio(5);
+                          },
                     child: const Icon(Icons.check, size: 50),
                   ),
                 ),
@@ -1311,9 +1304,7 @@ class _LunchboxGameState extends State<LunchboxGame>
                 Positioned.fill(
                   child: AbsorbPointer(
                     absorbing: true,
-                    child: Container(
-                      color: Colors.transparent,
-                    ),
+                    child: Container(color: Colors.transparent),
                   ),
                 ),
 
@@ -1482,14 +1473,8 @@ class DraggableFood extends StatelessWidget {
     return Draggable<String>(
       data: foodId,
       onDragStarted: onDragStarted,
-      feedback: Material(
-        color: Colors.transparent,
-        child: foodImage,
-      ),
-      childWhenDragging: SizedBox(
-        width: size,
-        height: size,
-      ),
+      feedback: Material(color: Colors.transparent, child: foodImage),
+      childWhenDragging: SizedBox(width: size, height: size),
       child: foodImage,
     );
   }
