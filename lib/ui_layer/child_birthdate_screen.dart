@@ -252,9 +252,9 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                     children: [
                       SizedBox(
                         width: 100,
-                        height: 120,
+                        height: 150,
                         child: OverflowBox(
-                          maxWidth: 140,
+                          maxWidth: 160,
                           child: Lottie.asset(
                             'assets/animations/dancing_dog.json',
                             fit: BoxFit.contain,
