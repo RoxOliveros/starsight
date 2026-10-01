@@ -101,9 +101,9 @@ class _ChildGenderScreenState extends State<ChildGenderScreen> {
                     children: [
                       SizedBox(
                         width: 100,
-                        height: 120,
+                        height: 150,
                         child: OverflowBox(
-                          maxWidth: 140,
+                          maxWidth: 160,
                           child: Lottie.asset(
                             'assets/animations/dancing_dog.json',
                             fit: BoxFit.contain,
@@ -126,77 +126,60 @@ class _ChildGenderScreenState extends State<ChildGenderScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
 
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Gender",
-                        style: TextStyle(
-                          color: ColorTheme.cream,
-                          fontSize: 16,
-                          fontFamily: Fonts.fredoka,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Column(
-                        children: _genders.map((gender) {
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: _genders.reversed.map((gender) {
                           final isSelected = _selectedGender == gender;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _selectedGender = gender;
-                                });
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? ColorTheme.goldenYellow.withValues(
-                                          alpha: 0.35,
-                                        )
-                                      : Colors.white.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(32),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? ColorTheme.goldenYellow
-                                        : Colors.transparent,
-                                    width: 2,
-                                  ),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                ),
-                                child: Row(
+                          final String imagePath = gender == 'Boy'
+                              ? 'assets/images/boy.png'
+                              : 'assets/images/girl.png';
+                          return Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: gender == 'Boy' ? 8 : 0,
+                                right: gender == 'Girl' ? 8 : 0,
+                              ),
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedGender = gender),
+                                child: Column(
                                   children: [
-                                    Icon(
-                                      Icons.person_rounded,
-                                      color: isSelected
-                                          ? ColorTheme.goldenYellow
-                                          : ColorTheme.goldenYellow.withValues(
-                                              alpha: 0.6,
-                                            ),
-                                      size: 28,
+                                    AnimatedContainer(
+                                      duration: const Duration(milliseconds: 200),
+                                      height: 150,
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? ColorTheme.goldenYellow.withValues(alpha: 0.35)
+                                            : Colors.white.withValues(alpha: 0.45),
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? ColorTheme.goldenYellow
+                                              : Colors.transparent,
+                                          width: 3,
+                                        ),
+                                      ),
+                                      child: Image.asset(imagePath, fit: BoxFit.contain),
                                     ),
-                                    const SizedBox(width: 16),
+                                    const SizedBox(height: 8),
                                     Text(
-                                      gender,
+                                      gender.toUpperCase(),
                                       style: TextStyle(
                                         fontFamily: Fonts.fredoka,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
                                         color: isSelected
-                                            ? ColorTheme.cream
-                                            : ColorTheme.cream.withValues(
-                                                alpha: 0.75,
-                                              ),
+                                            ? ColorTheme.goldenYellow
+                                            : ColorTheme.cream,
                                       ),
                                     ),
                                   ],
