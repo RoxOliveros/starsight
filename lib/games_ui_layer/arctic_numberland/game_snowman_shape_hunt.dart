@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/arctic_numberland/game_sled_shape_sort.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -64,9 +65,16 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
         DomaReactionMixin<SnowmanShapeHuntGame>,
         GameLoadingMixin<SnowmanShapeHuntGame>,
         ArcticAudioMixin<SnowmanShapeHuntGame>,
-        AiCameraMixin<SnowmanShapeHuntGame> {
+        AiCameraMixin<SnowmanShapeHuntGame>,
+        AppAudioLifecycleMixin<SnowmanShapeHuntGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    audio.voicePlayer,
+    audio.sfxPlayer,
+  ];
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';

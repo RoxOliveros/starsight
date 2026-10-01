@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:StarSight/games_ui_layer/arctic_numberland/game_penguin_line_walk.dart';
 import 'package:flutter/material.dart';
@@ -34,9 +35,12 @@ class _Number1to5MatchSnowglobesScreenState
         TickerProviderStateMixin,
         DomaReactionMixin,
         GameLoadingMixin,
-        AiCameraMixin<Number1to5MatchSnowglobesScreen> {
+        AiCameraMixin<Number1to5MatchSnowglobesScreen>,
+        AppAudioLifecycleMixin<Number1to5MatchSnowglobesScreen> {
   @override
   AudioPlayer get domaPlayer => _player;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;

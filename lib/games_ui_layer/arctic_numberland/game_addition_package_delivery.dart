@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/arctic_numberland/game_subtraction_melting_ice_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,9 +36,12 @@ class _AdditionPackageDeliveryGameState
         TickerProviderStateMixin,
         DomaReactionMixin<AdditionPackageDeliveryGame>,
         GameLoadingMixin<AdditionPackageDeliveryGame>,
-        AiCameraMixin<AdditionPackageDeliveryGame> {
+        AiCameraMixin<AdditionPackageDeliveryGame>,
+        AppAudioLifecycleMixin<AdditionPackageDeliveryGame> {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_voicePlayer, _sfxPlayer];
 
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';

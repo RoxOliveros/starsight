@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
@@ -504,7 +505,8 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
     with
         TickerProviderStateMixin,
         GameLoadingMixin<NumberIntroductionScreen>,
-        AiCameraMixin<NumberIntroductionScreen> {
+        AiCameraMixin<NumberIntroductionScreen>,
+        AppAudioLifecycleMixin<NumberIntroductionScreen> {
   // <-- ADDED MIXIN
   int _configIndex = 0;
   NumberLevelConfig get _config => widget.configs[_configIndex];
@@ -519,6 +521,9 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
   _MiniGamePhase _miniGamePhase = _MiniGamePhase.tracing;
 
   final AudioPlayer _player = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   // --- ADDED TRACKING VARIABLES ---
   final GameTapTracker _tapTracker = GameTapTracker();

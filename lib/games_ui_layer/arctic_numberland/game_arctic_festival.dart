@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -87,9 +88,17 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
         TickerProviderStateMixin,
         DomaReactionMixin,
         GameLoadingMixin,
-        AiCameraMixin<ArcticFestivalFinaleGame> {
+        AiCameraMixin<ArcticFestivalFinaleGame>,
+        AppAudioLifecycleMixin<ArcticFestivalFinaleGame> {
   @override
   AudioPlayer get domaPlayer => _domaPlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _narrationPlayer,
+    _sfxPlayer,
+    _domaPlayer,
+  ];
 
   // ── Asset config ───────────────────────────────────────────────────────
   static const String _characterImage =

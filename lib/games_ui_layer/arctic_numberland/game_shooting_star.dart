@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -78,9 +79,15 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
         DomaReactionMixin<ShootingStarCountingGame>,
         GameLoadingMixin<ShootingStarCountingGame>,
         ArcticAudioMixin<ShootingStarCountingGame>,
-        AiCameraMixin<ShootingStarCountingGame> {
+        AiCameraMixin<ShootingStarCountingGame>,
+        AppAudioLifecycleMixin<ShootingStarCountingGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    audio.voicePlayer,
+    audio.sfxPlayer,
+  ];
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage =
