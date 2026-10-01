@@ -144,7 +144,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
         AppDialog.showError(
           context,
           message:
-              "Invalid birthdate. The parent must be at least 18 years older than the child.",
+              "Invalid birthdate. The Grownup must be at least 18 years older than the child.",
         );
         return;
       }
