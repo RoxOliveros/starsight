@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -40,9 +41,16 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
         GameLoadingMixin<ButterflyFlowerGardenGame>,
         ForestAudioMixin<ButterflyFlowerGardenGame>,
         TofiReactionMixin<ButterflyFlowerGardenGame>,
-        AiCameraMixin {
+        AiCameraMixin,
+        AppAudioLifecycleMixin<ButterflyFlowerGardenGame> {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    audio.voicePlayer,
+    audio.sfxPlayer,
+  ];
 
   final GameTapTracker _tapTracker = GameTapTracker();
 

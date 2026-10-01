@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -37,12 +38,19 @@ class AlphabetFindScreen extends StatefulWidget {
 }
 
 class _AlphabetFindScreenState extends State<AlphabetFindScreen>
-    with TickerProviderStateMixin, TofiReactionMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        TofiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<AlphabetFindScreen> {
   @override
   AudioPlayer get tofiPlayer => _player;
 
   final AudioPlayer _player = AudioPlayer();
   final AudioPlayer _promptPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player, _promptPlayer];
 
   final GameTapTracker _tapTracker = GameTapTracker();
 

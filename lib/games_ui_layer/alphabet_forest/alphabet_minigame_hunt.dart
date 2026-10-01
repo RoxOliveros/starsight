@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -35,10 +36,16 @@ class AlphabetHuntScreen extends StatefulWidget {
 }
 
 class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
-    with TofiReactionMixin, AiCameraMixin {
+    with
+        TofiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<AlphabetHuntScreen> {
   @override
   AudioPlayer get tofiPlayer => _audioPlayer;
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   late List<String> _letterPool;
   final List<HuntObject> _activeObjects = [];

@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
@@ -53,11 +54,19 @@ class _AcornBasketGameState extends State<AcornBasketGame>
         GameLoadingMixin,
         ForestAudioMixin,
         TofiReactionMixin,
-        AiCameraMixin {
+        AiCameraMixin,
+        AppAudioLifecycleMixin<AcornBasketGame> {
   @override
   AudioPlayer get tofiPlayer => _player;
 
   final AudioPlayer _player = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _player,
+    audio.voicePlayer,
+    audio.sfxPlayer,
+  ];
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -437,7 +446,11 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
         const Positioned(top: 25, left: 25, child: ForestXButton()),
 
-        Positioned(top: 25, right: 20, child: ForestLevelBadge(level: widget.level)),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(level: widget.level),
+        ),
 
         Center(
           child: Row(
