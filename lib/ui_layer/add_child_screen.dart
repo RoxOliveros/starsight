@@ -107,13 +107,130 @@ class _AddChildScreenState extends State<AddChildScreen> {
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
       builder: (context, child) {
+        final base = Theme.of(context);
         return Theme(
-          data: Theme.of(context).copyWith(
+          data: base.copyWith(
             colorScheme: const ColorScheme.light(
               primary: ColorTheme.goldenYellow,
               onPrimary: ColorTheme.warmBrown,
-              onSurface: ColorTheme.darkBlue,
+              surface: ColorTheme.cream,
+              onSurface: ColorTheme.warmBrown,
             ),
+            dialogBackgroundColor: ColorTheme.cream,
+            datePickerTheme: DatePickerThemeData(
+              backgroundColor: ColorTheme.cream,
+              surfaceTintColor: Colors.transparent,
+              elevation: 6,
+              shadowColor: const Color(0xFF3A4F6E),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              // Header ("Select date" + big date text)
+              headerBackgroundColor: ColorTheme.darkBlue,
+              headerForegroundColor: ColorTheme.cream,
+              headerHeadlineStyle: const TextStyle(
+                fontFamily: Fonts.fredoka,
+                fontSize: 26,
+                fontWeight: FontWeight.w600,
+              ),
+              headerHelpStyle: const TextStyle(
+                fontFamily: 'Fredoka',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+              // Month / year title and weekday letters
+              weekdayStyle: const TextStyle(
+                fontFamily: Fonts.fredoka,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: ColorTheme.darkBlue,
+              ),
+              dayStyle: const TextStyle(
+                fontFamily: 'Fredoka',
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+              yearStyle: const TextStyle(
+                fontFamily: 'Fredoka',
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+              // Selected day = golden circle with brown text
+              dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return ColorTheme.warmBrown;
+                }
+                if (states.contains(WidgetState.disabled)) {
+                  return ColorTheme.warmBrown.withValues(alpha: 0.3);
+                }
+                return ColorTheme.warmBrown;
+              }),
+              dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return ColorTheme.goldenYellow;
+                }
+                return Colors.transparent;
+              }),
+              dayOverlayColor: WidgetStateProperty.all(
+                ColorTheme.goldenYellow.withValues(alpha: 0.25),
+              ),
+              // Today's date outline
+              todayForegroundColor: WidgetStateProperty.all(ColorTheme.warmBrown),
+              todayBackgroundColor: WidgetStateProperty.all(Colors.transparent),
+              todayBorder: const BorderSide(
+                color: ColorTheme.goldenYellow,
+                width: 2,
+              ),
+              // Year picker
+              yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return ColorTheme.warmBrown;
+                }
+                return ColorTheme.warmBrown;
+              }),
+              yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return ColorTheme.goldenYellow;
+                }
+                return Colors.transparent;
+              }),
+              yearOverlayColor: WidgetStateProperty.all(
+                ColorTheme.goldenYellow.withValues(alpha: 0.25),
+              ),
+              dividerColor: ColorTheme.darkBlue.withValues(alpha: 0.2),
+              // Cancel / OK buttons
+              cancelButtonStyle: TextButton.styleFrom(
+                foregroundColor: ColorTheme.darkBlue,
+                textStyle: const TextStyle(
+                  fontFamily: Fonts.fredoka,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              confirmButtonStyle: TextButton.styleFrom(
+                foregroundColor: ColorTheme.warmBrown,
+                backgroundColor: ColorTheme.goldenYellow,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                textStyle: const TextStyle(
+                  fontFamily: Fonts.fredoka,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            // Month/year label + arrows in the calendar header
+            textTheme: base.textTheme.copyWith(
+              titleSmall: const TextStyle(
+                fontFamily: Fonts.fredoka,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: ColorTheme.warmBrown,
+              ),
+            ),
+            iconTheme: const IconThemeData(color: ColorTheme.darkBlue),
           ),
           child: child!,
         );

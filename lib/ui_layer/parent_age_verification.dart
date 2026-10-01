@@ -256,7 +256,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
                               ),
                               const Expanded(
                                 child: Text(
-                                  'Parents, please enter your birth year to confirm your age',
+                                  'Grownups, please enter your birth year to confirm your age',
                                   style: TextStyle(
                                     color: Color(0xFFFAF7EB),
                                     fontSize: 18,
