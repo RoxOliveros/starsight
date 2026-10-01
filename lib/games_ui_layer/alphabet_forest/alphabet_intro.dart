@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
@@ -25,11 +26,17 @@ class AlphabetIntroScreen extends StatefulWidget {
 }
 
 class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
-    with TickerProviderStateMixin, TofiReactionMixin {
+    with
+        TickerProviderStateMixin,
+        TofiReactionMixin,
+        AppAudioLifecycleMixin<AlphabetIntroScreen> {
   final AudioPlayer _player = AudioPlayer();
 
   @override
   AudioPlayer get tofiPlayer => _player;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player, _audioPlayer];
 
   late AnimationController _floatCtrl;
   late Animation<double> _float;
@@ -199,9 +206,7 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
   @override
   Widget build(BuildContext context) {
     if (_isLoadingAssets) {
-      return Scaffold(
-        body: LoadingScreen.alphabetForest(),
-      );
+      return Scaffold(body: LoadingScreen.alphabetForest());
     }
 
     return Scaffold(
@@ -214,9 +219,8 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
               top: 25,
               right: 20,
               child: ForestLevelBadge(
-                level: ForestProgressService.levelNumberForLetter(
-                  widget.letter,
-                ) ??
+                level:
+                    ForestProgressService.levelNumberForLetter(widget.letter) ??
                     1,
               ),
             ),
@@ -264,9 +268,8 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => AlphabetTraceScreen(
-                          letter: widget.letter,
-                        ),
+                        builder: (context) =>
+                            AlphabetTraceScreen(letter: widget.letter),
                       ),
                     );
                   },
@@ -315,7 +318,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       'X': 'xylophone',
       'Y': 'yarn',
       'Z': 'zebra',
-
     };
     final name = objectMap[letter.toUpperCase()] ?? letter.toLowerCase();
     return 'assets/images/objects/forest/$name.png';

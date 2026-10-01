@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:StarSight/games_ui_layer/arctic_numberland/game_counting_trees.dart';
 import 'package:flutter/material.dart';
@@ -33,10 +34,13 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         TickerProviderStateMixin,
         DomaReactionMixin,
         GameLoadingMixin,
-        AiCameraMixin<Number012345SequenceScreen> {
-  // <-- ADDED MIXIN
+        AiCameraMixin<Number012345SequenceScreen>,
+        AppAudioLifecycleMixin<Number012345SequenceScreen> {
   @override
   AudioPlayer get domaPlayer => _player;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 3;

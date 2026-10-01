@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,8 +24,10 @@ class AnimalLifecycleGame extends StatefulWidget {
 }
 
 class _AnimalLifecycleGameState extends State<AnimalLifecycleGame>
-    with AiCameraMixin {
+    with AiCameraMixin, AppAudioLifecycleMixin<AnimalLifecycleGame> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
   final GameTapTracker _tapTracker = GameTapTracker();
 
   bool showIntro = true;

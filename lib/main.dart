@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/screen_time_gate.dart';
 import 'package:StarSight/ui_layer/splash_screen.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppAudioLifecycleService.instance.init();
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 

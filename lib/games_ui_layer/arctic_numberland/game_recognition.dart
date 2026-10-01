@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -34,9 +35,13 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
         TickerProviderStateMixin,
         GameLoadingMixin,
         DomaReactionMixin,
-        AiCameraMixin {
+        AiCameraMixin,
+        AppAudioLifecycleMixin<Number012RecognitionScreen> {
   @override
   AudioPlayer get domaPlayer => _player;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
   static const String _domaImage =

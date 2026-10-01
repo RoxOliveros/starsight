@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -43,11 +44,17 @@ class AlphabetPuzzleScreen extends StatefulWidget {
 }
 
 class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
-    with TofiReactionMixin, AiCameraMixin {
+    with
+        TofiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<AlphabetPuzzleScreen> {
   @override
   AudioPlayer get tofiPlayer => _player;
 
   final AudioPlayer _player = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   final GameTapTracker _tapTracker = GameTapTracker();
 

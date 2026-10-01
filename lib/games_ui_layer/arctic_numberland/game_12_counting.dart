@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -35,9 +36,13 @@ class _Number12CountingObjectsScreenState
         TickerProviderStateMixin,
         DomaReactionMixin,
         GameLoadingMixin,
-        AiCameraMixin {
+        AiCameraMixin,
+        AppAudioLifecycleMixin<Number12CountingObjectsScreen> {
   @override
   AudioPlayer get domaPlayer => _player;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   static const String _domaImage =
       'assets/images/characters/doma_the_penguin.png';

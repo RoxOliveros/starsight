@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -118,19 +119,28 @@ class ConnectTheDotsScreen extends StatefulWidget {
 }
 
 class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<ConnectTheDotsScreen> {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/connect_the_dots_intro.wav';
-  static const String _audioInstruction = 'assets/audio/puzzle_glade/connect_the_dots_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/connect_the_dots_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/connect_the_dots_intro.wav';
+  static const String _audioInstruction =
+      'assets/audio/puzzle_glade/connect_the_dots_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/connect_the_dots_complete.wav';
   static const String _audioPop = 'audio/puzzle_glade/sfx_pop.mp3';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
@@ -165,6 +175,14 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   final AudioPlayer _popPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _bgPlayer,
+    _popPlayer,
+    _completePlayer,
+    _roxiePlayer,
+  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -663,11 +681,10 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
               opacity: _roxieFade,
               child: AnimatedBuilder(
                 animation: _roxieFloatCtrl,
-                builder: (_, child) =>
-                    Transform.translate(
-                      offset: Offset(0, floatY),
-                      child: child,
-                    ),
+                builder: (_, child) => Transform.translate(
+                  offset: Offset(0, floatY),
+                  child: child,
+                ),
                 child: Image.asset(
                   _characterImage,
                   height: roxieH,
@@ -676,7 +693,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
               ),
             ),
           ),
-
         );
       },
     );

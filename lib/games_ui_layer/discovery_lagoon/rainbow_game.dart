@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/perfume_game.dart';
@@ -24,8 +25,15 @@ class RainbowGameScreen extends StatefulWidget {
 }
 
 class _RainbowGameScreenState extends State<RainbowGameScreen>
-    with KikiReactionMixin, AiCameraMixin {
+    with
+        KikiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<RainbowGameScreen> {
   late final AudioPlayer _audioPlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+
   final GameTapTracker _tapTracker = GameTapTracker();
 
   bool _isIntroPlaying = true;
@@ -214,10 +222,7 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
   }
 
   @override
-  Widget buildKiki(
-      BuildContext context, {
-        double heightFactor = 0.78,
-      }) {
+  Widget buildKiki(BuildContext context, {double heightFactor = 0.78}) {
     final kikiWidget = SizedBox(
       height: MediaQuery.of(context).size.height * heightFactor,
       child: switch (kikiState) {
@@ -241,18 +246,11 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
         left: 0,
         right: 0,
         bottom: -35,
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: kikiWidget,
-        ),
+        child: Align(alignment: Alignment.bottomCenter, child: kikiWidget),
       );
     }
 
-    return Positioned(
-      left: 16,
-      bottom: -35,
-      child: kikiWidget,
-    );
+    return Positioned(left: 16, bottom: -35, child: kikiWidget);
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -134,28 +135,44 @@ class WhichBelongsHereScreen extends StatefulWidget {
 }
 
 class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<WhichBelongsHereScreen> {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
   static const String _sceneAssetPath = 'assets/images/backgrounds';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/which_belongs_here_intro.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/which_belongs_here_complete.wav';
-  static const String _audioBathroom = 'assets/audio/puzzle_glade/which_belongs_here_bathroom.wav';
-  static const String _audioBeach = 'assets/audio/puzzle_glade/which_belongs_here_beach.wav';
-  static const String _audioClassroom = 'assets/audio/puzzle_glade/which_belongs_here_classroom.wav';
-  static const String _audioGarden = 'assets/audio/puzzle_glade/which_belongs_here_garden.wav';
-  static const String _audioKitchen = 'assets/audio/puzzle_glade/which_belongs_here_kitchen.wav';
-  static const String _audioLivingRoom = 'assets/audio/puzzle_glade/which_belongs_here_living_room.wav';
-  static const String _audioPark = 'assets/audio/puzzle_glade/which_belongs_here_park.wav';
-  static const String _audioBedroom = 'assets/audio/puzzle_glade/which_belongs_here_bedroom.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/which_belongs_here_intro.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/which_belongs_here_complete.wav';
+  static const String _audioBathroom =
+      'assets/audio/puzzle_glade/which_belongs_here_bathroom.wav';
+  static const String _audioBeach =
+      'assets/audio/puzzle_glade/which_belongs_here_beach.wav';
+  static const String _audioClassroom =
+      'assets/audio/puzzle_glade/which_belongs_here_classroom.wav';
+  static const String _audioGarden =
+      'assets/audio/puzzle_glade/which_belongs_here_garden.wav';
+  static const String _audioKitchen =
+      'assets/audio/puzzle_glade/which_belongs_here_kitchen.wav';
+  static const String _audioLivingRoom =
+      'assets/audio/puzzle_glade/which_belongs_here_living_room.wav';
+  static const String _audioPark =
+      'assets/audio/puzzle_glade/which_belongs_here_park.wav';
+  static const String _audioBedroom =
+      'assets/audio/puzzle_glade/which_belongs_here_bedroom.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -180,6 +197,12 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
   final AudioPlayer _bgPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _bgPlayer,
+    _completePlayer,
+    _roxiePlayer,
+  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;

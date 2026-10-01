@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -45,19 +46,28 @@ class ShadowMatchScreen extends StatefulWidget {
 }
 
 class _ShadowMatchScreenState extends State<ShadowMatchScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin<ShadowMatchScreen>, GameLoadingMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin<ShadowMatchScreen>,
+        GameLoadingMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<ShadowMatchScreen> {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/shadow_match_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/shadow_match_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/shadow_match_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/shadow_match_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/shadow_match_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/shadow_match_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -80,6 +90,13 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   final AudioPlayer _bgPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _bgPlayer,
+    _sfxPlayer,
+    _completePlayer,
+  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -570,7 +587,8 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
 
   Widget _buildSilhouetteCard() {
     return DragTarget<String>(
-      onWillAcceptWithDetails: (details) => !_roundComplete && !_isInstructionPlaying,
+      onWillAcceptWithDetails: (details) =>
+          !_roundComplete && !_isInstructionPlaying,
       onAcceptWithDetails: (details) {
         final index = _choices.indexOf(details.data);
         _onChoiceDropped(details.data, index);
@@ -731,7 +749,8 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     return Draggable<String>(
       key: ValueKey(object),
       data: object,
-      maxSimultaneousDrags: (_roundComplete || _wrongFlash || _isInstructionPlaying) ? 0 : 1,
+      maxSimultaneousDrags:
+          (_roundComplete || _wrongFlash || _isInstructionPlaying) ? 0 : 1,
       feedback: Material(color: Colors.transparent, child: child),
       childWhenDragging: Container(
         width: 82,

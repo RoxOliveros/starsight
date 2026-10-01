@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
@@ -36,9 +37,13 @@ class _Number345CountingObjectsScreenState
         TickerProviderStateMixin,
         DomaReactionMixin,
         GameLoadingMixin,
-        AiCameraMixin<Number345CountingObjectsScreen> {
+        AiCameraMixin<Number345CountingObjectsScreen>,
+        AppAudioLifecycleMixin<Number345CountingObjectsScreen> {
   @override
   AudioPlayer get domaPlayer => _player;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;

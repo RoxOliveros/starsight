@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
@@ -37,11 +38,18 @@ class AlphabetFallScreen extends StatefulWidget {
 }
 
 class _AlphabetFallScreenState extends State<AlphabetFallScreen>
-    with SingleTickerProviderStateMixin, TofiReactionMixin, AiCameraMixin {
+    with
+        SingleTickerProviderStateMixin,
+        TofiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<AlphabetFallScreen> {
   @override
   AudioPlayer get tofiPlayer => _player;
 
   final AudioPlayer _player = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player, _audioPlayer];
 
   final GameTapTracker _tapTracker = GameTapTracker();
 

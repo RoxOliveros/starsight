@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/audio_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -42,10 +43,18 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
         TickerProviderStateMixin,
         LagoonIntroMixin,
         KikiReactionMixin,
-        AiCameraMixin {
+        AiCameraMixin,
+        AppAudioLifecycleMixin<SeasonSceneTapScreen> {
   final AudioPlayer _introPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _introPlayer,
+    _kikiPlayer,
+    _sfxPlayer,
+  ];
+
   final GameTapTracker _tapTracker = GameTapTracker();
 
   late final AudioHelper _audioHelper = AudioHelper(

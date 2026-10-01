@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/catching_game.dart';
@@ -34,8 +35,12 @@ class ListeningGame extends StatefulWidget {
   State<ListeningGame> createState() => _ListeningGameState();
 }
 
-class _ListeningGameState extends State<ListeningGame> with AiCameraMixin {
+class _ListeningGameState extends State<ListeningGame>
+    with AiCameraMixin, AppAudioLifecycleMixin<ListeningGame> {
   late final AudioPlayer _audioPlayer;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+
   final GameTapTracker _tapTracker = GameTapTracker();
 
   GamePhase _currentPhase = GamePhase.intro;

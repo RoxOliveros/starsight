@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -32,8 +33,11 @@ class ColdHotGame extends StatefulWidget {
 }
 
 class _ColdHotGameState extends State<ColdHotGame>
-    with TickerProviderStateMixin, KikiReactionMixin, AiCameraMixin {
-
+    with
+        TickerProviderStateMixin,
+        KikiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<ColdHotGame> {
   @override
   AudioPlayer get kikiPlayer => _kikiPlayer;
 
@@ -43,6 +47,10 @@ class _ColdHotGameState extends State<ColdHotGame>
 
   final Random _random = Random();
   final AudioPlayer _kikiPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
   final GameTapTracker _tapTracker = GameTapTracker();
   final List<SortableItem> _sortedColdItems = [];
   final List<SortableItem> _sortedHotItems = [];
@@ -59,23 +67,34 @@ class _ColdHotGameState extends State<ColdHotGame>
   bool _hasSavedResult = false;
 
   // --- Asset paths ---
-  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
-  static const String _coldBadgeImage = 'assets/images/objects/lagoon/cold_snowflake.png';
-  static const String _hotBadgeImage = 'assets/images/objects/lagoon/hot_flame.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_rainbow_lagoon.png';
+  static const String _coldBadgeImage =
+      'assets/images/objects/lagoon/cold_snowflake.png';
+  static const String _hotBadgeImage =
+      'assets/images/objects/lagoon/hot_flame.png';
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
-  static const String _goodJobImage = 'assets/images/characters/cat_holding_fishbone.png';
+  static const String _goodJobImage =
+      'assets/images/characters/cat_holding_fishbone.png';
 
   static const String _iceImage = 'assets/images/objects/lagoon/ice_wb.png';
-  static const String _icecreamImage = 'assets/images/objects/lagoon/icecream_wb.png';
-  static const String _snowballImage = 'assets/images/objects/lagoon/snowball_wb.png';
-  static const String _snowmanImage = 'assets/images/objects/lagoon/snowman_wb.png';
+  static const String _icecreamImage =
+      'assets/images/objects/lagoon/icecream_wb.png';
+  static const String _snowballImage =
+      'assets/images/objects/lagoon/snowball_wb.png';
+  static const String _snowmanImage =
+      'assets/images/objects/lagoon/snowman_wb.png';
   static const String _iglooImage = 'assets/images/objects/lagoon/igloo_wb.png';
-  static const String _coffeeImage = 'assets/images/objects/lagoon/coffee_wb.png';
+  static const String _coffeeImage =
+      'assets/images/objects/lagoon/coffee_wb.png';
   static const String _sunImage = 'assets/images/objects/lagoon/sun_wb.png';
-  static const String _candleImage = 'assets/images/objects/lagoon/candle_wb.png';
-  static const String _kettleImage = 'assets/images/objects/lagoon/kettle_wb.png';
+  static const String _candleImage =
+      'assets/images/objects/lagoon/candle_wb.png';
+  static const String _kettleImage =
+      'assets/images/objects/lagoon/kettle_wb.png';
 
-  static const String _introAudio = 'audio/discovery_lagoon/cold_hot_game_intro&tutorial.wav';
+  static const String _introAudio =
+      'audio/discovery_lagoon/cold_hot_game_intro&tutorial.wav';
   static const String _bubblePopAudio = 'audio/sound_effects/bubble_pop.wav';
 
   @override
@@ -178,7 +197,8 @@ class _ColdHotGameState extends State<ColdHotGame>
 
     if (mounted) {
       setState(() {
-        LagoonProgressService.instance.markLevelComplete(widget.level)
+        LagoonProgressService.instance
+            .markLevelComplete(widget.level)
             .catchError((e) {
               debugPrint("Database Error marking level complete: $e");
             });
@@ -295,10 +315,7 @@ class _ColdHotGameState extends State<ColdHotGame>
             top: sh * 0.27,
             bottom: sh * 0.04,
             width: sw * 0.42,
-            child: _buildSortedItemsArea(
-              items: _sortedColdItems,
-              sh: sh,
-            ),
+            child: _buildSortedItemsArea(items: _sortedColdItems, sh: sh),
           ),
 
           Positioned(
@@ -306,10 +323,7 @@ class _ColdHotGameState extends State<ColdHotGame>
             top: sh * 0.27,
             bottom: sh * 0.04,
             width: sw * 0.42,
-            child: _buildSortedItemsArea(
-              items: _sortedHotItems,
-              sh: sh,
-            ),
+            child: _buildSortedItemsArea(items: _sortedHotItems, sh: sh),
           ),
 
           if (_currentItem != null)
@@ -410,12 +424,17 @@ Widget _buildSortedItemsArea({
       const int columns = 2;
       const double spacing = 8.0;
 
-      final int rows = max(1, (items.length / columns).ceil(),);
-      final double availableWidth = constraints.maxWidth - spacing * (columns - 1);
-      final double availableHeight = constraints.maxHeight - spacing * (rows - 1);
+      final int rows = max(1, (items.length / columns).ceil());
+      final double availableWidth =
+          constraints.maxWidth - spacing * (columns - 1);
+      final double availableHeight =
+          constraints.maxHeight - spacing * (rows - 1);
       final double widthPerItem = availableWidth / columns;
       final double heightPerItem = availableHeight / rows;
-      final double itemSize = min(min(widthPerItem, heightPerItem) * 1.3, sh * 0.3,);
+      final double itemSize = min(
+        min(widthPerItem, heightPerItem) * 1.3,
+        sh * 0.3,
+      );
 
       return Wrap(
         spacing: spacing,

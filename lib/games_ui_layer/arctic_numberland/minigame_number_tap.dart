@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
@@ -46,7 +47,7 @@ class TapObjectMiniGame extends StatefulWidget {
 }
 
 class _TapObjectMiniGameState extends State<TapObjectMiniGame>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, AppAudioLifecycleMixin<TapObjectMiniGame> {
   late List<_ObjectSlot> _objectSlots;
   int _tappedTargets = 0;
   int? _wrongSlotId;
@@ -54,6 +55,9 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
 
   final Random _random = Random();
   final AudioPlayer _sfxPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_sfxPlayer];
 
   List<Offset> _generateSlotGrid(int count) {
     final cols = sqrt(count).ceil().clamp(1, count);
@@ -210,10 +214,7 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
                 child: Stack(
                   alignment: Alignment.topCenter,
                   children: [
-                    Align(
-                      alignment: Alignment.topLeft,
-                      child: ArcticXButton(),
-                    ),
+                    Align(alignment: Alignment.topLeft, child: ArcticXButton()),
                     Align(
                       alignment: Alignment.topRight,
                       child: ArcticLevelBadge(level: widget.level),
