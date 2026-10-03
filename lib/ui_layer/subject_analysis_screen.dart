@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'analysis_report_screen.dart';
+import 'child_profile_screen.dart';
 import 'parents_area_screen.dart';
 
 class SubjectAnalysisScreen extends StatelessWidget {
@@ -32,8 +32,6 @@ class SubjectAnalysisScreen extends StatelessWidget {
   }
 
   // ── Detailed, subject-specific descriptions ────────────────────────────
-  // Mirrors the pattern of _getCharacterAsset so every subject gets a rich,
-  // multi-part blurb instead of a single-word/short tagline.
   String _getSubjectDescription(String name) {
     final lower = name.toLowerCase();
     if (lower.contains('alphabet forest')) {
@@ -56,8 +54,6 @@ class SubjectAnalysisScreen extends StatelessWidget {
           'and problem-solving skills through fun, interactive brain '
           'games.';
     }
-    // Fallback to whatever the model provides if the subject isn't
-    // recognized above.
     return subject.tagline.isNotEmpty
         ? subject.tagline
         : 'A fun learning area where children build new skills through '
@@ -185,7 +181,7 @@ class SubjectAnalysisScreen extends StatelessWidget {
     );
   }
 
-  // ── Info (i) dialog — disclaimer only ──────────────────────────────────
+  // ── Info (i) dialog — disclaimer only (kept, no longer triggered) ──────
   void _showSubjectInfoDialog(BuildContext context) {
     _showThemedDialog(
       context: context,
@@ -223,25 +219,9 @@ class SubjectAnalysisScreen extends StatelessWidget {
       accentColor: insight.band.color,
       title: '${insight.construct.label} Analysis',
       content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(Icons.star_rounded, size: 16, color: insight.band.color),
-              const SizedBox(width: 4),
-              Text(
-                'Band: ${insight.band.label}',
-                style: TextStyle(
-                  fontFamily: AppTextStyles.fredoka,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: insight.band.color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
           Text(
             insight.description,
             textAlign: TextAlign.justify,
@@ -256,6 +236,7 @@ class SubjectAnalysisScreen extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             'WHAT YOU CAN TRY',
+            textAlign: TextAlign.justify,
             style: TextStyle(
               fontFamily: AppTextStyles.fredoka,
               fontSize: 12,
@@ -271,11 +252,15 @@ class SubjectAnalysisScreen extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.circle, size: 6, color: insight.band.color),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Icon(Icons.circle, size: 6, color: insight.band.color),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       tip,
+                      textAlign: TextAlign.justify,
                       style: const TextStyle(
                         fontFamily: 'Nunito',
                         fontSize: 12,
@@ -304,13 +289,20 @@ class SubjectAnalysisScreen extends StatelessWidget {
             _buildHeader(context),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 8),
                     _buildSubjectIntro(),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 18),
+                    // Divider under the subject description
+                    const Divider(
+                      color: Color(0xFFA5E3E8),
+                      thickness: 1.5,
+                      height: 1.5,
+                    ),
+                    const SizedBox(height: 16),
                     _buildDateRow(),
                     const SizedBox(height: 14),
                     _buildOverallAnalysis(),
@@ -320,19 +312,20 @@ class SubjectAnalysisScreen extends StatelessWidget {
                 ),
               ),
             ),
+            _buildDisclaimer(),
           ],
         ),
       ),
     );
   }
 
-  // ── Header: Back arrow & info button ─────────────────────────────────
+  // ── Header: Back arrow only ──────────────────────────────────────────
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           IconButton(
             icon: const Icon(
@@ -342,22 +335,12 @@ class SubjectAnalysisScreen extends StatelessWidget {
             ),
             onPressed: () => Navigator.pop(context),
           ),
-          IconButton(
-            icon: const Icon(
-              Icons.info_outline_rounded,
-              color: ColorTheme.deepNavyBlue,
-              size: 22,
-            ),
-            onPressed: () => _showSubjectInfoDialog(context),
-          ),
         ],
       ),
     );
   }
 
   // ── Subject Intro Header (Mascot + Title + Description) ───────────────
-
-// ── Subject Intro Header (Mascot + Title + Description) ───────────────
 
   Widget _buildSubjectIntro() {
     final characterAsset = _getCharacterAsset(subject.name);
@@ -385,6 +368,7 @@ class SubjectAnalysisScreen extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 subject.name.toUpperCase(),
+                textAlign: TextAlign.justify,
                 style: const TextStyle(
                   fontFamily: AppTextStyles.fredoka,
                   fontSize: 21,
@@ -396,7 +380,7 @@ class SubjectAnalysisScreen extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 description,
-                textAlign: TextAlign.justify, // Added text justification
+                textAlign: TextAlign.justify,
                 style: const TextStyle(
                   fontFamily: 'Nunito',
                   fontSize: 10,
@@ -460,13 +444,13 @@ class SubjectAnalysisScreen extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFFFFDF5),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: const Color(0xFFF7D070),
-          width: 2.5,
+          width: 3,
         ),
       ),
       child: Column(
@@ -479,12 +463,12 @@ class SubjectAnalysisScreen extends StatelessWidget {
                 size: 20,
                 color: Color(0xFFF7C325),
               ),
-              SizedBox(width: 6),
+              SizedBox(width: 8),
               Text(
                 'OVERALL  ANALYSIS',
                 style: TextStyle(
                   fontFamily: AppTextStyles.fredoka,
-                  fontSize: 17,
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFFF7C325),
                   letterSpacing: 0.6,
@@ -498,7 +482,7 @@ class SubjectAnalysisScreen extends StatelessWidget {
             textAlign: TextAlign.justify,
             style: const TextStyle(
               fontFamily: 'Nunito',
-              fontSize: 12.5,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.45,
               color: ColorTheme.brown,
@@ -509,21 +493,22 @@ class SubjectAnalysisScreen extends StatelessWidget {
     );
   }
 
+  // Band wording (developing / emerging / confident) removed from the text.
   String _overallSummary(String subjectName, InsightBand overallBand,
       ConstructInsight? strongest) {
     final strongestLabel = strongest?.construct.label.toLowerCase() ?? 'skills';
     switch (overallBand) {
       case InsightBand.confident:
-        return 'Performance in $subjectName is confident, with '
+        return 'Performance in $subjectName shows great results, with '
             '$strongestLabel standing out as a particular strength. '
             'Sessions show consistent, steady progress across the board.';
       case InsightBand.developing:
-        return '$subjectName is developing well, with steady '
-            'progress and $strongestLabel showing the strongest results '
+        return '$subjectName shows steady progress, with '
+            '$strongestLabel showing the strongest results '
             'so far. A few areas are still building consistency.';
       case InsightBand.emerging:
-        return '$subjectName is still emerging, with '
-            '$strongestLabel currently the strongest area. More sessions '
+        return 'In $subjectName, '
+            '$strongestLabel is currently the strongest area. More sessions '
             'over time will help build a clearer, fuller picture.';
     }
   }
@@ -539,13 +524,13 @@ class SubjectAnalysisScreen extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFFFFDF5),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: const Color(0xFFA5E3E8),
-          width: 2.5,
+          width: 3,
         ),
       ),
       child: Column(
@@ -556,7 +541,10 @@ class SubjectAnalysisScreen extends StatelessWidget {
               const SizedBox(height: 18),
               const Divider(
                 color: Color(0xFFA5E3E8),
-                thickness: 1.5,
+                thickness: 1.2,
+                height: 1.2,
+                indent: 4,
+                endIndent: 4,
               ),
               const SizedBox(height: 18),
             ],
@@ -584,7 +572,7 @@ class SubjectAnalysisScreen extends StatelessWidget {
               insight.construct.label.toUpperCase(),
               style: TextStyle(
                 fontFamily: AppTextStyles.fredoka,
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w800,
                 color: constructColor,
                 letterSpacing: 0.6,
@@ -592,13 +580,13 @@ class SubjectAnalysisScreen extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Text(
           insight.description,
           textAlign: TextAlign.justify,
           style: const TextStyle(
             fontFamily: 'Nunito',
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: FontWeight.w700,
             height: 1.4,
             color: ColorTheme.brown,
@@ -608,22 +596,22 @@ class SubjectAnalysisScreen extends StatelessWidget {
         Align(
           alignment: Alignment.centerRight,
           child: SizedBox(
-            height: 28,
+            height: 24,
             child: ElevatedButton(
               onPressed: () => _showCategoryDetailsDialog(context, insight),
               style: ElevatedButton.styleFrom(
                 backgroundColor: constructColor,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: const Text(
                 'LEARN MORE  >',
                 style: TextStyle(
                   fontFamily: AppTextStyles.fredoka,
-                  fontSize: 10.5,
+                  fontSize: 8.5,
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
                   letterSpacing: 0.5,
@@ -633,6 +621,68 @@ class SubjectAnalysisScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  // ── Disclaimer pinned at the bottom of the screen ────────────────────
+
+  Widget _buildDisclaimer() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFDF5),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: ColorTheme.mutedGrey,
+          width: 2,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.privacy_tip_outlined,
+                size: 16,
+                color: ColorTheme.mutedGrey,
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'DATA DISCLAIMER',
+                style: TextStyle(
+                  fontFamily: AppTextStyles.fredoka,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: ColorTheme.mutedGrey,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'All analytical reports, performance bands, and trend metrics '
+                'displayed in this section are generated based solely on '
+                'interactions, completion rates, and behavioral data collected '
+                'during active in-app gameplay sessions. These insights serve as '
+                'formative guidance and should not be used as formal educational '
+                'diagnostic assessments.',
+            textAlign: TextAlign.justify,
+            style: TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 9.5,
+              fontStyle: FontStyle.italic,
+              fontWeight: FontWeight.w600,
+              color: ColorTheme.mutedGrey,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

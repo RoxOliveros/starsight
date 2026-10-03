@@ -178,6 +178,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
   ChildProfile? _resolvedChild;
 
+  // Real birthday / gender read from the child's Firestore document.
+  String? _birthdayText;
+  String? _genderText;
+
   @override
   void initState() {
     super.initState();
@@ -230,7 +234,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         final wantedNickname =
             widget.childNickname ?? await DatabaseService().getNickname();
         final matches = rawChildren.where(
-          (c) => c['id'] == wantedNickname || c['nickname'] == wantedNickname,
+              (c) => c['id'] == wantedNickname || c['nickname'] == wantedNickname,
         );
 
         // Never silently show a different child's data: if we know who we
@@ -263,6 +267,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       await Future.delayed(const Duration(milliseconds: 400));
       final completed = await _loadCompletedGames(child.id);
       final subjects = _mockAnalysesFor(child.id, completed);
+      await _loadBirthdayAndGender(child.id);
       if (!mounted) return;
       setState(() {
         _resolvedChild = child;
@@ -348,8 +353,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(child: _buildRainbowTitle('STARSIGHT')),
-          const SizedBox(height: 20), // Increased spacing
+          Center(child: _buildRainbowTitle("CHILD'S PROFILE")),
+          const SizedBox(height: 24),
           _buildProfileHeader(),
           const SizedBox(height: 20), // Increased spacing
           _buildStatsRow(),
@@ -366,37 +371,156 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
   String _formatDate(DateTime d) => '${d.month}/${d.day}/${d.year}';
 
-  // ── Profile header (child avatar, name, age, info button) ────────────
+  // ── Birthday + gender (read from the child's Firestore document) ─────
+
+  /// Reads the child's raw document and fills [_birthdayText] and
+  /// [_genderText]. Sign-up saves the birthdate as "M/D/YYYY" and the
+  /// gender as "Boy" / "Girl".
+  ///
+  /// The exact Firestore key names live in DatabaseService, which I can't
+  /// see, so the likely names are tried in order. Once you confirm the
+  /// real ones in the Firestore console, you can delete the others.
+  Future<void> _loadBirthdayAndGender(String childId) async {
+    try {
+      final rawChildren = await DatabaseService().getChildren();
+      final data = rawChildren.firstWhere(
+            (c) => c['id'] == childId,
+        orElse: () => <String, dynamic>{},
+      );
+
+      final dynamic rawBirthday = data['childBirthdate'] ??
+          data['birthdate'] ??
+          data['birthDate'] ??
+          data['birthday'];
+      final dynamic rawGender = data['childGender'] ?? data['gender'];
+
+      String? birthday;
+      if (rawBirthday is Timestamp) {
+        birthday = _formatBirthday(rawBirthday.toDate());
+      } else if (rawBirthday is String && rawBirthday.trim().isNotEmpty) {
+        final parsed = _parseBirthdate(rawBirthday.trim());
+        birthday = parsed != null ? _formatBirthday(parsed) : rawBirthday;
+      }
+
+      String? gender;
+      if (rawGender is String && rawGender.trim().isNotEmpty) {
+        final g = rawGender.trim();
+        gender = g[0].toUpperCase() + g.substring(1).toLowerCase();
+      }
+
+      _birthdayText = birthday;
+      _genderText = gender;
+    } catch (_) {
+      // Leave both as null -> the UI shows "—".
+    }
+  }
+
+  /// Parses the "M/D/YYYY" string saved at sign-up. Falls back to ISO
+  /// formats (e.g. "2004-03-17") via DateTime.tryParse.
+  DateTime? _parseBirthdate(String value) {
+    final parts = value.split('/');
+    if (parts.length == 3) {
+      final m = int.tryParse(parts[0]);
+      final d = int.tryParse(parts[1]);
+      final y = int.tryParse(parts[2]);
+      if (m != null &&
+          d != null &&
+          y != null &&
+          m >= 1 &&
+          m <= 12 &&
+          d >= 1 &&
+          d <= 31) {
+        return DateTime(y, m, d);
+      }
+    }
+    return DateTime.tryParse(value);
+  }
+
+  String _formatBirthday(DateTime d) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${months[d.month - 1]} ${d.day}, ${d.year}';
+  }
+
+  // ── Profile header (child avatar, name, details, typical-at-age) ─────
+
+  String _childBirthdayText(ChildProfile? child) => _birthdayText ?? '—';
+
+  String _childGenderText(ChildProfile? child) => _genderText ?? '—';
+
+  Widget _buildProfileInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontFamily: AppTextStyles.fredoka,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: ColorTheme.deepNavyBlue,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontFamily: 'Nunito',
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: ColorTheme.brown,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildProfileHeader() {
-    final name = _resolvedChild?.name ?? widget.child?.name ?? 'Demo Child';
-    final avatarPath =
-        _resolvedChild?.avatarPath ??
-        widget.child?.avatarPath ??
-        kDefaultAvatarPath;
-    final age = (_resolvedChild ?? widget.child)?.age;
+    final child = _resolvedChild ?? widget.child;
+    final name = child?.name ?? 'Demo Child';
+    final avatarPath = child?.avatarPath ?? kDefaultAvatarPath;
+    final age = child?.age;
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: ColorTheme.cardYellow,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
+      decoration: BoxDecoration(
+        color: ColorTheme.cardYellow,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 80,
-                height: 80,
+                width: 78,
+                height: 78,
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.5),
-                  border: Border.all(color: ColorTheme.orange, width: 2.5),
+                  color: Colors.white,
+                  border: Border.all(color: ColorTheme.orange, width: 5),
                 ),
                 child: ClipOval(
                   child: Image.asset(
@@ -409,60 +533,75 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 24),
               Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name.toUpperCase(),
-                      style: const TextStyle(
-                        fontFamily: AppTextStyles.fredoka,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                        color: ColorTheme.deepNavyBlue,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.cake_rounded,
-                          size: 14,
-                          color: ColorTheme.brown,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          age?.label ?? 'Age not set',
-                          style: const TextStyle(
-                            fontFamily: 'Nunito',
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: ColorTheme.brown,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: Text(
+                  name.toUpperCase(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: AppTextStyles.fredoka,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: ColorTheme.deepNavyBlue,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
-              if (age != null) _buildInfoButton(age),
+              const SizedBox(width: 5),
+              // Edit button
+              GestureDetector(
+                onTap: () {
+                  // TODO: open your edit-profile screen/dialog here
+                },
+                child: const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.edit_rounded,
+                    size: 22,
+                    color: ColorTheme.deepNavyBlue,
+                  ),
+                ),
+              ),
             ],
           ),
-        ),
-        Positioned(
-          top: -18,
-          right: -20,
-          child: Transform.rotate(angle: 0.4, child: _StarDecor(size: 50)),
-        ),
-        Positioned(
-          bottom: -18,
-          left: -20,
-          child: Transform.rotate(angle: -0.3, child: _StarDecor(size: 50)),
-        ),
-      ],
+          const SizedBox(height: 13),
+
+          // Details
+          _buildProfileInfoRow('AGE:', age?.label ?? 'Age not set'),
+          _buildProfileInfoRow('BIRTHDAY:', _childBirthdayText(child)),
+          _buildProfileInfoRow('GENDER:', _childGenderText(child)),
+
+          const SizedBox(height: 16),
+          Container(height: 1, color: ColorTheme.orange),
+          const SizedBox(height: 16),
+
+          // What's typical at this age
+          const Text(
+            "WHAT'S TYPICAL AT THIS AGE?",
+            style: TextStyle(
+              fontFamily: AppTextStyles.fredoka,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: ColorTheme.orange,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            age != null
+                ? _ageExpectationNote(age.inYears)
+                : 'Set your child\'s age to see what\'s typical at this stage.',
+            textAlign: TextAlign.justify,
+            style: const TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              height: 1.45,
+              color: ColorTheme.brown,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -660,7 +799,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
               valueFontSize: 40,
               infoTitle: 'Games Completed',
               infoMessage:
-                  'This counts the different games your child has finished '
+              'This counts the different games your child has finished '
                   'across all subjects, out of $_totalLevelsAllCategories in total.',
             ),
           ),
@@ -673,7 +812,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
               valueFontSize: 18,
               infoTitle: 'Most Played Subject',
               infoMessage:
-                  'This shows the subject where your child has finished the '
+              'This shows the subject where your child has finished the '
                   'most games so far.',
             ),
           ),
@@ -959,7 +1098,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         try {
           final snaps = await Future.wait(
             List.generate(_maxStoredCycles, (i) => i + 1).map(
-              (slot) => progressRef
+                  (slot) => progressRef
                   .doc(entry.key)
                   .collection('cycles')
                   .doc('cycle_$slot')
@@ -983,9 +1122,9 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   }
 
   List<SubjectAnalysis> _mockAnalysesFor(
-    String childId,
-    Map<String, int> completedByCategory,
-  ) {
+      String childId,
+      Map<String, int> completedByCategory,
+      ) {
     final now = DateTime.now();
     final seed = childId.hashCode.abs();
 
@@ -996,44 +1135,44 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
     final subjectsSpec = [
       (
-        'alphabet_forest',
-        'Alphabet Forest',
-        Icons.abc_rounded,
-        ColorTheme.orange,
-        'assets/images/avatars/avatar_dog.png',
-        'Letters, sound, alphabet',
+      'alphabet_forest',
+      'Alphabet Forest',
+      Icons.abc_rounded,
+      ColorTheme.orange,
+      'assets/images/avatars/avatar_dog.png',
+      'Letters, sound, alphabet',
       ),
       (
-        'lumitown',
-        'Lumitown',
-        Icons.science_rounded,
-        ColorTheme.titleSky,
-        'assets/images/avatars/avatar_owl.png',
-        'Curious questions and cause-and-effect!',
+      'lumitown',
+      'Lumitown',
+      Icons.science_rounded,
+      ColorTheme.titleSky,
+      'assets/images/avatars/avatar_owl.png',
+      'Curious questions and cause-and-effect!',
       ),
       (
-        'arctic_numberland',
-        'Arctic Numberland',
-        Icons.pin_rounded,
-        ColorTheme.deepNavyBlue,
-        'assets/images/avatars/avatar_penguin.png',
-        'Counting, matching, and number play!',
+      'arctic_numberland',
+      'Arctic Numberland',
+      Icons.pin_rounded,
+      ColorTheme.deepNavyBlue,
+      'assets/images/avatars/avatar_penguin.png',
+      'Counting, matching, and number play!',
       ),
       (
-        'discovery_lagoon',
-        'Discovery Lagoon',
-        Icons.favorite_rounded,
-        ColorTheme.titleGold,
-        'assets/images/avatars/avatar_cat.png',
-        'Kindness, sharing, and good choices!',
+      'discovery_lagoon',
+      'Discovery Lagoon',
+      Icons.favorite_rounded,
+      ColorTheme.titleGold,
+      'assets/images/avatars/avatar_cat.png',
+      'Kindness, sharing, and good choices!',
       ),
       (
-        'puzzle_glade',
-        'Puzzle Glade',
-        Icons.extension_rounded,
-        ColorTheme.teal,
-        'assets/images/avatars/avatar_bunny.png',
-        'Shapes, patterns, and problem-solving!',
+      'puzzle_glade',
+      'Puzzle Glade',
+      Icons.extension_rounded,
+      ColorTheme.teal,
+      'assets/images/avatars/avatar_bunny.png',
+      'Shapes, patterns, and problem-solving!',
       ),
     ];
 
@@ -1066,10 +1205,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   }
 
   String _mockDescription(
-    String subject,
-    LearningConstruct construct,
-    InsightBand band,
-  ) {
+      String subject,
+      LearningConstruct construct,
+      InsightBand band,
+      ) {
     switch (construct) {
       case LearningConstruct.engagement:
         switch (band) {

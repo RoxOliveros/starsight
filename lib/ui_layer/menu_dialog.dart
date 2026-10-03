@@ -4,7 +4,7 @@ import 'package:StarSight/ui_layer/parents_pin_validation.dart';
 import 'package:flutter/material.dart';
 import 'avatar_picker_dialog.dart';
 import 'parents_area_screen.dart';
-import 'analysis_report_screen.dart';
+import 'child_profile_screen.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -146,7 +146,7 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
 
                 _ProfileOption(
                   icon: Icons.auto_awesome,
-                  label: "Analysis and Reports",
+                  label: "Child's Area",
                   onTap: () async {
                     final navigator = Navigator.of(context);
                     navigator.pop();
