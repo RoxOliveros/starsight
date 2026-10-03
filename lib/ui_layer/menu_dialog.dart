@@ -179,7 +179,7 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
 
                 _ProfileOption(
                   icon: Icons.group,
-                  label: "Parent's Area",
+                  label: "Grownup's Area",
                   onTap: () async {
                     final navigator = Navigator.of(context);
                     navigator.pop(); // close the dialog first

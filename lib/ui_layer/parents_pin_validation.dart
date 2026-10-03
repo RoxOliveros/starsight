@@ -257,7 +257,7 @@ class ParentPinValidationState extends State<ParentPinValidation> {
                                     ),
                               SizedBox(height: vGapSm),
                               Text(
-                                "PARENTS ONLY",
+                                "GROWNUP ONLY",
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: titleSz,

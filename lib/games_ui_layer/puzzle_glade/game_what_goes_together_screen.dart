@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -144,20 +145,29 @@ class WhatGoesTogetherScreen extends StatefulWidget {
 }
 
 class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<WhatGoesTogetherScreen> {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/what_goes_together_intro.wav';
-  static const String _audioInstruction = 'assets/audio/puzzle_glade/what_goes_together_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/what_goes_together_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/what_goes_together_intro.wav';
+  static const String _audioInstruction =
+      'assets/audio/puzzle_glade/what_goes_together_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/what_goes_together_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -183,6 +193,13 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
   final AudioPlayer _bgPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _bgPlayer,
+    _completePlayer,
+    _roxiePlayer,
+  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;

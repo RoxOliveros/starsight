@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/listening_game.dart';
@@ -24,8 +25,7 @@ class PerfumeGame extends StatefulWidget {
 }
 
 class _PerfumeGameState extends State<PerfumeGame>
-    with AiCameraMixin, KikiReactionMixin {
-
+    with AiCameraMixin, KikiReactionMixin, AppAudioLifecycleMixin<PerfumeGame> {
   @override
   AudioPlayer get kikiPlayer => _kikiPlayer;
 
@@ -33,13 +33,21 @@ class _PerfumeGameState extends State<PerfumeGame>
   final GameTapTracker _tapTracker = GameTapTracker();
   final AudioPlayer _kikiPlayer = AudioPlayer();
 
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
   static const String _introAudio = 'audio/discovery_lagoon/perfume_intro.wav';
-  static const String _tutorialAudio = 'audio/discovery_lagoon/perfume_tutorial.wav';
+  static const String _tutorialAudio =
+      'audio/discovery_lagoon/perfume_tutorial.wav';
   static const String _rcAudio = 'audio/discovery_lagoon/perfume_rc.wav';
-  static const String _recipeAudio = 'audio/discovery_lagoon/perfume_complete_recipe.wav';
-  static const String _whatPartAudio = 'audio/discovery_lagoon/perfume_whatpart.wav';
-  static const String _completeAudio = 'audio/discovery_lagoon/perfume_completed.wav';
-  static const String _endingAudio = 'audio/discovery_lagoon/perfume_ending.wav';
+  static const String _recipeAudio =
+      'audio/discovery_lagoon/perfume_complete_recipe.wav';
+  static const String _whatPartAudio =
+      'audio/discovery_lagoon/perfume_whatpart.wav';
+  static const String _completeAudio =
+      'audio/discovery_lagoon/perfume_completed.wav';
+  static const String _endingAudio =
+      'audio/discovery_lagoon/perfume_ending.wav';
 
   int _currentStage = 1;
   bool _showOptions = false;
@@ -94,9 +102,7 @@ class _PerfumeGameState extends State<PerfumeGame>
   }
 
   Future<void> _startAudioSequence() async {
-    await _audioPlayer.play(
-      AssetSource(_introAudio),
-    );
+    await _audioPlayer.play(AssetSource(_introAudio));
 
     _waitForAudioComplete().then((_) async {
       if (!mounted || _disposed) return;
@@ -106,9 +112,7 @@ class _PerfumeGameState extends State<PerfumeGame>
         _canTap = false;
       });
 
-      await _audioPlayer.play(
-        AssetSource(_tutorialAudio),
-      );
+      await _audioPlayer.play(AssetSource(_tutorialAudio));
 
       _waitForAudioComplete().then((_) {
         if (!mounted || _disposed) return;

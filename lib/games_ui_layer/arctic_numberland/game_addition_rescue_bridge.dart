@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -33,9 +34,13 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         TickerProviderStateMixin,
         DomaReactionMixin<AdditionRescueBridgeGame>,
         GameLoadingMixin<AdditionRescueBridgeGame>,
-        AiCameraMixin<AdditionRescueBridgeGame> {
+        AiCameraMixin<AdditionRescueBridgeGame>,
+        AppAudioLifecycleMixin<AdditionRescueBridgeGame> {
   @override
   AudioPlayer get domaPlayer => _voicePlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_voicePlayer, _sfxPlayer];
 
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _iceAsset = 'assets/images/objects/arctic/ice.png';

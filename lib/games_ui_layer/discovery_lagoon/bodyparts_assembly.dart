@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -31,19 +32,30 @@ class BodyPartsAssemblyScreen extends StatefulWidget {
 }
 
 class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
-    with TickerProviderStateMixin, LagoonIntroMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        LagoonIntroMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<BodyPartsAssemblyScreen> {
   final AudioPlayer _player = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
 
   @override
   AudioPlayer get introAudioPlayer => _player;
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_closeup2.png';
-  static const String _kikiFishboneImage = 'assets/images/characters/cat_holding_fishbone.png';
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
+
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_rainbow_closeup2.png';
+  static const String _kikiFishboneImage =
+      'assets/images/characters/cat_holding_fishbone.png';
   static const String _boyImage = 'assets/images/objects/lagoon/boy.png';
 
-  static const String _introAudio = 'assets/audio/discovery_lagoon/bodyparts_assembly_intro.wav';
-  static const String _winAudio = 'assets/audio/discovery_lagoon/bodyparts_assembly_win.wav';
+  static const String _introAudio =
+      'assets/audio/discovery_lagoon/bodyparts_assembly_intro.wav';
+  static const String _winAudio =
+      'assets/audio/discovery_lagoon/bodyparts_assembly_win.wav';
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
@@ -174,12 +186,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Image.asset(
-              _bgImage,
-              fit: BoxFit.cover,
-            ),
-          ),
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
           Positioned(
@@ -308,40 +315,28 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
                         Positioned(
                           left: headBoxCenter.dx - boxSize / 2,
                           top: headBoxCenter.dy - boxSize / 2,
-                          child: _buildTargetBox(
-                            'head',
-                            boxSize,
-                          ),
+                          child: _buildTargetBox('head', boxSize),
                         ),
 
                         // SHOULDER
                         Positioned(
                           left: shoulderBoxCenter.dx - boxSize / 2,
                           top: shoulderBoxCenter.dy - boxSize / 2,
-                          child: _buildTargetBox(
-                            'shoulder',
-                            boxSize,
-                          ),
+                          child: _buildTargetBox('shoulder', boxSize),
                         ),
 
                         // FEET
                         Positioned(
                           left: feetBoxCenter.dx - boxSize / 2,
                           top: feetBoxCenter.dy - boxSize / 2,
-                          child: _buildTargetBox(
-                            'feet',
-                            boxSize,
-                          ),
+                          child: _buildTargetBox('feet', boxSize),
                         ),
 
                         // KNEE
                         Positioned(
                           left: kneeBoxCenter.dx - boxSize / 2,
                           top: kneeBoxCenter.dy - boxSize / 2,
-                          child: _buildTargetBox(
-                            'knee',
-                            boxSize,
-                          ),
+                          child: _buildTargetBox('knee', boxSize),
                         ),
                       ],
                     );
@@ -361,12 +356,12 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
                     physics: const NeverScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(20),
                     gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 18,
-                      mainAxisSpacing: 18,
-                      childAspectRatio: 1,
-                    ),
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 18,
+                          mainAxisSpacing: 18,
+                          childAspectRatio: 1,
+                        ),
                     itemCount: _availableParts.length,
                     itemBuilder: (context, index) {
                       final part = _availableParts[index];
@@ -392,14 +387,10 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
 
                           childWhenDragging: Opacity(
                             opacity: 0.3,
-                            child: _DraggableImage(
-                              imagePath: part.imagePath,
-                            ),
+                            child: _DraggableImage(imagePath: part.imagePath),
                           ),
 
-                          child: _DraggableImage(
-                            imagePath: part.imagePath,
-                          ),
+                          child: _DraggableImage(imagePath: part.imagePath),
                         ),
                       );
                     },
@@ -431,9 +422,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
 
         if (_matchedParts.length == _allParts.length) {
           await _player.play(
-            AssetSource(
-              _winAudio.replaceFirst('assets/', ''),
-            ),
+            AssetSource(_winAudio.replaceFirst('assets/', '')),
           );
 
           await _player.onPlayerComplete.first;

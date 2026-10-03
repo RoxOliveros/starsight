@@ -107,13 +107,130 @@ class _AddChildScreenState extends State<AddChildScreen> {
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
       builder: (context, child) {
+        final base = Theme.of(context);
         return Theme(
-          data: Theme.of(context).copyWith(
+          data: base.copyWith(
             colorScheme: const ColorScheme.light(
               primary: ColorTheme.goldenYellow,
               onPrimary: ColorTheme.warmBrown,
-              onSurface: ColorTheme.darkBlue,
+              surface: ColorTheme.cream,
+              onSurface: ColorTheme.warmBrown,
             ),
+            dialogBackgroundColor: ColorTheme.cream,
+            datePickerTheme: DatePickerThemeData(
+              backgroundColor: ColorTheme.cream,
+              surfaceTintColor: Colors.transparent,
+              elevation: 6,
+              shadowColor: const Color(0xFF3A4F6E),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              // Header ("Select date" + big date text)
+              headerBackgroundColor: ColorTheme.darkBlue,
+              headerForegroundColor: ColorTheme.cream,
+              headerHeadlineStyle: const TextStyle(
+                fontFamily: Fonts.fredoka,
+                fontSize: 26,
+                fontWeight: FontWeight.w600,
+              ),
+              headerHelpStyle: const TextStyle(
+                fontFamily: 'Fredoka',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+              // Month / year title and weekday letters
+              weekdayStyle: const TextStyle(
+                fontFamily: Fonts.fredoka,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: ColorTheme.darkBlue,
+              ),
+              dayStyle: const TextStyle(
+                fontFamily: 'Fredoka',
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+              yearStyle: const TextStyle(
+                fontFamily: 'Fredoka',
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+              // Selected day = golden circle with brown text
+              dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return ColorTheme.warmBrown;
+                }
+                if (states.contains(WidgetState.disabled)) {
+                  return ColorTheme.warmBrown.withValues(alpha: 0.3);
+                }
+                return ColorTheme.warmBrown;
+              }),
+              dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return ColorTheme.goldenYellow;
+                }
+                return Colors.transparent;
+              }),
+              dayOverlayColor: WidgetStateProperty.all(
+                ColorTheme.goldenYellow.withValues(alpha: 0.25),
+              ),
+              // Today's date outline
+              todayForegroundColor: WidgetStateProperty.all(ColorTheme.warmBrown),
+              todayBackgroundColor: WidgetStateProperty.all(Colors.transparent),
+              todayBorder: const BorderSide(
+                color: ColorTheme.goldenYellow,
+                width: 2,
+              ),
+              // Year picker
+              yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return ColorTheme.warmBrown;
+                }
+                return ColorTheme.warmBrown;
+              }),
+              yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return ColorTheme.goldenYellow;
+                }
+                return Colors.transparent;
+              }),
+              yearOverlayColor: WidgetStateProperty.all(
+                ColorTheme.goldenYellow.withValues(alpha: 0.25),
+              ),
+              dividerColor: ColorTheme.darkBlue.withValues(alpha: 0.2),
+              // Cancel / OK buttons
+              cancelButtonStyle: TextButton.styleFrom(
+                foregroundColor: ColorTheme.darkBlue,
+                textStyle: const TextStyle(
+                  fontFamily: Fonts.fredoka,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              confirmButtonStyle: TextButton.styleFrom(
+                foregroundColor: ColorTheme.warmBrown,
+                backgroundColor: ColorTheme.goldenYellow,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                textStyle: const TextStyle(
+                  fontFamily: Fonts.fredoka,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            // Month/year label + arrows in the calendar header
+            textTheme: base.textTheme.copyWith(
+              titleSmall: const TextStyle(
+                fontFamily: Fonts.fredoka,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: ColorTheme.warmBrown,
+              ),
+            ),
+            iconTheme: const IconThemeData(color: ColorTheme.darkBlue),
           ),
           child: child!,
         );
@@ -129,10 +246,10 @@ class _AddChildScreenState extends State<AddChildScreen> {
     final int childYear = _selectedDate!.year;
     final int childAge = currentYear - childYear;
 
-    if (childAge < 3 || childAge > 5) {
+    if (childAge < 3) {
       AppDialog.showError(
         context,
-        message: "The child must be between 3 and 5 years old to register.",
+        message: "The child must be at least 3 years old to register.",
       );
       return;
     }
@@ -140,11 +257,11 @@ class _AddChildScreenState extends State<AddChildScreen> {
     final int? parentYear = int.tryParse(_parentBirthYear ?? '');
     if (parentYear != null) {
       final int ageDifference = childYear - parentYear;
-      if (ageDifference < 20) {
+      if (ageDifference < 18) {
         AppDialog.showError(
           context,
           message:
-              "Invalid birthdate. The parent must be at least 20 years older than the child.",
+              "Invalid birthdate. The Grownup must be at least 18 years older than the child.",
         );
         return;
       }
@@ -214,9 +331,9 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     children: [
                       SizedBox(
                         width: 100,
-                        height: 120,
+                        height: 150,
                         child: OverflowBox(
-                          maxWidth: 140,
+                          maxWidth: 160,
                           child: Lottie.asset(
                             'assets/animations/dancing_dog.json',
                             fit: BoxFit.contain,
@@ -493,58 +610,53 @@ class _AddChildScreenState extends State<AddChildScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Gender",
-            style: TextStyle(
-              color: ColorTheme.cream,
-              fontSize: 16,
-              fontFamily: Fonts.fredoka,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Column(
-            children: _genders.map((gender) {
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _genders.reversed.map((gender) {
               final isSelected = _selectedGender == gender;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedGender = gender),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? ColorTheme.goldenYellow.withValues(alpha: 0.35)
-                          : Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(32),
-                      border: Border.all(
-                        color: isSelected
-                            ? ColorTheme.goldenYellow
-                            : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
+              final String imagePath = gender == 'Boy'
+                  ? 'assets/images/boy.png'
+                  : 'assets/images/girl.png';
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: gender == 'Boy' ? 8 : 0,
+                    right: gender == 'Girl' ? 8 : 0,
+                  ),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedGender = gender),
+                    child: Column(
                       children: [
-                        Icon(
-                          Icons.person_rounded,
-                          color: isSelected
-                              ? ColorTheme.goldenYellow
-                              : ColorTheme.goldenYellow.withValues(alpha: 0.6),
-                          size: 28,
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          height: 150,
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? ColorTheme.goldenYellow.withValues(alpha: 0.35)
+                                : Colors.white.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: isSelected
+                                  ? ColorTheme.goldenYellow
+                                  : Colors.transparent,
+                              width: 3,
+                            ),
+                          ),
+                          child: Image.asset(imagePath, fit: BoxFit.contain),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(height: 8),
                         Text(
-                          gender,
+                          gender.toUpperCase(),
                           style: TextStyle(
                             fontFamily: Fonts.fredoka,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
                             color: isSelected
-                                ? ColorTheme.cream
-                                : ColorTheme.cream.withValues(alpha: 0.75),
+                                ? ColorTheme.goldenYellow
+                                : ColorTheme.cream,
                           ),
                         ),
                       ],

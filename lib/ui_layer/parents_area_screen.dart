@@ -356,7 +356,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(child: _buildRainbowTitle("PARENT'S AREA")),
+          Center(child: _buildRainbowTitle("GROWNUP'S AREA")),
           const SizedBox(height: 25),
           _buildYourChildrenCard(),
           const SizedBox(height: 27),

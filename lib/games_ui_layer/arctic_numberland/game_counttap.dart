@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
 import 'package:flutter/material.dart';
@@ -36,9 +37,13 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         TickerProviderStateMixin,
         DomaReactionMixin,
         GameLoadingMixin,
-        AiCameraMixin {
+        AiCameraMixin,
+        AppAudioLifecycleMixin<Number012TapCountScreen> {
   @override
   AudioPlayer get domaPlayer => _player;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
   // ── Constants ──────────────────────────────────────────────────────────────
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';

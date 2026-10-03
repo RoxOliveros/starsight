@@ -650,44 +650,41 @@ class _IslandTileState extends State<_IslandTile>
   late Animation<double> _scaleAnimation;
   bool _glowing = false;
 
-  void _navigate(BuildContext context) {
+  static bool _isNavigating = false;
+
+  // True only if THIS tile took the lock, so dispose() can safely release it.
+  bool _ownsNavigationLock = false;
+
+  Future<void> _navigate(BuildContext context) async {
+    if (_isNavigating) return; //  ignore extra taps
+    _isNavigating = true;
+    _ownsNavigationLock = true;
+
     final navigator = Navigator.of(context);
-    setState(() => _glowing = true);
-    _tapController
-        .forward()
-        .then((_) => Future.delayed(widget.glowDuration))
-        .then((_) => _tapController.reverse())
-        .then((_) {
-          if (!mounted) return;
-          setState(() => _glowing = false);
-          switch (widget.activity.title) {
-            case 'Alphabet Forest':
-              navigator.push(
-                MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
-              );
-              break;
-            case 'Lumi Town':
-              navigator.push(
-                MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-              );
-              break;
-            case 'Artic Numberland':
-              navigator.push(
-                MaterialPageRoute(builder: (_) => const ArcticLevelScreen()),
-              );
-              break;
-            case 'Discovery Lagoon':
-              navigator.push(
-                MaterialPageRoute(builder: (_) => const LagoonLevelScreen()),
-              );
-              break;
-            case 'Puzzle Glade':
-              navigator.push(
-                MaterialPageRoute(builder: (_) => const PuzzleLevelScreen()),
-              );
-              break;
-          }
-        });
+    try {
+      setState(() => _glowing = true);
+      await _tapController.forward();
+      await Future.delayed(widget.glowDuration);
+      await _tapController.reverse();
+      if (!mounted) return;
+      setState(() => _glowing = false);
+
+      final Widget? screen = switch (widget.activity.title) {
+        'Alphabet Forest' => const ForestLevelScreen(),
+        'Lumi Town' => const LumiLevelScreen(),
+        'Artic Numberland' => const ArcticLevelScreen(),
+        'Discovery Lagoon' => const LagoonLevelScreen(),
+        'Puzzle Glade' => const PuzzleLevelScreen(),
+        _ => null,
+      };
+
+      if (screen != null) {
+        await navigator.push(MaterialPageRoute(builder: (_) => screen));
+      }
+    } finally {
+      _ownsNavigationLock = false;
+      _isNavigating = false;
+    }
   }
 
   @override
@@ -705,6 +702,8 @@ class _IslandTileState extends State<_IslandTile>
 
   @override
   void dispose() {
+    // If this tile is removed mid-tap, don't leave the lock stuck on.
+    if (_ownsNavigationLock) _isNavigating = false;
     _tapController.dispose();
     super.dispose();
   }

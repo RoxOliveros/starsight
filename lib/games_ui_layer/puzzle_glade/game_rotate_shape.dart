@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -110,19 +111,29 @@ class RotateTheShapeScreen extends StatefulWidget {
 }
 
 class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, PuzzleAudioMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        PuzzleAudioMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<RotateTheShapeScreen> {
   @override
   AudioPlayer get roxiePlayer => _roxieSfxPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/rotate_shape_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/rotate_shape_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/rotate_shape_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/rotate_shape_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/rotate_shape_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/rotate_shape_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -151,6 +162,14 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _roxieSfxPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _bgPlayer,
+    _sfxPlayer,
+    _completePlayer,
+    _roxieSfxPlayer,
+  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;

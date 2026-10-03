@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -65,19 +66,28 @@ class SizeSortScreen extends StatefulWidget {
 }
 
 class _SizeSortScreenState extends State<SizeSortScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<SizeSortScreen> {
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/size_sort_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/size_sort_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/size_sort_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/size_sort_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/size_sort_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/size_sort_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -91,8 +101,10 @@ class _SizeSortScreenState extends State<SizeSortScreen>
 
   late String _currentObject;
 
-  List<double> get _sizesForRound => _itemCountForRound(_round) == 4 ? _kSizes4 : _kSizes3;
-  List<String> get _labelsForRound => _itemCountForRound(_round) == 4 ? _kSizeLabels4 : _kSizeLabels3;
+  List<double> get _sizesForRound =>
+      _itemCountForRound(_round) == 4 ? _kSizes4 : _kSizes3;
+  List<String> get _labelsForRound =>
+      _itemCountForRound(_round) == 4 ? _kSizeLabels4 : _kSizeLabels3;
   List<_SizeItem?> _slots = [null, null, null];
   List<bool> _flashSlot = [false, false, false];
 
@@ -105,6 +117,9 @@ class _SizeSortScreenState extends State<SizeSortScreen>
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_sfxPlayer, _completePlayer];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -657,7 +672,8 @@ class _SizeSortScreenState extends State<SizeSortScreen>
                 final isHovered = candidateData.isNotEmpty;
                 return Draggable<int>(
                   data: slotIndex,
-                  maxSimultaneousDrags: (_roundComplete || _isInstructionPlaying) ? 0 : 1,
+                  maxSimultaneousDrags:
+                      (_roundComplete || _isInstructionPlaying) ? 0 : 1,
                   feedback: Material(
                     color: Colors.transparent,
                     child: Opacity(

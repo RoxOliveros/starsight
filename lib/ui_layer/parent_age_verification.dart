@@ -77,7 +77,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
       setState(() => _digits.clear());
       AppDialog.showError(
         context,
-        message: "Access Denied. Parents must be between 20 and 60 years old.",
+        message: "Access Denied. Grownups must be between 20 and 60 years old.",
       );
     }
   }
@@ -256,7 +256,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
                               ),
                               const Expanded(
                                 child: Text(
-                                  'Parents, please enter your birth year to confirm your age',
+                                  'Grownups, please enter your birth year to confirm your age',
                                   style: TextStyle(
                                     color: Color(0xFFFAF7EB),
                                     fontSize: 18,

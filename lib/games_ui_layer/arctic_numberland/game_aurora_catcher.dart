@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/arctic_numberland/game_shooting_star.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -116,9 +117,16 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
         DomaReactionMixin<AuroraCatcherGame>,
         GameLoadingMixin<AuroraCatcherGame>,
         ArcticAudioMixin<AuroraCatcherGame>,
-        AiCameraMixin<AuroraCatcherGame> {
+        AiCameraMixin<AuroraCatcherGame>,
+        AppAudioLifecycleMixin<AuroraCatcherGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    audio.voicePlayer,
+    audio.sfxPlayer,
+  ];
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage =

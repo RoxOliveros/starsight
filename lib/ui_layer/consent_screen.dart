@@ -225,19 +225,19 @@ class _Section1State extends State<_Section1> {
             ),
             children: [
               TextSpan(
-                text: 'PA',
+                text: 'GR',
                 style: TextStyle(color: ColorTheme.lightblue),
               ),
               TextSpan(
-                text: 'RE',
+                text: 'OW',
                 style: TextStyle(color: ColorTheme.orange),
               ),
               TextSpan(
-                text: 'NT',
+                text: 'NU',
                 style: TextStyle(color: ColorTheme.yellow),
               ),
               TextSpan(
-                text: 'S',
+                text: 'PS',
                 style: TextStyle(color: ColorTheme.lightblue),
               ),
             ],
@@ -261,7 +261,7 @@ class _Section1State extends State<_Section1> {
                 text: const TextSpan(
                   style: TextStyle(
                     fontFamily: AppTextStyles.nunito,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
                     color: ColorTheme.brown,
                   ),

@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
@@ -22,8 +23,11 @@ class SeedGame extends StatefulWidget {
   _SeedGameState createState() => _SeedGameState();
 }
 
-class _SeedGameState extends State<SeedGame> with AiCameraMixin {
+class _SeedGameState extends State<SeedGame>
+    with AiCameraMixin, AppAudioLifecycleMixin<SeedGame> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
   final GameTapTracker _tapTracker = GameTapTracker();
   final double kikiVerticalOffset = 40.0;
   late List<String> currentSequence;
@@ -44,8 +48,10 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
     'audio/discovery_lagoon/seed_game_mango_round.wav',
   ];
 
-  static const String _thankYouAudio = 'audio/discovery_lagoon/seed_game_thankyou.wav';
-  static const String _introAudio = 'audio/discovery_lagoon/seed_game_intro.wav';
+  static const String _thankYouAudio =
+      'audio/discovery_lagoon/seed_game_thankyou.wav';
+  static const String _introAudio =
+      'audio/discovery_lagoon/seed_game_intro.wav';
   static const String _shineAudio = 'audio/sound_effects/shine.wav';
 
   final List<List<String>> allCorrectSequences = [
@@ -122,9 +128,7 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
     });
 
     try {
-      await _audioPlayer.play(
-        AssetSource(audioPath),
-      );
+      await _audioPlayer.play(AssetSource(audioPath));
 
       await completer.future;
     } catch (e) {
@@ -141,9 +145,7 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
   Future<void> _playIntro() async {
     if (_disposed) return;
 
-    await _playAudioAndWait(
-      _introAudio,
-    );
+    await _playAudioAndWait(_introAudio);
 
     if (!mounted || _disposed) return;
 
@@ -152,9 +154,7 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
       _isProcessingRound = true;
     });
 
-    await _playAudioAndWait(
-      roundAudio[currentLevelIndex],
-    );
+    await _playAudioAndWait(roundAudio[currentLevelIndex]);
 
     if (!mounted || _disposed) return;
 
@@ -190,10 +190,7 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
     bool win = true;
 
     for (int i = 0; i < allCorrectSequences[currentLevelIndex].length; i++) {
-      if (
-      currentSequence[i] !=
-          allCorrectSequences[currentLevelIndex][i]
-      ) {
+      if (currentSequence[i] != allCorrectSequences[currentLevelIndex][i]) {
         win = false;
         break;
       }
@@ -216,22 +213,17 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
     if (!mounted || _disposed) return;
 
     if (currentLevelIndex < allCorrectSequences.length - 1) {
-      await Future.delayed(
-        const Duration(milliseconds: 800),
-      );
+      await Future.delayed(const Duration(milliseconds: 800));
 
       if (!mounted || _disposed) return;
 
       setState(() {
         currentLevelIndex++;
-        currentSequence =
-            List.from(allInitialSequences[currentLevelIndex]);
+        currentSequence = List.from(allInitialSequences[currentLevelIndex]);
         isCorrect = false;
       });
 
-      await _playAudioAndWait(
-        roundAudio[currentLevelIndex],
-      );
+      await _playAudioAndWait(roundAudio[currentLevelIndex]);
 
       if (!mounted || _disposed) return;
 
@@ -239,15 +231,11 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
         _isProcessingRound = false;
       });
     } else {
-      await Future.delayed(
-        const Duration(milliseconds: 800),
-      );
+      await Future.delayed(const Duration(milliseconds: 800));
 
       if (!mounted || _disposed) return;
 
-      await _playAudioAndWait(
-        _thankYouAudio,
-      );
+      await _playAudioAndWait(_thankYouAudio);
 
       if (!mounted || _disposed) return;
 
@@ -273,9 +261,9 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
       debugPrint("Database Error saving metrics: $e");
     });
 
-    LagoonProgressService.instance
-        .markLevelComplete(widget.level)
-        .catchError((e) {
+    LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -419,7 +407,9 @@ class _SeedGameState extends State<SeedGame> with AiCameraMixin {
       builder: (context, candidateData, rejectedData) {
         return Draggable<int>(
           data: index,
-          maxSimultaneousDrags: isCorrect || showGoodJob || _isProcessingRound ? 0 : 1,
+          maxSimultaneousDrags: isCorrect || showGoodJob || _isProcessingRound
+              ? 0
+              : 1,
           feedback: Material(
             color: Colors.transparent,
             child: _buildCardUI(currentSequence[index], true, cardSize),

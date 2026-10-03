@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -40,20 +41,29 @@ class FindThePairScreen extends StatefulWidget {
 }
 
 class _FindThePairScreenState extends State<FindThePairScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<FindThePairScreen> {
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/find_the_pair_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/find_the_pair_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/find_the_pair_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/find_the_pair_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -82,6 +92,14 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _bgPlayer,
+    _sfxPlayer,
+    _completePlayer,
+    _roxiePlayer,
+  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -359,9 +377,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
             AssetSource(_audioComplete.replaceFirst('assets/', '')),
           );
 
-          await completer.future.timeout(
-            const Duration(seconds: 10),
-          );
+          await completer.future.timeout(const Duration(seconds: 10));
         } catch (e) {
           debugPrint('Complete audio error: $e');
         } finally {
@@ -377,8 +393,8 @@ class _FindThePairScreenState extends State<FindThePairScreen>
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-          debugPrint("Database Error marking level complete: $e");
-        });
+              debugPrint("Database Error marking level complete: $e");
+            });
 
         if (!mounted) return;
 

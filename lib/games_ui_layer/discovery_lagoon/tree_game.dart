@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -43,15 +44,18 @@ class _TreePart {
   });
 }
 
-class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
-  static const String _introAudio = 'audio/discovery_lagoon/tree_game_intro.wav';
+class _TreeGameScreenState extends State<TreeGameScreen>
+    with AiCameraMixin, AppAudioLifecycleMixin<TreeGameScreen> {
+  static const String _introAudio =
+      'audio/discovery_lagoon/tree_game_intro.wav';
   static const String _leavesAudio = 'audio/discovery_lagoon/leaves.wav';
   static const String _branchAudio = 'audio/discovery_lagoon/branch.wav';
   static const String _trunkAudio = 'audio/discovery_lagoon/trunk.wav';
   static const String _rootAudio = 'audio/discovery_lagoon/roots.wav';
   static const String _shineAudio = 'audio/sound_effects/shine.wav';
 
-  static const String _fullTreeAsset = 'assets/images/objects/lagoon/t5_tree.png';
+  static const String _fullTreeAsset =
+      'assets/images/objects/lagoon/t5_tree.png';
 
   static const double _canvasWidth = 260;
   static const double _canvasHeight = 311;
@@ -111,6 +115,9 @@ class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
   bool _showIntro = true;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
   final GameTapTracker _tapTracker = GameTapTracker();
 
   bool _hideLightingCard = false;
@@ -143,9 +150,7 @@ class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
       }
     });
 
-    await _audioPlayer.play(
-      AssetSource(_introAudio),
-    );
+    await _audioPlayer.play(AssetSource(_introAudio));
   }
 
   Future<void> _playPartAudio(String partId) async {
@@ -261,7 +266,7 @@ class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
             if (_showOverlay)
               GoodJobOverlay(
                 characterImage:
-                'assets/images/characters/cat_holding_fishbone.png',
+                    'assets/images/characters/cat_holding_fishbone.png',
                 characterSizeFactor: 0.9,
                 onNext: () {
                   if (context.mounted) {
@@ -269,7 +274,7 @@ class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
                       context,
                       MaterialPageRoute(
                         builder: (context) =>
-                        const SeasonSceneTapScreen(level: 14),
+                            const SeasonSceneTapScreen(level: 14),
                       ),
                     );
                   }
@@ -378,9 +383,7 @@ class _TreeGameScreenState extends State<TreeGameScreen> with AiCameraMixin {
           await _playPartAudio(part.id);
 
           if (_placed.length == _parts.length) {
-            await _audioPlayer.play(
-              AssetSource(_shineAudio),
-            );
+            await _audioPlayer.play(AssetSource(_shineAudio));
 
             await Future.delayed(const Duration(seconds: 2));
 

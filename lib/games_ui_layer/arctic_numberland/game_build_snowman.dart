@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -35,9 +36,15 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
         DomaReactionMixin,
         GameLoadingMixin,
         ArcticAudioMixin,
-        AiCameraMixin {
+        AiCameraMixin,
+        AppAudioLifecycleMixin<BuildSnowmanGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    audio.voicePlayer,
+    audio.sfxPlayer,
+  ];
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';

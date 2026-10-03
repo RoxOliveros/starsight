@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -32,27 +33,45 @@ class StarColorSortScreen extends StatefulWidget {
 }
 
 class _StarColorSortScreenState extends State<StarColorSortScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<StarColorSortScreen> {
   @override
   AudioPlayer get roxiePlayer => _player;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _audioIntro = 'assets/audio/puzzle_glade/star_sort_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/star_sort_instruction.wav';
-  static const String _audioGameComplete = 'assets/audio/puzzle_glade/star_sort_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/star_sort_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/star_sort_instruction.wav';
+  static const String _audioGameComplete =
+      'assets/audio/puzzle_glade/star_sort_complete.wav';
 
-  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioCorrect =
+      'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
 
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
   static const String _jarImage = 'assets/images/objects/puzzle/jar_bnw.png';
 
-  static final ImageProvider _starProvider = ResizeImage(const AssetImage(_starImage), width: 160);
-  static final ImageProvider _jarProvider = ResizeImage(const AssetImage(_jarImage), width: 240);
+  static final ImageProvider _starProvider = ResizeImage(
+    const AssetImage(_starImage),
+    width: 160,
+  );
+  static final ImageProvider _jarProvider = ResizeImage(
+    const AssetImage(_jarImage),
+    width: 240,
+  );
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -62,30 +81,12 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   int _countC = 0;
 
   static const _allPairs = [
-    _JarPair(
-      jarColor: Color(0xFFFF6B6B),
-      ballColor: Color(0xFFFF6B6B),
-    ),
-    _JarPair(
-      jarColor: Color(0xFF1E88E5),
-      ballColor: Color(0xFF1E88E5),
-    ),
-    _JarPair(
-      jarColor: Color(0xFF43A047),
-      ballColor: Color(0xFF43A047),
-    ),
-    _JarPair(
-      jarColor: Color(0xFFFDD835),
-      ballColor: Color(0xFFFDD835),
-    ),
-    _JarPair(
-      jarColor: Color(0xFFCE93D8),
-      ballColor: Color(0xFFCE93D8),
-    ),
-    _JarPair(
-      jarColor: Color(0xFFFF9800),
-      ballColor: Color(0xFFFF9800),
-    ),
+    _JarPair(jarColor: Color(0xFFFF6B6B), ballColor: Color(0xFFFF6B6B)),
+    _JarPair(jarColor: Color(0xFF1E88E5), ballColor: Color(0xFF1E88E5)),
+    _JarPair(jarColor: Color(0xFF43A047), ballColor: Color(0xFF43A047)),
+    _JarPair(jarColor: Color(0xFFFDD835), ballColor: Color(0xFFFDD835)),
+    _JarPair(jarColor: Color(0xFFCE93D8), ballColor: Color(0xFFCE93D8)),
+    _JarPair(jarColor: Color(0xFFFF9800), ballColor: Color(0xFFFF9800)),
   ];
 
   // ── Phase state ────────────────────────────────────────────────────────────
@@ -271,10 +272,9 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     cache.maximumSize = 200;
 
     await Future.wait([_starProvider, _jarProvider].map(_precacheOne));
-    await Future.wait([
-      AssetImage(_characterImage),
-      AssetImage(_bgImage),
-    ].map(_precacheOne));
+    await Future.wait(
+      [AssetImage(_characterImage), AssetImage(_bgImage)].map(_precacheOne),
+    );
 
     await WidgetsBinding.instance.endOfFrame;
   }
@@ -501,8 +501,10 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
               opacity: _roxieFade,
               child: AnimatedBuilder(
                 animation: _roxieFloatCtrl,
-                builder: (_, child) =>
-                    Transform.translate(offset: Offset(0, floatY), child: child),
+                builder: (_, child) => Transform.translate(
+                  offset: Offset(0, floatY),
+                  child: child,
+                ),
                 child: Image.asset(
                   _characterImage,
                   height: roxieH,
@@ -531,10 +533,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
               runAlignment: WrapAlignment.center,
               spacing: 20,
               runSpacing: 24,
-              children: _allPairs
-                  .asMap()
-                  .entries
-                  .map((entry) {
+              children: _allPairs.asMap().entries.map((entry) {
                 final i = entry.key;
                 final pair = entry.value;
                 final angle = _jarDance.value * ((i % 2 == 0) ? 1 : -1);
@@ -551,7 +550,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
                         color: pair.ballColor,
                         colorBlendMode: BlendMode.modulate,
                         errorBuilder: (_, __, ___) =>
-                        const Text('⭐', style: TextStyle(fontSize: 42)),
+                            const Text('⭐', style: TextStyle(fontSize: 42)),
                       ),
                     ],
                   ),
@@ -659,10 +658,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
         maxSimultaneousDrags: _canDrag ? 1 : 0,
         feedback: Material(color: Colors.transparent, child: starWidget(62)),
         childWhenDragging: Opacity(opacity: 0.25, child: starWidget(54)),
-        child: Opacity(
-          opacity: _canDrag ? 1 : 0.6,
-          child: starWidget(54),
-        ),
+        child: Opacity(opacity: _canDrag ? 1 : 0.6, child: starWidget(54)),
       ),
     );
   }
@@ -838,10 +834,7 @@ class _JarPair {
   final Color jarColor;
   final Color ballColor;
 
-  const _JarPair({
-    required this.jarColor,
-    required this.ballColor,
-  });
+  const _JarPair({required this.jarColor, required this.ballColor});
 }
 
 class _Ball {

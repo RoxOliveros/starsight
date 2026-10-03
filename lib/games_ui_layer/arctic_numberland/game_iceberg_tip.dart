@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/arctic_numberland/game_snowglobe_shake_count.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,9 +35,16 @@ class _IcebergTipGameState extends State<IcebergTipGame>
         DomaReactionMixin<IcebergTipGame>,
         GameLoadingMixin<IcebergTipGame>,
         ArcticAudioMixin<IcebergTipGame>,
-        AiCameraMixin<IcebergTipGame> {
+        AiCameraMixin<IcebergTipGame>,
+        AppAudioLifecycleMixin<IcebergTipGame> {
   @override
   AudioPlayer get domaPlayer => audio.voicePlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    audio.voicePlayer,
+    audio.sfxPlayer,
+  ];
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage =

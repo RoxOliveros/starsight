@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_pop.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
@@ -41,7 +42,10 @@ class AlphabetTraceScreen extends StatefulWidget {
 }
 
 class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
-    with TofiReactionMixin, AiCameraMixin {
+    with
+        TofiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<AlphabetTraceScreen> {
   final AudioPlayer _player = AudioPlayer();
 
   // for tracking and analysis
@@ -49,6 +53,9 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
 
   @override
   AudioPlayer get tofiPlayer => _player;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   final GlobalKey _canvasKey = GlobalKey();
   int _currentLevelIndex = 0;

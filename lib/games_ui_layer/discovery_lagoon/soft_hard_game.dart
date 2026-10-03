@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -32,7 +33,11 @@ class SoftHardGameScreen extends StatefulWidget {
 }
 
 class _SoftHardGameScreenState extends State<SoftHardGameScreen>
-    with TickerProviderStateMixin, KikiReactionMixin, AiCameraMixin {
+    with
+        TickerProviderStateMixin,
+        KikiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<SoftHardGameScreen> {
   late final AudioPlayer _audioPlayer;
   final Random _random = Random();
   final AudioPlayer _kikiPlayer = AudioPlayer();
@@ -40,6 +45,9 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
 
   @override
   AudioPlayer get kikiPlayer => _kikiPlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
 
   bool _isIntroPlaying = true;
   bool _hasPlayedInstruction = false;
@@ -59,24 +67,32 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
-  static const String _softCloudImage = 'assets/images/objects/lagoon/soft_cloud.png';
-  static const String _hardRockImage = 'assets/images/objects/lagoon/hard_rock.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_rainbow_lagoon.png';
+  static const String _softCloudImage =
+      'assets/images/objects/lagoon/soft_cloud.png';
+  static const String _hardRockImage =
+      'assets/images/objects/lagoon/hard_rock.png';
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
-  static const String _goodJobImage = 'assets/images/characters/cat_holding_fishbone.png';
+  static const String _goodJobImage =
+      'assets/images/characters/cat_holding_fishbone.png';
 
   static const String _pillowImage = 'assets/images/objects/lagoon/pillow.png';
-  static const String _cushionImage = 'assets/images/objects/lagoon/cushion.png';
+  static const String _cushionImage =
+      'assets/images/objects/lagoon/cushion.png';
   static const String _towelImage = 'assets/images/objects/lagoon/towel.png';
-  static const String _teddybearImage = 'assets/images/objects/lagoon/teddybear.png';
+  static const String _teddybearImage =
+      'assets/images/objects/lagoon/teddybear.png';
   static const String _yarnImage = 'assets/images/objects/lagoon/yarn_wb.png';
   static const String _yoyoImage = 'assets/images/objects/lagoon/yoyo_wb.png';
   static const String _planeImage = 'assets/images/objects/lagoon/plane_wb.png';
   static const String _trainImage = 'assets/images/objects/lagoon/train_wb.png';
   static const String _chairImage = 'assets/images/objects/lagoon/chair_wb.png';
 
-  static const String _introAudio = 'audio/discovery_lagoon/soft&hard_intro&tutorial.wav';
-  static const String _instructionAudio = 'audio/discovery_lagoon/soft&hard_instruction.wav';
+  static const String _introAudio =
+      'audio/discovery_lagoon/soft&hard_intro&tutorial.wav';
+  static const String _instructionAudio =
+      'audio/discovery_lagoon/soft&hard_instruction.wav';
   static const String _wrongAudio = 'audio/sound_effects/bubble_pop.wav';
 
   @override
