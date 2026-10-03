@@ -219,20 +219,66 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
     final bool isReady = _selectedDate != null;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: ColorTheme.darkBlue,
       body: Stack(
         children: [
           Positioned(
-            bottom: screenHeight * 0.12,
-            left: -80,
+            top: screenHeight * 0.65,
+            right: -130,
             child: Lottie.asset(
-              'assets/animations/night_cloud.json',
-              width: screenWidth * 0.65,
+              'assets/animations/night_cloud_fluffy.json',
+              width: screenWidth * 0.80,
               delegates: LottieDelegates(
                 values: [
                   ValueDelegate.opacity(const ['**'], value: 85),
                 ],
               ),
+            ),
+          ),
+          Positioned(
+            bottom: screenHeight * 0.90,
+            left: -130,
+            child: Lottie.asset(
+              'assets/animations/night_cloud.json',
+              width: screenWidth * 0.80,
+              delegates: LottieDelegates(
+                values: [
+                  ValueDelegate.opacity(const ['**'], value: 85),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            top: screenHeight * 0.70,
+            left: screenWidth * 0.20,
+            child: Transform.rotate(
+              angle: 0.4,
+              child: Image.asset('assets/images/night_star.png', width: 40),
+            ),
+          ),
+          Positioned(
+            top: screenHeight * 0.60,
+            right: screenWidth * 0.35,
+            child: Transform.rotate(
+              angle: 0.9,
+              child: Image.asset('assets/images/night_star.png', width: 50),
+            ),
+          ),
+          Positioned(
+            bottom: screenHeight * 0.02,
+            left: screenWidth * 0.01,
+            child: Transform.rotate(
+              angle: 0.6,
+              child: Image.asset('assets/images/night_star.png', width: 100),
+            ),
+          ),
+          Positioned(
+            bottom: screenHeight * 0.09,
+            right: screenWidth * 0.06,
+            child: Transform.rotate(
+              angle: 0.3,
+              child: Image.asset('assets/images/night_star.png', width: 60),
             ),
           ),
 
@@ -241,27 +287,30 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AppTopBar(progress: 0.65),
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 100,
-                        height: 150,
-                        child: OverflowBox(
-                          maxWidth: 160,
-                          child: Lottie.asset(
-                            'assets/animations/dancing_dog.json',
-                            fit: BoxFit.contain,
-                            alignment: Alignment.centerRight,
-                          ),
-                        ),
-                      ),
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        SizedBox(height: screenHeight * 0.04),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: 100,
+                                height: 150,
+                                child: OverflowBox(
+                                  maxWidth: 160,
+                                  child: Lottie.asset(
+                                    'assets/animations/dancing_dog.json',
+                                    fit: BoxFit.contain,
+                                    alignment: Alignment.centerRight,
+                                  ),
+                                ),
+                              ),
                       Expanded(
                         child: Text(
                           "When is ${widget.nickname}'s birthday?",
@@ -425,6 +474,10 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                     ],
                   ),
                 ),
+              ],
+            ),
+          ),
+            ),
               ],
             ),
           ),

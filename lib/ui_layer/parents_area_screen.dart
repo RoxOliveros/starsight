@@ -1,4 +1,4 @@
-import 'package:StarSight/ui_layer/analysis_report_screen.dart';
+import 'package:StarSight/ui_layer/child_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_signin.dart';
