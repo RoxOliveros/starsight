@@ -27,29 +27,72 @@ class FamilyTreeGame extends StatefulWidget {
 
 class _FamilyTreeGameState extends State<FamilyTreeGame>
     with SingleTickerProviderStateMixin, AiCameraMixin<FamilyTreeGame>, GameLoadingMixin {
+
   late final AnimationController _handAnimCtrl;
+
   final AudioPlayer _audioPlayer = AudioPlayer();
-
   final GameTapTracker _tapTracker = GameTapTracker();
-  bool _hideLightingCard = false;
-  bool _hasSavedResult = false;
+  final Map<String, String> _slotFill = {};
 
-  // --- GAME STATE ---
   int _gamePhase = 0;
-  bool _showHand = true;
   int _currentStage = 1;
-  bool _isGameWon = false;
 
-  // Stage 1 Placements
+  bool _showHand = true;
+  bool _isGameWon = false;
   bool isGrandpaPlaced = false;
   bool isMotherPlaced = false;
   bool isLittleBearPlaced = false;
-
-  // Stage 2 Placements
   bool isGrandmaPlaced = false;
   bool isFatherPlaced = false;
   bool isSisterPlaced = false;
   bool isBrotherPlaced = false;
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+  bool _canDrag = false;
+
+  final Map<String, String> _familyAudio = {
+    'grandpa': 'audio/lumi_town/level13/lolo.wav',
+    'grandma': 'audio/lumi_town/level13/lola.wav',
+    'father': 'audio/lumi_town/level13/papa.wav',
+    'mother': 'audio/lumi_town/level13/mama.wav',
+    'sister': 'audio/lumi_town/level13/ate.wav',
+    'brother': 'audio/lumi_town/level13/kuya.wav',
+    'little_bear': 'audio/lumi_town/level13/anak.wav',
+  };
+
+  static const Map<String, String> _groupOf = {
+    'grandpa': 'grand',
+    'grandma': 'grand',
+    'father': 'parent',
+    'mother': 'parent',
+    'sister': 'child',
+    'brother': 'child',
+    'little_bear': 'child',
+  };
+
+  static const Map<String, String> _pfpAssets = {
+    'grandpa': 'assets/images/objects/lumi/grandpa_pfp.png',
+    'grandma': 'assets/images/objects/lumi/grandma_pfp.png',
+    'father': 'assets/images/objects/lumi/father_pfp.png',
+    'mother': 'assets/images/objects/lumi/mother_pfp.png',
+    'sister': 'assets/images/objects/lumi/sister_pfp.png',
+    'brother': 'assets/images/objects/lumi/brother_pfp.png',
+    'little_bear': 'assets/images/objects/lumi/littllebear_pfp.png',
+  };
+
+  String? get _activeId {
+    if (_currentStage == 1) {
+      if (!isGrandpaPlaced) return 'grandpa';
+      if (!isMotherPlaced) return 'mother';
+      if (!isLittleBearPlaced) return 'little_bear';
+    } else {
+      if (!isGrandmaPlaced) return 'grandma';
+      if (!isFatherPlaced) return 'father';
+      if (!isSisterPlaced) return 'sister';
+      if (!isBrotherPlaced) return 'brother';
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -69,37 +112,28 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
       duration: const Duration(milliseconds: 500),
     )..repeat(reverse: true);
 
-    _audioPlayer.onPlayerComplete.listen((event) {
-      if (!mounted) return;
-
-      if (_gamePhase < 2) {
-        setState(() {
-          _gamePhase = 2;
-        });
-
-        Future.delayed(const Duration(seconds: 4), () {
-          if (mounted) {
-            setState(() {
-              _showHand = false;
-            });
-          }
-        });
-      }
-    });
-
     finishLoading(_startIntroFlow);
   }
 
   Future<void> _startIntroFlow() async {
     if (!mounted) return;
 
-    _playAudio('audio/lumi_town/level13/family_tree_game_intro.wav');
-
     Future.delayed(const Duration(seconds: 6), () {
-      if (mounted && _gamePhase == 0) {
-        setState(() => _gamePhase = 1);
-      }
+      if (mounted && _gamePhase == 0) setState(() => _gamePhase = 1);
     });
+
+    await _playAudioAndWait(
+      'audio/lumi_town/level13/family_tree_game_intro.wav',
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _gamePhase = 2;
+      _showHand = false;
+    });
+
+    await _playFamilyInstruction('grandpa');
   }
 
   @override
@@ -126,6 +160,50 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
       await _audioPlayer.play(AssetSource(path));
     } catch (e) {
       debugPrint("Error playing audio ($path): $e");
+    }
+  }
+
+  Future<void> _playAudioAndWait(String path) async {
+    final done = Completer<void>();
+    final sub = _audioPlayer.onPlayerComplete.listen((_) {
+      if (!done.isCompleted) done.complete();
+    });
+
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.play(AssetSource(path));
+      await done.future.timeout(const Duration(seconds: 30), onTimeout: () {});
+    } catch (e) {
+      debugPrint("Error playing audio ($path): $e");
+    } finally {
+      await sub.cancel();
+    }
+  }
+
+  Future<void> _playFamilyInstruction(String id) async {
+    final audioPath = _familyAudio[id];
+    if (audioPath == null || !mounted) return;
+
+    setState(() => _canDrag = false);
+    await _playAudioAndWait(audioPath);
+    if (mounted) setState(() => _canDrag = true);
+  }
+
+  void _playNextFamilyInstruction() {
+    if (!mounted) return;
+    final id = _activeId;
+    if (id != null) _playFamilyInstruction(id);
+  }
+
+  void _markPlaced(String id) {
+    switch (id) {
+      case 'grandpa': isGrandpaPlaced = true; break;
+      case 'grandma': isGrandmaPlaced = true; break;
+      case 'father': isFatherPlaced = true; break;
+      case 'mother': isMotherPlaced = true; break;
+      case 'sister': isSisterPlaced = true; break;
+      case 'brother': isBrotherPlaced = true; break;
+      case 'little_bear': isLittleBearPlaced = true; break;
     }
   }
 
@@ -167,10 +245,17 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
       debugPrint("Database Error marking level complete: $e");
     });
 
+    if (!mounted) return;
+
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+
+    await _playAudioAndWait(
+      'audio/lumi_town/level13/family_tree_game_ending.wav',
+    );
+
     if (mounted) {
-      setState(() {
-        _isGameWon = true;
-      });
+      setState(() => _isGameWon = true);
     }
   }
 
@@ -306,116 +391,32 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
                                   ),
 
                                   Positioned(
-                                    top: sh * h1Y,
-                                    left: sw * h1X,
-                                    child: _buildCircleTarget(
-                                      expectedId: 'grandpa',
-                                      isPlaced: isGrandpaPlaced,
-                                      placedAssetPath:
-                                      'assets/images/objects/lumi/grandpa_pfp.png',
-                                      width: sw * holderWidth,
-                                      onPlaced: () {
-                                        setState(() => isGrandpaPlaced = true);
-                                        _checkWinCondition();
-                                      },
-                                    ),
+                                    top: sh * h1Y, left: sw * h1X,
+                                    child: _buildCircleTarget(slotId: 'gp1', group: 'grand', width: sw * holderWidth),
                                   ),
-
                                   Positioned(
-                                    top: sh * h2Y,
-                                    left: sw * h2X,
-                                    child: _buildCircleTarget(
-                                      expectedId: 'grandma',
-                                      isPlaced: isGrandmaPlaced,
-                                      placedAssetPath:
-                                      'assets/images/objects/lumi/grandma_pfp.png',
-                                      width: sw * holderWidth,
-                                      onPlaced: () {
-                                        setState(() => isGrandmaPlaced = true);
-                                        _checkWinCondition();
-                                      },
-                                    ),
+                                    top: sh * h2Y, left: sw * h2X,
+                                    child: _buildCircleTarget(slotId: 'gp2', group: 'grand', width: sw * holderWidth),
                                   ),
-
                                   Positioned(
-                                    top: sh * h3Y,
-                                    left: sw * h3X,
-                                    child: _buildCircleTarget(
-                                      expectedId: 'father',
-                                      isPlaced: isFatherPlaced,
-                                      placedAssetPath:
-                                      'assets/images/objects/lumi/father_pfp.png',
-                                      width: sw * holderWidth,
-                                      onPlaced: () {
-                                        setState(() => isFatherPlaced = true);
-                                        _checkWinCondition();
-                                      },
-                                    ),
+                                    top: sh * h3Y, left: sw * h3X,
+                                    child: _buildCircleTarget(slotId: 'par1', group: 'parent', width: sw * holderWidth),
                                   ),
-
                                   Positioned(
-                                    top: sh * h4Y,
-                                    left: sw * h4X,
-                                    child: _buildCircleTarget(
-                                      expectedId: 'mother',
-                                      isPlaced: isMotherPlaced,
-                                      placedAssetPath:
-                                      'assets/images/objects/lumi/mother_pfp.png',
-                                      width: sw * holderWidth,
-                                      onPlaced: () {
-                                        setState(() => isMotherPlaced = true);
-                                        _checkWinCondition();
-                                      },
-                                    ),
+                                    top: sh * h4Y, left: sw * h4X,
+                                    child: _buildCircleTarget(slotId: 'par2', group: 'parent', width: sw * holderWidth),
                                   ),
-
                                   Positioned(
-                                    top: sh * h5Y,
-                                    left: sw * h5X,
-                                    child: _buildCircleTarget(
-                                      expectedId: 'sister',
-                                      isPlaced: isSisterPlaced,
-                                      placedAssetPath:
-                                      'assets/images/objects/lumi/sister_pfp.png',
-                                      width: sw * holderWidth,
-                                      onPlaced: () {
-                                        setState(() => isSisterPlaced = true);
-                                        _checkWinCondition();
-                                      },
-                                    ),
+                                    top: sh * h5Y, left: sw * h5X,
+                                    child: _buildCircleTarget(slotId: 'kid1', group: 'child', width: sw * holderWidth),
                                   ),
-
                                   Positioned(
-                                    top: sh * h6Y,
-                                    left: sw * h6X,
-                                    child: _buildCircleTarget(
-                                      expectedId: 'little_bear',
-                                      isPlaced: isLittleBearPlaced,
-                                      placedAssetPath:
-                                      'assets/images/objects/lumi/littllebear_pfp.png',
-                                      width: sw * holderWidth,
-                                      onPlaced: () {
-                                        setState(() =>
-                                        isLittleBearPlaced = true);
-                                        _checkWinCondition();
-                                      },
-                                    ),
+                                    top: sh * h6Y, left: sw * h6X,
+                                    child: _buildCircleTarget(slotId: 'kid2', group: 'child', width: sw * holderWidth),
                                   ),
-
                                   Positioned(
-                                    top: sh * h7Y,
-                                    left: sw * h7X,
-                                    child: _buildCircleTarget(
-                                      expectedId: 'brother',
-                                      isPlaced: isBrotherPlaced,
-                                      placedAssetPath:
-                                      'assets/images/objects/lumi/brother_pfp.png',
-                                      width: sw * holderWidth,
-                                      onPlaced: () {
-                                        setState(() => isBrotherPlaced = true);
-                                        _checkWinCondition();
-                                      },
-                                    ),
+                                    top: sh * h7Y, left: sw * h7X,
+                                    child: _buildCircleTarget(slotId: 'kid3', group: 'child', width: sw * holderWidth),
                                   ),
 
                                   if (_showHand)
@@ -560,6 +561,9 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
                             _hasSavedResult = false;
                             _tapTracker.startSession();
 
+                            _slotFill.clear();
+                            _canDrag = false;
+
                             _gamePhase = 0;
                             _showHand = true;
                             _currentStage = 1;
@@ -575,17 +579,7 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
 
                             _handAnimCtrl.reset();
                             _handAnimCtrl.repeat(reverse: true);
-                            _playAudio(
-                              'audio/lumi_town/level13/family_tree_game_intro.wav',
-                            );
-
-                            Future.delayed(const Duration(seconds: 6), () {
-                              if (mounted && _gamePhase == 0) {
-                                setState(() {
-                                  _gamePhase = 1;
-                                });
-                              }
-                            });
+                            _startIntroFlow();
                           });
                         },
                         onBack: () => Navigator.of(context).pop(),
@@ -599,28 +593,40 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
   }
 
   Widget _buildCircleTarget({
-    required String expectedId,
-    required bool isPlaced,
-    required String placedAssetPath,
+    required String slotId,
+    required String group,
     required double width,
-    required VoidCallback onPlaced,
   }) {
+    final filled = _slotFill[slotId];
+
     return DragTarget<String>(
       builder: (context, candidateData, rejectedData) {
         return Image.asset(
-          isPlaced
-              ? placedAssetPath
+          filled != null
+              ? _pfpAssets[filled]!
               : 'assets/images/objects/lumi/picture_holder.png',
           width: width,
           fit: BoxFit.contain,
         );
       },
       onWillAcceptWithDetails: (details) =>
-          details.data == expectedId && !isPlaced,
-      onAcceptWithDetails: (details) {
+      filled == null && _groupOf[details.data] == group,
+      onAcceptWithDetails: (details) async {
         _tapTracker.recordCorrectTap();
-        _playShineSound();
-        onPlaced();
+
+        setState(() {
+          _canDrag = false;
+          _slotFill[slotId] = details.data;
+          _markPlaced(details.data);
+        });
+
+        _checkWinCondition();
+
+        await _playShineSound();
+        if (!mounted || _isGameWon) return;
+
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) _playNextFamilyInstruction();
       },
     );
   }
@@ -631,8 +637,12 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     required double width,
     required bool isPlaced,
   }) {
-    if (isPlaced) {
-      return const SizedBox.shrink();
+    if (isPlaced) return const SizedBox.shrink();
+
+    if (id != _activeId || !_canDrag) {
+      return IgnorePointer(
+        child: Image.asset(assetPath, width: width, fit: BoxFit.contain),
+      );
     }
 
     return Draggable<String>(
