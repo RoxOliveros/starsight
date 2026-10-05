@@ -451,7 +451,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           const SizedBox(height: 14),
           Center(
             child: Text(
-              'StarSight v1.0.0',
+              'StarSight v0.3.0',
               style: TextStyle(
                 fontFamily: AppTextStyles.fredoka,
                 fontSize: 12,
