@@ -232,6 +232,7 @@ class _Prayer1State extends State<Prayer1>
               Positioned(
                 top: 0,
                 left: 0,
+                // The GestureCameraView is invisible and does not block user interaction
                 child: IgnorePointer(
                   child: Opacity(
                     opacity: 0.0,
