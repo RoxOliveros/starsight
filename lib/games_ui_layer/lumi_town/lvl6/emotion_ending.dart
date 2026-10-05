@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
@@ -23,7 +24,8 @@ class EmotionEndingScreen extends StatefulWidget {
   const EmotionEndingScreen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -31,8 +33,14 @@ class EmotionEndingScreen extends StatefulWidget {
 }
 
 class _EmotionEndingScreenState extends State<EmotionEndingScreen>
-    with SingleTickerProviderStateMixin, AiCameraMixin<EmotionEndingScreen> {
+    with
+        SingleTickerProviderStateMixin,
+        AiCameraMixin<EmotionEndingScreen>,
+        AppAudioLifecycleMixin<EmotionEndingScreen> {
   late AudioPlayer _audioPlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   late AnimationController _flickerController;
   late Animation<double> _flickerAnimation;
@@ -44,7 +52,8 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  static const String _audioEnding = 'audio/lumi_town/level6/emotion_ending.wav';
+  static const String _audioEnding =
+      'audio/lumi_town/level6/emotion_ending.wav';
 
   @override
   void initState() {
@@ -108,7 +117,9 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
       debugPrint("Database Error marking level complete: $e");
     });
   }
@@ -193,7 +204,11 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                 ),
 
                 Positioned(top: 25, left: 25, child: LumiXButton()),
-                Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+                Positioned(
+                  top: 25,
+                  right: 25,
+                  child: LumiLevelBadge(level: widget.level),
+                ),
 
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&
@@ -212,24 +227,26 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                       onNext: () async {
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
-                            builder: (context) => LumiClassroomScreen(level: widget.level + 1),
+                            builder: (context) =>
+                                LumiClassroomScreen(level: widget.level + 1),
                           ),
                         );
                       },
                       onRestart: () async {
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
-                            builder: (_) => EmotionStarsScreen(level: widget.level),
+                            builder: (_) =>
+                                EmotionStarsScreen(level: widget.level),
                           ),
                         );
                       },
                       onBack: () async {
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (_) => const LumiLevelScreen(),
-                            ),
-                            (route) => route.isFirst,
-                          );
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => const LumiLevelScreen(),
+                          ),
+                          (route) => route.isFirst,
+                        );
                       },
                     ),
                   ),

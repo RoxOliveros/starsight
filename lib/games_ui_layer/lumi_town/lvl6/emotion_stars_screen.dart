@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_2.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
@@ -21,11 +22,17 @@ class EmotionStarsScreen extends StatefulWidget {
 }
 
 class _EmotionStarsScreenState extends State<EmotionStarsScreen>
-    with SingleTickerProviderStateMixin, AiCameraMixin<EmotionStarsScreen>, GameLoadingMixin {
-
+    with
+        SingleTickerProviderStateMixin,
+        AiCameraMixin<EmotionStarsScreen>,
+        GameLoadingMixin,
+        AppAudioLifecycleMixin<EmotionStarsScreen> {
   late AnimationController _fadeController;
   late Animation<double> _opacityAnimation;
   late AudioPlayer _audioPlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -125,12 +132,11 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
         final emotionsSoFar = stopAiCamera();
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) =>
-                Emotion2(
-                    priorEmotions: emotionsSoFar,
-                    tapTracker: _tapTracker,
-                    level: widget.level
-                ),
+            builder: (context) => Emotion2(
+              priorEmotions: emotionsSoFar,
+              tapTracker: _tapTracker,
+              level: widget.level,
+            ),
           ),
         );
       }
@@ -231,7 +237,11 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
                 ),
 
                 Positioned(top: 25, left: 25, child: LumiXButton()),
-                Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+                Positioned(
+                  top: 25,
+                  right: 25,
+                  child: LumiLevelBadge(level: widget.level),
+                ),
 
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&

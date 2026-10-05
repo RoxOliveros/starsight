@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +25,8 @@ class CleanBedroomEndingScreen extends StatefulWidget {
   const CleanBedroomEndingScreen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -33,8 +35,10 @@ class CleanBedroomEndingScreen extends StatefulWidget {
 }
 
 class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
-    with SingleTickerProviderStateMixin, AiCameraMixin<CleanBedroomEndingScreen> {
-
+    with
+        SingleTickerProviderStateMixin,
+        AiCameraMixin<CleanBedroomEndingScreen>,
+        AppAudioLifecycleMixin<CleanBedroomEndingScreen> {
   final AudioPlayer _player = AudioPlayer();
 
   bool _showOverlay = false;
@@ -43,6 +47,9 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
 
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   @override
   void initState() {
@@ -109,7 +116,9 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
       debugPrint("Database Error marking level complete: $e");
     });
   }
@@ -131,7 +140,11 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
               ),
 
               Positioned(top: 25, left: 25, child: LumiXButton()),
-              Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+              Positioned(
+                top: 25,
+                right: 25,
+                child: LumiLevelBadge(level: widget.level),
+              ),
 
               if (_showOverlay)
                 GoodJobOverlay(
@@ -158,22 +171,26 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
   }
 
   Future<void> _onNext() async {
-     Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => CookingGameScreen(level: widget.level + 1)),
-        (route) => route.isFirst,
-      );
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => CookingGameScreen(level: widget.level + 1),
+      ),
+      (route) => route.isFirst,
+    );
   }
 
   void _onRestart() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => CleanBedroomGameScreen(level: widget.level)),
+      MaterialPageRoute(
+        builder: (_) => CleanBedroomGameScreen(level: widget.level),
+      ),
     );
   }
 
   Future<void> _onBack() async {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-        (route) => route.isFirst,
-      );
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
+      (route) => route.isFirst,
+    );
   }
 }

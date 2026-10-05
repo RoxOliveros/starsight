@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/respect_7.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +21,8 @@ class Respect6Screen extends StatefulWidget {
   const Respect6Screen({
     Key? key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   }) : super(key: key);
 
   @override
@@ -28,8 +30,11 @@ class Respect6Screen extends StatefulWidget {
 }
 
 class _Respect6ScreenState extends State<Respect6Screen>
-    with TickerProviderStateMixin, TrWooReactionMixin, AiCameraMixin<Respect6Screen> {
-
+    with
+        TickerProviderStateMixin,
+        TrWooReactionMixin,
+        AiCameraMixin<Respect6Screen>,
+        AppAudioLifecycleMixin<Respect6Screen> {
   late final AudioPlayer _audioPlayer;
   late final AnimationController _walkController;
 
@@ -40,6 +45,9 @@ class _Respect6ScreenState extends State<Respect6Screen>
   bool _hideLightingCard = false;
   bool _showButtons = false;
   bool _answered = false;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   @override
   void initState() {
@@ -226,7 +234,7 @@ class _Respect6ScreenState extends State<Respect6Screen>
                         builder: (context) => Respect7Screen(
                           priorEmotions: emotionsSoFar,
                           tapTracker: widget.tapTracker,
-                          level: widget.level
+                          level: widget.level,
                         ),
                       ),
                     );
@@ -241,7 +249,11 @@ class _Respect6ScreenState extends State<Respect6Screen>
             ],
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

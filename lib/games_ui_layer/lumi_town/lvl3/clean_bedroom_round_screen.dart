@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,7 +28,8 @@ class BedroomRoundScreen extends StatefulWidget {
     required this.roundIndex,
     required this.rounds,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -35,7 +37,10 @@ class BedroomRoundScreen extends StatefulWidget {
 }
 
 class _BedroomRoundScreenState extends State<BedroomRoundScreen>
-    with TickerProviderStateMixin, AiCameraMixin<BedroomRoundScreen> {
+    with
+        TickerProviderStateMixin,
+        AiCameraMixin<BedroomRoundScreen>,
+        AppAudioLifecycleMixin<BedroomRoundScreen> {
   final AudioPlayer _player = AudioPlayer();
   bool _hideLightingCard = false;
 
@@ -64,6 +69,9 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
   String? _hintToyId; // toy currently highlighted as a hint
 
   bool _roundComplete = false;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   @override
   void initState() {
@@ -233,7 +241,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
           CleanBedroomEndingScreen(
             priorEmotions: emotionsSoFar,
             tapTracker: widget.tapTracker,
-            level: widget.level
+            level: widget.level,
           ),
         ),
       );
@@ -245,7 +253,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
             rounds: widget.rounds,
             priorEmotions: emotionsSoFar,
             tapTracker: widget.tapTracker,
-            level: widget.level
+            level: widget.level,
           ),
         ),
       );
@@ -318,7 +326,11 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
                 ),
 
                 Positioned(top: 25, left: 25, child: LumiXButton()),
-                Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+                Positioned(
+                  top: 25,
+                  right: 25,
+                  child: LumiLevelBadge(level: widget.level),
+                ),
 
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&

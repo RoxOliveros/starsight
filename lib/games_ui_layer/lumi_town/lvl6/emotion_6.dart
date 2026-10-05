@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_7.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +20,8 @@ class Emotion6Screen extends StatefulWidget {
   const Emotion6Screen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -27,9 +29,15 @@ class Emotion6Screen extends StatefulWidget {
 }
 
 class _Emotion6ScreenState extends State<Emotion6Screen>
-    with TrWooReactionMixin, AiCameraMixin<Emotion6Screen> {
+    with
+        TrWooReactionMixin,
+        AiCameraMixin<Emotion6Screen>,
+        AppAudioLifecycleMixin<Emotion6Screen> {
   late final AudioPlayer _audioPlayer;
   late final AudioPlayer _narratorPlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _narratorPlayer];
 
   bool _isCorrectlyAnswered = false;
   bool _showSparkles = false;
@@ -68,7 +76,7 @@ class _Emotion6ScreenState extends State<Emotion6Screen>
               builder: (context) => Emotion7Screen(
                 priorEmotions: emotionsSoFar,
                 tapTracker: widget.tapTracker,
-                level: widget.level
+                level: widget.level,
               ),
             ),
           );
@@ -163,9 +171,7 @@ class _Emotion6ScreenState extends State<Emotion6Screen>
                         _isSuccessAudioPlaying = true;
                         setState(() => _showStars = false);
 
-                        await Future.delayed(
-                          const Duration(milliseconds: 500),
-                        );
+                        await Future.delayed(const Duration(milliseconds: 500));
                         await _narratorPlayer.stop();
                         await _narratorPlayer.play(AssetSource(_audioP4Rc));
 
@@ -210,9 +216,11 @@ class _Emotion6ScreenState extends State<Emotion6Screen>
               ),
 
               Positioned(top: 25, left: 25, child: LumiXButton()),
-              Positioned(top: 25,
-                  right: 25,
-                  child: LumiLevelBadge(level: widget.level)),
+              Positioned(
+                top: 25,
+                right: 25,
+                child: LumiLevelBadge(level: widget.level),
+              ),
 
               Positioned(
                 right: paddingEdge,
