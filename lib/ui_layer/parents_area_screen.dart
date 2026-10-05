@@ -238,20 +238,24 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     if (added == true) _loadChildren();
   }
 
-  void _openMenuItem(String label) {
+  Future<void> _openMenuItem(String label) async {
     switch (label) {
-      case 'Analysis and Reports':
+      case 'Child\'s Area':
         if (_selectedChild != null) {
-          Navigator.push(
+          await Navigator.push(
             context,
             MaterialPageRoute(
-              // Pass the selected child exactly as the screen expects!
               builder: (_) => AnalysisReportsScreen(
                 child: _selectedChild,
                 isFromParentsArea: true,
               ),
             ),
           );
+
+          // Refresh Grownup's Area when returning from Child's Area.
+          if (mounted) {
+            await _loadChildren();
+          }
         }
         break;
       case 'Screen Time':
@@ -304,8 +308,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        // Pass the name back when the system back button is used
-        Navigator.pop(context, _selectedChild?.name);
+        Navigator.pop(context, _selectedChild?.id); // was .name
       },
       child: Scaffold(
         backgroundColor: ColorTheme.cream,
@@ -482,7 +485,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
             color: ColorTheme.deepNavyBlue,
           ),
 
-          onPressed: () => Navigator.pop(context, _selectedChild?.name),
+          onPressed: () => Navigator.pop(context, _selectedChild?.id), // was .name
         ),
       ),
     );
@@ -572,11 +575,11 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
 
           _CardMenuRow(
             icon: Icons.assessment_rounded,
-            label: 'Analysis and Reports',
+            label: 'Child\'s Area',
             iconColor: ColorTheme.deepNavyBlue,
             labelColor: ColorTheme.deepNavyBlue,
 
-            onTap: () => _openMenuItem('Analysis and Reports'),
+            onTap: () => _openMenuItem('Child\'s Area'),
           ),
 
           const SizedBox(height: 5),

@@ -8,6 +8,7 @@ class DatabaseService {
   static const int defaultScreenTimeLimitMinutes = 30;
   static const List<int> screenTimeLimitOptions = [1, 15, 30, 45, 60];
 
+
   Future<void> createParentAndChild({
     required String uid,
     String email = '',
@@ -31,12 +32,12 @@ class DatabaseService {
         .collection('children')
         .doc(childNickname)
         .set({
-          'nickname': childNickname,
-          'birthdate': childBirthdate,
-          'gender': childGender,
-          'screenTimeLimitMinutes': defaultScreenTimeLimitMinutes,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+      'nickname': childNickname,
+      'birthdate': childBirthdate,
+      'gender': childGender,
+      'screenTimeLimitMinutes': defaultScreenTimeLimitMinutes,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   // Check if an email is already registered
@@ -69,7 +70,7 @@ class DatabaseService {
       // resumes on the same profile the parent last selected.
       final userDoc = await _db.collection('users').doc(currentUser.uid).get();
       final activeChildNickname =
-          userDoc.data()?['activeChildNickname'] as String?;
+      userDoc.data()?['activeChildNickname'] as String?;
 
       if (activeChildNickname != null) {
         final activeDoc = await childrenRef.doc(activeChildNickname).get();
@@ -84,8 +85,9 @@ class DatabaseService {
       QuerySnapshot childrenDocs = await childrenRef.limit(1).get();
 
       if (childrenDocs.docs.isNotEmpty) {
-        var childDoc = childrenDocs.docs.first;
-        return childDoc.get('nickname');
+        // Return the document ID (the stable key), not the editable
+        // display nickname, since callers use this value as childId.
+        return childrenDocs.docs.first.id;
       }
     } catch (e) {
       print("Error fetching nickname: $e");
@@ -201,22 +203,24 @@ class DatabaseService {
     }
   }
 
-  Future<void> updateChildAvatar({
-    required String childNickname,
+  Future<String?> updateChildAvatar({
+    required String childId,
     required String avatarPath,
   }) async {
     try {
-      final User? currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return "You're not signed in.";
 
       await _db
           .collection('users')
-          .doc(currentUser.uid)
+          .doc(user.uid)
           .collection('children')
-          .doc(childNickname)
-          .update({'avatarPath': avatarPath});
+          .doc(childId)
+          .set({'avatarPath': avatarPath}, SetOptions(merge: true));
+      return null;
     } catch (e) {
       print("Error updating child avatar: $e");
+      return "Could not save the avatar. Please try again.";
     }
   }
 
@@ -253,7 +257,7 @@ class DatabaseService {
 
       final limit =
           (data['screenTimeLimitMinutes'] as num?)?.toInt() ??
-          defaultScreenTimeLimitMinutes;
+              defaultScreenTimeLimitMinutes;
       final savedDate = data['screenTimeDate'] as String?;
       final used = (savedDate == todayKey())
           ? ((data['screenTimeUsedSeconds'] as num?)?.toInt() ?? 0)
@@ -300,12 +304,182 @@ class DatabaseService {
           .doc(currentUser.uid)
           .collection('children')
           .doc(childId)
-          .set({
-            'screenTimeUsedSeconds': usedSeconds,
-            'screenTimeDate': dateKey,
-          }, SetOptions(merge: true));
+          .update({                       // was .set(..., SetOptions(merge: true))
+        'screenTimeUsedSeconds': usedSeconds,
+        'screenTimeDate': dateKey,
+      });
     } catch (e) {
       print("Error saving screen time usage: $e");
+    }
+  }
+
+  /// The name to show in the UI. Falls back to the doc ID for older docs.
+  static String displayNameOf(Map<String, dynamic> child) =>
+      ((child['nickname'] as String?)
+          ?.trim()
+          .isNotEmpty ?? false)
+          ? (child['nickname'] as String).trim()
+          : (child['id'] as String? ?? '');
+
+  Future<String> getChildDisplayName(String childId) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return childId;
+      final doc = await _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('children')
+          .doc(childId)
+          .get();
+      final n = (doc.data()?['nickname'] as String?)?.trim();
+      return (n == null || n.isEmpty) ? childId : n;
+    } catch (_) {
+      return childId;
+    }
+  }
+
+  /// Edits nickname / birthdate / gender. The document ID never changes,
+  /// so progress and screen time stay attached to the child.
+  /// Returns null on success, or a user-facing error message.
+  Future<String?> updateChildInfo({
+    required String childId,
+    required String nickname,
+    required String birthdate,
+    required String gender,
+  }) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        return "You're not signed in. Please sign in and try again.";
+      }
+
+      final name = nickname.trim();
+
+      if (name.isEmpty) {
+        return 'Please enter a nickname.';
+      }
+
+      final childrenRef =
+      _db.collection('users').doc(user.uid).collection('children');
+
+      // Check if another child already has this nickname.
+      final all = await childrenRef.get();
+
+      final clash = all.docs.any((d) {
+        // IMPORTANT:
+        // Do not compare the child against itself.
+        if (d.id == childId) return false;
+
+        final otherNickname =
+        ((d.data()['nickname'] as String?) ?? d.id).trim();
+
+        return otherNickname.toLowerCase() == name.toLowerCase();
+      });
+
+      if (clash) {
+        return 'A child named "$name" already exists. Please choose a different nickname.';
+      }
+
+      // Update the existing document.
+      // The document ID NEVER changes.
+      await childrenRef.doc(childId).update({
+        'nickname': name,
+        'birthdate': birthdate,
+        'gender': gender,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return null;
+    } catch (e) {
+      print("Error updating child info: $e");
+      return "Something went wrong while saving. Please try again.";
+    }
+  }
+
+  // Categories that store progress under category_progress/{id}.
+// If you add a new category, add it here too, otherwise its data
+// is left behind when a child is deleted.
+  static const List<String> _progressCategoryIds = [
+    'alphabet_forest',
+    'lumitown',
+    'arctic_numberland',
+    'discovery_lagoon',
+    'puzzle_glade',
+  ];
+
+// cycle_1 ... cycle_N. Your reports only keep 2, this is just a safety margin.
+  static const int _maxCyclesToClear = 5;
+
+  /// Deletes every document in a collection (in batches of 400).
+  Future<void> _deleteCollection(
+      CollectionReference<Map<String, dynamic>> ref) async {
+    while (true) {
+      final snap = await ref.limit(400).get();
+      if (snap.docs.isEmpty) return;
+      final batch = _db.batch();
+      for (final d in snap.docs) {
+        batch.delete(d.reference);
+      }
+      await batch.commit();
+    }
+  }
+
+  /// Permanently deletes a child and everything stored under them.
+  /// Firestore does NOT delete subcollections when a document is deleted,
+  /// so they are cleared first and the child document goes last. If
+  /// something fails halfway, the child still exists and can be retried.
+  /// Returns null on success, or a user-facing error message.
+  Future<String?> deleteChild(String childId) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        return "You're not signed in. Please sign in and try again.";
+      }
+
+      final userRef = _db.collection('users').doc(user.uid);
+      final childrenRef = userRef.collection('children');
+
+      final all = await childrenRef.get();
+      if (!all.docs.any((d) => d.id == childId)) {
+        return 'This child profile no longer exists.';
+      }
+      if (all.docs.length <= 1) {
+        return "You can't delete the only child profile. Add another child first.";
+      }
+
+      final childRef = childrenRef.doc(childId);
+
+      // 1. Progress: category_progress/{category}/cycles/cycle_N/games_played
+      final progressRef = childRef.collection('category_progress');
+      for (final categoryId in _progressCategoryIds) {
+        final categoryRef = progressRef.doc(categoryId);
+        for (var slot = 1; slot <= _maxCyclesToClear; slot++) {
+          final cycleRef = categoryRef.collection('cycles').doc('cycle_$slot');
+          await _deleteCollection(cycleRef.collection('games_played'));
+          await cycleRef.delete();
+        }
+        await categoryRef.delete();
+      }
+      await _deleteCollection(progressRef); // anything else left at that level
+
+      // 2. The child document itself.
+      await childRef.delete();
+
+      // 3. If this was the active child, point to one that still exists.
+      final userDoc = await userRef.get();
+      if (userDoc.data()?['activeChildNickname'] == childId) {
+        final nextId = all.docs.firstWhere((d) => d.id != childId).id;
+        await userRef.set(
+          {'activeChildNickname': nextId},
+          SetOptions(merge: true),
+        );
+      }
+
+      return null;
+    } catch (e) {
+      print("Error deleting child: $e");
+      return "Something went wrong while deleting. Please try again.";
     }
   }
 }
@@ -316,3 +490,7 @@ class ScreenTimeData {
 
   const ScreenTimeData({required this.limitMinutes, required this.usedSeconds});
 }
+
+
+
+

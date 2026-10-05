@@ -7,17 +7,20 @@ import '../business_layer/forest_progress_service.dart';
 import '../business_layer/arctic_progress_service.dart';
 import '../business_layer/lagoon_progress_service.dart';
 import '../business_layer/puzzle_progress_service.dart';
-import 'parents_area_screen.dart'; // lowercase
+import 'parents_area_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CategoryReportScreen extends StatefulWidget {
   final String categoryId;
   final String categoryName;
-  final String childName;
+  final String childId;     // NEW: Firestore document ID, never changes
+  final String childName;   // display name only
 
   const CategoryReportScreen({
     super.key,
     required this.categoryId,
     required this.categoryName,
+    required this.childId,  // NEW
     required this.childName,
   });
 
@@ -46,6 +49,13 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     super.initState();
     _scrollController.addListener(_onScroll);
     _initReportData();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (await _shouldShowDisclaimer() && mounted) {
+        _showDataDisclaimerDialog();
+      }
+    });
   }
 
   void _onScroll() {
@@ -123,6 +133,28 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
+//Dont show again disclaimer helpers (saved per account)
+  String get _disclaimerPrefKey {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+    return 'hide_category_disclaimer_$uid';
+  }
+
+  Future<bool> _shouldShowDisclaimer() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return !(prefs.getBool(_disclaimerPrefKey) ?? false);
+    } catch (_) {
+      return true; // if storage fails, show it
+    }
+  }
+
+  Future<void> _saveHideDisclaimer(bool hide) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_disclaimerPrefKey, hide);
+    } catch (_) {}
+  }
+
   // 1. Fetch how many cycles exist, then load the newest one
   Future<void> _initReportData() async {
     try {
@@ -131,7 +163,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
           .collection('users')
           .doc(uid)
           .collection('children')
-          .doc(widget.childName)
+          .doc(widget.childId)        // was widget.childName
           .collection('category_progress')
           .doc(widget.categoryId);
 
@@ -209,7 +241,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
           .collection('users')
           .doc(uid)
           .collection('children')
-          .doc(widget.childName)
+          .doc(widget.childId)      // was widget.childName
           .collection('category_progress')
           .doc(widget.categoryId)
           .collection('cycles')
@@ -322,6 +354,232 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     }
   }
 
+  Future<void> _showDataDisclaimerDialog() {
+    const accent = ColorTheme.deepNavyBlue;
+    bool dontShowAgain = false;
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: ColorTheme.cream,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+            side: BorderSide(color: accent.withValues(alpha: 0.5), width: 3),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Icon badge
+                Center(
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.privacy_tip_outlined,
+                      color: accent,
+                      size: 34,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Title
+                const Text(
+                  'Before you read the report',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: AppTextStyles.fredoka,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                    color: ColorTheme.deepNavyBlue,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Intro
+                const Text(
+                  'These insights come only from how your child plays '
+                      'inside the app.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Nunito',
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
+                    color: ColorTheme.brown,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Info box
+                Container(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: accent.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded,
+                              size: 18, color: accent),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'GOOD TO KNOW',
+                              style: TextStyle(
+                                fontFamily: AppTextStyles.fredoka,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.4,
+                                color: accent,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      for (final point in const [
+                        'Reports are based on gameplay interactions, completion '
+                            'rates, and behavior (such as expressions, eye '
+                            'direction, and tapping) seen during play.',
+                        'They are a helpful guide, not a medical, '
+                            'psychological, or formal educational assessment.',
+                        'Every child learns at their own pace. A quiet or '
+                            'short session does not mean something is wrong.',
+                        'Results can vary with lighting, camera view, and how '
+                            'much your child played.',
+                        'For any concerns about your child\'s development, '
+                            'please talk to a teacher or a qualified '
+                            'professional.',
+                      ])
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 5),
+                                child: Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: accent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  point,
+                                  style: const TextStyle(
+                                    fontFamily: 'Nunito',
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.35,
+                                    color: ColorTheme.brown,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Don't show again
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () =>
+                      setDialogState(() => dontShowAgain = !dontShowAgain),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: Checkbox(
+                            value: dontShowAgain,
+                            activeColor: accent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            onChanged: (v) => setDialogState(
+                                    () => dontShowAgain = v ?? false),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            "Don't show this again",
+                            style: TextStyle(
+                              fontFamily: 'Nunito',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: ColorTheme.brown,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      if (dontShowAgain) await _saveHideDisclaimer(true);
+                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: const StadiumBorder(),
+                    ),
+                    child: const Text(
+                      'I UNDERSTAND',
+                      style: TextStyle(
+                        fontFamily: AppTextStyles.fredoka,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
   // // --- DATA DISCLAIMER MODAL (kept, no longer triggered by the (i) icon) ---
   // void _showDataDisclaimerDialog() {
   //   showDialog(
@@ -676,7 +934,6 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     );
   }
 
-// --- INDICATORS INFO DIALOG ---
   // --- INDICATORS INFO DIALOG ---
   void _showIndicatorsInfoDialog() {
     const accent = ColorTheme.deepNavyBlue;

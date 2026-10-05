@@ -11,6 +11,7 @@ import '../business_layer/forest_progress_service.dart';
 import '../business_layer/arctic_progress_service.dart';
 import '../business_layer/lagoon_progress_service.dart';
 import '../business_layer/puzzle_progress_service.dart';
+import 'edit_child_screen.dart';
 
 /// The four constructs every subject is analyzed on.
 enum LearningConstruct { engagement, attention, focus, learning }
@@ -181,6 +182,9 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   // Real birthday / gender read from the child's Firestore document.
   String? _birthdayText;
   String? _genderText;
+  DateTime? _birthdayDate;
+  EditChildResult _result = EditChildResult.none;
+  String? _childId;
 
   @override
   void initState() {
@@ -204,61 +208,76 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     });
 
     try {
-      ChildProfile? child = widget.child;
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _error = "You're not signed in.";
+        });
+        return;
+      }
 
-      // No child was handed to us — go fetch the signed-in account's
-      // child directly, the same way ParentsAreaScreen does.
-      if (child == null) {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null) {
-          if (!mounted) return;
-          setState(() {
-            _loading = false;
-            _error = "You're not signed in.";
-          });
-          return;
-        }
+      // ALWAYS re-read the child from Firestore. Before, a child passed in
+      // through `widget.child` was used as-is, so after editing, the old
+      // name / age / avatar kept showing no matter how often _load() ran.
+      final rawChildren = await DatabaseService().getChildren();
+      if (rawChildren.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _error = "No child profile found yet.";
+        });
+        return;
+      }
 
-        final rawChildren = await DatabaseService().getChildren();
-        if (rawChildren.isEmpty) {
-          if (!mounted) return;
-          setState(() {
-            _loading = false;
-            _error = "No child profile found yet.";
-          });
-          return;
-        }
+      // Resolve the stable Firestore document ID.
+      // Once we know the ID, always use it instead of the nickname.
+      final wantedId = _childId ??
+          widget.child?.id ??
+          widget.childNickname ??
+          await DatabaseService().getNickname();
 
-        // Pick the right profile: the nickname we were given, else the
-        // active child, else (last resort) the first one.
-        final wantedNickname =
-            widget.childNickname ?? await DatabaseService().getNickname();
-        final matches = rawChildren.where(
-              (c) => c['id'] == wantedNickname || c['nickname'] == wantedNickname,
-        );
+      final matches = rawChildren.where(
+            (c) => c['id'] == wantedId || c['nickname'] == wantedId,
+      );
 
-        // Never silently show a different child's data: if we know who we
-        // want but can't find them, say so instead of falling back.
-        if (matches.isEmpty && wantedNickname != null) {
-          if (!mounted) return;
-          setState(() {
-            _loading = false;
-            _error = "Couldn't find this child's profile.";
-          });
-          return;
-        }
-        final childData = matches.isNotEmpty
-            ? matches.first
-            : rawChildren.first;
+      Map<String, dynamic>? childData;
 
-        // Same avatar fallback logic as ParentsAreaScreen: use the real
-        // avatar this account picked if the child doc has none of its own.
+      if (matches.isNotEmpty) {
+        childData = matches.first;
+
+        // IMPORTANT:
+        // Remember the Firestore document ID so that if the nickname
+        // changes later, we can still find the same child.
+        _childId = childData['id'] as String;
+      } else if (wantedId == null) {
+        childData = rawChildren.first;
+        _childId = childData['id'] as String;
+      }
+
+      ChildProfile? child;
+      if (childData != null) {
+        // Same avatar fallback as ParentsAreaScreen.
         final accountAvatarPath = await AvatarStorage.getSelectedAvatarPath();
         child = ChildProfile.fromMap(
           childData['id'] as String,
           childData,
           fallbackAvatarPath: accountAvatarPath,
         );
+      } else {
+        // Not found in Firestore: fall back to the child we were given,
+        // otherwise say so instead of showing someone else's data.
+        child = widget.child;
+      }
+
+      if (child == null) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _error = "Couldn't find this child's profile.";
+        });
+        return;
       }
 
       // Mock latency + mock data — replace with your real analysis call.
@@ -283,13 +302,144 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     }
   }
 
+  void _handleBack() {
+    if (!widget.isFromParentsArea) {
+      OrientationService.setLandscape();
+    }
+    Navigator.pop(context, _result);
+  }
+
+  Future<void> _openEditChild() async {
+    final child = _resolvedChild ?? widget.child;
+    if (child == null) return;
+
+    final result = await EditChildScreen.open(
+      context,
+      childId: child.id,
+      initialNickname: child.name,
+      initialBirthdate: _birthdayDate,
+      initialGender: _genderText,
+      avatarPath: child.avatarPath,
+    );
+    if (!mounted) return;
+
+    if (result == EditChildResult.deleted) {
+      // This child no longer exists, so leave the screen.
+      _result = EditChildResult.deleted;
+      _handleBack();
+      return;
+    }
+
+    if (result == EditChildResult.saved) {
+      _result = EditChildResult.saved;
+      await _load();
+      if (!mounted) return;
+      await _showProfileUpdatedDialog();
+    }
+  }
+
+  Future<void> _showProfileUpdatedDialog() {
+    const accent = ColorTheme.teal;
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: ColorTheme.cream,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: BorderSide(color: accent.withValues(alpha: 0.5), width: 3),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Icon badge
+              Center(
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: accent,
+                    size: 34,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Title
+              const Text(
+                'Profile updated!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: AppTextStyles.fredoka,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  color: ColorTheme.deepNavyBlue,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Message
+              const Text(
+                "Your child's changes have been saved.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.4,
+                  color: ColorTheme.brown,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Button
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text(
+                    'GOT IT',
+                    style: TextStyle(
+                      fontFamily: AppTextStyles.fredoka,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop && !widget.isFromParentsArea) {
-          OrientationService.setLandscape();
-        }
+        if (didPop) return;
+        _handleBack();
       },
       child: Scaffold(
         backgroundColor: ColorTheme.cream,
@@ -317,12 +467,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
             Icons.arrow_back_ios_new_rounded,
             color: ColorTheme.deepNavyBlue,
           ),
-          onPressed: () {
-            if (!widget.isFromParentsArea) {
-              OrientationService.setLandscape();
-            }
-            Navigator.pop(context);
-          },
+          onPressed: _handleBack,
         ),
       ),
     );
@@ -395,12 +540,15 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       final dynamic rawGender = data['childGender'] ?? data['gender'];
 
       String? birthday;
+      DateTime? birthdayDate;
       if (rawBirthday is Timestamp) {
-        birthday = _formatBirthday(rawBirthday.toDate());
+        birthdayDate = rawBirthday.toDate();
       } else if (rawBirthday is String && rawBirthday.trim().isNotEmpty) {
-        final parsed = _parseBirthdate(rawBirthday.trim());
-        birthday = parsed != null ? _formatBirthday(parsed) : rawBirthday;
+        birthdayDate = _parseBirthdate(rawBirthday.trim());
+        if (birthdayDate == null) birthday = rawBirthday; // unparseable: show as-is
       }
+      if (birthdayDate != null) birthday = _formatBirthday(birthdayDate);
+
 
       String? gender;
       if (rawGender is String && rawGender.trim().isNotEmpty) {
@@ -409,6 +557,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       }
 
       _birthdayText = birthday;
+      _birthdayDate = birthdayDate;
       _genderText = gender;
     } catch (_) {
       // Leave both as null -> the UI shows "—".
@@ -551,9 +700,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
               const SizedBox(width: 5),
               // Edit button
               GestureDetector(
-                onTap: () {
-                  // TODO: open your edit-profile screen/dialog here
-                },
+                onTap: _openEditChild,
                 child: const Padding(
                   padding: EdgeInsets.all(4),
                   child: Icon(
@@ -956,17 +1103,18 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
         return GestureDetector(
           onTap: () {
-            // 1. Grab the child's name using the exact same fallback logic from your header
             final currentChildName =
                 _resolvedChild?.name ?? widget.child?.name ?? 'Demo Child';
+            final currentChildId =
+                _resolvedChild?.id ?? _childId ?? widget.child?.id ?? currentChildName;
 
-            // 2. Route to the new screen with the required data
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => CategoryReportScreen(
                   categoryId: subject.id,
                   categoryName: subject.name,
+                  childId: currentChildId,     // NEW
                   childName: currentChildName,
                 ),
               ),
@@ -1249,6 +1397,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     }
   }
 }
+
+
 
 // ── Shared small decorative widget ──────────────────────────────────────
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'avatar_picker_dialog.dart';
 import 'parents_area_screen.dart';
 import 'child_profile_screen.dart';
+import 'edit_child_screen.dart'; // EditChildResult
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -19,9 +20,16 @@ abstract class AppTextStyles {
 }
 
 class ProfileDayDialog extends StatefulWidget {
+  final String childId;
   final String name;
+  final VoidCallback? onProfileChanged;
 
-  const ProfileDayDialog({super.key, required this.name});
+  const ProfileDayDialog({
+    super.key,
+    required this.childId,
+    required this.name,
+    this.onProfileChanged,
+  });
 
   @override
   State<ProfileDayDialog> createState() => _ProfileDayDialogState();
@@ -29,27 +37,33 @@ class ProfileDayDialog extends StatefulWidget {
 
 class _ProfileDayDialogState extends State<ProfileDayDialog> {
   String _avatarPath = kDefaultAvatarPath;
+  String _displayName = '';
 
   @override
   void initState() {
     super.initState();
+    _displayName = widget.name; // shown until the load finishes
     _loadAvatar();
   }
 
   Future<void> _loadAvatar() async {
     final children = await DatabaseService().getChildren();
-    // Find this specific child's data
+
     final myChild = children.firstWhere(
-      (c) => c['nickname'] == widget.name,
+          (c) => c['id'] == widget.childId,
       orElse: () => {},
     );
-    final path = myChild['avatarPath'] as String?;
 
     if (!mounted) return;
-    setState(() => _avatarPath = path ?? kDefaultAvatarPath);
+
+    setState(() {
+      _avatarPath = (myChild['avatarPath'] as String?) ?? kDefaultAvatarPath;
+      if (myChild.isNotEmpty) {
+        _displayName = DatabaseService.displayNameOf(myChild);
+      }
+    });
   }
 
-  // Replace your existing _openAvatarPicker method:
   Future<void> _openAvatarPicker() async {
     final selected = await showDialog<String>(
       context: context,
@@ -58,26 +72,47 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
 
     if (selected == null) return;
 
-    // Save directly to the specific child's database document!
-    await DatabaseService().updateChildAvatar(
-      childNickname: widget.name,
+    final error = await DatabaseService().updateChildAvatar(
+      childId: widget.childId,
       avatarPath: selected,
     );
 
     if (!mounted) return;
+
+    if (error != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+
     setState(() => _avatarPath = selected);
+    widget.onProfileChanged?.call();
+  }
+
+  /// Opens the dashboard for whichever child still exists after a delete.
+  /// Waits a moment so the previous screens finish popping first, which
+  /// avoids the "_debugLocked" navigator assertion.
+  Future<void> _goToRemainingChild(NavigatorState navigator) async {
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (!navigator.mounted) return;
+
+    final nextId = await DatabaseService().getNickname();
+    if (!navigator.mounted || nextId == null) return;
+
+    navigator.pushReplacement(
+      MaterialPageRoute(builder: (_) => DashboardScreen(nickname: nextId)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(color: const Color(0xFFE9C679)),
+      decoration: const BoxDecoration(color: Color(0xFFE9C679)),
       child: SizedBox(
         width: double.infinity,
         height: double.infinity,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.max,
@@ -120,7 +155,7 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
 
                       Expanded(
                         child: Text(
-                          widget.name,
+                          _displayName,
                           style: const TextStyle(
                             fontFamily: AppTextStyles.fredoka,
                             fontSize: 18,
@@ -144,12 +179,15 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
 
                 const SizedBox(height: 18),
 
+                // ── Child's Area ─────────────────────────────────────
                 _ProfileOption(
                   icon: Icons.auto_awesome,
                   label: "Child's Area",
                   onTap: () async {
                     final navigator = Navigator.of(context);
-                    navigator.pop();
+                    final childId = widget.childId;
+                    final onChanged = widget.onProfileChanged;
+                    navigator.pop(); // close the drawer
 
                     final bool? authenticated = await navigator.push<bool>(
                       MaterialPageRoute(
@@ -157,32 +195,34 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                       ),
                     );
 
-                    // if (authenticated == true) {
-                    //   navigator.push(
-                    //     MaterialPageRoute(
-                    //       builder: (_) => const BehaviorReportsScreen(),
-                    //     ),
-                    //   );
-                    // }
                     if (authenticated == true) {
-                      navigator.push(
+                      final result = await navigator.push<EditChildResult>(
                         MaterialPageRoute(
                           builder: (_) =>
-                              AnalysisReportsScreen(childNickname: widget.name),
+                              AnalysisReportsScreen(childNickname: childId),
                         ),
                       );
+
+                      if (result == EditChildResult.deleted) {
+                        await _goToRemainingChild(navigator);
+                      } else if (result == EditChildResult.saved) {
+                        onChanged?.call(); // refresh dashboard
+                      }
                     }
                   },
                 ),
 
                 const SizedBox(height: 14),
 
+                // ── Grownup's Area ───────────────────────────────────
                 _ProfileOption(
                   icon: Icons.group,
                   label: "Grownup's Area",
                   onTap: () async {
                     final navigator = Navigator.of(context);
-                    navigator.pop(); // close the dialog first
+                    final childId = widget.childId;
+                    final onChanged = widget.onProfileChanged;
+                    navigator.pop(); // close the drawer
 
                     final bool? authenticated = await navigator.push<bool>(
                       MaterialPageRoute(
@@ -191,28 +231,37 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                     );
 
                     if (authenticated == true) {
-                      // 1. Await the returned nickname from ParentsAreaScreen
-                      final selectedNickname = await navigator.push(
+                      final selectedId = await navigator.push<String>(
                         MaterialPageRoute(
                           builder: (_) =>
-                              ParentsAreaScreen(activeNickname: widget.name),
+                              ParentsAreaScreen(activeNickname: childId),
                         ),
                       );
 
-                      // 2. If a nickname was returned, persist it as the
-                      //    active child and reload the Dashboard
-                      if (selectedNickname != null &&
-                          selectedNickname is String) {
-                        await DatabaseService().setActiveChild(
-                          selectedNickname,
-                        );
+                      if (selectedId == null) {
+                        onChanged?.call();
+                        return;
+                      }
 
+                      // Was the child we started on deleted meanwhile?
+                      final children = await DatabaseService().getChildren();
+                      final stillExists =
+                      children.any((c) => c['id'] == childId);
+
+                      if (!stillExists) {
+                        await _goToRemainingChild(navigator);
+                      } else if (selectedId != childId) {
+                        // Switched to a different child.
+                        await DatabaseService().setActiveChild(selectedId);
                         navigator.pushReplacement(
                           MaterialPageRoute(
                             builder: (_) =>
-                                DashboardScreen(nickname: selectedNickname),
+                                DashboardScreen(nickname: selectedId),
                           ),
                         );
+                      } else {
+                        // Same child: just reload name and avatar.
+                        onChanged?.call();
                       }
                     }
                   },
