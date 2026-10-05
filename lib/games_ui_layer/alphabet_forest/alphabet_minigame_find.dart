@@ -38,11 +38,7 @@ class AlphabetFindScreen extends StatefulWidget {
 }
 
 class _AlphabetFindScreenState extends State<AlphabetFindScreen>
-    with
-        TickerProviderStateMixin,
-        TofiReactionMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<AlphabetFindScreen> {
+    with TickerProviderStateMixin, TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetFindScreen> {
   @override
   AudioPlayer get tofiPlayer => _player;
 
@@ -57,9 +53,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   final Random _random = Random();
 
   static const String _vaseAsset = 'assets/images/objects/forest/vase.png';
-
-  static const String _findInstructionWav =
-      'audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
+  static const String _findInstructionWav = 'audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
 
   static const int _totalRounds = 3;
   int _completedRounds = 0;
@@ -69,6 +63,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   int? _revealedIndex;
   int? _shakingIndex;
   bool _choicesLocked = false;
+  bool _inputEnabled = false;
 
   late AnimationController _wiggleCtrl; // ADD
   late Animation<double> _wiggle; // ADD
@@ -158,42 +153,50 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   }
 
   Future<void> _playInstructionThenVaseSounds() async {
-    // Tutorial audio: stops if the child leaves the frame and plays again
-    // from the start when they're back (or the card is dismissed).
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      _findInstructionWav,
-      timeout: const Duration(seconds: 30),
-    );
+    try {
+      await playVoiceRestartingOnFaceLoss(
+        _player,
+        _findInstructionWav,
+        timeout: const Duration(seconds: 30),
+      );
+    } catch (e) {
+      debugPrint('Instruction audio error: $e');
+    }
     if (!mounted) return;
+
     await _playVaseSounds();
   }
 
   Future<void> _playVaseSounds() async {
     if (_isPlayingJarSequence) return;
-
     _isPlayingJarSequence = true;
 
-    for (int i = 0; i < _vaseLetters.length; i++) {
-      if (!mounted) break;
+    if (mounted) setState(() => _inputEnabled = false);
 
-      setState(() => _shakingIndex = i);
+    try {
+      for (int i = 0; i < _vaseLetters.length; i++) {
+        if (!mounted) break;
 
-      _wiggleCtrl.repeat(reverse: true);
+        setState(() => _shakingIndex = i);
+        _wiggleCtrl.repeat(reverse: true);
 
-      await _playLetterSound(_vaseLetters[i]);
+        await _playLetterSound(_vaseLetters[i]);
+        if (!mounted) break;
 
-      if (!mounted) break;
+        _wiggleCtrl.stop();
+        _wiggleCtrl.reset();
+        setState(() => _shakingIndex = null);
 
-      _wiggleCtrl.stop();
-      _wiggleCtrl.reset();
-
-      setState(() => _shakingIndex = null);
-
-      await Future.delayed(const Duration(milliseconds: 1500));
+        if (i < _vaseLetters.length - 1) {
+          await Future.delayed(const Duration(milliseconds: 1500));
+        }
+      }
+    } catch (e) {
+      debugPrint('Vase sound error: $e');
+    } finally {
+      _isPlayingJarSequence = false;
+      if (mounted) setState(() => _inputEnabled = true);
     }
-
-    _isPlayingJarSequence = false;
   }
 
   Future<void> _playLetterSound(String letter) async {
@@ -207,7 +210,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   }
 
   Future<void> _onVaseTapped(int index) async {
-    if (_choicesLocked) return;
+    if (!_inputEnabled || _choicesLocked) return;
 
     if (index == _correctIndex) {
       _tapTracker.recordCorrectTap();
@@ -537,12 +540,15 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
                   bottom: 0,
                   right: 20,
                   child: GestureDetector(
-                    onTap: _playVaseSounds,
-                    child: Image.asset(
-                      'assets/images/icons/speaker.png',
-                      width: 90,
-                      height: 90,
-                      fit: BoxFit.contain,
+                    onTap: _inputEnabled ? _playVaseSounds : null,
+                    child: Opacity(
+                      opacity: _inputEnabled ? 1.0 : 0.5,
+                      child: Image.asset(
+                        'assets/images/icons/speaker.png',
+                        width: 90,
+                        height: 90,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),
@@ -554,7 +560,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
             LightingPromptCard(
               onClose: () {
                 setState(() => _hideLightingCard = true);
-                releaseFaceGate(); // don't leave the tutorial audio waiting
+                releaseFaceGate();
               },
             ),
         ],
@@ -567,7 +573,9 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     final revealed = _revealedIndex == index;
     final shaking = _shakingIndex == index;
 
-    return GestureDetector(
+    return Opacity(
+        opacity: _inputEnabled ? 1.0 : 0.75,
+        child: GestureDetector(
       onTap: () => _onVaseTapped(index),
       child: AnimatedBuilder(
         animation: _wiggle,
@@ -648,6 +656,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
           ),
         ),
       ),
+        ),
     );
   }
 }

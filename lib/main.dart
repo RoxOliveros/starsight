@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'games_ui_layer/alphabet_forest/alphabet_minigame_find.dart';
 import 'games_ui_layer/alphabet_forest/alphabet_minigame_pop.dart';
 
 void main() async {
@@ -31,7 +32,7 @@ class App extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       builder: (context, child) => ScreenTimeGate(child: child),
-      home: AlphabetPopScreen(letter: 'c',),
+      home: SplashScreen(),
     );
   }
 }
