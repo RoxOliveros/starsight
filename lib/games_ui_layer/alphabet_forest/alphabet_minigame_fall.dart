@@ -68,8 +68,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   int _correctCount = 0;
   final List<Map<String, double>> _wrongEffects = [];
 
-  static const String _fallInstructionWav =
-      'audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
+  static const String _fallInstructionWav = 'audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -89,7 +88,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     };
     _loadLevel();
     _playInstructionThenLetter();
-    _startGameLoops();
   }
 
   // --- FLEXIBLE TARGET LETTERS ---
@@ -181,13 +179,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   void _onObjectTap(FallingObject obj) async {
     if (_targetLetters.contains(obj.letter)) {
       _tapTracker.recordCorrectTap();
-      try {
-        String audioFile =
-            'audio/alphabet_forest/sound_effects/sound_${obj.letter.toLowerCase()}.wav';
-        await _audioPlayer.play(AssetSource(audioFile));
-      } catch (e) {
-        print("Error playing sound for ${obj.letter}: $e");
-      }
 
       showTofiReaction(TofiState.correct);
 
@@ -261,18 +252,20 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   }
 
   Future<void> _playInstructionThenLetter() async {
-    // Tutorial audio: stops if the child leaves the frame and plays again
-    // from the start when they're back (or the card is dismissed).
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      _fallInstructionWav,
-      timeout: const Duration(seconds: 30),
-    );
-    if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-    );
+    try {
+      await playVoiceRestartingOnFaceLoss(
+        _player,
+        _fallInstructionWav,
+        timeout: const Duration(seconds: 30),
+      );
+      if (!mounted) return;
+      await playVoiceRestartingOnFaceLoss(
+        _player,
+        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+      );
+    } finally {
+      if (mounted) _startGameLoops();
+    }
   }
 
   Future<void> _saveDataAndShowApplause() async {
@@ -290,6 +283,9 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
     });
+
+    await Future.delayed(Duration(seconds: 2));
+    if (!mounted) return;
 
     _showApplause();
   }
