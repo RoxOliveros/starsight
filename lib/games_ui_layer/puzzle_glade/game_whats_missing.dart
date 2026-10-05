@@ -49,53 +49,43 @@ class WhatsMissingScreen extends StatefulWidget {
 }
 
 class _WhatsMissingScreenState extends State<WhatsMissingScreen>
-    with
-        TickerProviderStateMixin,
-        RoxieReactionMixin,
-        GameLoadingMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<WhatsMissingScreen> {
+    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin, AppAudioLifecycleMixin<WhatsMissingScreen> {
+
   @override
   AudioPlayer get roxiePlayer => _sfxPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/whats_missing_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/whats_missing_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/whats_missing_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/whats_missing_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/whats_missing_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/whats_missing_complete.wav';
 
   static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
 
-  // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   _GamePhase _gamePhase = _GamePhase.showing;
 
-  // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
-
   int _objectCountForRound(int round) => round >= 4 ? 2 : 1;
   int _showSecondsForRound(int round) => round >= 4 ? 6 : _kShowSecondsBase;
+  int _countdown = _kShowSecondsBase;
 
   late List<String> _shownObjects;
   late String _missingObject;
   late List<String> _choices;
-  int _countdown = _kShowSecondsBase;
-  Timer? _countdownTimer;
 
-  bool _showWinDialog = false;
+  Timer? _countdownTimer;
   String? _tappedChoice;
 
+  bool _showWinDialog = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -242,6 +232,7 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
     await _playAudio(_audioInstructions);
+    if (mounted) setState(() => _inputEnabled = true);
   }
 
   Future<void> _playAudio(String asset) async {
@@ -318,7 +309,7 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   }
 
   Future<void> _onChoiceTapped(String choice) async {
-    if (_gamePhase != _GamePhase.guessing) return;
+    if (!_inputEnabled || _gamePhase != _GamePhase.guessing) return;
     if (!mounted) return;
 
     final isCorrect = choice == _missingObject;
@@ -329,8 +320,9 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
 
     if (isCorrect) {
       _tapTracker.recordCorrectTap();
-      if (mounted)
+      if (mounted) {
         _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
+      }
 
       _correctBounceCtrl.forward(from: 0);
       _missingPulseCtrl.stop();
@@ -365,8 +357,9 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
       }
     } else {
       _tapTracker.recordMistake();
-      if (mounted)
+      if (mounted) {
         _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+      }
 
       showRoxieReaction(RoxieState.wrong);
 
@@ -645,29 +638,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-          decoration: BoxDecoration(
-            color: _gamePhase == _GamePhase.showing
-                ? PuzzleColorTheme.sunnyhue.withValues(alpha: 0.90)
-                : Colors.white.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Text(
-            _gamePhase == _GamePhase.showing
-                ? 'Remember this!'
-                : 'What\'s missing?',
-            style: TextStyle(
-              fontFamily: PuzzleAppTextStyles.fredoka,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: _gamePhase == _GamePhase.showing
-                  ? Colors.white
-                  : PuzzleColorTheme.darkdesaturatedblue,
-            ),
-          ),
-        ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(objectCount, (i) {
@@ -798,16 +768,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
             },
           ),
         ),
-        const SizedBox(height: 10),
-        Text(
-          'Get ready!',
-          style: TextStyle(
-            fontFamily: PuzzleAppTextStyles.fredoka,
-            fontSize: 15,
-            color: Colors.white.withValues(alpha: 0.85),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
       ],
     );
   }
@@ -816,16 +776,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'Pick the missing one!',
-          style: TextStyle(
-            fontFamily: PuzzleAppTextStyles.fredoka,
-            fontSize: 15,
-            color: Colors.white.withValues(alpha: 0.90),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 14),
         ..._choices.map((choice) => _buildChoiceTile(choice)),
       ],
     );
