@@ -9,6 +9,11 @@ import '../business_layer/orientation_service.dart';
 import '../business_layer/database_service.dart';
 import '../business_layer/screen_time_service.dart';
 import 'screen_time_screen.dart';
+import 'account_settings_screen.dart';
+import 'music_sounds_screen.dart';
+import 'download_analysis_screen.dart';
+import 'about_us_screen.dart';
+import 'help_center_screen.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -157,6 +162,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
   String? _error;
   bool _isLoggingOut = false;
   int _screenTimeLimit = 0; // 0 = Off
+  bool _autoBackup = false; // automatic backup toggle (UI only)
 
   ChildProfile? get _selectedChild =>
       _children.isEmpty ? null : _children[_selectedIndex];
@@ -204,16 +210,17 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
 
       final children = rawChildren
           .map(
-            (data) => ChildProfile.fromMap(
+            (data) =>
+            ChildProfile.fromMap(
               data['id'] as String,
               data,
               fallbackAvatarPath: accountAvatarPath,
             ),
-          )
+      )
           .toList();
 
       final activeIndex = children.indexWhere(
-        (c) => c.id == widget.activeNickname,
+            (c) => c.id == widget.activeNickname,
       );
 
       if (!mounted) return;
@@ -246,10 +253,11 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => AnalysisReportsScreen(
-                child: _selectedChild,
-                isFromParentsArea: true,
-              ),
+              builder: (_) =>
+                  AnalysisReportsScreen(
+                    child: _selectedChild,
+                    isFromParentsArea: true,
+                  ),
             ),
           );
 
@@ -259,7 +267,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           }
         }
         break;
-      case 'Screen Time':
+      case 'Game Time':
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -268,9 +276,47 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           ),
         );
         break;
-      // TODO: wire the remaining items to their real screens as you build
-      // them, e.g. ScreenTimeScreen(), AccountSettingsScreen(),
-      // AboutUsScreen(), HelpCenterScreen(), NotificationsScreen(), etc.
+
+      case 'Account Settings':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AccountSettingsScreen()),
+        );
+        break;
+
+      case 'Music and Sounds':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MusicSoundsScreen()),
+        );
+        break;
+
+      case 'Download Analysis':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                DownloadAnalysisScreen(
+                  childName: _selectedChild?.name ?? 'Child Name',
+                ),
+          ),
+        );
+        break;
+
+      case 'About Us':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AboutUsScreen()),
+        );
+        break;
+
+      case 'Help Center':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const HelpCenterScreen()),
+        );
+        break;
+
       default:
         ScaffoldMessenger.of(
           context,
@@ -299,7 +345,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const SignUpSignInScreen()),
-      (route) => false,
+          (route) => false,
     );
   }
 
@@ -312,118 +358,120 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => Dialog(
-        backgroundColor: ColorTheme.cream,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
-          side: BorderSide(color: accent.withValues(alpha: 0.5), width: 3),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Icon badge
-              Center(
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.swap_horiz_rounded,
-                    color: accent,
-                    size: 34,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Title
-              Text(
-                'Switch to ${child.name}?',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: AppTextStyles.fredoka,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
-                  color: ColorTheme.deepNavyBlue,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Message
-              Text(
-                'Are you sure you want to switch to ${child.name}? '
-                    'The reports and settings shown here will be for '
-                    '${child.name}.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Nunito',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  height: 1.4,
-                  color: ColorTheme.brown,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Confirm
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accent,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: const StadiumBorder(),
-                  ),
-                  child: const Text(
-                    'YES, SWITCH',
-                    style: TextStyle(
-                      fontFamily: AppTextStyles.fredoka,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                      color: Colors.white,
+      builder: (dialogContext) =>
+          Dialog(
+            backgroundColor: ColorTheme.cream,
+            insetPadding: const EdgeInsets.symmetric(
+                horizontal: 24, vertical: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
+              side: BorderSide(color: accent.withValues(alpha: 0.5), width: 3),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Icon badge
+                  Center(
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.swap_horiz_rounded,
+                        color: accent,
+                        size: 34,
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 4),
+                  const SizedBox(height: 14),
 
-              // Cancel
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  style: TextButton.styleFrom(
-                    foregroundColor: ColorTheme.brown,
-                    shape: const StadiumBorder(),
-                  ),
-                  child: const Text(
-                    'CANCEL',
-                    style: TextStyle(
+                  // Title
+                  Text(
+                    'Switch to ${child.name}?',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
                       fontFamily: AppTextStyles.fredoka,
-                      fontSize: 14,
+                      fontSize: 21,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
+                      color: ColorTheme.deepNavyBlue,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Message
+                  Text(
+                    'Are you sure you want to switch to ${child.name}? '
+                        'The reports and settings shown here will be for '
+                        '${child.name}.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Nunito',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      height: 1.4,
                       color: ColorTheme.brown,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 20),
+
+                  // Confirm
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accent,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: const StadiumBorder(),
+                      ),
+                      child: const Text(
+                        'YES, SWITCH',
+                        style: TextStyle(
+                          fontFamily: AppTextStyles.fredoka,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Cancel
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      style: TextButton.styleFrom(
+                        foregroundColor: ColorTheme.brown,
+                        shape: const StadiumBorder(),
+                      ),
+                      child: const Text(
+                        'CANCEL',
+                        style: TextStyle(
+                          fontFamily: AppTextStyles.fredoka,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: ColorTheme.brown,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
     );
 
     if (confirmed == true && mounted) {
@@ -517,6 +565,10 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           _buildOutlinedMenuCard(
             borderColor: ColorTheme.teal,
             iconColor: ColorTheme.teal,
+            topWidget: _AutoBackupRow(
+              value: _autoBackup,
+              onChanged: (v) => setState(() => _autoBackup = v),
+            ),
             rows: [
               _MenuRowData(
                 icon: Icons.download_rounded,
@@ -629,7 +681,8 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
             color: ColorTheme.deepNavyBlue,
           ),
 
-          onPressed: () => Navigator.pop(context, _selectedChild?.id), // was .name
+          onPressed: () =>
+              Navigator.pop(context, _selectedChild?.id), // was .name
         ),
       ),
     );
@@ -645,7 +698,9 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     final spans = <TextSpan>[];
     for (final char in text.split('')) {
       Color color;
-      if (char.trim().isEmpty) {
+      if (char
+          .trim()
+          .isEmpty) {
         color = ColorTheme.brown; // space, doesn't consume a color slot
       } else {
         final pairIndex = letterIndex ~/ 2; // 0,0,1,1,2,2,...
@@ -787,7 +842,9 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           return _ChildAvatarCircle(
             child: child,
             selected: selected,
-            onTap: () => _switchChild(index),   // was: setState(() => _selectedIndex = index)
+            onTap: () =>
+                _switchChild(
+                    index), // was: setState(() => _selectedIndex = index)
           );
         },
       ),
@@ -798,6 +855,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     required Color borderColor,
     required Color iconColor,
     required List<_MenuRowData> rows,
+    Widget? topWidget, // optional custom row shown above the rows
   }) {
     return Container(
       width: double.infinity,
@@ -809,6 +867,10 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
       ),
       child: Column(
         children: [
+          if (topWidget != null) ...[
+            topWidget,
+            Divider(color: borderColor.withValues(alpha: 0.25), height: 1),
+          ],
           for (int i = 0; i < rows.length; i++) ...[
             _CardMenuRow(
               icon: rows[i].icon,
@@ -1031,7 +1093,7 @@ class _ScreenTimeDropdownRow extends StatelessWidget {
           const SizedBox(width: 12),
           const Expanded(
             child: Text(
-              'Screen Time',
+              'Game Time',
               style: TextStyle(
                 fontFamily: AppTextStyles.fredoka,
                 fontSize: 18,
@@ -1081,6 +1143,48 @@ class _ScreenTimeDropdownRow extends StatelessWidget {
                 },
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AutoBackupRow extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _AutoBackupRow({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = value ? ColorTheme.teal : ColorTheme.mutedGrey;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_upload_rounded, size: 20, color: ColorTheme.teal),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Automatic Backup',
+              style: TextStyle(
+                fontFamily: AppTextStyles.fredoka,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: ColorTheme.deepNavyBlue,
+              ),
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: Colors.white,
+            activeTrackColor: accent,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: ColorTheme.mutedGrey,
+            trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
           ),
         ],
       ),

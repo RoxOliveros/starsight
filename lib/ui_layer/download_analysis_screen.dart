@@ -1,0 +1,494 @@
+import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
+import 'avatar_picker_dialog.dart'; // for kDefaultAvatarPath
+
+abstract class _DlPalette {
+  static const Color cream = Color(0xFFFAF7EB);
+  static const Color deepNavyBlue = Color(0xFF5F7199);
+  static const Color orange = Color(0xFFEC8A20);
+  static const Color teal = Color(0xFF54BDB8);
+  static const Color brown = Color(0xFF6F6764);
+  static const Color mutedGrey = Color(0xFFB9B2A9);
+  static const Color titleSky = Color(0xFF6FD3E3);
+  static const Color titleGold = Color(0xFFFACC58);
+  static const Color titleOrange = Color(0xFFEC8A20);
+}
+
+abstract class _DlFonts {
+  static const String fredoka = 'Fredoka';
+}
+
+class _DlSubject {
+  final String id;
+  final String name;
+  final String lottie;
+  final IconData fallbackIcon;
+  final Color color; // outline / check color
+  final Color softBg; // background when selected
+
+  const _DlSubject({
+    required this.id,
+    required this.name,
+    required this.lottie,
+    required this.fallbackIcon,
+    required this.color,
+    required this.softBg,
+  });
+}
+
+class DownloadAnalysisScreen extends StatefulWidget {
+  /// Name and avatar of the child the report is for.
+  final String childName;
+  final String avatarPath;
+
+  const DownloadAnalysisScreen({
+    super.key,
+    this.childName = 'Child Name',
+    this.avatarPath = kDefaultAvatarPath,
+  });
+
+  @override
+  State<DownloadAnalysisScreen> createState() => _DownloadAnalysisScreenState();
+}
+
+class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
+  static const List<_DlSubject> _subjects = [
+    _DlSubject(
+      id: 'alphabet_forest',
+      name: 'Alphabet Forest',
+      lottie: 'assets/animations/forest.json',
+      fallbackIcon: Icons.abc_rounded,
+      color: _DlPalette.titleGold,
+      softBg: Color(0xFFFCEFD1),
+    ),
+    _DlSubject(
+      id: 'lumitown',
+      name: 'Lumitown',
+      lottie: 'assets/animations/town.json',
+      fallbackIcon: Icons.science_rounded,
+      color: _DlPalette.teal,
+      softBg: Color(0xFFD9F1F5),
+    ),
+    _DlSubject(
+      id: 'arctic_numberland',
+      name: 'Arctic Numberland',
+      lottie: 'assets/animations/arctic.json',
+      fallbackIcon: Icons.pin_rounded,
+      color: _DlPalette.orange,
+      softBg: Color(0xFFFBE1CB),
+    ),
+    _DlSubject(
+      id: 'discovery_lagoon',
+      name: 'Discovery Lagoon',
+      lottie: 'assets/animations/lagoon.json',
+      fallbackIcon: Icons.favorite_rounded,
+      color: _DlPalette.titleGold,
+      softBg: Color(0xFFFCEFD1),
+    ),
+    _DlSubject(
+      id: 'puzzle_glade',
+      name: 'Puzzle Glade',
+      lottie: 'assets/animations/puzzle.json',
+      fallbackIcon: Icons.extension_rounded,
+      color: _DlPalette.teal,
+      softBg: Color(0xFFD9F1F5),
+    ),
+  ];
+
+  // UI only: local selection state, nothing is generated or saved.
+  final Set<String> _selected = {};
+
+  bool get _allSelected => _selected.length == _subjects.length;
+
+  void _toggle(String id) {
+    setState(() {
+      if (!_selected.remove(id)) _selected.add(id);
+    });
+  }
+
+  void _toggleAll() {
+    setState(() {
+      if (_allSelected) {
+        _selected.clear();
+      } else {
+        _selected
+          ..clear()
+          ..addAll(_subjects.map((s) => s.id));
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _DlPalette.cream,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(context),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(child: _buildRainbowTitle('DOWNLOAD ANALYSIS')),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Save your child\'s report as a PDF to keep or share.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _DlPalette.brown,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Child card ──
+                    _buildChildCard(),
+                    const SizedBox(height: 28),
+
+                    // ── Subjects header + select all ──
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'CHOOSE SUBJECTS',
+                            style: TextStyle(
+                              fontFamily: _DlFonts.fredoka,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                              color: _DlPalette.orange,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _toggleAll,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _allSelected
+                                  ? _DlPalette.teal
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _DlPalette.teal,
+                                width: 1.6,
+                              ),
+                            ),
+                            child: Text(
+                              _allSelected ? 'CLEAR' : 'SELECT ALL',
+                              style: TextStyle(
+                                fontFamily: _DlFonts.fredoka,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.4,
+                                color: _allSelected
+                                    ? Colors.white
+                                    : _DlPalette.teal,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // ── Subject cards ──
+                    for (final s in _subjects) ...[
+                      _buildSubjectCard(s),
+                      const SizedBox(height: 14),
+                    ],
+
+                    const SizedBox(height: 6),
+                    _buildInfoNote(),
+                  ],
+                ),
+              ),
+            ),
+            _buildBottomBar(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: _DlPalette.deepNavyBlue,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  // Multicolored title (same style as the other screens)
+  Widget _buildRainbowTitle(String text) {
+    const palette = [
+      _DlPalette.titleSky,
+      _DlPalette.titleGold,
+      _DlPalette.titleOrange,
+    ];
+    int letterIndex = 0;
+    final spans = <TextSpan>[];
+    for (final char in text.split('')) {
+      Color color;
+      if (char.trim().isEmpty) {
+        color = _DlPalette.brown;
+      } else {
+        color = palette[(letterIndex ~/ 2) % palette.length];
+        letterIndex++;
+      }
+      spans.add(TextSpan(text: char, style: TextStyle(color: color)));
+    }
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: const TextStyle(
+          fontFamily: _DlFonts.fredoka,
+          fontSize: 28,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+        ),
+        children: spans,
+      ),
+    );
+  }
+
+  Widget _buildChildCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _DlPalette.orange, width: 1.6),
+      ),
+      child: Row(
+        children: [
+          // Child avatar
+          Container(
+            width: 56,
+            height: 56,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              border: Border.all(color: _DlPalette.orange, width: 3),
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                widget.avatarPath,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stack) => const Icon(
+                  Icons.face_rounded,
+                  size: 26,
+                  color: _DlPalette.orange,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'REPORT FOR',
+                  style: TextStyle(
+                    fontFamily: _DlFonts.fredoka,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: _DlPalette.mutedGrey,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  widget.childName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: _DlFonts.fredoka,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: _DlPalette.deepNavyBlue,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.picture_as_pdf_rounded,
+            size: 26,
+            color: _DlPalette.orange,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubjectCard(_DlSubject s) {
+    final selected = _selected.contains(s.id);
+
+    return GestureDetector(
+      onTap: () => _toggle(s.id),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? s.softBg : Colors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected
+                ? s.color
+                : _DlPalette.brown.withValues(alpha: 0.15),
+            width: 1.8,
+          ),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 52,
+              height: 52,
+              child: Lottie.asset(
+                s.lottie,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stack) =>
+                    Icon(s.fallbackIcon, size: 28, color: s.color),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Title only (description removed)
+            Expanded(
+              child: Text(
+                s.name,
+                style: const TextStyle(
+                  fontFamily: _DlFonts.fredoka,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: _DlPalette.deepNavyBlue,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Round check indicator
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? s.color : Colors.transparent,
+                border: Border.all(
+                  color: selected ? s.color : _DlPalette.mutedGrey,
+                  width: 2,
+                ),
+              ),
+              child: selected
+                  ? const Icon(
+                Icons.check_rounded,
+                size: 18,
+                color: Colors.white,
+              )
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoNote() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _DlPalette.teal.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, size: 18, color: _DlPalette.teal),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'The PDF includes the selected subjects\' insights. It is a '
+                  'helpful guide based on gameplay, not a formal assessment.',
+              style: TextStyle(
+                fontFamily: 'Nunito',
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.4,
+                color: _DlPalette.brown,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar() {
+    final enabled = _selected.isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+      decoration: BoxDecoration(
+        color: _DlPalette.cream,
+        border: Border(
+          top: BorderSide(
+            color: _DlPalette.brown.withValues(alpha: 0.12),
+            width: 1,
+          ),
+        ),
+      ),
+      child: SizedBox(
+        height: 52,
+        child: ElevatedButton.icon(
+          onPressed: enabled
+              ? () {
+            // TODO: generate and download the PDF
+          }
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _DlPalette.orange,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: _DlPalette.mutedGrey.withValues(
+              alpha: 0.5,
+            ),
+            disabledForegroundColor: Colors.white,
+            elevation: 0,
+            shape: const StadiumBorder(),
+          ),
+          icon: const Icon(Icons.download_rounded, size: 22),
+          label: Text(
+            enabled
+                ? 'DOWNLOAD PDF  (${_selected.length})'
+                : 'SELECT A SUBJECT',
+            style: const TextStyle(
+              fontFamily: _DlFonts.fredoka,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
