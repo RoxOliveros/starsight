@@ -114,11 +114,15 @@ class ScreenTimeService with WidgetsBindingObserver {
   /// Stop counting (e.g. while the parent is in the Parent's Area).
   void pause() {
     _paused = true;
+    if (isLocked.value) {
+      isLocked.value = false; // Forces the gate to hide while paused
+    }
     _persist();
   }
 
   void resume() {
     _paused = false;
+    _rolloverIfNewDay();
     Future.microtask(_evaluate);
   }
 
@@ -140,9 +144,11 @@ class ScreenTimeService with WidgetsBindingObserver {
   // ── Internals ─────────────────────────────────────────────────────────────
 
   void _tick() {
-    if (_childId == null || _paused || !_foreground) return;
+    if (_childId == null) return;
 
     _rolloverIfNewDay();
+
+    if (_paused || !_foreground) return;
 
     if (!isLocked.value) {
       _usedSeconds++;
@@ -174,7 +180,7 @@ class ScreenTimeService with WidgetsBindingObserver {
     // Don't lock while the parent is in the Parent's Area changing settings.
     if (_paused) return;
 
-    final overLimit = _usedSeconds >= _limitSeconds;
+    final overLimit = _limitSeconds > 0 && _usedSeconds >= _limitSeconds;
     final inGrace =
         _graceUntil != null && DateTime.now().isBefore(_graceUntil!);
     final shouldLock = overLimit && !inGrace;

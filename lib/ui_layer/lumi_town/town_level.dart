@@ -57,8 +57,8 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
 
   void _listenToProgress() {
     _progressSub = TownProgressService.instance.streamUnlockedLevel().listen((
-        level,
-        ) async {
+      level,
+    ) async {
       if (!mounted) return;
 
       final wasLoading = _isLoadingProgress;
@@ -79,7 +79,8 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
 
       // Only show once per app session, and only on the first data event.
       if (wasLoading && !_setupTutorialShownThisSession) {
-        _setupTutorialShownThisSession = true; // set immediately to block duplicates
+        _setupTutorialShownThisSession =
+            true; // set immediately to block duplicates
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
@@ -392,7 +393,7 @@ class _LevelTile extends StatelessWidget {
       onTap: () async {
         final screen = _screenForLevel();
         if (screen == null) return;
-       // await _ensureTownCalibrated(context);
+        // await _ensureTownCalibrated(context);
         if (!context.mounted) return;
         Navigator.push(
           context,

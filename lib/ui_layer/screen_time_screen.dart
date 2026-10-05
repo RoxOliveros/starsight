@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../business_layer/database_service.dart';
@@ -24,7 +26,8 @@ class ScreenTimeScreen extends StatefulWidget {
   State<ScreenTimeScreen> createState() => _ScreenTimeScreenState();
 }
 
-class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
+class _ScreenTimeScreenState extends State<ScreenTimeScreen>
+    with WidgetsBindingObserver {
   final DatabaseService _db = DatabaseService();
 
   List<Map<String, dynamic>> _children = [];
@@ -38,6 +41,10 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   int _selectedLimit = DatabaseService.defaultScreenTimeLimitMinutes;
   int _usedSeconds = 0;
 
+  // ── Midnight reset ────────────────────────────────────────────────────────
+  Timer? _midnightTimer;
+  String _shownDateKey = DatabaseService.todayKey();
+
   String? get _childId =>
       _children.isEmpty ? null : _children[_selectedIndex]['id'] as String;
 
@@ -50,7 +57,48 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleMidnightReset();
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _midnightTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Fires just after the next 12:00 AM (local time) and resets the display.
+  void _scheduleMidnightReset() {
+    _midnightTimer?.cancel();
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    _midnightTimer = Timer(
+      nextMidnight.difference(now) + const Duration(milliseconds: 500),
+      () {
+        _checkNewDay();
+        _scheduleMidnightReset();
+      },
+    );
+  }
+
+  /// If the date changed since this screen last showed usage, zero it out.
+  void _checkNewDay() {
+    final today = DatabaseService.todayKey();
+    if (!mounted || today == _shownDateKey) return;
+    setState(() {
+      _shownDateKey = today;
+      _usedSeconds = 0; // "Today: 0 of X min used"
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkNewDay();
+      _scheduleMidnightReset();
+    }
   }
 
   Future<void> _load() async {
@@ -88,6 +136,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
       _savedLimit = limit;
       _selectedLimit = limit;
       _usedSeconds = data.usedSeconds;
+      _shownDateKey = DatabaseService.todayKey();
       _loading = false;
     });
   }
@@ -118,10 +167,19 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          24 + MediaQuery.of(context).viewPadding.bottom,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         content: Text(
           ok
               ? "Saved! $_childName's daily limit is $_selectedLimit minutes."
               : "Couldn't save. Please try again.",
+          style: const TextStyle(fontFamily: _font),
         ),
       ),
     );
