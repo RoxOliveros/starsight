@@ -36,10 +36,7 @@ class AlphabetHuntScreen extends StatefulWidget {
 }
 
 class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
-    with
-        TofiReactionMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<AlphabetHuntScreen> {
+    with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetHuntScreen> {
   @override
   AudioPlayer get tofiPlayer => _audioPlayer;
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -53,17 +50,14 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   int _correctCount = 0;
   final int _winCondition = 4;
 
-  // Lists to track the exact screen positions for our tap effects!
   final List<Map<String, double>> _wrongEffects = [];
   final List<Map<String, double>> _correctEffects = [];
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
-  static const String _huntInstructionWav =
-      'audio/alphabet_forest/alphabet_minigame_hunt_instruction.wav';
+  static const String _huntInstructionWav = 'audio/alphabet_forest/alphabet_minigame_hunt_instruction.wav';
 
-  // The lighting card is dismissible and only appears after the face is
-  // lost. It never delays the game start.
+  bool _inputEnabled = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -72,25 +66,20 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     super.initState();
     OrientationService.setLandscape();
 
-    // child's calibration separate from everyone else's.
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
 
-    // Lighting card can reappear later if the face is lost again mid-play.
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    // 1. Figure out which 3-letter group we are hunting in
     _letterPool = _getPoolForLetter(widget.letter);
 
-    // 2. Generate the scattered objects
     _generateHuntField();
     _playInstructionThenLetter();
   }
 
-  // --- THE DYNAMIC 3-LETTER POOL ---
   List<String> _getPoolForLetter(String target) {
     String upperTarget = target.toUpperCase();
 
@@ -119,19 +108,15 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
         .toList();
 
     for (String distractorLetter in distractors) {
-      // Add 3 of each distractor
       for (int i = 0; i < 2; i++) {
         _activeObjects.add(_createHuntObject(distractorLetter));
       }
     }
 
-    // Shuffle them so the target is hidden randomly among the distractors!
     _activeObjects.shuffle();
   }
 
   HuntObject _createHuntObject(String letter) {
-    // --- EVEN LAYOUT FIX ---
-    // We set rotation and offsets to 0.0 so they sit in a perfectly neat grid!
     return HuntObject(
       id: UniqueKey().toString(),
       letter: letter,
@@ -176,49 +161,38 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   }
 
   void _onObjectTap(HuntObject obj, GlobalKey key) async {
+    if (!_inputEnabled || obj.found) return;
+
     RenderBox? box = key.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
-
-    // Get the exact pixel position of the object they tapped
     Offset position = box.localToGlobal(Offset.zero);
 
     if (obj.letter == widget.letter.toUpperCase()) {
       _tapTracker.recordCorrectTap();
+      showTofiReaction(TofiState.correct);
+
+      final bool won = _correctCount + 1 >= _winCondition;
+
       setState(() {
+        obj.found = true; // hide it but keep its grid slot
+        _correctCount++;
         _correctEffects.add({'x': position.dx, 'y': position.dy});
+        if (won) _inputEnabled = false;
       });
 
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
           setState(() {
             _correctEffects.removeWhere(
-              (effect) =>
-                  effect['x'] == position.dx && effect['y'] == position.dy,
+                  (e) => e['x'] == position.dx && e['y'] == position.dy,
             );
           });
         }
       });
 
-      // 3. Play Sound & Remove Object
-      String audioFile =
-          'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav';
-      await _audioPlayer.play(AssetSource(audioFile));
-      await _audioPlayer.onPlayerComplete.first;
-
-      showTofiReaction(TofiState.correct);
-
-      setState(() {
-        _correctCount++;
-        _activeObjects.removeWhere((item) => item.id == obj.id);
-
-        if (_correctCount >= _winCondition) {
-          _saveDataAndShowApplause();
-        }
-      });
+      if (won) _saveDataAndShowApplause();
     } else {
-      _tapTracker.recordMistake(); // <--- RECORD MISTAKE
-      // --- WRONG MATCH ---
-      // Show the Red X Effect
+      _tapTracker.recordMistake();
       showTofiReaction(TofiState.wrong);
 
       setState(() {
@@ -239,26 +213,28 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   }
 
   Future<void> _playInstructionThenLetter() async {
-    // Tutorial audio: stops if the child leaves the frame and plays again from the start when they return.
-    await playVoiceRestartingOnFaceLoss(
-      _audioPlayer,
-      _huntInstructionWav,
-      timeout: const Duration(seconds: 30),
-    );
-    if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(
-      _audioPlayer,
-      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-    );
+    try {
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        _huntInstructionWav,
+        timeout: const Duration(seconds: 30),
+      );
+      if (!mounted) return;
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+      );
+    } catch (e) {
+      debugPrint('Instruction audio error: $e');
+    }
+    if (mounted) setState(() => _inputEnabled = true);
   }
 
   Future<void> _saveDataAndShowApplause() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
-    // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
-    // 2. Save raw data silently (No loading screen!)
     ForestDatabaseService.saveGameData(
       gameId: 'letter_hunt_${widget.letter.toLowerCase()}',
       activityName: "Alphabet Hunt (${widget.letter.toUpperCase()})",
@@ -270,7 +246,9 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    // 3. Now show the normal win dialog
+    await Future.delayed(Duration(seconds: 2));
+    if (!mounted) return;
+
     _showApplause();
   }
 
@@ -309,7 +287,6 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
       return;
     }
 
-    // mark level complete for some letters
     const completeLevelsLetters = {'C', 'F', 'I', 'L', 'O', 'R', 'U', 'X', 'Z'};
 
     if (completeLevelsLetters.contains(currentLetter)) {
@@ -333,7 +310,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
           characterImage: 'assets/images/characters/dog.png',
 
           onNext: () {
-            Navigator.pop(context); // Close the prompt
+            Navigator.pop(context);
 
             String current = widget.letter.toUpperCase();
 
@@ -464,9 +441,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
     return Scaffold(
       body: Stack(
-        // <-- Main Stack added here
         children: [
-          // 1. Your original game UI
           ForestBackground(
             child: Stack(
               children: [
@@ -478,7 +453,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                 // Level Badge
                 Positioned(
                   top: 25,
-                  right: 20,
+                  right: 25,
                   child: ForestLevelBadge(
                     level:
                         ForestProgressService.levelNumberForLetter(
@@ -495,7 +470,6 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                   right: 20,
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      // Calculate item size to fit exactly 4 columns and 3 rows
                       final double itemWidth =
                           (constraints.maxWidth - (3 * 12)) / 4;
                       final double itemHeight =
@@ -512,13 +486,15 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                         mainAxisSpacing: 12,
                         childAspectRatio: itemWidth / itemHeight,
                         children: _activeObjects.map((obj) {
-                          final GlobalKey objKey = GlobalKey();
+                          if (obj.found) return const SizedBox.shrink();
 
-                          return GestureDetector(
-                            key: objKey,
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => _onObjectTap(obj, objKey),
-                            child: Stack(
+                          return Opacity(
+                            opacity: _inputEnabled ? 1.0 : 0.7,
+                            child: GestureDetector(
+                              key: obj.key,
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _onObjectTap(obj, obj.key),
+                              child: Stack(
                               alignment: Alignment.center,
                               children: [
                                 Image.asset(obj.imagePath, fit: BoxFit.contain),
@@ -540,6 +516,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                                 ),
                               ],
                             ),
+                              ),
                           );
                         }).toList(),
                       );
@@ -587,12 +564,11 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
             ),
           ),
 
-          // 2. The Lighting Prompt Card Overlay
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
                 setState(() => _hideLightingCard = true);
-                releaseFaceGate(); // don't leave the tutorial audio waiting
+                releaseFaceGate();
               },
             ),
         ],
@@ -608,6 +584,8 @@ class HuntObject {
   final double rotation;
   final double offsetX;
   final double offsetY;
+  final GlobalKey key = GlobalKey();
+  bool found = false;
 
   HuntObject({
     required this.id,
