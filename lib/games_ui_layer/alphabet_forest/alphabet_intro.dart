@@ -265,9 +265,11 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                     _audioPlayer.stop();
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            AlphabetTraceScreen(letter: widget.letter),
+                      PageRouteBuilder(
+                        transitionDuration: const Duration(milliseconds: 400),
+                        pageBuilder: (_, __, ___) => AlphabetTraceScreen(letter: widget.letter),
+                        transitionsBuilder: (_, animation, __, child) =>
+                            FadeTransition(opacity: animation, child: child),
                       ),
                     );
                   },
