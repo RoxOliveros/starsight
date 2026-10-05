@@ -103,6 +103,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   late final List<MushroomSpot> _mushrooms;
   late String _targetLetter;
@@ -246,22 +247,29 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
   }
 
   Future<void> _announceRound() async {
-    if (_currentRound == 0) {
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+    if (mounted) setState(() => _inputEnabled = false);
+    try {
+      if (_currentRound == 0) {
+        await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        if (!mounted) return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
+
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        _targetIsUpper ? _audioBig : _audioSmall,
+      );
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
+      );
+    } catch (e) {
+      debugPrint('Round audio error: $e');
+    } finally {
+      if (mounted) setState(() => _inputEnabled = true);
     }
-
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-
-    await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      _targetIsUpper ? _audioBig : _audioSmall,
-    );
-    await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
-    );
   }
 
   bool get _targetIsUpper => _targetLetter == _targetLetter.toUpperCase();
@@ -288,11 +296,13 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
       });
     }
 
+    if (playInstruction) _inputEnabled = false;
+
     setState(() {});
   }
 
   Future<void> _onMushroomTapped(MushroomSpot mushroom, int index) async {
-    if (_roundLocked || mushroom.revealed) return;
+    if (_roundLocked || !_inputEnabled || mushroom.revealed) return;
 
     final isMatch = mushroom.letter == _targetLetter;
 

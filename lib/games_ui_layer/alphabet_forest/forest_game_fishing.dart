@@ -166,6 +166,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _tofiFloatCtrl;
@@ -281,12 +282,19 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   }
 
   Future<void> _announceInstruction() async {
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioCatch);
-    if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      ForestAudioAssets.forLetter(_targetLetter),
-    );
+    _inputEnabled = false;
+    try {
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioCatch);
+      if (!mounted) return;
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_targetLetter),
+      );
+    } catch (e) {
+      debugPrint('Instruction audio error: $e');
+    } finally {
+      if (mounted) _inputEnabled = true;
+    }
   }
 
   void _setupRound({bool isFirstRound = false}) {
@@ -383,7 +391,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     await _catchCtrls[index].forward(from: 0);
     if (!mounted) return;
 
-    await showTofiReaction(TofiState.correct);
+    await showTofiReaction(TofiState.correct)
+        .timeout(const Duration(seconds: 3), onTimeout: () {});
     if (!mounted) return;
 
     playSfx(_sfxRoundComplete);
@@ -398,7 +407,9 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     setState(() => fish.wrong = true);
     _shakeCtrls[index].forward(from: 0);
 
-    await showTofiReaction(TofiState.wrong);
+    showTofiReaction(TofiState.wrong);
+
+    await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
     setState(() => fish.wrong = false);
   }
@@ -494,7 +505,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   }
 
   void _moveRod(Offset delta, double w, double h) {
-    if (_interactionLocked) return;
+    if (_interactionLocked || !_inputEnabled) return;
 
     final newX = (_rodPosition.dx + delta.dx).clamp(
       -_rodSize * 0.85,
@@ -515,11 +526,11 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   }
 
   void _checkRodCollision(double w, double h) {
-    if (_interactionLocked) return;
+    if (_interactionLocked || !_inputEnabled) return;
 
     for (int i = 0; i < _fish.length; i++) {
       final fish = _fish[i];
-      if (fish.caught) continue;
+      if (fish.caught || fish.wrong) continue;
 
       final config = _roundConfigs[_currentRound];
       final fishSize = (h * config.sizeFactor).clamp(56.0, 130.0).toDouble();
@@ -532,8 +543,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
       final fishRect = Rect.fromLTWH(fishX, fishY, fishSize, fishSize * 0.7);
 
       if (fishRect.contains(_rodHookPoint)) {
-        fish.caughtX = fishX;
-        fish.caughtY = fishY;
+        fish.caughtX = _rodHookPoint.dx - fishSize / 2;
+        fish.caughtY = _rodHookPoint.dy - fishSize / 2;
         _handleRodCatch(fish, i);
         return;
       }
@@ -847,7 +858,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
           children: [
             Positioned(
               left: fishX,
-              top: fishY - progress * fishSize * 0.35,
+              top: fishY,
               width: fishSize,
               height: fishSize,
               child: Transform.scale(

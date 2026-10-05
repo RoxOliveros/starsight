@@ -91,17 +91,13 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _leafAsset = 'assets/images/objects/forest/leaf.png';
-  static const String _caterpillarHeadAsset =
-      'assets/images/objects/forest/catterpillar_head.png';
-  static const String _caterpillarBodyAsset =
-      'assets/images/objects/forest/catterpillar_body.png';
+  static const String _caterpillarHeadAsset = 'assets/images/objects/forest/catterpillar_head.png';
+  static const String _caterpillarBodyAsset = 'assets/images/objects/forest/catterpillar_body.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/caterpillar_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/caterpillar_instruction.wav';
-  static const String _audioCorrect =
-      'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioInstruction = '$_audioBase/caterpillar_instruction.wav';
+  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioWin = '$_audioBase/caterpillar_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -127,10 +123,10 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   late AnimationController _tofiFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _breatheCtrl;
@@ -167,13 +163,6 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -218,8 +207,14 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted)
+    if (!mounted) return;
+
+    try {
       await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+    } catch (e) {
+      debugPrint('Instruction audio error: $e');
+    }
+    if (mounted) setState(() => _inputEnabled = true);
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -242,9 +237,15 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     _instructionCtrl.forward(from: 0);
 
     if (playInstruction) {
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted)
-          playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+      _inputEnabled = false;
+      Future.delayed(const Duration(milliseconds: 400), () async {
+        if (!mounted) return;
+        try {
+          await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        } catch (e) {
+          debugPrint('Instruction audio error: $e');
+        }
+        if (mounted) setState(() => _inputEnabled = true);
       });
     }
 
@@ -562,7 +563,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
       width: size,
       height: size,
       child: GestureDetector(
-        onTap: pair.matched
+        onTap: (pair.matched || !_inputEnabled)
             ? null
             : () async {
                 if (_selectedLower != null) {
@@ -608,7 +609,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
       height: size,
       child: GestureDetector(
         onTap: () async {
-          if (pair.matched) return;
+          if (!_inputEnabled || pair.matched) return;
 
           if (_selectedUpper != null) {
             if (_selectedUpper == pairIndex) {

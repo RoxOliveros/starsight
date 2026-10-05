@@ -140,13 +140,7 @@ class FallenStickLetterBuilderGame extends StatefulWidget {
 
 class _FallenStickLetterBuilderGameState
     extends State<FallenStickLetterBuilderGame>
-    with
-        TickerProviderStateMixin,
-        GameLoadingMixin<FallenStickLetterBuilderGame>,
-        ForestAudioMixin<FallenStickLetterBuilderGame>,
-        TofiReactionMixin<FallenStickLetterBuilderGame>,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<FallenStickLetterBuilderGame> {
+    with TickerProviderStateMixin, GameLoadingMixin<FallenStickLetterBuilderGame>, ForestAudioMixin<FallenStickLetterBuilderGame>, TofiReactionMixin<FallenStickLetterBuilderGame>, AiCameraMixin, AppAudioLifecycleMixin<FallenStickLetterBuilderGame> {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
@@ -161,13 +155,11 @@ class _FallenStickLetterBuilderGameState
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _stickLongAsset =
-      'assets/images/objects/forest/stick_long.png';
+  static const String _stickLongAsset = 'assets/images/objects/forest/stick_long.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/fallen_stick_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/fallen_stick_instructions.wav';
+  static const String _audioInstruction = '$_audioBase/fallen_stick_instructions.wav';
   static const String _audioWin = '$_audioBase/fallen_stick_win.wav';
 
   static const int _maxSticks = 4;
@@ -213,6 +205,7 @@ class _FallenStickLetterBuilderGameState
   int? _draggingIndex;
   late List<StickPiece> _sticks;
 
+  bool _inputEnabled = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -351,20 +344,22 @@ class _FallenStickLetterBuilderGameState
   }
 
   Future<void> _announceRound() async {
-    if (_currentRoundIndex == 0) {
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+    _inputEnabled = false;
+    try {
+      if (_currentRoundIndex == 0) {
+        await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        if (!mounted) return;
+      }
+      await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_rounds[_currentRoundIndex].letter),
+      );
+    } finally {
+      if (mounted) _inputEnabled = true;
     }
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      ForestAudioAssets.forLetter(_rounds[_currentRoundIndex].letter),
-    );
   }
-
-  String get _instructionText =>
-      'Build Letter ${_rounds[_currentRoundIndex].letter}!';
 
   Offset _targetCenterPx(StickPiece s, double w, double letterH) {
     final cx = w / 2;
@@ -439,6 +434,7 @@ class _FallenStickLetterBuilderGameState
 
   void _checkRoundComplete() {
     if (!_sticks.every((s) => s.placed)) return;
+    _inputEnabled = false;
     Future.delayed(const Duration(milliseconds: 500), () async {
       if (!mounted) return;
       final letter = _rounds[_currentRoundIndex].letter;
@@ -800,11 +796,12 @@ class _FallenStickLetterBuilderGameState
         onPanStart: stick.placed
             ? null
             : (_) {
-                setState(() {
-                  _draggingIndex = stick.index;
-                  stick.dragPixelPos = pileCenter;
-                });
-              },
+          if (!_inputEnabled) return;
+          setState(() {
+            _draggingIndex = stick.index;
+            stick.dragPixelPos = pileCenter;
+          });
+        },
         onPanUpdate: (details) {
           if (_draggingIndex != stick.index) return;
           setState(() {

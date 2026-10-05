@@ -37,13 +37,7 @@ class BerryBushHarvestGame extends StatefulWidget {
 }
 
 class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
-    with
-        TickerProviderStateMixin,
-        GameLoadingMixin<BerryBushHarvestGame>,
-        ForestAudioMixin<BerryBushHarvestGame>,
-        TofiReactionMixin<BerryBushHarvestGame>,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<BerryBushHarvestGame> {
+    with TickerProviderStateMixin, GameLoadingMixin<BerryBushHarvestGame>, ForestAudioMixin<BerryBushHarvestGame>, TofiReactionMixin<BerryBushHarvestGame>, AiCameraMixin, AppAudioLifecycleMixin<BerryBushHarvestGame> {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
@@ -57,27 +51,20 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
-  static const String _bushFullAsset =
-      'assets/images/objects/forest/berry_bush_full.png';
-  static const String _bushEmptyAsset =
-      'assets/images/objects/forest/berry_bush_empty.png';
+  static const String _bushFullAsset = 'assets/images/objects/forest/berry_bush_full.png';
+  static const String _bushEmptyAsset = 'assets/images/objects/forest/berry_bush_empty.png';
   static const String _basketAsset = 'assets/images/objects/puzzle/basket.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static String _basketBerryAsset(int count) =>
-      'assets/images/objects/forest/berries_state$count.png';
+  static String _basketBerryAsset(int count) => 'assets/images/objects/forest/berries_state$count.png';
 
   static const String _audioBase = ForestAudioAssets.base;
-  static const String _audioIntro =
-      'assets/audio/alphabet_forest/berry_bush_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/berry_bush_instruction.wav';
-  static const String _audioHarvestChime =
-      '$_audioBase/berry_harvest_chime.wav';
+  static const String _audioIntro = 'assets/audio/alphabet_forest/berry_bush_intro.wav';
+  static const String _audioInstruction = '$_audioBase/berry_bush_instruction.wav';
+  static const String _audioHarvestChime = '$_audioBase/berry_harvest_chime.wav';
   static const String _audioWin = '$_audioBase/berry_bush_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
   static const List<String> _letters = ['P', 'p', 'Q', 'q', 'R', 'r'];
-  static const List<String> _promptVerbs = ['Harvest', 'Find', 'Tap'];
   static const Color _berryColor = Color(0xFF4A7CFF);
 
   static const List<Offset> _bushSlots = [
@@ -98,13 +85,13 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
   int _currentRoundIndex = 0;
   int _harvestedCount = 0;
   bool _roundLocked = false;
-  late String _promptVerb;
 
   int? _shakingWrongIndex;
   int? _harvestingIndex;
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   String get _targetLetter => _roundOrder[_currentRoundIndex];
 
@@ -143,7 +130,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     final random = Random();
     final availableLetters = [..._letters]..shuffle(random);
     _roundOrder = availableLetters.take(5).toList();
-    _promptVerb = _promptVerbs[Random().nextInt(_promptVerbs.length)];
 
     _initAnimations();
     finishLoading(_startIntroFlow);
@@ -241,31 +227,29 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
   }
 
   Future<void> _announceRound() async {
-    if (_currentRoundIndex == 0) {
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+    _inputEnabled = false;
+    try {
+      if (_currentRoundIndex == 0) {
+        await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        if (!mounted) return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
+
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
+      );
+    } finally {
+      if (mounted) _inputEnabled = true;
     }
-
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
-
-    await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
-    );
-  }
-
-  bool get _targetIsUpper => _targetLetter == _targetLetter.toUpperCase();
-
-  String get _instructionText {
-    final caseWord = _targetIsUpper ? 'Big Letter' : 'Small Letter';
-    return '$_promptVerb $caseWord $_targetLetter!';
   }
 
   void _loadTarget({bool playInstruction = true}) {
     _roundLocked = false;
+    _inputEnabled = !playInstruction;
     _shakingWrongIndex = null;
-    _promptVerb = _promptVerbs[Random().nextInt(_promptVerbs.length)];
 
     _instructionCtrl.forward(from: 0);
 
@@ -279,9 +263,9 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
   }
 
   Future<void> _onBushTapped(BerryBush bush, int index) async {
-    if (_roundLocked || bush.harvested) return;
+    if (!_inputEnabled || _roundLocked || bush.harvested) return;
 
-    final isMatch = bush.letter == _targetLetter;
+    final isMatch = bush.letter.toLowerCase() == _targetLetter.toLowerCase();
 
     if (isMatch) {
       _tapTracker.recordCorrectTap();
