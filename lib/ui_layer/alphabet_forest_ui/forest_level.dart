@@ -25,19 +25,7 @@ import '../../games_ui_layer/alphabet_forest/forest_game_train.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_yak_zebra_race.dart';
 import '../loading_screen.dart';
 import '../starsight_setup_dialog.dart';
-
-abstract class ColorTheme {
-  static const Color darkbrown = Color(0xFF4E360D);
-  static const Color darkgreen = Color(0xFF3C5729);
-  static const Color olivegreen = Color(0xFF5D6F2F);
-  static const Color forestgreen = Color(0xFF9DA92A);
-  static const Color flaxengold = Color(0xFFCAB781);
-  static const Color peach = Color(0xFFFBEBC6);
-}
-
-abstract class AppTextStyles {
-  static const String fredoka = 'Fredoka';
-}
+import 'forest_theme.dart';
 
 class ForestLevelScreen extends StatefulWidget {
   const ForestLevelScreen({super.key});
@@ -219,7 +207,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                           color: const Color(0xFFF4EFE6),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: ColorTheme.darkbrown,
+                            color: ForestColorTheme.darkbrown,
                             width: 8,
                           ),
                         ),
@@ -241,10 +229,10 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                                 vertical: 10,
                               ),
                               decoration: BoxDecoration(
-                                color: ColorTheme.forestgreen,
+                                color: ForestColorTheme.forestgreen,
                                 borderRadius: BorderRadius.circular(25),
                                 border: Border.all(
-                                  color: ColorTheme.darkgreen,
+                                  color: ForestColorTheme.darkgreen,
                                   width: 5,
                                 ),
                                 boxShadow: [
@@ -258,9 +246,9 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
                               child: const Text(
                                 ' SELECT LEVEL ',
                                 style: TextStyle(
-                                  fontFamily: AppTextStyles.fredoka,
+                                  fontFamily: ForestAppTextStyles.fredoka,
                                   fontSize: 25,
-                                  color: ColorTheme.peach,
+                                  color: ForestColorTheme.peach,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1,
                                 ),
@@ -472,7 +460,7 @@ class _LevelTile extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
-              backgroundColor: ColorTheme.darkgreen,
+              backgroundColor: ForestColorTheme.darkgreen,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(20),
               shape: RoundedRectangleBorder(
@@ -490,17 +478,17 @@ class _LevelTile extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: ColorTheme.forestgreen,
+          color: ForestColorTheme.forestgreen,
           borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: ColorTheme.darkgreen, width: 5),
+          border: Border.all(color: ForestColorTheme.darkgreen, width: 5),
         ),
         alignment: Alignment.center,
         child: Text(
           '$level',
           style: TextStyle(
-            fontFamily: AppTextStyles.fredoka,
+            fontFamily: ForestAppTextStyles.fredoka,
             fontSize: size * 0.5,
-            color: ColorTheme.darkgreen,
+            color: ForestColorTheme.darkgreen,
             fontWeight: FontWeight.bold,
           ),
         ),
