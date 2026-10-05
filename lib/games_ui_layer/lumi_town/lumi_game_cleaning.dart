@@ -192,35 +192,33 @@ class CleaningGameScreen extends StatefulWidget {
 }
 
 class _CleaningGameScreenState extends State<CleaningGameScreen>
-    with
-        TrWooReactionMixin<CleaningGameScreen>,
-        AiCameraMixin<CleaningGameScreen> {
-  final DateTime _loadStart = DateTime.now();
-
-  // --- Audio -----------------------------------------------------------
-  final AudioPlayer _narrationPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _drWooPlayer = AudioPlayer();
+    with TrWooReactionMixin<CleaningGameScreen>, AiCameraMixin<CleaningGameScreen> {
 
   @override
   AudioPlayer get trWooPlayer => _drWooPlayer;
+  final DateTime _loadStart = DateTime.now();
+  final AudioPlayer _narrationPlayer = AudioPlayer();
+  final AudioPlayer _completePlayer = AudioPlayer();
+  final AudioPlayer _drWooPlayer = AudioPlayer();
+  final AudioPlayer _sfxPlayer = AudioPlayer();
+  final GameTapTracker _tapTracker = GameTapTracker();
 
   // --- Game state --------------------------------------------------------
   late List<CleaningScenarioModel> _queue;
   late List<CleaningMaterial> _currentChoiceOrder;
+
   int _currentIndex = 0;
 
   bool _inputEnabled = false;
   bool _checkingAnswer = false;
   bool _showClean = false;
-  CleaningSequencePhase _phase = CleaningSequencePhase.intro;
   bool _isLoading = true;
   bool _gameComplete = false;
-
-  final GameTapTracker _tapTracker = GameTapTracker();
+  bool _wrongVoiceActive = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
+  CleaningSequencePhase _phase = CleaningSequencePhase.intro;
   CleaningScenarioModel get _current => _queue[_currentIndex];
 
   @override
@@ -238,6 +236,11 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
 
     _queue = _shuffledScenarios();
     _currentChoiceOrder = _shuffledChoices(_queue[_currentIndex]);
+
+    _sfxPlayer.setAudioContext(AudioContextConfig(
+      focus: AudioContextConfigFocus.mixWithOthers,
+    ).build());
+
     _initializeGame();
   }
 
@@ -264,6 +267,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     _narrationPlayer.dispose();
     _completePlayer.dispose();
     _drWooPlayer.dispose();
+    _sfxPlayer.dispose();
     super.dispose();
   }
 
@@ -373,23 +377,24 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     }
   }
 
-  // --- Answer handling ------------------------------------------------------
-
   Future<void> _onAnswer(CleaningMaterial picked) async {
     if (!_inputEnabled || _checkingAnswer || !mounted) return;
-
-    setState(() {
-      _checkingAnswer = true;
-      _inputEnabled = false;
-    });
 
     final bool isCorrect = picked == _current.correctMaterial;
 
     if (isCorrect) {
+      setState(() {
+        _checkingAnswer = true;
+        _inputEnabled = false;
+      });
       _tapTracker.recordCorrectTap();
+
+      await _drWooPlayer.stop();
+      await _sfxPlayer.stop();
+      _wrongVoiceActive = false;
+
       await showTrWooReaction(TrWooState.correct);
       if (!mounted) return;
-
       setState(() => _showClean = true);
 
       await _playAndWait(_narrationPlayer, _current.correctAudio);
@@ -402,15 +407,19 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       }
     } else {
       _tapTracker.recordMistake();
-      await _playAndWait(_narrationPlayer, _wrongAudio);
-      if (!mounted) return;
 
-      showTrWooReaction(TrWooState.wrong);
+      unawaited(_sfxPlayer.play(
+        AssetSource(_wrongAudio.replaceFirst('assets/', '')),
+      ));
 
-      setState(() {
-        _checkingAnswer = false;
-        _inputEnabled = true;
-      });
+      if (!_wrongVoiceActive) {
+        _wrongVoiceActive = true;
+        unawaited(
+          showTrWooReaction(TrWooState.wrong).whenComplete(() {
+            _wrongVoiceActive = false;
+          }),
+        );
+      }
     }
   }
 
