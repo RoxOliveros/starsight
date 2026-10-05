@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -448,15 +450,12 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
                       ),
 
                       Center(
-                        child: GestureDetector(
-                          onTap: _handleObjectTap,
-                          child: SizedBox(
-                            width: width * 0.32,
-                            height: width * 0.32,
-                            child: Image.asset(
-                              _currentObject.image,
-                              fit: BoxFit.contain,
-                            ),
+                        child: SizedBox(
+                          width: width * 0.32,
+                          height: width * 0.32,
+                          child: AlphaHitImage(
+                            asset: _currentObject.image,
+                            onTap: _handleObjectTap,
                           ),
                         ),
                       ),
@@ -566,6 +565,117 @@ class _RoundDots extends StatelessWidget {
           ),
         );
       }),
+    );
+  }
+}
+
+class _PixelData {
+  final int w, h;
+  final ByteData bytes;
+  _PixelData(this.w, this.h, this.bytes);
+}
+
+/// Image that only reports taps on non-transparent pixels.
+class AlphaHitImage extends StatefulWidget {
+  final String asset;
+  final VoidCallback onTap;
+  final int alphaThreshold; // 0-255, pixel counts as "solid" above this
+  final int tolerancePx;    // forgiveness around edges, in decoded-image pixels
+
+  const AlphaHitImage({
+    super.key,
+    required this.asset,
+    required this.onTap,
+    this.alphaThreshold = 40,
+    this.tolerancePx = 6,
+  });
+
+  @override
+  State<AlphaHitImage> createState() => _AlphaHitImageState();
+}
+
+class _AlphaHitImageState extends State<AlphaHitImage> {
+  static final Map<String, _PixelData> _cache = {};
+  _PixelData? _data;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(AlphaHitImage old) {
+    super.didUpdateWidget(old);
+    if (old.asset != widget.asset) _resolve();
+  }
+
+  void _resolve() {
+    final cached = _cache[widget.asset];
+    if (cached != null) {
+      _data = cached;
+      return;
+    }
+    _data = null;
+    _load(widget.asset);
+  }
+
+  Future<void> _load(String asset) async {
+    try {
+      final raw = await rootBundle.load(asset);
+      // Downscale: we only need alpha, not full resolution
+      final codec = await ui.instantiateImageCodec(
+        raw.buffer.asUint8List(),
+        targetWidth: 256,
+      );
+      final img = (await codec.getNextFrame()).image;
+      final bytes = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (bytes == null) return;
+      final data = _PixelData(img.width, img.height, bytes);
+      _cache[asset] = data;
+      if (mounted && widget.asset == asset) setState(() => _data = data);
+    } catch (e) {
+      debugPrint('AlphaHitImage load error ($asset): $e');
+    }
+  }
+
+  bool _isSolid(Offset p, Size box) {
+    final d = _data;
+    if (d == null) return false;
+
+    // Map the tap through BoxFit.contain
+    final scale = min(box.width / d.w, box.height / d.h);
+    final ox = (box.width - d.w * scale) / 2;
+    final oy = (box.height - d.h * scale) / 2;
+    final cx = ((p.dx - ox) / scale).round();
+    final cy = ((p.dy - oy) / scale).round();
+
+    final t = widget.tolerancePx;
+    for (int dy = -t; dy <= t; dy += 2) {
+      for (int dx = -t; dx <= t; dx += 2) {
+        if (dx * dx + dy * dy > t * t) continue; // circular tolerance
+        final x = cx + dx, y = cy + dy;
+        if (x < 0 || y < 0 || x >= d.w || y >= d.h) continue;
+        final alpha = d.bytes.getUint8((y * d.w + x) * 4 + 3);
+        if (alpha > widget.alphaThreshold) return true;
+      }
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final box = constraints.biggest;
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapUp: (details) {
+            if (_isSolid(details.localPosition, box)) widget.onTap();
+          },
+          child: Image.asset(widget.asset, fit: BoxFit.contain),
+        );
+      },
     );
   }
 }
