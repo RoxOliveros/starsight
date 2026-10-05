@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
@@ -22,11 +23,16 @@ import 'lumi_game_ui_layer.dart';
 // ============================================================
 
 const String _bgRedLight = 'assets/images/backgrounds/bg_crossing_redlight.png';
-const String _bgGreenLight = 'assets/images/backgrounds/bg_crossing_greenlight.png';
-const String _carPassingBy = 'assets/animations/lumi_town/crossing_redlight_car_passingby.webp';
-const String _redBump = 'assets/animations/lumi_town/crossing_redlight_bump.webp';
-const String _redGoodJob = 'assets/animations/lumi_town/crossing_redlight_goodjob.webp';
-const String _greenRoxieWalk = 'assets/animations/lumi_town/crossing_greenlight_roxiewalk.webp';
+const String _bgGreenLight =
+    'assets/images/backgrounds/bg_crossing_greenlight.png';
+const String _carPassingBy =
+    'assets/animations/lumi_town/crossing_redlight_car_passingby.webp';
+const String _redBump =
+    'assets/animations/lumi_town/crossing_redlight_bump.webp';
+const String _redGoodJob =
+    'assets/animations/lumi_town/crossing_redlight_goodjob.webp';
+const String _greenRoxieWalk =
+    'assets/animations/lumi_town/crossing_greenlight_roxiewalk.webp';
 const String _thumbsUp = 'assets/images/buttons/thumbs_up.png';
 const String _thumbsDown = 'assets/images/buttons/thumbs_down.png';
 const String _trWooImage = 'assets/images/characters/tr.woo_the_owl.png';
@@ -36,13 +42,20 @@ const String _roxieSmileImage = 'assets/images/characters/roxie_happy.png';
 
 // Audio
 const String _audioIntro = 'assets/audio/lumi_town/crossing_game_intro.wav';
-const String _audioInstruction = 'assets/audio/lumi_town/crossing_game_instruction.wav';
-const String _audioRedLight = 'assets/audio/lumi_town/crossing_game_redlight.wav';
-const String _audioRedLightCorrect = 'assets/audio/lumi_town/crossing_game_redlight_correct.wav';
-const String _audioRedLightWrong = 'assets/audio/lumi_town/crossing_game_redlight_wrong.wav';
-const String _audioGreenLight = 'assets/audio/lumi_town/crossing_game_greenlight.wav';
-const String _audioGreenLightCorrect = 'assets/audio/lumi_town/crossing_game_greenlight_correct.wav';
-const String _audioGreenLightWrong = 'assets/audio/lumi_town/crossing_game_greenlight_wrong.wav';
+const String _audioInstruction =
+    'assets/audio/lumi_town/crossing_game_instruction.wav';
+const String _audioRedLight =
+    'assets/audio/lumi_town/crossing_game_redlight.wav';
+const String _audioRedLightCorrect =
+    'assets/audio/lumi_town/crossing_game_redlight_correct.wav';
+const String _audioRedLightWrong =
+    'assets/audio/lumi_town/crossing_game_redlight_wrong.wav';
+const String _audioGreenLight =
+    'assets/audio/lumi_town/crossing_game_greenlight.wav';
+const String _audioGreenLightCorrect =
+    'assets/audio/lumi_town/crossing_game_greenlight_correct.wav';
+const String _audioGreenLightWrong =
+    'assets/audio/lumi_town/crossing_game_greenlight_wrong.wav';
 const String _audioWin = 'assets/audio/lumi_town/crossing_game_win.wav';
 
 enum _Phase {
@@ -69,11 +82,21 @@ class CrossingGameScreen extends StatefulWidget {
 }
 
 class _CrossingGameScreenState extends State<CrossingGameScreen>
-    with TrWooReactionMixin, AiCameraMixin<CrossingGameScreen> {
+    with
+        TrWooReactionMixin,
+        AiCameraMixin<CrossingGameScreen>,
+        AppAudioLifecycleMixin<CrossingGameScreen> {
   // Audio players
   final AudioPlayer _narrationPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _trWooAudioPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _narrationPlayer,
+    _completePlayer,
+    _trWooAudioPlayer,
+  ];
 
   @override
   AudioPlayer get trWooPlayer => _trWooAudioPlayer;
@@ -349,11 +372,11 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance
-        .markLevelComplete(widget.level)
-        .catchError((e) {
-          debugPrint("Database Error marking level complete: $e");
-        });
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
 
     if (mounted) {
       setState(() {
@@ -551,7 +574,11 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
                 ],
 
                 Positioned(top: 25, left: 25, child: LumiXButton()),
-                Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+                Positioned(
+                  top: 25,
+                  right: 25,
+                  child: LumiLevelBadge(level: widget.level),
+                ),
 
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&

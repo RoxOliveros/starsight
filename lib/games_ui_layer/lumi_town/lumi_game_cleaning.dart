@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +20,8 @@ import 'lumi_game_ui_layer.dart';
 
 const String _introBg = 'assets/images/backgrounds/mama_little_bear_scene.png';
 const String _gameBg = 'assets/images/backgrounds/bg_sky.png';
-const String _completeBg = 'assets/images/backgrounds/mama_little_bear_happy_cleaning.png';
+const String _completeBg =
+    'assets/images/backgrounds/mama_little_bear_happy_cleaning.png';
 const String _teacherWooImage = 'assets/images/characters/tr.woo_the_owl.png';
 
 const String _audioBase = 'assets/audio/lumi_town/';
@@ -192,8 +194,10 @@ class CleaningGameScreen extends StatefulWidget {
 }
 
 class _CleaningGameScreenState extends State<CleaningGameScreen>
-    with TrWooReactionMixin<CleaningGameScreen>, AiCameraMixin<CleaningGameScreen> {
-
+    with
+        TrWooReactionMixin<CleaningGameScreen>,
+        AiCameraMixin<CleaningGameScreen>,
+        AppAudioLifecycleMixin<CleaningGameScreen> {
   @override
   AudioPlayer get trWooPlayer => _drWooPlayer;
   final DateTime _loadStart = DateTime.now();
@@ -202,6 +206,14 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
   final AudioPlayer _drWooPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _narrationPlayer,
+    _completePlayer,
+    _drWooPlayer,
+    _sfxPlayer,
+  ];
 
   // --- Game state --------------------------------------------------------
   late List<CleaningScenarioModel> _queue;
@@ -237,9 +249,9 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     _queue = _shuffledScenarios();
     _currentChoiceOrder = _shuffledChoices(_queue[_currentIndex]);
 
-    _sfxPlayer.setAudioContext(AudioContextConfig(
-      focus: AudioContextConfigFocus.mixWithOthers,
-    ).build());
+    _sfxPlayer.setAudioContext(
+      AudioContextConfig(focus: AudioContextConfigFocus.mixWithOthers).build(),
+    );
 
     _initializeGame();
   }
@@ -408,9 +420,9 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     } else {
       _tapTracker.recordMistake();
 
-      unawaited(_sfxPlayer.play(
-        AssetSource(_wrongAudio.replaceFirst('assets/', '')),
-      ));
+      unawaited(
+        _sfxPlayer.play(AssetSource(_wrongAudio.replaceFirst('assets/', ''))),
+      );
 
       if (!_wrongVoiceActive) {
         _wrongVoiceActive = true;
@@ -562,7 +574,11 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
               ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -619,7 +635,9 @@ class _CleaningRound extends StatelessWidget {
 
         final maxCardWidth = constraints.maxWidth * 0.13;
         final maxCardHeightFit = (constraints.maxHeight - totalSpacing) / count;
-        final cardSize = (maxCardWidth < maxCardHeightFit ? maxCardWidth : maxCardHeightFit).clamp(60.0, 100.0);
+        final cardSize =
+            (maxCardWidth < maxCardHeightFit ? maxCardWidth : maxCardHeightFit)
+                .clamp(60.0, 100.0);
 
         return Row(
           children: [

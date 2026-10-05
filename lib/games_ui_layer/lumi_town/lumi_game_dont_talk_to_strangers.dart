@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
@@ -18,13 +19,17 @@ import 'package:StarSight/business_layer/town_database_service.dart';
 import 'lumi_game_ui_layer.dart';
 
 const String _playgroundBg = 'assets/images/backgrounds/bg_playground.png';
-const String _bearPlayingImage = 'assets/images/objects/lumi/playground_bear_playing.png';
-const String _littleBearImage = 'assets/images/characters/little_bear_uniform.png';
-const String _littleBearSmileImage = 'assets/images/characters/little_bear_happy.png';
+const String _bearPlayingImage =
+    'assets/images/objects/lumi/playground_bear_playing.png';
+const String _littleBearImage =
+    'assets/images/characters/little_bear_uniform.png';
+const String _littleBearSmileImage =
+    'assets/images/characters/little_bear_happy.png';
 const String _roxieImage = 'assets/images/characters/roxie_the_rabbit.png';
 const String _roxieSmileImage = 'assets/images/characters/roxie_happy.png';
 const String _mamaBearImage = 'assets/images/characters/mom_bear.png';
-const String _mamaBearSmileImage = 'assets/images/characters/mom_bear_happy.png';
+const String _mamaBearSmileImage =
+    'assets/images/characters/mom_bear_happy.png';
 const String _jackImage = 'assets/images/characters/jack_the_fox.png';
 const String _jackSmileImage = 'assets/images/characters/jack_happy.png';
 const String _trWooImage = 'assets/images/characters/tr.woo_the_owl.png';
@@ -49,7 +54,8 @@ const String _jackTalkAudio = '${_audioBase}stranger_jack_talk.wav';
 const String _wolfEnterAudio = '${_audioBase}stranger_wolf_enter.wav';
 const String _wolfTalkAudio = '${_audioBase}stranger_wolf_talk.wav';
 const String _littleBearNoAudio = '${_audioBase}stranger_little_bear_no.wav';
-const String _teacherWooWarningAudio = '${_audioBase}stranger_teacher_woo_warning.wav';
+const String _teacherWooWarningAudio =
+    '${_audioBase}stranger_teacher_woo_warning.wav';
 const String _safetyLessonAudio = '${_audioBase}stranger_lesson.wav';
 const String _winAudio = '${_audioBase}stranger_win.wav';
 const String _bubblePopAudio = 'assets/audio/sound_effects/bubble_pop.wav';
@@ -143,7 +149,9 @@ class DontTalkToStrangersGame extends StatefulWidget {
 }
 
 class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
-    with AiCameraMixin<DontTalkToStrangersGame> {
+    with
+        AiCameraMixin<DontTalkToStrangersGame>,
+        AppAudioLifecycleMixin<DontTalkToStrangersGame> {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
@@ -152,6 +160,15 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
   final AudioPlayer _wolfPlayer = AudioPlayer();
   final AudioPlayer _teacherWooPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _narrationPlayer,
+    _completePlayer,
+    _wolfPlayer,
+    _teacherWooPlayer,
+    _sfxPlayer,
+  ];
 
   // --- Game state -------------------------------------------------------
   late List<StrangerInteraction> _interactions;
@@ -795,7 +812,11 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
