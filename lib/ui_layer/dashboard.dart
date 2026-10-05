@@ -57,10 +57,16 @@ class _DashboardScreenState extends State<DashboardScreen>
   late Animation<double> _floatAnimation;
 
   bool _animationsReady = false;
+  bool _childLoading = true;
+
 
   final GlobalKey<_AvatarBadgeState> _avatarBadgeKey = GlobalKey();
 
   int _currentIndex = 0;
+
+  // Current child information loaded from Firestore.
+  String _childName = '';
+  String _avatarPath = kDefaultAvatarPath;
 
   // Activity/island cards
   final List<_ActivityCard> _activities = const [
@@ -101,6 +107,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.initState();
     OrientationService.setLandscape();
 
+    // Keep all existing child/progress functionality unchanged.
     ForestProgressService.instance.activeChildId = widget.nickname;
     ForestDatabaseService.activeChildId = widget.nickname;
     ArcticProgressService.instance.activeChildId = widget.nickname;
@@ -123,7 +130,56 @@ class _DashboardScreenState extends State<DashboardScreen>
       CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
     );
 
+    // Load the latest child name/avatar from Firestore.
+    _loadChild();
+
     _loadAnimations();
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // LOAD CURRENT CHILD INFORMATION
+  // ════════════════════════════════════════════════════════════════════════════
+  Future<void> _loadChild() async {
+    try {
+      final children = await DatabaseService().getChildren();
+
+      final myChild = children.firstWhere(
+            (c) =>
+        c['id'] == widget.nickname ||
+            (c['nickname'] as String?)?.toLowerCase() ==
+                widget.nickname.toLowerCase(),
+        orElse: () => {},
+      );
+
+      if (myChild.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _childLoading = false;
+          });
+        }
+        return;
+      }
+
+      final currentName = DatabaseService.displayNameOf(myChild);
+      final currentAvatar =
+          (myChild['avatarPath'] as String?) ?? kDefaultAvatarPath;
+
+      if (!mounted) return;
+
+      setState(() {
+        _childName = currentName;
+        _avatarPath = currentAvatar;
+        _childLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading dashboard child: $e');
+
+      if (mounted) {
+        setState(() {
+          _childLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -136,7 +192,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _loadAnimations() async {
     await Future.wait([
       Future.wait([
-        AssetLottie('assets/animations/white_clouds_mirrored.json').load(),
+        AssetLottie(
+          'assets/animations/white_clouds_mirrored.json',
+        ).load(),
         AssetLottie('assets/animations/white_cloud.json').load(),
         AssetLottie('assets/animations/forest.json').load(),
         AssetLottie('assets/animations/town.json').load(),
@@ -147,6 +205,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       // Loading time
       Future.delayed(const Duration(milliseconds: 1500)),
     ]);
+
     if (mounted) {
       setState(() => _animationsReady = true);
       _floatController.repeat(reverse: true);
@@ -155,127 +214,142 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    final displayedName =
+    _childName.isNotEmpty ? _childName : widget.nickname;
+
     return Scaffold(
       onDrawerChanged: (isOpen) {
-        if (!isOpen) _avatarBadgeKey.currentState?.refresh();
+        if (!isOpen) {
+          // Refresh the latest name/avatar after closing the drawer.
+          _loadChild();
+        }
       },
       backgroundColor: ColorTheme.cream,
       drawer: Drawer(
         backgroundColor: const Color(0xFFE9C679),
-        child: ProfileDayDialog(name: widget.nickname),
+        child: ProfileDayDialog(
+          childId: widget.nickname,      // real doc ID, never changes
+          name: displayedName,           // display only
+          onProfileChanged: _loadChild,  // refresh dashboard after edits
+        ),
       ),
-      body: _animationsReady
+      body: _animationsReady && !_childLoading
           ? Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // ── Full-screen cloud background ──────────────────────────
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Left cloud
-                        Positioned(
-                          left: -60,
-                          top: 0,
-                          bottom: 0,
-                          child: Center(
-                            child: Lottie.asset(
-                              'assets/animations/white_clouds_mirrored.json',
-                              width: 550,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
-                                  const SizedBox(width: 200),
-                            ),
-                          ),
-                        ),
-                        // Center cloud
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          top: -150,
-                          bottom: 0,
-                          child: Center(
-                            child: Lottie.asset(
-                              'assets/animations/white_cloud.json',
-                              width: 80,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
-                                  const SizedBox(width: 80),
-                            ),
-                          ),
-                        ),
-                        // Right cloud
-                        Positioned(
-                          right: -200,
-                          top: -50,
-                          bottom: 0,
-                          child: Center(
-                            child: Lottie.asset(
-                              'assets/animations/white_clouds_mirrored.json',
-                              width: 550,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
-                                  const SizedBox(width: 200),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // ── All UI on top ─────────────────────────────────────────
-                Column(
-                  children: [
-                    _TopBar(
-                      nickname: widget.nickname,
-                      avatarBadgeKey: _avatarBadgeKey,
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: _MainIslandCard(
-                          activities: _activities,
-                          floatAnimation: _floatAnimation,
-                          selectedTab: _selectedTab,
-                          onTabChanged: (i) => setState(() => _selectedTab = i),
-
-                          currentIndex: _currentIndex,
-                          onIndexChanged: (i) =>
-                              setState(() => _currentIndex = i),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 15,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      _activities.length,
-                      (index) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _currentIndex == index ? 18 : 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: _currentIndex == index
-                              ? ColorTheme.orange
-                              : ColorTheme.yelloworange.withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+        clipBehavior: Clip.none,
+        children: [
+          // ── Full-screen cloud background ──────────────────────────
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Left cloud
+                  Positioned(
+                    left: -60,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: Lottie.asset(
+                        'assets/animations/white_clouds_mirrored.json',
+                        width: 550,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                        const SizedBox(width: 200),
                       ),
                     ),
                   ),
+
+                  // Center cloud
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: -150,
+                    bottom: 0,
+                    child: Center(
+                      child: Lottie.asset(
+                        'assets/animations/white_cloud.json',
+                        width: 80,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                        const SizedBox(width: 80),
+                      ),
+                    ),
+                  ),
+
+                  // Right cloud
+                  Positioned(
+                    right: -200,
+                    top: -50,
+                    bottom: 0,
+                    child: Center(
+                      child: Lottie.asset(
+                        'assets/animations/white_clouds_mirrored.json',
+                        width: 550,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                        const SizedBox(width: 200),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── All UI on top ─────────────────────────────────────────
+          Column(
+            children: [
+              _TopBar(
+                nickname: displayedName,
+                avatarPath: _avatarPath,
+                avatarBadgeKey: _avatarBadgeKey,
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: _MainIslandCard(
+                    activities: _activities,
+                    floatAnimation: _floatAnimation,
+                    selectedTab: _selectedTab,
+                    onTabChanged: (i) =>
+                        setState(() => _selectedTab = i),
+                    currentIndex: _currentIndex,
+                    onIndexChanged: (i) =>
+                        setState(() => _currentIndex = i),
+                  ),
                 ),
-              ],
-            )
+              ),
+            ],
+          ),
+
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 15,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _activities.length,
+                    (index) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: _currentIndex == index ? 18 : 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: _currentIndex == index
+                        ? ColorTheme.orange
+                        : ColorTheme.yelloworange.withValues(
+                      alpha: 0.4,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      )
           : LoadingScreen.arctic(),
     );
   }
@@ -286,9 +360,14 @@ class _DashboardScreenState extends State<DashboardScreen>
 // ══════════════════════════════════════════════════════════════════════════════
 class _TopBar extends StatelessWidget {
   final String nickname;
+  final String avatarPath;
   final GlobalKey<_AvatarBadgeState> avatarBadgeKey;
 
-  const _TopBar({required this.nickname, required this.avatarBadgeKey});
+  const _TopBar({
+    required this.nickname,
+    required this.avatarPath,
+    required this.avatarBadgeKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -336,7 +415,11 @@ class _TopBar extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Padding(
               padding: const EdgeInsets.only(top: 25, left: 10),
-              child: _AvatarBadge(key: avatarBadgeKey, name: nickname),
+              child: _AvatarBadge(
+                key: avatarBadgeKey,
+                name: nickname,
+                avatarPath: avatarPath,
+              ),
             ),
           ),
         ],
@@ -350,8 +433,13 @@ class _TopBar extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 class _AvatarBadge extends StatefulWidget {
   final String name;
+  final String avatarPath;
 
-  const _AvatarBadge({super.key, required this.name});
+  const _AvatarBadge({
+    super.key,
+    required this.name,
+    required this.avatarPath,
+  });
 
   @override
   State<_AvatarBadge> createState() => _AvatarBadgeState();
@@ -363,25 +451,27 @@ class _AvatarBadgeState extends State<_AvatarBadge> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _avatarPath = widget.avatarPath;
   }
 
-  // Inside class _AvatarBadgeState...
+  @override
+  void didUpdateWidget(covariant _AvatarBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
 
-  Future<void> _load() async {
-    final children = await DatabaseService().getChildren();
-    final myChild = children.firstWhere(
-      (c) => c['nickname'] == widget.name,
-      orElse: () => {},
-    );
-    final path = myChild['avatarPath'] as String?;
-
-    if (mounted) {
-      setState(() => _avatarPath = path ?? kDefaultAvatarPath);
+    if (oldWidget.avatarPath != widget.avatarPath) {
+      setState(() {
+        _avatarPath = widget.avatarPath;
+      });
     }
   }
 
-  void refresh() => _load();
+  void refresh() {
+    if (mounted) {
+      setState(() {
+        _avatarPath = widget.avatarPath;
+      });
+    }
+  }
 
   void _showProfileDialog(BuildContext context) {
     Scaffold.of(context).openDrawer();
@@ -405,7 +495,10 @@ class _AvatarBadgeState extends State<_AvatarBadge> {
     );
 
     final textPainter = TextPainter(
-      text: TextSpan(text: widget.name, style: pillTextStyle),
+      text: TextSpan(
+        text: widget.name,
+        style: pillTextStyle,
+      ),
       maxLines: 1,
       textDirection: TextDirection.ltr,
     )..layout();
@@ -414,6 +507,7 @@ class _AvatarBadgeState extends State<_AvatarBadge> {
       pillMinWidth,
       pillMaxWidth,
     );
+
     final tileWidth = pillWidth > circleSize ? pillWidth : circleSize;
 
     return Builder(
@@ -508,6 +602,7 @@ class _MainIslandCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final islandHeight = constraints.maxHeight * 0.92;
+
         return Stack(
           children: [
             Column(
@@ -551,7 +646,6 @@ class _MainIslandCard extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 // ISLAND CAROUSEL
 // ══════════════════════════════════════════════════════════════════════════════
-
 class _IslandCarousel extends StatefulWidget {
   final List<_ActivityCard> activities;
   final Animation<double> floatAnimation;
@@ -583,7 +677,8 @@ class _IslandCarouselState extends State<_IslandCarousel> {
 
       final percent = currentScroll / maxScroll;
 
-      final newIndex = (percent * (widget.activities.length - 1)).round();
+      final newIndex =
+      (percent * (widget.activities.length - 1)).round();
 
       if (newIndex != _currentIndex) {
         setState(() {
@@ -623,9 +718,8 @@ class _IslandCarouselState extends State<_IslandCarousel> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ISLAND ISLAND
+// ISLAND TILE
 // ══════════════════════════════════════════════════════════════════════════════
-
 class _IslandTile extends StatefulWidget {
   final _ActivityCard activity;
   final Animation<double> floatAnimation;
@@ -656,17 +750,22 @@ class _IslandTileState extends State<_IslandTile>
   bool _ownsNavigationLock = false;
 
   Future<void> _navigate(BuildContext context) async {
-    if (_isNavigating) return; //  ignore extra taps
+    if (_isNavigating) return; // ignore extra taps
+
     _isNavigating = true;
     _ownsNavigationLock = true;
 
     final navigator = Navigator.of(context);
+
     try {
       setState(() => _glowing = true);
+
       await _tapController.forward();
       await Future.delayed(widget.glowDuration);
       await _tapController.reverse();
+
       if (!mounted) return;
+
       setState(() => _glowing = false);
 
       final Widget? screen = switch (widget.activity.title) {
@@ -679,7 +778,9 @@ class _IslandTileState extends State<_IslandTile>
       };
 
       if (screen != null) {
-        await navigator.push(MaterialPageRoute(builder: (_) => screen));
+        await navigator.push(
+          MaterialPageRoute(builder: (_) => screen),
+        );
       }
     } finally {
       _ownsNavigationLock = false;
@@ -690,20 +791,28 @@ class _IslandTileState extends State<_IslandTile>
   @override
   void initState() {
     super.initState();
+
     _tapController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 120),
     );
+
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: 1.12,
-    ).animate(CurvedAnimation(parent: _tapController, curve: Curves.easeOut));
+    ).animate(
+      CurvedAnimation(
+        parent: _tapController,
+        curve: Curves.easeOut,
+      ),
+    );
   }
 
   @override
   void dispose() {
     // If this tile is removed mid-tap, don't leave the lock stuck on.
     if (_ownsNavigationLock) _isNavigating = false;
+
     _tapController.dispose();
     super.dispose();
   }
@@ -713,10 +822,16 @@ class _IslandTileState extends State<_IslandTile>
     return GestureDetector(
       onTap: () => _navigate(context),
       child: AnimatedBuilder(
-        animation: Listenable.merge([widget.floatAnimation, _scaleAnimation]),
+        animation: Listenable.merge([
+          widget.floatAnimation,
+          _scaleAnimation,
+        ]),
         builder: (_, child) => Transform.translate(
           offset: Offset(0, widget.floatAnimation.value),
-          child: Transform.scale(scale: _scaleAnimation.value, child: child),
+          child: Transform.scale(
+            scale: _scaleAnimation.value,
+            child: child,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -727,12 +842,12 @@ class _IslandTileState extends State<_IslandTile>
                 shape: BoxShape.circle,
                 boxShadow: _glowing
                     ? [
-                        BoxShadow(
-                          color: ColorTheme.yellow.withValues(alpha: 0.8),
-                          blurRadius: 40,
-                          spreadRadius: 10,
-                        ),
-                      ]
+                  BoxShadow(
+                    color: ColorTheme.yellow.withValues(alpha: 0.8),
+                    blurRadius: 40,
+                    spreadRadius: 10,
+                  ),
+                ]
                     : [],
               ),
               child: Lottie.asset(
@@ -740,7 +855,8 @@ class _IslandTileState extends State<_IslandTile>
                 width: widget.size,
                 height: widget.size * 0.85,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => _IslandPlaceholder(large: true),
+                errorBuilder: (_, __, ___) =>
+                    _IslandPlaceholder(large: true),
               ),
             ),
             Transform.translate(
