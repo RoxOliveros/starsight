@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl10/picking_trash_game.dart';
@@ -26,7 +27,8 @@ class Sorry8Screen extends StatefulWidget {
   const Sorry8Screen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -34,8 +36,14 @@ class Sorry8Screen extends StatefulWidget {
 }
 
 class _Sorry8ScreenState extends State<Sorry8Screen>
-    with TickerProviderStateMixin, AiCameraMixin<Sorry8Screen> {
+    with
+        TickerProviderStateMixin,
+        AiCameraMixin<Sorry8Screen>,
+        AppAudioLifecycleMixin<Sorry8Screen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   late final AnimationController _walkController;
   late final AnimationController _carSlideController;
@@ -132,7 +140,9 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
     ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
     });
-    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -255,7 +265,11 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -271,13 +285,16 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
                 onNext: () {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (context) => PickingTrashGame(level: widget.level + 1),
+                      builder: (context) =>
+                          PickingTrashGame(level: widget.level + 1),
                     ),
                   );
                 },
                 onRestart: () {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => Sorry1Screen(level: widget.level)),
+                    MaterialPageRoute(
+                      builder: (_) => Sorry1Screen(level: widget.level),
+                    ),
                   );
                 },
                 onBack: () {

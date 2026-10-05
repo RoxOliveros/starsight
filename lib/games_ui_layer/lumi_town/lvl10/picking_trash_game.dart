@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -26,7 +27,10 @@ class PickingTrashGame extends StatefulWidget {
 }
 
 class _PickingTrashGameState extends State<PickingTrashGame>
-    with AiCameraMixin<PickingTrashGame>, GameLoadingMixin {
+    with
+        AiCameraMixin<PickingTrashGame>,
+        GameLoadingMixin,
+        AppAudioLifecycleMixin<PickingTrashGame> {
   // ==========================================
   // GAME STATE
   // ==========================================
@@ -45,6 +49,9 @@ class _PickingTrashGameState extends State<PickingTrashGame>
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   @override
   void initState() {
@@ -240,7 +247,9 @@ class _PickingTrashGameState extends State<PickingTrashGame>
     ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
     });
-    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -321,9 +330,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
                 ),
               ),
 
-              ...trashItems
-                  .where((item) => !item.isCollected)
-                  .map((item) {
+              ...trashItems.where((item) => !item.isCollected).map((item) {
                 return AnimatedPositioned(
                   key: ValueKey(item.image),
                   duration: const Duration(milliseconds: 800),
@@ -333,16 +340,17 @@ class _PickingTrashGameState extends State<PickingTrashGame>
                   width: screenSize.width * item.size,
                   child: GestureDetector(
                     onTap: () => _handleTrashTap(item),
-                    child: Image.asset(
-                      item.image,
-                      fit: BoxFit.contain,
-                    ),
+                    child: Image.asset(item.image, fit: BoxFit.contain),
                   ),
                 );
               }),
 
               Positioned(top: 25, left: 25, child: LumiXButton()),
-              Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+              Positioned(
+                top: 25,
+                right: 25,
+                child: LumiLevelBadge(level: widget.level),
+              ),
 
               if (_showDrWoo)
                 Positioned(
@@ -369,16 +377,15 @@ class _PickingTrashGameState extends State<PickingTrashGame>
                 Positioned.fill(
                   child: GoodJobOverlay(
                     characterImage:
-                    'assets/images/characters/tr.woo_the_owl.png',
+                        'assets/images/characters/tr.woo_the_owl.png',
                     onNext: () {
                       if (mounted) {
                         Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute(
-                            builder: (_) => ThrowingTrashGame(
-                              level: widget.level + 1,
-                            ),
+                            builder: (_) =>
+                                ThrowingTrashGame(level: widget.level + 1),
                           ),
-                              (route) => route.isFirst,
+                          (route) => route.isFirst,
                         );
                       }
                     },

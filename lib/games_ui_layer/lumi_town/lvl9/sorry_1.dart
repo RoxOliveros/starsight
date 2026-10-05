@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_2.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -23,11 +24,17 @@ class Sorry1Screen extends StatefulWidget {
 }
 
 class _Sorry1ScreenState extends State<Sorry1Screen>
-    with AiCameraMixin<Sorry1Screen>, GameLoadingMixin {
+    with
+        AiCameraMixin<Sorry1Screen>,
+        GameLoadingMixin,
+        AppAudioLifecycleMixin<Sorry1Screen> {
   late final AudioPlayer _audioPlayer;
   final GameTapTracker _tapTracker = GameTapTracker();
 
   bool _hideLightingCard = false;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   @override
   void initState() {
@@ -62,7 +69,7 @@ class _Sorry1ScreenState extends State<Sorry1Screen>
           builder: (context) => Sorry2Screen(
             priorEmotions: emotionsSoFar,
             tapTracker: _tapTracker,
-            level: widget.level
+            level: widget.level,
           ),
         ),
       );
@@ -107,7 +114,11 @@ class _Sorry1ScreenState extends State<Sorry1Screen>
                 ),
 
                 Positioned(top: 25, left: 25, child: LumiXButton()),
-                Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+                Positioned(
+                  top: 25,
+                  right: 25,
+                  child: LumiLevelBadge(level: widget.level),
+                ),
 
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&

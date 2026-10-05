@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/gesture_camera_view.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -27,9 +28,13 @@ class Prayer1 extends StatefulWidget {
   State<Prayer1> createState() => _Prayer1State();
 }
 
-class _Prayer1State extends State<Prayer1> with AiCameraMixin<Prayer1> {
+class _Prayer1State extends State<Prayer1>
+    with AiCameraMixin<Prayer1>, AppAudioLifecycleMixin<Prayer1> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   // Track which scene is currently active
   String _currentScene = 'assets/images/objects/lumi/lvl8_scene1.png';
@@ -169,7 +174,9 @@ class _Prayer1State extends State<Prayer1> with AiCameraMixin<Prayer1> {
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -223,21 +230,32 @@ class _Prayer1State extends State<Prayer1> with AiCameraMixin<Prayer1> {
 
             if (_hasCameraPermission)
               Positioned(
-                left: -10,
-                top: -10,
-                width: 1,
-                height: 1,
-                child: GestureCameraView(
-                  key: const ValueKey('prayer_camera_2_hands'),
-                  onGesture: _onGestureDetected,
-                  minConfidence: 0.7,
-                  requiredConsecutiveFrames: 4,
-                  requiredHands: 2,
+                top: 0,
+                left: 0,
+                child: IgnorePointer(
+                  child: Opacity(
+                    opacity: 0.0,
+                    child: SizedBox(
+                      width: 4,
+                      height: 4,
+                      child: GestureCameraView(
+                        key: const ValueKey('prayer_camera_2_hands'),
+                        onGesture: _onGestureDetected,
+                        minConfidence: 0.7,
+                        requiredConsecutiveFrames: 4,
+                        requiredHands: 2,
+                      ),
+                    ),
+                  ),
                 ),
               ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -284,13 +302,16 @@ class _Prayer1State extends State<Prayer1> with AiCameraMixin<Prayer1> {
                 onNext: () {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (context) => Sorry1Screen(level: widget.level + 1),
+                      builder: (context) =>
+                          Sorry1Screen(level: widget.level + 1),
                     ),
                   );
                 },
                 onRestart: () {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => Prayer1(level: widget.level)),
+                    MaterialPageRoute(
+                      builder: (_) => Prayer1(level: widget.level),
+                    ),
                   );
                 },
                 onBack: () {
