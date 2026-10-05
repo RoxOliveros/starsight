@@ -156,10 +156,6 @@ class AudioHelper with WidgetsBindingObserver {
   }
 }
 
-
-/// Shared background-music assets.
-///
-/// These can be used by ANY StarSight world/game.
 class BgMusicAssets {
   BgMusicAssets._();
 
