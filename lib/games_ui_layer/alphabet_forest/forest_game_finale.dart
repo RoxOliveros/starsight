@@ -56,13 +56,7 @@ class AlphabetForestFinaleGame extends StatefulWidget {
 }
 
 class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
-    with
-        TickerProviderStateMixin,
-        GameLoadingMixin<AlphabetForestFinaleGame>,
-        ForestAudioMixin<AlphabetForestFinaleGame>,
-        TofiReactionMixin<AlphabetForestFinaleGame>,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<AlphabetForestFinaleGame> {
+    with TickerProviderStateMixin, GameLoadingMixin<AlphabetForestFinaleGame>, ForestAudioMixin<AlphabetForestFinaleGame>, TofiReactionMixin<AlphabetForestFinaleGame>, AiCameraMixin, AppAudioLifecycleMixin<AlphabetForestFinaleGame> {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
@@ -81,43 +75,38 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
   static const String _audioBase = ForestAudioAssets.base;
 
   static const String _audioIntro = '$_audioBase/forest_finale_intro.wav';
-  static const String _audioMainInstruction =
-      '$_audioBase/forest_finale_instruction.wav';
-  static const String _audioRecognitionInstruction =
-      '$_audioBase/forest_finale_recognition_instruction.wav';
-  static const String _audioCaseInstruction =
-      '$_audioBase/forest_finale_case_instruction.wav';
-  static const String _audioMissingInstruction =
-      '$_audioBase/forest_finale_missing_instruction.wav';
-  static const String _audioSoundInstruction =
-      '$_audioBase/forest_finale_sound_instruction.wav';
-  static const String _audioOrderInstruction =
-      '$_audioBase/forest_finale_order_instruction.wav';
+  static const String _audioMainInstruction = '$_audioBase/forest_finale_instruction.wav';
+  static const String _audioRecognitionInstruction = '$_audioBase/forest_finale_recognition_instruction.wav';
+  static const String _audioCaseInstruction = '$_audioBase/forest_finale_case_instruction.wav';
+  static const String _audioMissingInstruction = '$_audioBase/forest_finale_missing_instruction.wav';
+  static const String _audioSoundInstruction = '$_audioBase/forest_finale_sound_instruction.wav';
+  static const String _audioOrderInstruction = '$_audioBase/forest_finale_order_instruction.wav';
   static const String _audioWin = '$_audioBase/forest_finale_win.wav';
 
   static const String _audioCorrect = '$_audioBase/alphabet_train_correct.wav';
-  static const String _audioRoundComplete =
-      '$_audioBase/alphabet_train_round_complete.wav';
+  static const String _audioRoundComplete = '$_audioBase/alphabet_train_round_complete.wav';
 
-  static String _letterAudioAsset(String letter) =>
-      'assets/audio/alphabet_forest/sound_effects/sound_${letter.toLowerCase()}.wav';
+  static String _letterAudioAsset(String letter) => 'assets/audio/alphabet_forest/sound_effects/sound_${letter.toLowerCase()}.wav';
 
   static const int _totalRounds = 5;
 
   // ── STATE ────────────────────────────────────────────────────────────────
-  bool _introPlaying = true;
   int _currentRoundIndex = 0;
   int _litStars = 0;
+
+  String? _shakingChoice;
+
+  bool _introPlaying = true;
   bool _roundLocked = false;
   bool _celebrating = false;
-  String? _shakingChoice;
   bool _showFlyingStars = false;
-
+  bool _inputEnabled = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
   final Random _rand = Random();
   final Set<String> _usedTargets = {};
+
   late List<AlphabetFinaleChallenge> _challengeOrder;
   late _FinaleQuestion _question;
 
@@ -240,6 +229,8 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
 
     await _playChallengeInstruction(_challengeOrder[_currentRoundIndex]);
     await _playSoundLetter();
+    if (!mounted) return;
+    setState(() => _inputEnabled = true);
   }
 
   Future<void> _playChallengeInstruction(AlphabetFinaleChallenge type) async {
@@ -408,7 +399,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
   }
 
   Future<void> _handleTap(String letter) async {
-    if (_roundLocked) return;
+    if (!_inputEnabled || _roundLocked) return;
     if (letter == _question.correctAnswer) {
       await _handleCorrect();
     } else {
@@ -460,6 +451,8 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
 
     await _playChallengeInstruction(_challengeOrder[_currentRoundIndex]);
     await _playSoundLetter();
+    if (!mounted) return;
+    setState(() => _inputEnabled = true);
   }
 
   Future<void> _handleWrong(String letter) async {
@@ -478,6 +471,8 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
 
   void _setupRound() {
     _roundLocked = false;
+    _inputEnabled = false;
+
     _celebrating = false;
     _shakingChoice = null;
 
@@ -718,12 +713,12 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
 
   Widget _buildListenPrompt() {
     return GestureDetector(
-      onTap: _roundLocked
+      onTap: (_roundLocked || !_inputEnabled)
           ? null
           : () => playVoiceRestartingOnFaceLoss(
-              audio.voicePlayer,
-              _letterAudioAsset(_question.correctAnswer),
-            ),
+        audio.voicePlayer,
+        _letterAudioAsset(_question.correctAnswer),
+      ),
       child: Container(
         width: 140,
         height: 140,
@@ -818,6 +813,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
 
   Widget _buildChoiceCard(String letter) {
     final isShaking = _shakingChoice == letter;
+    final canTap = _inputEnabled && !_roundLocked;
 
     Widget card = AnimatedBuilder(
       animation: _choiceShakeCtrl,
@@ -861,9 +857,11 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     }
 
     return GestureDetector(
-      onTap: _roundLocked ? null : () => _handleTap(letter),
+      onTap: canTap ? () => _handleTap(letter) : null,
       child: Opacity(
-        opacity: _roundLocked && letter != _question.correctAnswer ? 0.5 : 1.0,
+        opacity: _roundLocked && letter != _question.correctAnswer
+            ? 0.5
+            : (_inputEnabled ? 1.0 : 0.75),
         child: card,
       ),
     );

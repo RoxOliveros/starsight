@@ -26,10 +26,8 @@ class AlphabetIntroScreen extends StatefulWidget {
 }
 
 class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
-    with
-        TickerProviderStateMixin,
-        TofiReactionMixin,
-        AppAudioLifecycleMixin<AlphabetIntroScreen> {
+    with TickerProviderStateMixin, TofiReactionMixin, AppAudioLifecycleMixin<AlphabetIntroScreen> {
+
   final AudioPlayer _player = AudioPlayer();
 
   @override
