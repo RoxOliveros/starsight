@@ -33,15 +33,17 @@ class SoftHardGameScreen extends StatefulWidget {
 }
 
 class _SoftHardGameScreenState extends State<SoftHardGameScreen>
-    with
-        TickerProviderStateMixin,
-        KikiReactionMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<SoftHardGameScreen> {
-  late final AudioPlayer _audioPlayer;
+    with TickerProviderStateMixin, KikiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<SoftHardGameScreen> {
+
+  late List<SortableItem> _remainingItems;
+  SortableItem? _currentItem;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
   final Random _random = Random();
   final AudioPlayer _kikiPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
+  final List<SortableItem> _sortedSoftItems = [];
+  final List<SortableItem> _sortedHardItems = [];
 
   @override
   AudioPlayer get kikiPlayer => _kikiPlayer;
@@ -49,50 +51,34 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
 
+  Offset _dragOffset = Offset.zero;
+
+  bool _isDragging = false;
+  bool _isGameWon = false;
+  bool _showVictoryOverlay = false;
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
   bool _isIntroPlaying = true;
   bool _hasPlayedInstruction = false;
 
-  late List<SortableItem> _remainingItems;
-  SortableItem? _currentItem;
-
-  final List<SortableItem> _sortedSoftItems = [];
-  final List<SortableItem> _sortedHardItems = [];
-
-  Offset _dragOffset = Offset.zero;
-  bool _isDragging = false;
-
-  bool _isGameWon = false;
-  bool _showVictoryOverlay = false;
-
-  bool _hideLightingCard = false;
-  bool _hasSavedResult = false;
-
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_rainbow_lagoon.png';
-  static const String _softCloudImage =
-      'assets/images/objects/lagoon/soft_cloud.png';
-  static const String _hardRockImage =
-      'assets/images/objects/lagoon/hard_rock.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
+  static const String _softCloudImage = 'assets/images/objects/lagoon/soft_cloud.png';
+  static const String _hardRockImage = 'assets/images/objects/lagoon/hard_rock.png';
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
-  static const String _goodJobImage =
-      'assets/images/characters/cat_holding_fishbone.png';
+  static const String _goodJobImage = 'assets/images/characters/cat_holding_fishbone.png';
 
   static const String _pillowImage = 'assets/images/objects/lagoon/pillow.png';
-  static const String _cushionImage =
-      'assets/images/objects/lagoon/cushion.png';
+  static const String _cushionImage = 'assets/images/objects/lagoon/cushion.png';
   static const String _towelImage = 'assets/images/objects/lagoon/towel.png';
-  static const String _teddybearImage =
-      'assets/images/objects/lagoon/teddybear.png';
+  static const String _teddybearImage = 'assets/images/objects/lagoon/teddybear.png';
   static const String _yarnImage = 'assets/images/objects/lagoon/yarn_wb.png';
   static const String _yoyoImage = 'assets/images/objects/lagoon/yoyo_wb.png';
   static const String _planeImage = 'assets/images/objects/lagoon/plane_wb.png';
   static const String _trainImage = 'assets/images/objects/lagoon/train_wb.png';
   static const String _chairImage = 'assets/images/objects/lagoon/chair_wb.png';
 
-  static const String _introAudio =
-      'audio/discovery_lagoon/soft&hard_intro&tutorial.wav';
-  static const String _instructionAudio =
-      'audio/discovery_lagoon/soft&hard_instruction.wav';
+  static const String _introAudio = 'audio/discovery_lagoon/soft&hard_intro&tutorial.wav';
+  static const String _instructionAudio = 'audio/discovery_lagoon/soft&hard_instruction.wav';
   static const String _wrongAudio = 'audio/sound_effects/bubble_pop.wav';
 
   @override
@@ -109,7 +95,6 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    _audioPlayer = AudioPlayer();
     _audioPlayer.onPlayerComplete.listen((event) {
       if (!mounted) return;
 
@@ -317,50 +302,18 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
 
           Positioned(
             left: sw * 0.03,
-            top: sh * 0.32,
+            top: sh * 0.27,
+            bottom: sh * 0.04,
             width: sw * 0.42,
-            height: sh * 0.65,
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.center,
-              children: _sortedSoftItems.map((item) {
-                return AnimatedScale(
-                  scale: 1.0,
-                  duration: const Duration(milliseconds: 300),
-                  child: Image.asset(
-                    item.imagePath,
-                    width: sh * 0.28,
-                    height: sh * 0.28,
-                    fit: BoxFit.contain,
-                  ),
-                );
-              }).toList(),
-            ),
+            child: _buildSortedItemsArea(items: _sortedSoftItems, sh: sh),
           ),
 
           Positioned(
             right: sw * 0.03,
-            top: sh * 0.32,
+            top: sh * 0.27,
+            bottom: sh * 0.04,
             width: sw * 0.42,
-            height: sh * 0.65,
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.center,
-              children: _sortedHardItems.map((item) {
-                return AnimatedScale(
-                  scale: 1.0,
-                  duration: const Duration(milliseconds: 300),
-                  child: Image.asset(
-                    item.imagePath,
-                    width: sh * 0.28,
-                    height: sh * 0.28,
-                    fit: BoxFit.contain,
-                  ),
-                );
-              }).toList(),
-            ),
+            child: _buildSortedItemsArea(items: _sortedHardItems, sh: sh),
           ),
 
           if (_currentItem != null)
@@ -484,4 +437,47 @@ class _DashedLinePainter extends CustomPainter {
   bool shouldRepaint(covariant _DashedLinePainter oldDelegate) =>
       oldDelegate.topPadding != topPadding ||
       oldDelegate.bottomPadding != bottomPadding;
+}
+
+Widget _buildSortedItemsArea({
+  required List<SortableItem> items,
+  required double sh,
+}) {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      const int columns = 2;
+      const double spacing = 8.0;
+
+      final int rows = max(1, (items.length / columns).ceil());
+      final double availableWidth =
+          constraints.maxWidth - spacing * (columns - 1);
+      final double availableHeight =
+          constraints.maxHeight - spacing * (rows - 1);
+      final double widthPerItem = availableWidth / columns;
+      final double heightPerItem = availableHeight / rows;
+      final double itemSize = min(
+        min(widthPerItem, heightPerItem) * 1.3,
+        sh * 0.3,
+      );
+
+      return Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        alignment: WrapAlignment.center,
+        runAlignment: WrapAlignment.center,
+        children: items.map((item) {
+          return AnimatedScale(
+            scale: 1.0,
+            duration: const Duration(milliseconds: 300),
+            child: Image.asset(
+              item.imagePath,
+              width: itemSize,
+              height: itemSize,
+              fit: BoxFit.contain,
+            ),
+          );
+        }).toList(),
+      );
+    },
+  );
 }
