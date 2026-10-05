@@ -28,10 +28,18 @@ class ParentPinValidationState extends State<ParentPinValidation> {
   static const int _maxDigits = 4;
 
   bool _animationsReady = false;
+  bool _isSubmitting = false; // prevents double submit / extra taps
 
   void _onDigitTap(String digit) {
+    if (_isSubmitting) return;
     if (_digits.length < _maxDigits) {
       setState(() => _digits.add(digit));
+
+      // Auto-submit when the 4th digit is entered
+      if (_digits.length == _maxDigits) {
+        // Short delay so the 4th dot is visible before validating
+        Future.delayed(const Duration(milliseconds: 150), _onSubmit);
+      }
     }
   }
 
@@ -41,14 +49,11 @@ class ParentPinValidationState extends State<ParentPinValidation> {
     }
   }
 
-  void _onSubmit() async {
-    if (_digits.length < _maxDigits) {
-      AppDialog.showError(
-        context,
-        message: "Please enter all 4 digits of your Pin.",
-      );
-      return;
-    }
+  Future<void> _onSubmit() async {
+    if (_isSubmitting || !mounted) return;
+    if (_digits.length < _maxDigits) return;
+
+    _isSubmitting = true;
 
     final enteredPin = _digits.join();
 
@@ -57,9 +62,11 @@ class ParentPinValidationState extends State<ParentPinValidation> {
     if (!mounted) return;
 
     if (realPin != null && enteredPin == realPin) {
+      // _isSubmitting stays true: screen is closing, avoids double pop
       Navigator.pop(context, true);
     } else {
       setState(() => _digits.clear());
+      _isSubmitting = false;
       AppDialog.showError(context, message: "Incorrect Pin. Access Denied.");
     }
   }
@@ -88,32 +95,31 @@ class ParentPinValidationState extends State<ParentPinValidation> {
 
   Widget _buildSlot(int index, double slotWidth) {
     final filled = index < _digits.length;
-    final fontSize = (slotWidth * 0.55).clamp(16.0, 32.0);
 
     return SizedBox(
       width: slotWidth,
       child: Center(
         child: filled
-            ? Text(
-                _digits[index],
-                style: TextStyle(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: Fonts.fredoka,
-                  color: ColorTheme.warmBrown,
-                ),
-              )
+        // Hidden PIN: show a dot instead of the digit
+            ? Container(
+          width: slotWidth * 0.35,
+          height: slotWidth * 0.35,
+          decoration: const BoxDecoration(
+            color: ColorTheme.warmBrown,
+            shape: BoxShape.circle,
+          ),
+        )
             : SizedBox(
-                width: slotWidth * 0.6,
-                height: slotWidth * 0.65,
-                child: const DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: ColorTheme.orange, width: 2),
-                    ),
-                  ),
-                ),
+          width: slotWidth * 0.6,
+          height: slotWidth * 0.65,
+          child: const DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: ColorTheme.orange, width: 2),
               ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -134,19 +140,19 @@ class ParentPinValidationState extends State<ParentPinValidation> {
         alignment: Alignment.center,
         child: isDelete
             ? Icon(
-                Icons.backspace,
-                color: ColorTheme.warmBrown,
-                size: fontSize * 1.1,
-              )
+          Icons.backspace,
+          color: ColorTheme.warmBrown,
+          size: fontSize * 1.1,
+        )
             : Text(
-                label,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  fontFamily: Fonts.fredoka,
-                  fontWeight: FontWeight.bold,
-                  color: ColorTheme.warmBrown,
-                ),
-              ),
+          label,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontFamily: Fonts.fredoka,
+            fontWeight: FontWeight.bold,
+            color: ColorTheme.warmBrown,
+          ),
+        ),
       ),
     );
   }
@@ -162,11 +168,11 @@ class ParentPinValidationState extends State<ParentPinValidation> {
     Widget row(List<String> labels) => Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children:
-          labels
-              .map((l) => _buildKey(l, keyW, keyH))
-              .expand((w) => [w, SizedBox(width: gap)])
-              .toList()
-            ..removeLast(),
+      labels
+          .map((l) => _buildKey(l, keyW, keyH))
+          .expand((w) => [w, SizedBox(width: gap)])
+          .toList()
+        ..removeLast(),
     );
 
     return Column(
@@ -182,22 +188,8 @@ class ParentPinValidationState extends State<ParentPinValidation> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            GestureDetector(
-              onTap: _onSubmit,
-              child: Container(
-                width: keyW,
-                height: keyH,
-                decoration: BoxDecoration(
-                  color: ColorTheme.goldenYellow,
-                  borderRadius: BorderRadius.circular(keyH * 0.28),
-                ),
-                child: Icon(
-                  Icons.check,
-                  color: ColorTheme.warmBrown,
-                  size: (keyH * 0.42).clamp(14.0, 28.0),
-                ),
-              ),
-            ),
+            // Empty spacer (was the check/enter button)
+            SizedBox(width: keyW, height: keyH),
             SizedBox(width: gap),
             _buildKey('0', keyW, keyH),
             SizedBox(width: gap),
@@ -213,125 +205,150 @@ class ParentPinValidationState extends State<ParentPinValidation> {
     return Scaffold(
       backgroundColor: ColorTheme.cream,
       body: LayoutBuilder(
-          builder: (context, constraints) {
-            final double w = constraints.maxWidth;
-            final double h = constraints.maxHeight;
+        builder: (context, constraints) {
+          final double w = constraints.maxWidth;
+          final double h = constraints.maxHeight;
 
-            // Left panel 40 %, right panel 60 %
-            final double leftW = w * 0.50;
-            final double rightW = w * 0.50;
-            final double lottieSz = (h * 0.42).clamp(60.0, 150.0); // was 0.30
-            final double titleSz = (h * 0.095).clamp(16.0, 34.0); // was 0.075
-            final double subtitleSz = (h * 0.050).clamp(
-              10.0,
-              18.0,
-            ); // was 0.038
-            final double slotW = (h * 0.14).clamp(28.0, 58.0); // was 0.11
-            final double vGapSm = h * 0.02;
-            final double vGapMd = h * 0.04;
+          // Left panel 40 %, right panel 60 %
+          final double leftW = w * 0.50;
+          final double rightW = w * 0.50;
+          final double lottieSz = (h * 0.42).clamp(60.0, 150.0); // was 0.30
+          final double titleSz = (h * 0.085).clamp(16.0, 34.0); // was 0.075
+          final double subtitleSz = (h * 0.040).clamp(
+            8.0,
+            16.0,
+          ); // was 0.038
+          final double slotW = (h * 0.14).clamp(28.0, 58.0); // was 0.11
+          final double vGapSm = h * 0.02;
+          final double vGapMd = h * 0.01;
 
-            return Stack(
-              children: [
-                Row(
-                  children: [
-                    // ── LEFT: info + PIN display ──
-                    SizedBox(
-                      width: leftW,
-                      child: Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: leftW * 0.08,
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              _animationsReady
-                                  ? Lottie.asset(
-                                      'assets/animations/doma_writing_onboard.json',
-                                      width: lottieSz,
-                                    )
-                                  : Image.asset(
-                                      'assets/images/characters/doma_writing_on_board.png',
-                                      width: lottieSz,
-                                    ),
-                              SizedBox(height: vGapSm),
-                              Text(
-                                "GROWNUP ONLY",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: titleSz,
-                                  fontFamily: Fonts.fredoka,
-                                  fontWeight: FontWeight.bold,
-                                  color: ColorTheme.orange,
+          return Stack(
+            children: [
+              Row(
+                children: [
+                  // ── LEFT: info + PIN display ──
+                  SizedBox(
+                    width: leftW,
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: leftW * 0.08,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _animationsReady
+                                ? Lottie.asset(
+                              'assets/animations/doma_writing_onboard.json',
+                              width: lottieSz,
+                            )
+                                : Image.asset(
+                              'assets/images/characters/doma_writing_on_board.png',
+                              width: lottieSz,
+                            ),
+                            SizedBox(height: vGapSm),
+                            Text(
+                              "GROWNUP ONLY",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: titleSz,
+                                fontFamily: Fonts.fredoka,
+                                fontWeight: FontWeight.bold,
+                                color: ColorTheme.orange,
+                              ),
+                            ),
+                            SizedBox(height: vGapSm * 0.5),
+                            Text(
+                              "ENTER YOUR PIN TO CONTINUE",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: subtitleSz,
+                                fontFamily: Fonts.fredoka,
+                                fontWeight: FontWeight.bold,
+                                color: ColorTheme.warmBrown,
+                              ),
+                            ),
+                            SizedBox(height: vGapMd),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: slotW * 0.30,
+                                vertical: slotW * 0.25,
+                              ),
+                              decoration: BoxDecoration(
+                                color: ColorTheme.cream.withValues(
+                                  alpha: 0.25,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  slotW * 0.40,
                                 ),
                               ),
-                              SizedBox(height: vGapSm * 0.5),
-                              Text(
-                                "ENTER YOUR PIN TO CONTINUE",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: subtitleSz,
-                                  fontFamily: Fonts.fredoka,
-                                  fontWeight: FontWeight.bold,
-                                  color: ColorTheme.warmBrown,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: List.generate(
+                                  _maxDigits,
+                                      (i) => _buildSlot(i, slotW),
                                 ),
                               ),
-                              SizedBox(height: vGapMd),
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: slotW * 0.30,
-                                  vertical: slotW * 0.25,
+                            ),
+                            SizedBox(height: vGapSm),
+                            // ── FORGOT PIN (UI only, no function yet) ──
+                            GestureDetector(
+                              onTap: () {
+                                // TODO: implement forgot pin flow
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                  horizontal: 12,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: ColorTheme.cream.withValues(
-                                    alpha: 0.25,
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    slotW * 0.40,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: List.generate(
-                                    _maxDigits,
-                                    (i) => _buildSlot(i, slotW),
+                                child: Text(
+                                  "Forgot PIN?",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontFamily: Fonts.fredoka,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
+                                  //  decoration: TextDecoration.underline,
+                                    decorationColor: ColorTheme.darkBlue,
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
+                  ),
 
-                    // ── RIGHT: numpad ──
-                    SizedBox(
-                      width: rightW,
-                      child: Center(child: _buildNumpad(rightW, h)),
-                    ),
-                  ],
-                ),
-                // ── BACK BUTTON ──
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      child: const Icon(
-                        Icons.arrow_back,
-                        color: ColorTheme.warmBrown,
-                        size: 28,
-                      ),
+                  // ── RIGHT: numpad ──
+                  SizedBox(
+                    width: rightW,
+                    child: Center(child: _buildNumpad(rightW, h)),
+                  ),
+                ],
+              ),
+              // ── BACK BUTTON ──
+              Positioned(
+                top: 12,
+                left: 12,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    child: const Icon(
+                      Icons.arrow_back,
+                      color: ColorTheme.warmBrown,
+                      size: 28,
                     ),
                   ),
                 ),
-              ],
-            );
-          },
-        ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
