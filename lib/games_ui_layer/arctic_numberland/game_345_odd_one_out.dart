@@ -30,12 +30,8 @@ class Number345OddOneOutScreen extends StatefulWidget {
 }
 
 class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
-    with
-        TickerProviderStateMixin,
-        DomaReactionMixin,
-        GameLoadingMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<Number345OddOneOutScreen> {
+    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin, AppAudioLifecycleMixin<Number345OddOneOutScreen> {
+
   @override
   AudioPlayer get domaPlayer => _player;
   @override
@@ -46,11 +42,9 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   static const List<int> _numbers = [3, 4, 5];
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level16/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level16/intro.wav';
 
   static const Map<int, String> _numberAudio = {
     3: 'assets/audio/arctic_numberland/level16/odd_three.wav',
@@ -82,7 +76,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   ];
 
   // ── State ──────────────────────────────────────────────────────────────────
-  int _currentRound = 0;
   late int _targetNumber;
   late int _oddCount;
   late int _oddCardIndex;
@@ -92,7 +85,10 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   bool _roundComplete = false;
   bool _showWinDialog = false;
   bool _introPlaying = true;
+  bool _inputEnabled = false;
 
+  int _roundToken = 0;
+  int _currentRound = 0;
   int _wrongTappedIndex = -1;
   int _correctTappedIndex = -1;
 
@@ -234,22 +230,34 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
     _cardsEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) {
-        playVoiceRestartingOnFaceLoss(_player, _numberAudio[_targetNumber]!);
+    _inputEnabled = false;
+    final token = ++_roundToken;
+
+    Future.delayed(const Duration(milliseconds: 400), () async {
+      if (!mounted || token != _roundToken) return;
+
+      try {
+        await playVoiceRestartingOnFaceLoss(
+          _player,
+          _numberAudio[_targetNumber]!,
+        ).timeout(const Duration(seconds: 15));
+      } catch (e) {
+        debugPrint('Instruction audio error: $e');
       }
+
+      if (!mounted || token != _roundToken) return;
+      setState(() => _inputEnabled = true);
     });
   }
 
   Future<void> _onCardTapped(int cardIndex) async {
-    if (_roundComplete) return;
+    if (!_inputEnabled || _roundComplete) return;
     if (_wrongTappedIndex == cardIndex) return;
 
     final isOdd = cardIndex == _oddCardIndex;
 
     if (isOdd) {
-      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
-      // ── Correct: found the odd one out ──
+      _tapTracker.recordCorrectTap();
       setState(() {
         _correctTappedIndex = cardIndex;
         _roundComplete = true;
