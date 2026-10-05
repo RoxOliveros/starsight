@@ -38,10 +38,8 @@ class AlphabetPopScreen extends StatefulWidget {
 }
 
 class _AlphabetPopScreenState extends State<AlphabetPopScreen>
-    with
-        TofiReactionMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<AlphabetPopScreen> {
+    with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetPopScreen> {
+
   @override
   AudioPlayer get tofiPlayer => _audioPlayer;
 
@@ -65,23 +63,21 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
   late List<double> _availableLanes;
 
-  static const String _popInstructionWav =
-      'audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
+  static const String _popInstructionWav = 'audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
-    // child's calibration separate from everyone else's.
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
 
-    // Lighting card can reappear later if the face is lost again mid-play.
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
@@ -100,7 +96,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     List<String> distractors = _getDistractorLetters(widget.letter);
     for (int i = 0; i < 5; i++) {
       String randomDistractor =
-          distractors[_random.nextInt(distractors.length)];
+      distractors[_random.nextInt(distractors.length)];
       _activeBalls.add(_createBall(randomDistractor));
     }
 
@@ -174,7 +170,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   }
 
   void _onBallTap(BouncingBall ball) async {
-    if (ball.isPopped) return;
+    if (!_inputEnabled || ball.isPopped) return;
 
     if (ball.letter == widget.letter.toUpperCase()) {
       _tapTracker.recordCorrectTap();
@@ -217,7 +213,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
         if (mounted) {
           setState(() {
             _wrongEffects.removeWhere(
-              (effect) => effect['x'] == tapX && effect['y'] == tapY,
+                  (effect) => effect['x'] == tapX && effect['y'] == tapY,
             );
           });
         }
@@ -226,18 +222,21 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   }
 
   Future<void> _playInstructionThenLetter() async {
-    // Tutorial audio: stops if the child leaves the frame and plays again
-    // from the start when they're back (or the card is dismissed).
-    await playVoiceRestartingOnFaceLoss(
-      _audioPlayer,
-      _popInstructionWav,
-      timeout: const Duration(seconds: 30),
-    );
-    if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(
-      _audioPlayer,
-      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-    );
+    try {
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        _popInstructionWav,
+        timeout: const Duration(seconds: 30),
+      );
+      if (!mounted) return;
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+      );
+    } catch (e) {
+      debugPrint('Instruction audio error: $e');
+    }
+    if (mounted) setState(() => _inputEnabled = true);
   }
 
   Future<void> _saveDataAndShowApplause() async {
@@ -342,7 +341,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      const ButterflyFlowerGardenGame(level: 6),
+                  const ButterflyFlowerGardenGame(level: 6),
                 ),
               );
             } else if (currentLetter == 'L') {
@@ -350,7 +349,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      const ButterflyLetterMatchGame(level: 8),
+                  const ButterflyLetterMatchGame(level: 8),
                 ),
               );
             } else if (currentLetter == 'O') {
@@ -358,7 +357,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      const MushroomHideAndSeekGame(level: 10),
+                  const MushroomHideAndSeekGame(level: 10),
                 ),
               );
             } else if (currentLetter == 'R') {
@@ -380,7 +379,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      const FallenStickLetterBuilderGame(level: 16),
+                  const FallenStickLetterBuilderGame(level: 16),
                 ),
               );
             } else if (currentLetter == 'Z') {
@@ -468,9 +467,9 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                   right: 20,
                   child: ForestLevelBadge(
                     level:
-                        ForestProgressService.levelNumberForLetter(
-                          widget.letter.toUpperCase(),
-                        ) ??
+                    ForestProgressService.levelNumberForLetter(
+                      widget.letter.toUpperCase(),
+                    ) ??
                         1,
                   ),
                 ),
@@ -488,48 +487,51 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                           ..._activeBalls.map((ball) {
                             return Positioned(
                               left:
-                                  ball.xPos * (constraints.maxWidth - ballSize),
+                              ball.xPos * (constraints.maxWidth - ballSize),
                               top:
-                                  ball.yPos *
+                              ball.yPos *
                                   (constraints.maxHeight - ballSize),
                               child: GestureDetector(
                                 key: ball.key,
                                 behavior: HitTestBehavior.opaque,
                                 onTap: () => _onBallTap(ball),
-                                child: SizedBox(
-                                  width: ballSize,
-                                  height: ballSize,
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      Image.asset(
-                                        ball.isPopped
-                                            ? 'assets/images/objects/forest/ball_popped.png'
-                                            : 'assets/images/objects/forest/ball.png',
-                                        fit: BoxFit.contain,
-                                      ),
-                                      if (!ball.isPopped)
-                                        Text(
-                                          ball.letter,
-                                          textScaler: const TextScaler.linear(
-                                            1.0,
-                                          ),
-                                          style: TextStyle(
-                                            fontFamily:
-                                                ForestAppTextStyles.fredoka,
-                                            fontSize: letterFontSize,
-                                            fontWeight: FontWeight.w900,
-                                            color: Colors.white,
-                                            shadows: const [
-                                              Shadow(
-                                                blurRadius: 6,
-                                                color: Colors.black87,
-                                                offset: Offset(2, 2),
-                                              ),
-                                            ],
-                                          ),
+                                child: Opacity(
+                                  opacity: _inputEnabled ? 1.0 : 0.7,
+                                  child: SizedBox(
+                                    width: ballSize,
+                                    height: ballSize,
+                                    child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        Image.asset(
+                                          ball.isPopped
+                                              ? 'assets/images/objects/forest/ball_popped.png'
+                                              : 'assets/images/objects/forest/ball.png',
+                                          fit: BoxFit.contain,
                                         ),
-                                    ],
+                                        if (!ball.isPopped)
+                                          Text(
+                                            ball.letter,
+                                            textScaler: const TextScaler.linear(
+                                              1.0,
+                                            ),
+                                            style: TextStyle(
+                                              fontFamily:
+                                              ForestAppTextStyles.fredoka,
+                                              fontSize: letterFontSize,
+                                              fontWeight: FontWeight.w900,
+                                              color: Colors.white,
+                                              shadows: const [
+                                                Shadow(
+                                                  blurRadius: 6,
+                                                  color: Colors.black87,
+                                                  offset: Offset(2, 2),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -540,10 +542,10 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                           ..._wrongEffects.map((effect) {
                             return Positioned(
                               left:
-                                  effect['x']! *
+                              effect['x']! *
                                   (constraints.maxWidth - ballSize),
                               top:
-                                  effect['y']! *
+                              effect['y']! *
                                   (constraints.maxHeight - ballSize),
                               child: SizedBox(
                                 width: ballSize,

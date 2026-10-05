@@ -7,6 +7,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'games_ui_layer/alphabet_forest/alphabet_minigame_pop.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   AppAudioLifecycleService.instance.init();
@@ -28,9 +30,8 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      // Shows the "Time's up" lock screen over every screen once the child's daily screen time limit is reached.
       builder: (context, child) => ScreenTimeGate(child: child),
-      home: SplashScreen(),
+      home: AlphabetPopScreen(letter: 'c',),
     );
   }
 }
