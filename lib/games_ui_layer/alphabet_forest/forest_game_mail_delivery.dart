@@ -16,7 +16,6 @@ import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-
 import 'forest_audio_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -73,12 +72,9 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_forest_3houses.png';
-  static const String _envelopImage =
-      'assets/images/objects/forest/envelope.png';
-  static const String _mailboxImage =
-      'assets/images/objects/forest/mailbox.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_forest_3houses.png';
+  static const String _envelopImage = 'assets/images/objects/forest/envelope.png';
+  static const String _mailboxImage = 'assets/images/objects/forest/mailbox.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   // Tagalog
@@ -88,23 +84,20 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   @override
   void initState() {
     OrientationService.setLandscape();
     super.initState();
 
-    // child's calibration separate from everyone else's.
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
 
-    // Lighting card can reappear later if the face is lost again mid-play.
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
-
-    Future.microtask(() => playBackgroundMusic());
 
     _tofiFloatCtrl = AnimationController(
       vsync: this,
@@ -147,21 +140,27 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
   // ── INTRO ────────────────────────────────────────────────────────────
 
   Future<void> _startIntroFlow() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      await Future.delayed(const Duration(milliseconds: 300));
 
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _introPlaying = false;
-    });
+      setState(() {
+        _introPlaying = false;
+      });
 
-    await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 300));
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+    } catch (e) {
+      debugPrint('Intro audio error: $e');
+    } finally {
+      if (mounted) setState(() => _inputEnabled = true);
+    }
   }
 
   // ── ROUND SETUP ──────────────────────────────────────────────────────
@@ -442,8 +441,6 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
   Widget _buildLetter() {
     if (_parcelDelivered) {
-      // Parcel has just been delivered — leave the slot empty until the
-      // next round's parcel appears.
       return const SizedBox(width: 150, height: 150);
     }
 
@@ -452,9 +449,11 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
       imagePath: _envelopImage,
     );
 
-    return Draggable<String>(
+    return Opacity(
+        opacity: _inputEnabled ? 1.0 : 0.75,
+        child: Draggable<String>(
       data: _displayLetter,
-      maxSimultaneousDrags: _canDrag ? 1 : 0,
+      maxSimultaneousDrags: (_canDrag && _inputEnabled) ? 1 : 0,
       feedback: Transform.scale(
         scale: 1.15,
         child: Material(
@@ -468,6 +467,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
       ),
       childWhenDragging: Opacity(opacity: 0.3, child: parcelCard),
       child: parcelCard,
+        ),
     );
   }
 
