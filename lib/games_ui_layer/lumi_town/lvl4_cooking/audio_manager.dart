@@ -12,6 +12,10 @@ class AudioManager {
   final AudioPlayer _musicPlayer = AudioPlayer();
   final AudioPlayer _voicePlayer = AudioPlayer();
 
+  AudioPlayer get sfxPlayer => _sfxPlayer;
+  AudioPlayer get musicPlayer => _musicPlayer;
+  AudioPlayer get voicePlayer => _voicePlayer;
+
   bool _sfxEnabled = true;
   bool _musicEnabled = true;
   bool _voiceEnabled = true;
@@ -20,7 +24,9 @@ class AudioManager {
   Future<void> playVoice(String audioFile) async {
     if (!_voiceEnabled) return;
     await _voicePlayer.stop();
-    await _voicePlayer.play(AssetSource('audio/lumi_town/level4_cooking/$audioFile'));
+    await _voicePlayer.play(
+      AssetSource('audio/lumi_town/level4_cooking/$audioFile'),
+    );
   }
 
   Future<void> playVoiceAndWait(String audioFile) async {
@@ -73,7 +79,5 @@ class AudioManager {
     await _voicePlayer.stop();
   }
 
-  void dispose() {
-
-  }
+  void dispose() {}
 }

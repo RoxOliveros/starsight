@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -118,7 +119,8 @@ class BehaviorGameScreen extends StatefulWidget {
 class _BehaviorGameScreenState extends State<BehaviorGameScreen>
     with
         TrWooReactionMixin<BehaviorGameScreen>,
-        AiCameraMixin<BehaviorGameScreen> {
+        AiCameraMixin<BehaviorGameScreen>,
+        AppAudioLifecycleMixin<BehaviorGameScreen> {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
@@ -126,6 +128,14 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _drWooPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _narrationPlayer,
+    _completePlayer,
+    _drWooPlayer,
+    _sfxPlayer,
+  ];
 
   @override
   AudioPlayer get trWooPlayer => _drWooPlayer;
@@ -457,7 +467,11 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

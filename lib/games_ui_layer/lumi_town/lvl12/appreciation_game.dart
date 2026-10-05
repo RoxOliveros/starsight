@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl13/family_tree_game.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
@@ -27,7 +28,11 @@ class AppreciationGame extends StatefulWidget {
 }
 
 class _AppreciationGameState extends State<AppreciationGame>
-    with TickerProviderStateMixin, AiCameraMixin<AppreciationGame>, GameLoadingMixin {
+    with
+        TickerProviderStateMixin,
+        AiCameraMixin<AppreciationGame>,
+        GameLoadingMixin,
+        AppAudioLifecycleMixin<AppreciationGame> {
   // --- INTRO SCENE ADJUSTERS ---
   final double littleBearWidth = 0.30;
   final double littleBearX = 0.20;
@@ -147,6 +152,9 @@ class _AppreciationGameState extends State<AppreciationGame>
   final AudioPlayer _audioPlayer = AudioPlayer();
   late final AnimationController _walkCtrl;
   late final AnimationController _jumpCtrl;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
@@ -342,493 +350,489 @@ class _AppreciationGameState extends State<AppreciationGame>
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.lumiTown(),
-        gameBuilder: () =>
-            Listener(
-              onPointerDown: (_) => _tapTracker.recordGenericTap(),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (_introStep == 0) ...[
-                    Image.asset(
-                      'assets/images/backgrounds/bg_classroom_closeup.png',
-                      fit: BoxFit.cover,
-                    ),
+        gameBuilder: () => Listener(
+          onPointerDown: (_) => _tapTracker.recordGenericTap(),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (_introStep == 0) ...[
+                Image.asset(
+                  'assets/images/backgrounds/bg_classroom_closeup.png',
+                  fit: BoxFit.cover,
+                ),
 
-                    AnimatedBuilder(
-                      animation: _walkCtrl,
-                      builder: (context, child) {
-                        final double t = _walkCtrl.value;
-                        final double easedT = Curves.easeOutCubic.transform(
-                            t);
-                        final double dx = sw * (1 - easedT);
-                        final int stepCount = 8;
-                        final double bounce = t < 1.0
-                            ? (math.sin(t * stepCount * math.pi)).abs() *
-                            walkBounceHeight
-                            : 0.0;
+                AnimatedBuilder(
+                  animation: _walkCtrl,
+                  builder: (context, child) {
+                    final double t = _walkCtrl.value;
+                    final double easedT = Curves.easeOutCubic.transform(t);
+                    final double dx = sw * (1 - easedT);
+                    final int stepCount = 8;
+                    final double bounce = t < 1.0
+                        ? (math.sin(t * stepCount * math.pi)).abs() *
+                              walkBounceHeight
+                        : 0.0;
 
-                        return Positioned(
-                          left: (sw * domaTargetX) + dx,
-                          bottom: (sh * domaBottom) + bounce,
-                          child: child!,
-                        );
-                      },
-                      child: Image.asset(
-                        'assets/images/characters/doma_the_penguin.png',
-                        width: sw * domaWidth,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
+                    return Positioned(
+                      left: (sw * domaTargetX) + dx,
+                      bottom: (sh * domaBottom) + bounce,
+                      child: child!,
+                    );
+                  },
+                  child: Image.asset(
+                    'assets/images/characters/doma_the_penguin.png',
+                    width: sw * domaWidth,
+                    fit: BoxFit.contain,
+                  ),
+                ),
 
-                    Positioned(
-                      left: sw * littleBearX,
-                      bottom: sh * littleBearBottom,
-                      child: Image.asset(
-                        'assets/images/characters/little_bear_stressed.png',
-                        width: sw * littleBearWidth,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ] else
-                    if (_introStep == 1) ...[
-                      Image.asset(
-                        'assets/images/objects/lumi/littlebear_and_doma.png',
-                        fit: BoxFit.cover,
-                      ),
-                    ] else
-                      if (_introStep == 2) ...[
-                        Image.asset(
-                          'assets/images/backgrounds/bg_lumi_puzzle.png',
-                          fit: BoxFit.cover,
-                        ),
+                Positioned(
+                  left: sw * littleBearX,
+                  bottom: sh * littleBearBottom,
+                  child: Image.asset(
+                    'assets/images/characters/little_bear_stressed.png',
+                    width: sw * littleBearWidth,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ] else if (_introStep == 1) ...[
+                Image.asset(
+                  'assets/images/objects/lumi/littlebear_and_doma.png',
+                  fit: BoxFit.cover,
+                ),
+              ] else if (_introStep == 2) ...[
+                Image.asset(
+                  'assets/images/backgrounds/bg_lumi_puzzle.png',
+                  fit: BoxFit.cover,
+                ),
 
-                        if (_currentPuzzle == 1) ...[
-                          Positioned(
-                            top: sh * place3Y,
-                            left: sw * place3X,
-                            child: _buildPlaceholder(
-                              placeholderPath:
-                              'assets/images/objects/lumi/doma_placeholder.png',
-                              activePath: 'assets/images/objects/lumi/doma_rp.png',
-                              width: sw * place3Width,
-                              expectedId: 'doma',
-                              isPlaced: isDomaPlaced,
-                              onPlaced: () {
-                                setState(() => isDomaPlaced = true);
-                                _checkWinCondition();
-                              },
-                            ),
-                          ),
-                          Positioned(
-                            top: sh * place1Y,
-                            left: sw * place1X,
-                            child: _buildPlaceholder(
-                              placeholderPath:
-                              'assets/images/objects/lumi/maraming_placeholder.png',
-                              activePath: 'assets/images/objects/lumi/maraming_rp.png',
-                              width: sw * place1Width,
-                              expectedId: 'maraming',
-                              isPlaced: isMaramingPlaced,
-                              onPlaced: () {
-                                setState(() => isMaramingPlaced = true);
-                                _checkWinCondition();
-                              },
-                            ),
-                          ),
-                          Positioned(
-                            top: sh * place2Y,
-                            left: sw * place2X,
-                            child: _buildPlaceholder(
-                              placeholderPath:
-                              'assets/images/objects/lumi/salamat_placeholder.png',
-                              activePath: 'assets/images/objects/lumi/salamat_rp.png',
-                              width: sw * place2Width,
-                              expectedId: 'salamat_orange',
-                              isPlaced: isSalamatPlaced,
-                              onPlaced: () {
-                                setState(() => isSalamatPlaced = true);
-                                _checkWinCondition();
-                              },
-                            ),
-                          ),
-
-                          Positioned(
-                            top: sh * drag1Y,
-                            left: sw * drag1X,
-                            child: _buildDraggablePiece(
-                              assetPath: 'assets/images/objects/lumi/salamat_rp.png',
-                              width: sw * drag1Width,
-                              id: 'salamat_orange',
-                              isPlaced: isSalamatPlaced,
-                            ),
-                          ),
-                          Positioned(
-                            top: sh * drag2Y,
-                            left: sw * drag2X,
-                            child: _buildDraggablePiece(
-                              assetPath: 'assets/images/objects/lumi/doma_rp.png',
-                              width: sw * drag2Width,
-                              id: 'doma',
-                              isPlaced: isDomaPlaced,
-                            ),
-                          ),
-                          Positioned(
-                            top: sh * drag3Y,
-                            left: sw * drag3X,
-                            child: _buildDraggablePiece(
-                              assetPath: 'assets/images/objects/lumi/maraming_rp.png',
-                              width: sw * drag3Width,
-                              id: 'maraming',
-                              isPlaced: isMaramingPlaced,
-                            ),
-                          ),
-                          Positioned(
-                            top: sh * drag4Y,
-                            left: sw * drag4X,
-                            child: _buildDraggablePiece(
-                              assetPath: 'assets/images/objects/lumi/salamat_wp.png',
-                              width: sw * drag4Width,
-                              id: 'salamat_blue',
-                              isPlaced: false,
-                            ),
-                          ),
-                        ] else
-                          if (_currentPuzzle == 2) ...[
-                            Positioned(
-                              top: sh * p2Place1Y,
-                              left: sw * p2Place1X,
-                              child: _buildPlaceholder(
-                                placeholderPath:
-                                'assets/images/objects/lumi/dahil_placeholder.png',
-                                activePath: 'assets/images/objects/lumi/dahil_rp.png',
-                                width: sw * p2Place1Width,
-                                expectedId: 'dahil',
-                                isPlaced: isDahilPlaced,
-                                onPlaced: () {
-                                  setState(() => isDahilPlaced = true);
-                                  _checkWinCondition();
-                                },
-                              ),
-                            ),
-                            Positioned(
-                              top: sh * p2Place3Y,
-                              left: sw * p2Place3X,
-                              child: _buildPlaceholder(
-                                placeholderPath:
-                                'assets/images/objects/lumi/moako_placeholder.png',
-                                activePath: 'assets/images/objects/lumi/moako_rp.png',
-                                width: sw * p2Place3Width,
-                                expectedId: 'mo_ako',
-                                isPlaced: isMoAkoPlaced,
-                                onPlaced: () {
-                                  setState(() => isMoAkoPlaced = true);
-                                  _checkWinCondition();
-                                },
-                              ),
-                            ),
-                            Positioned(
-                              top: sh * p2Place2Y,
-                              left: sw * p2Place2X,
-                              child: _buildPlaceholder(
-                                placeholderPath:
-                                'assets/images/objects/lumi/tinulungan_placeholder.png',
-                                activePath: 'assets/images/objects/lumi/tinulungan_rp.png',
-                                width: sw * p2Place2Width,
-                                expectedId: 'tinulungan',
-                                isPlaced: isTinulunganPlaced,
-                                onPlaced: () {
-                                  setState(() => isTinulunganPlaced = true);
-                                  _checkWinCondition();
-                                },
-                              ),
-                            ),
-
-                            Positioned(
-                              top: sh * p2Drag1Y,
-                              left: sw * p2Drag1X,
-                              child: _buildDraggablePiece(
-                                assetPath: 'assets/images/objects/lumi/dahil_rp.png',
-                                width: sw * p2Drag1Width,
-                                id: 'dahil',
-                                isPlaced: isDahilPlaced,
-                              ),
-                            ),
-                            Positioned(
-                              top: sh * p2Drag2Y,
-                              left: sw * p2Drag2X,
-                              child: _buildDraggablePiece(
-                                assetPath: 'assets/images/objects/lumi/ginulo_wp.png',
-                                width: sw * p2Drag2Width,
-                                id: 'ginulo_distractor',
-                                isPlaced: false,
-                              ),
-                            ),
-                            Positioned(
-                              top: sh * p2Drag3Y,
-                              left: sw * p2Drag3X,
-                              child: _buildDraggablePiece(
-                                assetPath: 'assets/images/objects/lumi/moako_rp.png',
-                                width: sw * p2Drag3Width,
-                                id: 'mo_ako',
-                                isPlaced: isMoAkoPlaced,
-                              ),
-                            ),
-                            Positioned(
-                              top: sh * p2Drag4Y,
-                              left: sw * p2Drag4X,
-                              child: _buildDraggablePiece(
-                                assetPath: 'assets/images/objects/lumi/tinulungan_rp.png',
-                                width: sw * p2Drag4Width,
-                                id: 'tinulungan',
-                                isPlaced: isTinulunganPlaced,
-                              ),
-                            ),
-                          ] else
-                            if (_currentPuzzle == 3) ...[
-                              Positioned(
-                                top: sh * p3Place3Y,
-                                left: sw * p3Place3X,
-                                child: _buildPlaceholder(
-                                  placeholderPath:
-                                  'assets/images/objects/lumi/iyon_placeholder.png',
-                                  activePath: 'assets/images/objects/lumi/iyon_rp.png',
-                                  width: sw * p3Place3Width,
-                                  expectedId: 'iyon',
-                                  isPlaced: isIyonPlaced,
-                                  onPlaced: () {
-                                    setState(() => isIyonPlaced = true);
-                                    _checkWinCondition();
-                                  },
-                                ),
-                              ),
-                              Positioned(
-                                top: sh * p3Place2Y,
-                                left: sw * p3Place2X,
-                                child: _buildPlaceholder(
-                                  placeholderPath:
-                                  'assets/images/objects/lumi/anuman_placeholder.png',
-                                  activePath: 'assets/images/objects/lumi/anuman_rp.png',
-                                  width: sw * p3Place2Width,
-                                  expectedId: 'anuman',
-                                  isPlaced: isAnumanPlaced,
-                                  onPlaced: () {
-                                    setState(() => isAnumanPlaced = true);
-                                    _checkWinCondition();
-                                  },
-                                ),
-                              ),
-                              Positioned(
-                                top: sh * p3Place1Y,
-                                left: sw * p3Place1X,
-                                child: _buildPlaceholder(
-                                  placeholderPath:
-                                  'assets/images/objects/lumi/walang_placeholder.png',
-                                  activePath: 'assets/images/objects/lumi/walang_rp.png',
-                                  width: sw * p3Place1Width,
-                                  expectedId: 'walang',
-                                  isPlaced: isWalangPlaced,
-                                  onPlaced: () {
-                                    setState(() => isWalangPlaced = true);
-                                    _checkWinCondition();
-                                  },
-                                ),
-                              ),
-
-                              Positioned(
-                                top: sh * p3Drag1Y,
-                                left: sw * p3Drag1X,
-                                child: _buildDraggablePiece(
-                                  assetPath: 'assets/images/objects/lumi/iyon_rp.png',
-                                  width: sw * p3Drag1Width,
-                                  id: 'iyon',
-                                  isPlaced: isIyonPlaced,
-                                ),
-                              ),
-                              Positioned(
-                                top: sh * p3Drag2Y,
-                                left: sw * p3Drag2X,
-                                child: _buildDraggablePiece(
-                                  assetPath: 'assets/images/objects/lumi/anuman_rp.png',
-                                  width: sw * p3Drag2Width,
-                                  id: 'anuman',
-                                  isPlaced: isAnumanPlaced,
-                                ),
-                              ),
-                              Positioned(
-                                top: sh * p3Drag3Y,
-                                left: sw * p3Drag3X,
-                                child: _buildDraggablePiece(
-                                  assetPath: 'assets/images/objects/lumi/walang_rp.png',
-                                  width: sw * p3Drag3Width,
-                                  id: 'walang',
-                                  isPlaced: isWalangPlaced,
-                                ),
-                              ),
-                              Positioned(
-                                top: sh * p3Drag4Y,
-                                left: sw * p3Drag4X,
-                                child: _buildDraggablePiece(
-                                  assetPath: 'assets/images/objects/lumi/kwenta_wp.png',
-                                  width: sw * p3Drag4Width,
-                                  id: 'kwenta_distractor',
-                                  isPlaced: false,
-                                ),
-                              ),
-                            ],
-                      ] else
-                        if (_introStep == 3) ...[
-                          Image.asset(
-                            'assets/images/backgrounds/bg_classroom_closeup.png',
-                            fit: BoxFit.cover,
-                          ),
-                          Positioned(
-                            left: sw * endBearX,
-                            bottom: sh * endBearBottom,
-                            child: Image.asset(
-                              'assets/images/characters/little_bear_happy.png',
-                              width: sw * endBearWidth,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                          Positioned(
-                            left: sw * endDomaX,
-                            bottom: sh * endDomaBottom,
-                            child: Image.asset(
-                              'assets/images/characters/doma_the_penguin.png',
-                              width: sw * endDomaWidth,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ] else
-                          if (_introStep >= 4) ...[
-                            Image.asset(
-                              'assets/images/backgrounds/bg_classroom_closeup.png',
-                              fit: BoxFit.cover,
-                            ),
-                            AnimatedBuilder(
-                              animation: _jumpCtrl,
-                              builder: (context, child) {
-                                final bounce = _isJumping
-                                    ? _jumpCtrl.value * finalJumpHeight
-                                    : 0.0;
-                                return Positioned(
-                                  left: sw * endBearX,
-                                  bottom: sh * endBearBottom + bounce,
-                                  child: child!,
-                                );
-                              },
-                              child: Image.asset(
-                                'assets/images/characters/little_bear_happy.png',
-                                width: sw * endBearWidth,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                            AnimatedBuilder(
-                              animation: _jumpCtrl,
-                              builder: (context, child) {
-                                final bounce = _isJumping
-                                    ? _jumpCtrl.value * finalJumpHeight
-                                    : 0.0;
-                                return Positioned(
-                                  left: sw * smilingDomaX,
-                                  bottom: sh * smilingDomaBottom + bounce,
-                                  child: child!,
-                                );
-                              },
-                              child: Image.asset(
-                                'assets/images/characters/doma_smiling.png',
-                                width: 250,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-
-                            if (_introStep == 5)
-                              Positioned.fill(
-                                child: Container(
-                                  color: Colors.black.withValues(
-                                      alpha: darkOverlayOpacity),
-                                  child: Align(
-                                    alignment: Alignment.bottomCenter,
-                                    child: Transform.translate(
-                                      offset: Offset(0, drWooVerticalOffset),
-                                      child: Image.asset(
-                                        'assets/images/characters/tr.woo_the_owl.png',
-                                        height: sh * drWooHeightPercentage,
-                                        fit: BoxFit.contain,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-
-                  Positioned(top: 25, left: 25, child: LumiXButton()),
-                  Positioned(top: 25,
-                      right: 25,
-                      child: LumiLevelBadge(level: widget.level)),
-
-                  if (hasCapturedFirstFrame && !isFaceDetected &&
-                      !_hideLightingCard)
-                    LightingPromptCard(
-                      onClose: () {
-                        setState(() => _hideLightingCard = true);
-                        releaseFaceGate();
+                if (_currentPuzzle == 1) ...[
+                  Positioned(
+                    top: sh * place3Y,
+                    left: sw * place3X,
+                    child: _buildPlaceholder(
+                      placeholderPath:
+                          'assets/images/objects/lumi/doma_placeholder.png',
+                      activePath: 'assets/images/objects/lumi/doma_rp.png',
+                      width: sw * place3Width,
+                      expectedId: 'doma',
+                      isPlaced: isDomaPlaced,
+                      onPlaced: () {
+                        setState(() => isDomaPlaced = true);
+                        _checkWinCondition();
                       },
                     ),
-
-                  if (_isGameWon)
-                    Positioned.fill(
-                      child: GoodJobOverlay(
-                        characterImage: 'assets/images/characters/tr.woo_smiling.png',
-                        onNext: () {
-                          if (mounted) {
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    FamilyTreeGame(level: widget.level + 1),
-                              ),
-                                  (route) => route.isFirst,
-                            );
-                          }
-                        },
-                        onRestart: () {
-                          setState(() {
-                            _hasSavedResult = false;
-                            _tapTracker.startSession();
-                            _introStep = 0;
-                            _currentPuzzle = 1;
-                            _isGameWon = false;
-                            _isJumping = false;
-
-                            isMaramingPlaced = false;
-                            isSalamatPlaced = false;
-                            isDomaPlaced = false;
-
-                            isDahilPlaced = false;
-                            isTinulunganPlaced = false;
-                            isMoAkoPlaced = false;
-
-                            isWalangPlaced = false;
-                            isAnumanPlaced = false;
-                            isIyonPlaced = false;
-
-                            _walkCtrl.reset();
-                            _jumpCtrl.stop();
-                            _walkCtrl.forward();
-                            _playAudio(
-                              'audio/lumi_town/level12/appreciation_game_intro.wav',
-                            );
-                          });
-                        },
-                        onBack: () => Navigator.of(context).pop(),
-                      ),
+                  ),
+                  Positioned(
+                    top: sh * place1Y,
+                    left: sw * place1X,
+                    child: _buildPlaceholder(
+                      placeholderPath:
+                          'assets/images/objects/lumi/maraming_placeholder.png',
+                      activePath: 'assets/images/objects/lumi/maraming_rp.png',
+                      width: sw * place1Width,
+                      expectedId: 'maraming',
+                      isPlaced: isMaramingPlaced,
+                      onPlaced: () {
+                        setState(() => isMaramingPlaced = true);
+                        _checkWinCondition();
+                      },
                     ),
+                  ),
+                  Positioned(
+                    top: sh * place2Y,
+                    left: sw * place2X,
+                    child: _buildPlaceholder(
+                      placeholderPath:
+                          'assets/images/objects/lumi/salamat_placeholder.png',
+                      activePath: 'assets/images/objects/lumi/salamat_rp.png',
+                      width: sw * place2Width,
+                      expectedId: 'salamat_orange',
+                      isPlaced: isSalamatPlaced,
+                      onPlaced: () {
+                        setState(() => isSalamatPlaced = true);
+                        _checkWinCondition();
+                      },
+                    ),
+                  ),
+
+                  Positioned(
+                    top: sh * drag1Y,
+                    left: sw * drag1X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/salamat_rp.png',
+                      width: sw * drag1Width,
+                      id: 'salamat_orange',
+                      isPlaced: isSalamatPlaced,
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * drag2Y,
+                    left: sw * drag2X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/doma_rp.png',
+                      width: sw * drag2Width,
+                      id: 'doma',
+                      isPlaced: isDomaPlaced,
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * drag3Y,
+                    left: sw * drag3X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/maraming_rp.png',
+                      width: sw * drag3Width,
+                      id: 'maraming',
+                      isPlaced: isMaramingPlaced,
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * drag4Y,
+                    left: sw * drag4X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/salamat_wp.png',
+                      width: sw * drag4Width,
+                      id: 'salamat_blue',
+                      isPlaced: false,
+                    ),
+                  ),
+                ] else if (_currentPuzzle == 2) ...[
+                  Positioned(
+                    top: sh * p2Place1Y,
+                    left: sw * p2Place1X,
+                    child: _buildPlaceholder(
+                      placeholderPath:
+                          'assets/images/objects/lumi/dahil_placeholder.png',
+                      activePath: 'assets/images/objects/lumi/dahil_rp.png',
+                      width: sw * p2Place1Width,
+                      expectedId: 'dahil',
+                      isPlaced: isDahilPlaced,
+                      onPlaced: () {
+                        setState(() => isDahilPlaced = true);
+                        _checkWinCondition();
+                      },
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * p2Place3Y,
+                    left: sw * p2Place3X,
+                    child: _buildPlaceholder(
+                      placeholderPath:
+                          'assets/images/objects/lumi/moako_placeholder.png',
+                      activePath: 'assets/images/objects/lumi/moako_rp.png',
+                      width: sw * p2Place3Width,
+                      expectedId: 'mo_ako',
+                      isPlaced: isMoAkoPlaced,
+                      onPlaced: () {
+                        setState(() => isMoAkoPlaced = true);
+                        _checkWinCondition();
+                      },
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * p2Place2Y,
+                    left: sw * p2Place2X,
+                    child: _buildPlaceholder(
+                      placeholderPath:
+                          'assets/images/objects/lumi/tinulungan_placeholder.png',
+                      activePath:
+                          'assets/images/objects/lumi/tinulungan_rp.png',
+                      width: sw * p2Place2Width,
+                      expectedId: 'tinulungan',
+                      isPlaced: isTinulunganPlaced,
+                      onPlaced: () {
+                        setState(() => isTinulunganPlaced = true);
+                        _checkWinCondition();
+                      },
+                    ),
+                  ),
+
+                  Positioned(
+                    top: sh * p2Drag1Y,
+                    left: sw * p2Drag1X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/dahil_rp.png',
+                      width: sw * p2Drag1Width,
+                      id: 'dahil',
+                      isPlaced: isDahilPlaced,
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * p2Drag2Y,
+                    left: sw * p2Drag2X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/ginulo_wp.png',
+                      width: sw * p2Drag2Width,
+                      id: 'ginulo_distractor',
+                      isPlaced: false,
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * p2Drag3Y,
+                    left: sw * p2Drag3X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/moako_rp.png',
+                      width: sw * p2Drag3Width,
+                      id: 'mo_ako',
+                      isPlaced: isMoAkoPlaced,
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * p2Drag4Y,
+                    left: sw * p2Drag4X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/tinulungan_rp.png',
+                      width: sw * p2Drag4Width,
+                      id: 'tinulungan',
+                      isPlaced: isTinulunganPlaced,
+                    ),
+                  ),
+                ] else if (_currentPuzzle == 3) ...[
+                  Positioned(
+                    top: sh * p3Place3Y,
+                    left: sw * p3Place3X,
+                    child: _buildPlaceholder(
+                      placeholderPath:
+                          'assets/images/objects/lumi/iyon_placeholder.png',
+                      activePath: 'assets/images/objects/lumi/iyon_rp.png',
+                      width: sw * p3Place3Width,
+                      expectedId: 'iyon',
+                      isPlaced: isIyonPlaced,
+                      onPlaced: () {
+                        setState(() => isIyonPlaced = true);
+                        _checkWinCondition();
+                      },
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * p3Place2Y,
+                    left: sw * p3Place2X,
+                    child: _buildPlaceholder(
+                      placeholderPath:
+                          'assets/images/objects/lumi/anuman_placeholder.png',
+                      activePath: 'assets/images/objects/lumi/anuman_rp.png',
+                      width: sw * p3Place2Width,
+                      expectedId: 'anuman',
+                      isPlaced: isAnumanPlaced,
+                      onPlaced: () {
+                        setState(() => isAnumanPlaced = true);
+                        _checkWinCondition();
+                      },
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * p3Place1Y,
+                    left: sw * p3Place1X,
+                    child: _buildPlaceholder(
+                      placeholderPath:
+                          'assets/images/objects/lumi/walang_placeholder.png',
+                      activePath: 'assets/images/objects/lumi/walang_rp.png',
+                      width: sw * p3Place1Width,
+                      expectedId: 'walang',
+                      isPlaced: isWalangPlaced,
+                      onPlaced: () {
+                        setState(() => isWalangPlaced = true);
+                        _checkWinCondition();
+                      },
+                    ),
+                  ),
+
+                  Positioned(
+                    top: sh * p3Drag1Y,
+                    left: sw * p3Drag1X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/iyon_rp.png',
+                      width: sw * p3Drag1Width,
+                      id: 'iyon',
+                      isPlaced: isIyonPlaced,
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * p3Drag2Y,
+                    left: sw * p3Drag2X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/anuman_rp.png',
+                      width: sw * p3Drag2Width,
+                      id: 'anuman',
+                      isPlaced: isAnumanPlaced,
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * p3Drag3Y,
+                    left: sw * p3Drag3X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/walang_rp.png',
+                      width: sw * p3Drag3Width,
+                      id: 'walang',
+                      isPlaced: isWalangPlaced,
+                    ),
+                  ),
+                  Positioned(
+                    top: sh * p3Drag4Y,
+                    left: sw * p3Drag4X,
+                    child: _buildDraggablePiece(
+                      assetPath: 'assets/images/objects/lumi/kwenta_wp.png',
+                      width: sw * p3Drag4Width,
+                      id: 'kwenta_distractor',
+                      isPlaced: false,
+                    ),
+                  ),
                 ],
+              ] else if (_introStep == 3) ...[
+                Image.asset(
+                  'assets/images/backgrounds/bg_classroom_closeup.png',
+                  fit: BoxFit.cover,
+                ),
+                Positioned(
+                  left: sw * endBearX,
+                  bottom: sh * endBearBottom,
+                  child: Image.asset(
+                    'assets/images/characters/little_bear_happy.png',
+                    width: sw * endBearWidth,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                Positioned(
+                  left: sw * endDomaX,
+                  bottom: sh * endDomaBottom,
+                  child: Image.asset(
+                    'assets/images/characters/doma_the_penguin.png',
+                    width: sw * endDomaWidth,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ] else if (_introStep >= 4) ...[
+                Image.asset(
+                  'assets/images/backgrounds/bg_classroom_closeup.png',
+                  fit: BoxFit.cover,
+                ),
+                AnimatedBuilder(
+                  animation: _jumpCtrl,
+                  builder: (context, child) {
+                    final bounce = _isJumping
+                        ? _jumpCtrl.value * finalJumpHeight
+                        : 0.0;
+                    return Positioned(
+                      left: sw * endBearX,
+                      bottom: sh * endBearBottom + bounce,
+                      child: child!,
+                    );
+                  },
+                  child: Image.asset(
+                    'assets/images/characters/little_bear_happy.png',
+                    width: sw * endBearWidth,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                AnimatedBuilder(
+                  animation: _jumpCtrl,
+                  builder: (context, child) {
+                    final bounce = _isJumping
+                        ? _jumpCtrl.value * finalJumpHeight
+                        : 0.0;
+                    return Positioned(
+                      left: sw * smilingDomaX,
+                      bottom: sh * smilingDomaBottom + bounce,
+                      child: child!,
+                    );
+                  },
+                  child: Image.asset(
+                    'assets/images/characters/doma_smiling.png',
+                    width: 250,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+
+                if (_introStep == 5)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withValues(alpha: darkOverlayOpacity),
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Transform.translate(
+                          offset: Offset(0, drWooVerticalOffset),
+                          child: Image.asset(
+                            'assets/images/characters/tr.woo_the_owl.png',
+                            height: sh * drWooHeightPercentage,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+
+              Positioned(top: 25, left: 25, child: LumiXButton()),
+              Positioned(
+                top: 25,
+                right: 25,
+                child: LumiLevelBadge(level: widget.level),
               ),
-            ),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_isGameWon)
+                Positioned.fill(
+                  child: GoodJobOverlay(
+                    characterImage:
+                        'assets/images/characters/tr.woo_smiling.png',
+                    onNext: () {
+                      if (mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                FamilyTreeGame(level: widget.level + 1),
+                          ),
+                          (route) => route.isFirst,
+                        );
+                      }
+                    },
+                    onRestart: () {
+                      setState(() {
+                        _hasSavedResult = false;
+                        _tapTracker.startSession();
+                        _introStep = 0;
+                        _currentPuzzle = 1;
+                        _isGameWon = false;
+                        _isJumping = false;
+
+                        isMaramingPlaced = false;
+                        isSalamatPlaced = false;
+                        isDomaPlaced = false;
+
+                        isDahilPlaced = false;
+                        isTinulunganPlaced = false;
+                        isMoAkoPlaced = false;
+
+                        isWalangPlaced = false;
+                        isAnumanPlaced = false;
+                        isIyonPlaced = false;
+
+                        _walkCtrl.reset();
+                        _jumpCtrl.stop();
+                        _walkCtrl.forward();
+                        _playAudio(
+                          'audio/lumi_town/level12/appreciation_game_intro.wav',
+                        );
+                      });
+                    },
+                    onBack: () => Navigator.of(context).pop(),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
-    }
+  }
 
   Widget _buildPlaceholder({
     required String placeholderPath,

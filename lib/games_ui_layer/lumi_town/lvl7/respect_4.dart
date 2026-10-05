@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/respect_5.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +21,8 @@ class Respect4Screen extends StatefulWidget {
   const Respect4Screen({
     Key? key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   }) : super(key: key);
 
   @override
@@ -28,9 +30,16 @@ class Respect4Screen extends StatefulWidget {
 }
 
 class _Respect4ScreenState extends State<Respect4Screen>
-    with TickerProviderStateMixin, TrWooReactionMixin, AiCameraMixin<Respect4Screen> {
-
+    with
+        TickerProviderStateMixin,
+        TrWooReactionMixin,
+        AiCameraMixin<Respect4Screen>,
+        AppAudioLifecycleMixin<Respect4Screen> {
   late final AudioPlayer _audioPlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+
   late final AnimationController _walkController;
 
   final Duration _walkDuration = const Duration(milliseconds: 1800);
@@ -226,7 +235,7 @@ class _Respect4ScreenState extends State<Respect4Screen>
                         builder: (context) => Respect5Screen(
                           priorEmotions: emotionsSoFar,
                           tapTracker: widget.tapTracker,
-                          level: widget.level
+                          level: widget.level,
                         ),
                       ),
                     );
@@ -241,7 +250,11 @@ class _Respect4ScreenState extends State<Respect4Screen>
             ],
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

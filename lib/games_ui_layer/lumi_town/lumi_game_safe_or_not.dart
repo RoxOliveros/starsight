@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -91,7 +92,10 @@ class SafeOrNotGameScreen extends StatefulWidget {
 }
 
 class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
-    with TrWooReactionMixin, AiCameraMixin<SafeOrNotGameScreen> {
+    with
+        TrWooReactionMixin,
+        AiCameraMixin<SafeOrNotGameScreen>,
+        AppAudioLifecycleMixin<SafeOrNotGameScreen> {
   @override
   AudioPlayer get trWooPlayer => _narrationPlayer;
 
@@ -100,6 +104,9 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
   // --- Audio ----------------------------------------------------------
   final AudioPlayer _narrationPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_narrationPlayer, _sfxPlayer];
 
   // --- Tracker State --------------------------------------------------
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -468,7 +475,11 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -580,7 +591,7 @@ class AlphaHitImage extends StatefulWidget {
   final String asset;
   final VoidCallback onTap;
   final int alphaThreshold; // 0-255, pixel counts as "solid" above this
-  final int tolerancePx;    // forgiveness around edges, in decoded-image pixels
+  final int tolerancePx; // forgiveness around edges, in decoded-image pixels
 
   const AlphaHitImage({
     super.key,

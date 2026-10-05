@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -22,7 +23,8 @@ class Step2WashingScreen extends StatefulWidget {
   const Step2WashingScreen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -30,7 +32,10 @@ class Step2WashingScreen extends StatefulWidget {
 }
 
 class _Step2WashingScreenState extends State<Step2WashingScreen>
-    with TickerProviderStateMixin, AiCameraMixin<Step2WashingScreen> {
+    with
+        TickerProviderStateMixin,
+        AiCameraMixin<Step2WashingScreen>,
+        AppAudioLifecycleMixin<Step2WashingScreen> {
   final AudioPlayer _player = AudioPlayer();
   bool _hideLightingCard = false;
   _WashPhase _phase = _WashPhase.dragging;
@@ -50,6 +55,8 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
   double _towelX = 0.0;
   double _towelY = 0.0;
   bool _isWiping = false;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   @override
   void initState() {
@@ -105,7 +112,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
         Step3ChoiceScreen(
           priorEmotions: emotionsSoFar,
           tapTracker: widget.tapTracker,
-          level: widget.level
+          level: widget.level,
         ),
       ),
     );
@@ -351,7 +358,11 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
               ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

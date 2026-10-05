@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_ending.dart';
 import 'package:flutter/material.dart';
@@ -18,7 +19,8 @@ class Emotion8Screen extends StatefulWidget {
   const Emotion8Screen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -26,9 +28,15 @@ class Emotion8Screen extends StatefulWidget {
 }
 
 class _Emotion8ScreenState extends State<Emotion8Screen>
-    with TrWooReactionMixin, AiCameraMixin<Emotion8Screen> {
+    with
+        TrWooReactionMixin,
+        AiCameraMixin<Emotion8Screen>,
+        AppAudioLifecycleMixin<Emotion8Screen> {
   late final AudioPlayer _audioPlayer;
   late final AudioPlayer _narratorPlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _narratorPlayer];
 
   bool _isCorrectlyAnswered = false;
   bool _showSparkles = false;
@@ -67,7 +75,7 @@ class _Emotion8ScreenState extends State<Emotion8Screen>
               builder: (context) => EmotionEndingScreen(
                 priorEmotions: emotionsSoFar,
                 tapTracker: widget.tapTracker,
-                level: widget.level
+                level: widget.level,
               ),
             ),
           );
@@ -162,9 +170,7 @@ class _Emotion8ScreenState extends State<Emotion8Screen>
                         _isSuccessAudioPlaying = true;
                         setState(() => _showStars = false);
 
-                        await Future.delayed(
-                          const Duration(milliseconds: 500),
-                        );
+                        await Future.delayed(const Duration(milliseconds: 500));
                         await _narratorPlayer.stop();
                         await _narratorPlayer.play(AssetSource(_audioP6Rc));
 
@@ -208,11 +214,12 @@ class _Emotion8ScreenState extends State<Emotion8Screen>
                 ),
               ),
 
-
               Positioned(top: 25, left: 25, child: LumiXButton()),
-              Positioned(top: 25,
-                  right: 25,
-                  child: LumiLevelBadge(level: widget.level)),
+              Positioned(
+                top: 25,
+                right: 25,
+                child: LumiLevelBadge(level: widget.level),
+              ),
 
               Positioned(
                 right: paddingEdge,

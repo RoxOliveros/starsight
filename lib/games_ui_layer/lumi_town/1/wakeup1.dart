@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/1/wakeup2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,7 +29,8 @@ class Lumi1ValuesWakeup extends StatefulWidget {
     this.imagePath = 'assets/animations/sleeping.webp',
     this.audioBinPath2 = 'assets/audio/lumi_town/level1/gising.wav',
     this.loopAudio = false,
-    this.volume = 1.0, required this.level,
+    this.volume = 1.0,
+    required this.level,
   });
 
   @override
@@ -36,7 +38,10 @@ class Lumi1ValuesWakeup extends StatefulWidget {
 }
 
 class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
-    with SingleTickerProviderStateMixin, AiCameraMixin<Lumi1ValuesWakeup> {
+    with
+        SingleTickerProviderStateMixin,
+        AiCameraMixin<Lumi1ValuesWakeup>,
+        AppAudioLifecycleMixin<Lumi1ValuesWakeup> {
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
 
@@ -45,6 +50,9 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   StreamSubscription? _completeSub;
   String? _audioError;
   bool _audioFinished = false;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   // ── Speech ─────────────────────────────────────────────────────────────────
   final SpeechToText _speech = SpeechToText();
@@ -287,7 +295,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
             pageBuilder: (_, __, ___) => Lumi2ValuesWakingup(
               priorEmotions: emotionsSoFar,
               tapTracker: _tapTracker,
-              level: widget.level
+              level: widget.level,
             ),
             transitionsBuilder: (_, animation, __, child) {
               return FadeTransition(opacity: animation, child: child);
@@ -318,39 +326,43 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
       backgroundColor: Colors.white,
       body: _animationReady
           ? Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset(
-                widget.imagePath,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-                errorBuilder: (context, error, stack) =>
-                    _buildImageError(),
-              ),
-              if (_audioError != null) _buildAudioErrorBadge(),
-              _buildMeter(),
+              onPointerDown: (_) => _tapTracker.recordGenericTap(),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(
+                      widget.imagePath,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      errorBuilder: (context, error, stack) =>
+                          _buildImageError(),
+                    ),
+                    if (_audioError != null) _buildAudioErrorBadge(),
+                    _buildMeter(),
 
-              Positioned(top: 25, left: 25, child: LumiXButton()),
-              Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+                    Positioned(top: 25, left: 25, child: LumiXButton()),
+                    Positioned(
+                      top: 25,
+                      right: 25,
+                      child: LumiLevelBadge(level: widget.level),
+                    ),
 
-              if (hasCapturedFirstFrame &&
-                  !isFaceDetected &&
-                  !_hideLightingCard)
-                LightingPromptCard(
-                  onClose: () {
-                    setState(() => _hideLightingCard = true);
-                    releaseFaceGate();
-                  },
+                    if (hasCapturedFirstFrame &&
+                        !isFaceDetected &&
+                        !_hideLightingCard)
+                      LightingPromptCard(
+                        onClose: () {
+                          setState(() => _hideLightingCard = true);
+                          releaseFaceGate();
+                        },
+                      ),
+                  ],
                 ),
-            ],
-          ),
-        ),
-      )
+              ),
+            )
           : LoadingScreen.lumiTown(),
     );
   }

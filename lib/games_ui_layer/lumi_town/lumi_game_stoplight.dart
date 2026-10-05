@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -33,7 +34,8 @@ const String _completeAudio = '${_audioBase}stoplight_complete.wav';
 const String _sleepingScene = 'assets/animations/sleeping.webp';
 const String _bikingScene = 'assets/images/objects/lumi/biking_scene.png';
 const String _snacksScene = 'assets/images/objects/lumi/snacks_scene.png';
-const String _watchingTvScene = 'assets/images/objects/lumi/watching_tv_scene.png';
+const String _watchingTvScene =
+    'assets/images/objects/lumi/watching_tv_scene.png';
 const String _gamingScene = 'assets/images/objects/lumi/gaming_scene.png';
 
 // ============================================================================
@@ -115,13 +117,21 @@ class StoplightGameScreen extends StatefulWidget {
 class _StoplightGameScreenState extends State<StoplightGameScreen>
     with
         TrWooReactionMixin<StoplightGameScreen>,
-        AiCameraMixin<StoplightGameScreen> {
+        AiCameraMixin<StoplightGameScreen>,
+        AppAudioLifecycleMixin<StoplightGameScreen> {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
   final AudioPlayer _narrationPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _drWooPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _narrationPlayer,
+    _completePlayer,
+    _drWooPlayer,
+  ];
 
   @override
   AudioPlayer get trWooPlayer => _drWooPlayer;
@@ -431,9 +441,7 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
           children: [
             Positioned.fill(child: Image.asset(_roadBg, fit: BoxFit.cover)),
 
-            Offstage(
-              child: Image.asset(_sleepingScene, width: 1, height: 1),
-            ),
+            Offstage(child: Image.asset(_sleepingScene, width: 1, height: 1)),
 
             LayoutBuilder(
               builder: (context, constraints) {
@@ -501,7 +509,11 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
               buildTrWoo(context),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

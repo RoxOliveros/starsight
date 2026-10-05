@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_3.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -19,7 +20,8 @@ class Sorry2Screen extends StatefulWidget {
   const Sorry2Screen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -27,8 +29,14 @@ class Sorry2Screen extends StatefulWidget {
 }
 
 class _Sorry2ScreenState extends State<Sorry2Screen>
-    with TickerProviderStateMixin, AiCameraMixin<Sorry2Screen> {
+    with
+        TickerProviderStateMixin,
+        AiCameraMixin<Sorry2Screen>,
+        AppAudioLifecycleMixin<Sorry2Screen> {
   late final AudioPlayer _audioPlayer;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   late final AnimationController _walkController;
   final Duration _walkDuration = const Duration(milliseconds: 1800);
@@ -88,7 +96,7 @@ class _Sorry2ScreenState extends State<Sorry2Screen>
           builder: (context) => Sorry3Screen(
             priorEmotions: emotionsSoFar,
             tapTracker: widget.tapTracker,
-            level: widget.level
+            level: widget.level,
           ),
         ),
       );
@@ -168,7 +176,11 @@ class _Sorry2ScreenState extends State<Sorry2Screen>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

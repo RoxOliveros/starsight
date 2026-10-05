@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -26,8 +27,11 @@ class CleanBedroomGameScreen extends StatefulWidget {
 }
 
 class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
-    with SingleTickerProviderStateMixin, AiCameraMixin<CleanBedroomGameScreen>, GameLoadingMixin {
-
+    with
+        SingleTickerProviderStateMixin,
+        AiCameraMixin<CleanBedroomGameScreen>,
+        GameLoadingMixin,
+        AppAudioLifecycleMixin<CleanBedroomGameScreen> {
   final AudioPlayer _player = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -35,6 +39,8 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
 
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   @override
   @override
@@ -83,7 +89,7 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
           rounds: rounds,
           priorEmotions: emotionsSoFar,
           tapTracker: _tapTracker,
-          level: widget.level
+          level: widget.level,
         ),
       ),
     );
@@ -111,35 +117,39 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: buildWithLoading(
-        loadingScreen: LoadingScreen.lumiTown(), gameBuilder: () =>
-          Listener(
-            onPointerDown: (_) => _tapTracker.recordGenericTap(),
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    'assets/images/backgrounds/bg_lumi_messy_bed.png',
-                    fit: BoxFit.cover,
+        loadingScreen: LoadingScreen.lumiTown(),
+        gameBuilder: () => Listener(
+          onPointerDown: (_) => _tapTracker.recordGenericTap(),
+          child: FadeTransition(
+            opacity: _fadeAnim,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'assets/images/backgrounds/bg_lumi_messy_bed.png',
+                  fit: BoxFit.cover,
+                ),
+
+                Positioned(top: 25, left: 25, child: LumiXButton()),
+                Positioned(
+                  top: 25,
+                  right: 25,
+                  child: LumiLevelBadge(level: widget.level),
+                ),
+
+                if (hasCapturedFirstFrame &&
+                    !isFaceDetected &&
+                    !_hideLightingCard)
+                  LightingPromptCard(
+                    onClose: () {
+                      setState(() => _hideLightingCard = true);
+                      releaseFaceGate();
+                    },
                   ),
-
-                  Positioned(top: 25, left: 25, child: LumiXButton()),
-                  Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
-
-                  if (hasCapturedFirstFrame &&
-                      !isFaceDetected &&
-                      !_hideLightingCard)
-                    LightingPromptCard(
-                      onClose: () {
-                        setState(() => _hideLightingCard = true);
-                        releaseFaceGate();
-                      },
-                    ),
-                ],
-              ),
+              ],
             ),
           ),
+        ),
       ),
     );
   }

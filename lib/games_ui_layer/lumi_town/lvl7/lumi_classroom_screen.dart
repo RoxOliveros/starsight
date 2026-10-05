@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,8 +23,13 @@ class LumiClassroomScreen extends StatefulWidget {
 }
 
 class _LumiClassroomScreenState extends State<LumiClassroomScreen>
-    with TrWooReactionMixin, AiCameraMixin<LumiClassroomScreen> {
+    with
+        TrWooReactionMixin,
+        AiCameraMixin<LumiClassroomScreen>,
+        AppAudioLifecycleMixin<LumiClassroomScreen> {
   late final AudioPlayer _audioPlayer;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
@@ -93,7 +99,7 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
           builder: (context) => Respect1Screen(
             priorEmotions: emotionsSoFar,
             tapTracker: _tapTracker,
-            level: widget.level
+            level: widget.level,
           ),
         ),
       );
@@ -147,7 +153,11 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
             ),
             buildTrWoo(context),
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {

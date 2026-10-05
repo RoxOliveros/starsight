@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -77,13 +78,23 @@ class DiaryGameScreen extends StatefulWidget {
 }
 
 class _DiaryGameScreenState extends State<DiaryGameScreen>
-    with TrWooReactionMixin<DiaryGameScreen>, AiCameraMixin<DiaryGameScreen> {
+    with
+        TrWooReactionMixin<DiaryGameScreen>,
+        AiCameraMixin<DiaryGameScreen>,
+        AppAudioLifecycleMixin<DiaryGameScreen> {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
   final AudioPlayer _narrationPlayer = AudioPlayer();
   final AudioPlayer _completePlayer = AudioPlayer();
   final AudioPlayer _drWooPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [
+    _narrationPlayer,
+    _completePlayer,
+    _drWooPlayer,
+  ];
 
   @override
   AudioPlayer get trWooPlayer => _drWooPlayer;
@@ -398,7 +409,11 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

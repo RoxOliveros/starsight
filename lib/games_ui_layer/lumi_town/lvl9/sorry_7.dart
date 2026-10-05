@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_8.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -20,7 +21,8 @@ class Sorry7Screen extends StatefulWidget {
   const Sorry7Screen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -28,8 +30,11 @@ class Sorry7Screen extends StatefulWidget {
 }
 
 class _Sorry7ScreenState extends State<Sorry7Screen>
-    with AiCameraMixin<Sorry7Screen> {
+    with AiCameraMixin<Sorry7Screen>, AppAudioLifecycleMixin<Sorry7Screen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   int _currentPhase = 1;
   bool _canDrag = true;
@@ -117,7 +122,7 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
           builder: (context) => Sorry8Screen(
             priorEmotions: emotionsSoFar,
             tapTracker: widget.tapTracker,
-            level: widget.level
+            level: widget.level,
           ),
         ),
       );
@@ -444,7 +449,11 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
