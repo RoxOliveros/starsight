@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -25,14 +26,20 @@ class Lvl2BathroomGameScreen extends StatefulWidget {
 }
 
 class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
-    with SingleTickerProviderStateMixin, AiCameraMixin<Lvl2BathroomGameScreen>, GameLoadingMixin {
-
+    with
+        SingleTickerProviderStateMixin,
+        AiCameraMixin<Lvl2BathroomGameScreen>,
+        GameLoadingMixin,
+        AppAudioLifecycleMixin<Lvl2BathroomGameScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
 
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   @override
   void initState() {
@@ -75,7 +82,7 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
         Step1ChoiceScreen(
           priorEmotions: emotionsSoFar,
           tapTracker: _tapTracker,
-          level: widget.level
+          level: widget.level,
         ),
       ),
     );
@@ -104,60 +111,58 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.lumiTown(),
-        gameBuilder: () =>
-            Listener(
-              onPointerDown: (_) => _tapTracker.recordGenericTap(),
-              child: FadeTransition(
-                opacity: _fadeAnim,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // 1. Background
-                    Image.asset(
-                      'assets/images/backgrounds/bg_lumi_bathroom.png',
-                      fit: BoxFit.cover,
-                    ),
-
-                    // 2. Bear — behind choices
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final bearH = MediaQuery
-                                .of(context)
-                                .size
-                                .height * 0.80;
-                            return Image.asset(
-                              'assets/images/characters/little_bear.png',
-                              height: bearH,
-                              fit: BoxFit.contain,
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-
-                    Positioned(top: 25, left: 25, child: LumiXButton()),
-                    Positioned(top: 25,
-                        right: 25,
-                        child: LumiLevelBadge(level: widget.level)),
-
-                    if (hasCapturedFirstFrame &&
-                        !isFaceDetected &&
-                        !_hideLightingCard)
-                      LightingPromptCard(
-                        onClose: () {
-                          setState(() => _hideLightingCard = true);
-                          releaseFaceGate();
-                        },
-                      ),
-                  ],
+        gameBuilder: () => Listener(
+          onPointerDown: (_) => _tapTracker.recordGenericTap(),
+          child: FadeTransition(
+            opacity: _fadeAnim,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // 1. Background
+                Image.asset(
+                  'assets/images/backgrounds/bg_lumi_bathroom.png',
+                  fit: BoxFit.cover,
                 ),
-              ),
+
+                // 2. Bear — behind choices
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final bearH = MediaQuery.of(context).size.height * 0.80;
+                        return Image.asset(
+                          'assets/images/characters/little_bear.png',
+                          height: bearH,
+                          fit: BoxFit.contain,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+
+                Positioned(top: 25, left: 25, child: LumiXButton()),
+                Positioned(
+                  top: 25,
+                  right: 25,
+                  child: LumiLevelBadge(level: widget.level),
+                ),
+
+                if (hasCapturedFirstFrame &&
+                    !isFaceDetected &&
+                    !_hideLightingCard)
+                  LightingPromptCard(
+                    onClose: () {
+                      setState(() => _hideLightingCard = true);
+                      releaseFaceGate();
+                    },
+                  ),
+              ],
             ),
+          ),
+        ),
       ),
     );
   }

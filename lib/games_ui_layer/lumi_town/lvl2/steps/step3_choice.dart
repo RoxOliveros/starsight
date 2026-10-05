@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -20,7 +21,8 @@ class Step3ChoiceScreen extends StatefulWidget {
   const Step3ChoiceScreen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -28,7 +30,10 @@ class Step3ChoiceScreen extends StatefulWidget {
 }
 
 class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
-    with SingleTickerProviderStateMixin, AiCameraMixin<Step3ChoiceScreen> {
+    with
+        SingleTickerProviderStateMixin,
+        AiCameraMixin<Step3ChoiceScreen>,
+        AppAudioLifecycleMixin<Step3ChoiceScreen> {
   final AudioPlayer _player = AudioPlayer();
   bool _hideLightingCard = false;
 
@@ -37,6 +42,9 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
 
   late AnimationController _iconEntranceCtrl;
   late Animation<double> _iconFade;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   @override
   void initState() {
@@ -85,7 +93,7 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
         Step3CombingScreen(
           priorEmotions: emotionsSoFar,
           tapTracker: widget.tapTracker,
-          level: widget.level
+          level: widget.level,
         ),
       ),
     );
@@ -183,7 +191,11 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

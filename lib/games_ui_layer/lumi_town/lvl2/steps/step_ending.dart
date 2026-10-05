@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl3/clean_bedroom_game_screen.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +24,8 @@ class StepEndingScreen extends StatefulWidget {
   const StepEndingScreen({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -31,9 +33,13 @@ class StepEndingScreen extends StatefulWidget {
 }
 
 class _StepEndingScreenState extends State<StepEndingScreen>
-    with AiCameraMixin<StepEndingScreen> {
+    with
+        AiCameraMixin<StepEndingScreen>,
+        AppAudioLifecycleMixin<StepEndingScreen> {
   final AudioPlayer _player = AudioPlayer();
   bool _showOverlay = false;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -93,7 +99,9 @@ class _StepEndingScreenState extends State<StepEndingScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
       debugPrint("Database Error marking level complete: $e");
     });
   }
@@ -133,7 +141,11 @@ class _StepEndingScreenState extends State<StepEndingScreen>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -158,21 +170,25 @@ class _StepEndingScreenState extends State<StepEndingScreen>
   }
 
   Future<void> _onNext() async {
-     Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => CleanBedroomGameScreen(level: widget.level + 1)),
-      );
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => CleanBedroomGameScreen(level: widget.level + 1),
+      ),
+    );
   }
 
   void _onRestart() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => Lvl2BathroomGameScreen(level: widget.level)),
+      MaterialPageRoute(
+        builder: (_) => Lvl2BathroomGameScreen(level: widget.level),
+      ),
     );
   }
 
   Future<void> _onBack() async {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
-        (route) => route.isFirst,
-      );
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
+      (route) => route.isFirst,
+    );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,7 +25,8 @@ class Lumi2ValuesWakingup extends StatefulWidget {
   const Lumi2ValuesWakingup({
     super.key,
     required this.priorEmotions,
-    required this.tapTracker, required this.level,
+    required this.tapTracker,
+    required this.level,
   });
 
   @override
@@ -32,10 +34,15 @@ class Lumi2ValuesWakingup extends StatefulWidget {
 }
 
 class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
-    with AiCameraMixin<Lumi2ValuesWakingup> {
+    with
+        AiCameraMixin<Lumi2ValuesWakingup>,
+        AppAudioLifecycleMixin<Lumi2ValuesWakingup> {
   bool _showNext = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _showGoodJob = false;
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -74,7 +81,8 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
     }
   }
 
-  Future<void> _playAlarm() => _playAudio('assets/audio/sound_effects/alarmclock.wav');
+  Future<void> _playAlarm() =>
+      _playAudio('assets/audio/sound_effects/alarmclock.wav');
 
   Future<void> _playNext() async {
     await _playAudio('assets/audio/lumi_town/level1/salamat.wav');
@@ -85,6 +93,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
 
     setState(() => _showGoodJob = true);
   }
+
   @override
   void dispose() {
     disposeAiCamera();
@@ -112,7 +121,9 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    TownProgressService.instance.markLevelComplete(widget.level).catchError((e) {
+    TownProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
       debugPrint("Database Error marking level complete: $e");
     });
   }
@@ -131,7 +142,11 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
             ),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(top: 25, right: 25, child: LumiLevelBadge(level: widget.level)),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LumiLevelBadge(level: widget.level),
+            ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -145,12 +160,12 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
               GoodJobOverlay(
                 characterImage: 'assets/images/characters/tr.woo_the_owl.png',
                 onNext: () async {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (_) => Lvl2BathroomGameScreen(level: widget.level + 1),
-                      ),
-                    );
-
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          Lvl2BathroomGameScreen(level: widget.level + 1),
+                    ),
+                  );
                 },
                 onRestart: () {
                   Navigator.of(context).pushReplacement(
@@ -160,13 +175,10 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
                   );
                 },
                 onBack: () async {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (_) => const LumiLevelScreen(),
-                      ),
-                      (route) => route.isFirst,
-                    );
-
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LumiLevelScreen()),
+                    (route) => route.isFirst,
+                  );
                 },
               ),
           ],
