@@ -94,13 +94,7 @@ class LetterFirefliesGame extends StatefulWidget {
 }
 
 class _LetterFirefliesGameState extends State<LetterFirefliesGame>
-    with
-        TickerProviderStateMixin,
-        GameLoadingMixin<LetterFirefliesGame>,
-        ForestAudioMixin<LetterFirefliesGame>,
-        TofiReactionMixin<LetterFirefliesGame>,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<LetterFirefliesGame> {
+    with TickerProviderStateMixin, GameLoadingMixin<LetterFirefliesGame>, ForestAudioMixin<LetterFirefliesGame>, TofiReactionMixin<LetterFirefliesGame>, AiCameraMixin, AppAudioLifecycleMixin<LetterFirefliesGame> {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
@@ -115,13 +109,11 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _fireflyImage =
-      'assets/images/objects/forest/firefly.png';
+  static const String _fireflyImage = 'assets/images/objects/forest/firefly.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/letter_fireflies_intro.wav';
-  static const String _audioFindPrefix =
-      '$_audioBase/letter_fireflies_find_prefix.wav';
+  static const String _audioFindPrefix = '$_audioBase/letter_fireflies_find_prefix.wav';
   static const String _audioWin = '$_audioBase/letter_fireflies_win.wav';
 
   // ── Round structure ──────────────────────────────────────────────────────
@@ -369,7 +361,9 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     setState(() => firefly.popped = true);
     _burstCtrls[index].forward(from: 0);
 
-    await showTofiReaction(TofiState.correct);
+    showTofiReaction(TofiState.correct);
+
+    await Future.delayed(Duration(milliseconds: 1300));
     if (!mounted) return;
 
     _solvedRounds++;
@@ -567,8 +561,12 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
                 ),
               ),
               const SizedBox(width: 120),
-              const Text('✨', style: TextStyle(fontSize: 90)),
-            ],
+              Image.asset(
+                _fireflyImage,
+                height: screenH * 0.40,
+                errorBuilder: (_, __, ___) =>
+                const Text('🐶', style: TextStyle(fontSize: 80)),
+              ),            ],
           ),
         ),
       ],

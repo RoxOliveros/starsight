@@ -72,13 +72,7 @@ class YakZebraRaceGame extends StatefulWidget {
 }
 
 class _YakZebraRaceGameState extends State<YakZebraRaceGame>
-    with
-        TickerProviderStateMixin,
-        GameLoadingMixin<YakZebraRaceGame>,
-        ForestAudioMixin<YakZebraRaceGame>,
-        TofiReactionMixin<YakZebraRaceGame>,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<YakZebraRaceGame> {
+    with TickerProviderStateMixin, GameLoadingMixin<YakZebraRaceGame>, ForestAudioMixin<YakZebraRaceGame>, TofiReactionMixin<YakZebraRaceGame>, AiCameraMixin, AppAudioLifecycleMixin<YakZebraRaceGame> {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
@@ -94,8 +88,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   // ASSET PATHS
   // ═════════════════════════════════════════════════════════════════════
 
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_forest_grassland.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_grassland.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _yakAsset = 'assets/images/objects/forest/yak.png';
   static const String _zebraAsset = 'assets/images/objects/forest/zebra.png';
@@ -106,8 +99,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   static const String _audioIntro = '$_audioBase/yak_zebra_race_intro.wav';
   static const String _audioTapY = '$_audioBase/sound_effects/sound_y.wav';
   static const String _audioTapZ = '$_audioBase/sound_effects/sound_z.wav';
-  static const String _audioCorrect =
-      'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
   static const String _audioYIsForYak = '$_audioBase/y_is_for_yak.wav';
   static const String _audioZIsForZebra = '$_audioBase/z_is_for_zebra.wav';
   static const String _audioWin = '$_audioBase/yak_zebra_race_win.wav';
@@ -135,25 +127,23 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     Offset(0.82, 0.70),
   ];
 
-  // ═════════════════════════════════════════════════════════════════════
-  // STATE
-  // ═════════════════════════════════════════════════════════════════════
-
-  bool _introPlaying = true;
   int _currentRoundIndex = 0;
   int _solvedRounds = 0;
+  int? _correctSlotIndex;
+  int? _wrongSlotIndex;
+
   double _yakProgress = 0;
   double _zebraProgress = 0;
 
+  late bool _yakWillWin;
   late List<String> _choices;
-  int? _correctSlotIndex;
-  int? _wrongSlotIndex;
+
   bool _resolving = false;
   bool _showBothCelebrating = false;
-  late bool _yakWillWin;
-
+  bool _introPlaying = true;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   late final String _finalRoundLetter = Random().nextBool() ? 'Y' : 'Z';
 
@@ -275,11 +265,17 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted)
+    if (!mounted) return;
+
+    try {
       await playVoiceRestartingOnFaceLoss(
         audio.voicePlayer,
         _targetLetter == 'Y' ? _audioTapY : _audioTapZ,
       );
+    } catch (e) {
+      debugPrint('Prompt audio error: $e');
+    }
+    if (mounted) setState(() => _inputEnabled = true);
   }
 
   List<String> _generateChoices(String target) {
@@ -301,12 +297,18 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     _shakeCtrl.reset();
 
     if (playInstruction) {
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted)
-          playVoiceRestartingOnFaceLoss(
+      _inputEnabled = false;
+      Future.delayed(const Duration(milliseconds: 400), () async {
+        if (!mounted) return;
+        try {
+          await playVoiceRestartingOnFaceLoss(
             audio.voicePlayer,
             _targetLetter == 'Y' ? _audioTapY : _audioTapZ,
           );
+        } catch (e) {
+          debugPrint('Prompt audio error: $e');
+        }
+        if (mounted) setState(() => _inputEnabled = true);
       });
     }
 
@@ -318,7 +320,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   // ═════════════════════════════════════════════════════════════════════
 
   Future<void> _onLetterTapped(String letter, int slotIndex) async {
-    if (_resolving) return;
+    if (!_inputEnabled || _resolving) return;
 
     if (letter == _targetLetter) {
       _tapTracker.recordCorrectTap();

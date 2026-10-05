@@ -55,16 +55,15 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/apple_tree_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/apple_tree_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/apple_tree_instruction.wav';
   static const String _audioRoundComplete = '$_audioBase/apple_found_chime.wav';
   static const String _audioWin = '$_audioBase/apple_tree_win.wav';
 
   static const List<Offset> _baseAppleSlots = [
-    Offset(0.47, 0.20),
-    Offset(0.53, 0.20),
-    Offset(0.40, 0.38),
-    Offset(0.57, 0.38),
+    Offset(0.42, 0.28),
+    Offset(0.58, 0.28),
+    Offset(0.38, 0.40),
+    Offset(0.62, 0.40),
   ];
 
   static const int _totalRounds = 5;
@@ -87,6 +86,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   late AnimationController _tofiFloatCtrl;
   late AnimationController _instructionCtrl;
@@ -177,12 +177,19 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
     _instructionCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
-    if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      ForestAudioAssets.forLetter(_targetLetter),
-    );
+
+    try {
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+      if (!mounted) return;
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_targetLetter),
+      );
+    } catch (e) {
+      debugPrint('Instruction audio error: $e');
+    } finally {
+      if (mounted) setState(() => _inputEnabled = true);
+    }
   }
 
   void _setupRound() {
@@ -219,8 +226,8 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
 
   List<Offset> _buildApplePositions(Random rng) {
     return _baseAppleSlots.map((base) {
-      final dx = (rng.nextDouble() - 0.5) * 0.06;
-      final dy = (rng.nextDouble() - 0.5) * 0.06;
+      final dx = (rng.nextDouble() - 0.5) * 0.04;
+      final dy = (rng.nextDouble() - 0.5) * 0.04;
       return Offset(
         (base.dx + dx).clamp(0.08, 0.92),
         (base.dy + dy).clamp(0.16, 0.62),
@@ -229,7 +236,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
   }
 
   Future<void> _onAppleTapped(int index) async {
-    if (_resolving || _foundThisRound) return;
+    if (!_inputEnabled || _resolving || _foundThisRound) return;
     final letter = _appleLetters[index];
 
     if (letter == _targetLetter) {
@@ -289,13 +296,20 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
 
     _currentRoundIndex++;
     _setupRound();
+    setState(() => _inputEnabled = false);
 
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      ForestAudioAssets.forLetter(_targetLetter),
-    );
+    try {
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (!mounted) return;
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_targetLetter),
+      );
+    } catch (e) {
+      debugPrint('Round audio error: $e');
+    } finally {
+      if (mounted) setState(() => _inputEnabled = true);
+    }
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
@@ -464,37 +478,25 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
       scale: _sceneEnter,
       child: Stack(
         children: [
-          const Positioned(top: 25, left: 25, child: ForestXButton()),
-          Positioned(
-            top: 25,
-            right: 20,
-            child: ForestLevelBadge(level: widget.level),
-          ),
 
-          Positioned(
-            top: 90,
-            left: 0,
-            right: 0,
-            bottom: 40,
+          Positioned(top: 25, left: 25, child: ForestXButton()),
+          Positioned(top: 25, right: 25, child: ForestLevelBadge(level: widget.level)),
+
+          Positioned.fill(
             child: LayoutBuilder(
               builder: (context, inner) =>
                   _buildTreeArea(inner.maxWidth, inner.maxHeight),
             ),
           ),
 
-          Positioned(
-            bottom: 8,
-            left: 0,
-            right: 0,
-            child: Center(child: _buildProgressDots()),
-          ),
+          Positioned(bottom: 8, left: 0, right: 0, child: Center(child: _buildProgressDots())),
         ],
       ),
     );
   }
 
   Widget _buildTreeArea(double w, double h) {
-    final treeHeight = h * 1;
+    final treeHeight = h * 0.8;
 
     return SizedBox(
       width: w,
@@ -523,7 +525,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
   }
 
   Widget _buildApple(int index, double w, double h) {
-    final size = (h * 0.17);
+    final size = (h * 0.14);
 
     if (_fallingIndex == index) {
       final pos = _applePositions[index];
