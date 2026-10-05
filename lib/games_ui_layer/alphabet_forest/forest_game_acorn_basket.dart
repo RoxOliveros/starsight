@@ -100,6 +100,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   @override
   void initState() {
@@ -162,37 +163,42 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   }
 
   Future<void> _startIntroFlow() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      await Future.delayed(const Duration(milliseconds: 300));
 
-    await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      'assets/audio/alphabet_forest/acorn_intro.wav',
-    );
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        'assets/audio/alphabet_forest/acorn_intro.wav',
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _introPlaying = false;
-    });
+      setState(() {
+        _introPlaying = false;
+      });
 
-    // Let the game appear first.
-    await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 300));
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      'assets/audio/alphabet_forest/acorn_instruction.wav',
-    );
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        'assets/audio/alphabet_forest/acorn_instruction.wav',
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    await Future.delayed(const Duration(milliseconds: 150));
+      await Future.delayed(const Duration(milliseconds: 150));
 
-    playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      ForestAudioAssets.forLetter(_targetLetter),
-    );
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_targetLetter),
+      );
+    } catch (e) {
+      debugPrint('Intro audio error: $e');
+    } finally {
+      if (mounted) setState(() => _inputEnabled = true);
+    }
   }
 
   String _pickLetterForLane() {
@@ -231,19 +237,14 @@ class _AcornBasketGameState extends State<AcornBasketGame>
         _spawnLane(lane);
       }
     } else {
-      // Keep the acorns falling, just update the letters
-      _refreshLaneLetters();
+      for (final lane in _lanes) {
+        if (!lane.isBusy && lane.controller.isCompleted) {
+          _spawnLane(lane);
+        }
+      }
     }
 
     setState(() {});
-  }
-
-  void _refreshLaneLetters() {
-    for (final lane in _lanes) {
-      lane.letter = _pickLetterForLane();
-    }
-
-    if (mounted) setState(() {});
   }
 
   @override
@@ -307,20 +308,25 @@ class _AcornBasketGameState extends State<AcornBasketGame>
         Future.delayed(const Duration(milliseconds: 700), () async {
           if (!mounted) return;
 
+          setState(() => _inputEnabled = false);
           _loadRound();
 
-          await Future.delayed(const Duration(milliseconds: 200));
+          try {
+            await Future.delayed(const Duration(milliseconds: 200));
+            if (!mounted) return;
 
-          if (mounted) {
-            playVoiceRestartingOnFaceLoss(
+            await playVoiceRestartingOnFaceLoss(
               audio.voicePlayer,
               ForestAudioAssets.forLetter(_targetLetter),
             );
+          } catch (e) {
+            debugPrint('Round audio error: $e');
+          } finally {
+            if (mounted) setState(() => _inputEnabled = true);
           }
         });
       }
     } else {
-      // Round continues — this lane immediately drops a fresh acorn.
       _spawnLane(lane);
     }
 
@@ -368,7 +374,10 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
     });
-    // 3. Now show the normal win dialog
+
+    await Future.delayed(Duration(seconds: 2));
+    if (!mounted) return;
+
     _showGoodJob();
   }
 
@@ -580,6 +589,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
                       size: acornSize,
                       onDragStarted: () => lane.isBusy = true,
                       onDragEnd: () => lane.isBusy = false,
+                      enabled: _inputEnabled,
                     ),
                   );
                 }),
@@ -626,6 +636,7 @@ class _FallingAcorn extends StatelessWidget {
   final double size;
   final VoidCallback onDragStarted;
   final VoidCallback onDragEnd;
+  final bool enabled;
 
   const _FallingAcorn({
     required this.laneIndex,
@@ -633,6 +644,7 @@ class _FallingAcorn extends StatelessWidget {
     required this.size,
     required this.onDragStarted,
     required this.onDragEnd,
+    required this.enabled,
   });
 
   Widget _acornVisual({double? overrideSize}) {
@@ -680,6 +692,7 @@ class _FallingAcorn extends StatelessWidget {
   Widget build(BuildContext context) {
     return Draggable<_AcornDragData>(
       data: _AcornDragData(laneIndex, letter),
+      maxSimultaneousDrags: enabled ? 1 : 0,
       onDragStarted: onDragStarted,
       onDraggableCanceled: (_, __) => onDragEnd(),
       onDragCompleted: onDragEnd,
