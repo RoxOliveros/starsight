@@ -64,12 +64,10 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_forest_grassland.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_grassland.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _pawAsset = 'assets/images/objects/forest/paw_print.png';
-  static const String _sparkleAsset =
-      'assets/images/objects/forest/sparkle.png';
+  static const String _sparkleAsset = 'assets/images/objects/forest/sparkle.png';
   static const String _leafAsset = 'assets/images/objects/forest/leaf.png';
 
   static const String _audioBase = ForestAudioAssets.base;
@@ -92,20 +90,21 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
   static const List<String> _roundOrder = ['S', 'T', 'U'];
   static final List<double> _leafAngles = List.generate(8, (i) => i * pi / 4);
 
-  // ── State ────────────────────────────────────────────────────────────────
-  bool _introPlaying = true;
   late List<_PawTrail> _trails;
+
   int _currentRoundIndex = 0;
   int _solvedRounds = 0;
-
   int _targetProgress = 0;
+
   String? _wrongPawKey;
   String? _sparkleKey;
+  _PawTrail? _celebratingTrail;
+
+  bool _introPlaying = true;
   bool _resolving = false;
   bool _showCelebration = false;
-  _PawTrail? _celebratingTrail;
   bool _showAllAnimals = false;
-
+  bool _inputEnabled = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -113,7 +112,6 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
 
   late AnimationController _tofiFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _pulseCtrl;
@@ -203,13 +201,6 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -264,11 +255,15 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted)
+    if (!mounted) return;
+    try {
       await playVoiceRestartingOnFaceLoss(
         audio.voicePlayer,
         _instructionAudioForLetter[_targetLetter]!,
       );
+    } finally {
+      if (mounted) _inputEnabled = true;
+    }
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -276,6 +271,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     _wrongPawKey = null;
     _sparkleKey = null;
     _resolving = false;
+    _inputEnabled = !playInstruction && !_introPlaying;
     _showCelebration = false;
     _celebratingTrail = null;
     _showAllAnimals = false;
@@ -288,12 +284,16 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     _instructionCtrl.forward(from: 0);
 
     if (playInstruction) {
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted)
-          playVoiceRestartingOnFaceLoss(
+      Future.delayed(const Duration(milliseconds: 400), () async {
+        if (!mounted) return;
+        try {
+          await playVoiceRestartingOnFaceLoss(
             audio.voicePlayer,
             _instructionAudioForLetter[_targetLetter]!,
           );
+        } finally {
+          if (mounted) _inputEnabled = true;
+        }
       });
     }
 
@@ -301,7 +301,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
   }
 
   Future<void> _onPawTapped(_PawTrail trail, int index) async {
-    if (_resolving) return;
+    if (!_inputEnabled || _resolving) return;
 
     final isTargetTrail = trail.letter == _targetLetter;
     final isNextExpected = isTargetTrail && index == _targetProgress;
@@ -323,6 +323,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
 
     _tapTracker.recordCorrectTap();
     HapticFeedback.selectionClick();
+    audio.voicePlayer.stop();
     final key = '${trail.letter}-$index';
     setState(() {
       _targetProgress++;

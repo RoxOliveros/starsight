@@ -55,19 +55,14 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_forest_garden.png';
-  static const String _butterflyImage =
-      'assets/images/objects/forest/butterfly.png';
-  static const String _flowerAsset =
-      'assets/images/objects/forest/flower_not_bloom.png';
-  static const String _flowerBloomAsset =
-      'assets/images/objects/forest/flower_bloom.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_garden.png';
+  static const String _butterflyImage = 'assets/images/objects/forest/butterfly.png';
+  static const String _flowerAsset = 'assets/images/objects/forest/flower_not_bloom.png';
+  static const String _flowerBloomAsset = 'assets/images/objects/forest/flower_bloom.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/butterfly_garden_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/butterfly_garden_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/butterfly_garden_instruction.wav';
   static const String _audioWin = '$_audioBase/butterfly_garden_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -92,6 +87,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   Offset _butterflyPos = const Offset(0.12, 0.12);
   Offset _butterflyTarget = const Offset(0.12, 0.12);
@@ -209,15 +205,22 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
   }
 
   Future<void> _announceRound() async {
-    if (_currentRound == 0) {
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
-      await Future.delayed(const Duration(milliseconds: 700));
-      if (!mounted) return;
+    if (mounted) setState(() => _inputEnabled = false);
+    try {
+      if (_currentRound == 0) {
+        await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        await Future.delayed(const Duration(milliseconds: 700));
+        if (!mounted) return;
+      }
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_targets[_currentRound]),
+      );
+    } catch (e) {
+      debugPrint('Round audio error: $e');
+    } finally {
+      if (mounted) setState(() => _inputEnabled = true);
     }
-    await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      ForestAudioAssets.forLetter(_targets[_currentRound]),
-    );
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -245,11 +248,13 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     _flyAnimation = AlwaysStoppedAnimation(_butterflyPos);
     _flyCtrl.reset();
 
+    if (playInstruction) _inputEnabled = false;
+
     setState(() {});
   }
 
   Future<void> _onFlowerTapped(_FlowerSpot flower) async {
-    if (_resolving) return;
+    if (_resolving || !_inputEnabled) return;
     final target = _targets[_currentRound];
 
     if (flower.letter == target) {
@@ -309,14 +314,6 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
 
     _currentRound++;
     _setupRound();
-
-    await Future.delayed(const Duration(milliseconds: 200));
-    if (mounted) {
-      playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
-        ForestAudioAssets.forLetter(_targets[_currentRound]),
-      );
-    }
 
     setState(() {});
   }

@@ -69,21 +69,15 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_forest_garden.png';
-  static const String _butterflyImage =
-      'assets/images/objects/forest/butterfly.png';
-  static const String _flowerAsset =
-      'assets/images/objects/forest/flower_not_bloom.png';
-  static const String _flowerBloomAsset =
-      'assets/images/objects/forest/flower_bloom.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_garden.png';
+  static const String _butterflyImage = 'assets/images/objects/forest/butterfly.png';
+  static const String _flowerAsset = 'assets/images/objects/forest/flower_not_bloom.png';
+  static const String _flowerBloomAsset = 'assets/images/objects/forest/flower_bloom.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
 
   static const String _audioBase = ForestAudioAssets.base;
-  static const String _audioIntro =
-      '$_audioBase/butterfly_letter_match_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/butterfly_letter_match_instruction.wav';
+  static const String _audioIntro = '$_audioBase/butterfly_letter_match_intro.wav';
+  static const String _audioInstruction = '$_audioBase/butterfly_letter_match_instruction.wav';
   static const String _audioWin = '$_audioBase/butterfly_letter_match_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -112,6 +106,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   late final List<FlowerTarget> _flowers;
   late List<ButterflyOption> _butterflies;
@@ -216,10 +211,18 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
   }
 
   Future<void> _announceRound() async {
-    if (_currentRound == 0) {
+    if (_currentRound != 0) {
+      if (mounted) setState(() => _inputEnabled = true);
+      return;
+    }
+    if (mounted) setState(() => _inputEnabled = false);
+    try {
       await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
       await Future.delayed(const Duration(milliseconds: 700));
-      if (!mounted) return;
+    } catch (e) {
+      debugPrint('Instruction audio error: $e');
+    } finally {
+      if (mounted) setState(() => _inputEnabled = true);
     }
   }
 
@@ -625,6 +628,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
         },
         child: Draggable<ButterflyOption>(
           data: butterfly,
+          maxSimultaneousDrags: _inputEnabled ? 1 : 0,
           feedback: Material(
             color: Colors.transparent,
             child: _butterflyVisual(butterfly.letter, size, wrong: false),
