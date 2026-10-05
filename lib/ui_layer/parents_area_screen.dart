@@ -156,6 +156,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
   bool _loading = true;
   String? _error;
   bool _isLoggingOut = false;
+  int _screenTimeLimit = 0; // 0 = Off
 
   ChildProfile? get _selectedChild =>
       _children.isEmpty ? null : _children[_selectedIndex];
@@ -302,6 +303,134 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     );
   }
 
+  Future<void> _switchChild(int index) async {
+    if (index == _selectedIndex) return; // already selected
+
+    final child = _children[index];
+    const accent = ColorTheme.orange;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: ColorTheme.cream,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: BorderSide(color: accent.withValues(alpha: 0.5), width: 3),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Icon badge
+              Center(
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.swap_horiz_rounded,
+                    color: accent,
+                    size: 34,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Title
+              Text(
+                'Switch to ${child.name}?',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: AppTextStyles.fredoka,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  color: ColorTheme.deepNavyBlue,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Message
+              Text(
+                'Are you sure you want to switch to ${child.name}? '
+                    'The reports and settings shown here will be for '
+                    '${child.name}.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.4,
+                  color: ColorTheme.brown,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Confirm
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text(
+                    'YES, SWITCH',
+                    style: TextStyle(
+                      fontFamily: AppTextStyles.fredoka,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+
+              // Cancel
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  style: TextButton.styleFrom(
+                    foregroundColor: ColorTheme.brown,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text(
+                    'CANCEL',
+                    style: TextStyle(
+                      fontFamily: AppTextStyles.fredoka,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: ColorTheme.brown,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _selectedIndex = index);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -374,19 +503,34 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
                 label: 'Account',
                 onTap: () => _openMenuItem('Account Settings'),
               ),
+
               _MenuRowData(
-                icon: Icons.notifications_none_rounded,
-                label: 'Notification',
-                onTap: () => _openMenuItem('Notifications'),
+                icon: Icons.music_note_rounded,
+                label: 'Music and Sounds',
+                onTap: () => _openMenuItem('Music and Sounds'),
               ),
             ],
           ),
           const SizedBox(height: 27),
-          _buildSectionTitle('SUPPORT', ColorTheme.teal),
+          _buildSectionTitle('BACKUP', ColorTheme.teal),
           const SizedBox(height: 15),
           _buildOutlinedMenuCard(
             borderColor: ColorTheme.teal,
             iconColor: ColorTheme.teal,
+            rows: [
+              _MenuRowData(
+                icon: Icons.download_rounded,
+                label: 'Download Analysis',
+                onTap: () => _openMenuItem('Download Analysis'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 27),
+          _buildSectionTitle('SUPPORT', ColorTheme.yellow),
+          const SizedBox(height: 15),
+          _buildOutlinedMenuCard(
+            borderColor: ColorTheme.yellow,
+            iconColor: ColorTheme.yellow,
             rows: [
               _MenuRowData(
                 icon: Icons.info_outline_rounded,
@@ -587,14 +731,21 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           Divider(color: ColorTheme.brown.withValues(alpha: 0.18), height: 1),
 
           const SizedBox(height: 5),
-          _CardMenuRow(
-            icon: Icons.hourglass_bottom_rounded,
-            label: 'Screen Time',
-            iconColor: ColorTheme.deepNavyBlue,
-            labelColor: ColorTheme.deepNavyBlue,
+          // _CardMenuRow(
+          //   icon: Icons.hourglass_bottom_rounded,
+          //   label: 'Screen Time',
+          //   iconColor: ColorTheme.deepNavyBlue,
+          //   labelColor: ColorTheme.deepNavyBlue,
+          //
+          //   onTap: () => _openMenuItem('Screen Time'),
+          // ),
 
-            onTap: () => _openMenuItem('Screen Time'),
+          _ScreenTimeDropdownRow(
+            value: _screenTimeLimit,
+            options: const [0, 15, 30, 45, 60],
+            onChanged: (v) => setState(() => _screenTimeLimit = v),
           ),
+
           const SizedBox(height: 10),
         ],
       ),
@@ -636,7 +787,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           return _ChildAvatarCircle(
             child: child,
             selected: selected,
-            onTap: () => setState(() => _selectedIndex = index),
+            onTap: () => _switchChild(index),   // was: setState(() => _selectedIndex = index)
           );
         },
       ),
@@ -841,6 +992,93 @@ class _AddChildCircle extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: ColorTheme.brown,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScreenTimeDropdownRow extends StatelessWidget {
+  final int value;
+  final List<int> options;
+  final ValueChanged<int> onChanged;
+
+  const _ScreenTimeDropdownRow({
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  String _label(int m) => m == 0 ? 'Off' : '$m min';
+
+  @override
+  Widget build(BuildContext context) {
+    final isOff = value == 0;
+    final accent = isOff ? ColorTheme.mutedGrey : ColorTheme.orange;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.hourglass_bottom_rounded,
+            size: 20,
+            color: ColorTheme.deepNavyBlue,
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Screen Time',
+              style: TextStyle(
+                fontFamily: AppTextStyles.fredoka,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: ColorTheme.deepNavyBlue,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: accent, width: 2),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: value,
+                isDense: true,
+                borderRadius: BorderRadius.circular(16),
+                dropdownColor: Colors.white,
+                icon: Icon(Icons.arrow_drop_down_rounded, color: accent),
+                style: TextStyle(
+                  fontFamily: AppTextStyles.fredoka,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                ),
+                items: [
+                  for (final m in options)
+                    DropdownMenuItem<int>(
+                      value: m,
+                      child: Text(
+                        _label(m),
+                        style: TextStyle(
+                          fontFamily: AppTextStyles.fredoka,
+                          fontWeight: FontWeight.w700,
+                          color: m == 0
+                              ? ColorTheme.mutedGrey
+                              : ColorTheme.brown,
+                        ),
+                      ),
+                    ),
+                ],
+                onChanged: (v) {
+                  if (v != null) onChanged(v);
+                },
               ),
             ),
           ),
