@@ -41,9 +41,6 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   StreamSubscription<int>? _progressSub;
   final DateTime _loadStart = DateTime.now();
 
-  // Remembered for the whole app session (per account), not per screen: the
-  // forest games call pushReplacement(ForestLevelScreen()) when leaving, which
-  // builds a brand-new instance of this screen every time.
   static String? _calibratedSessionId;
 
   @override
