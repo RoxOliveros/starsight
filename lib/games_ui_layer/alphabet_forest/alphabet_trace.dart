@@ -1109,7 +1109,12 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => miniGames[_nextMiniGame()]),
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (_, __, ___) => miniGames[_nextMiniGame()],
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
     );
   }
 
