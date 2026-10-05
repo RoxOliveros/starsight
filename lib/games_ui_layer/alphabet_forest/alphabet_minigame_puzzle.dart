@@ -27,14 +27,13 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class PuzzlePiece {
-  final int id; // 0=TL, 1=TR, 2=BL, 3=BR
+  final int id;
   final String imagePath;
 
   PuzzlePiece({required this.id, required this.imagePath});
 }
 
 class AlphabetPuzzleScreen extends StatefulWidget {
-  // You can pass the letter you want to play through the constructor later!
   final String letter;
 
   const AlphabetPuzzleScreen({super.key, required this.letter});
@@ -44,10 +43,7 @@ class AlphabetPuzzleScreen extends StatefulWidget {
 }
 
 class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
-    with
-        TofiReactionMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<AlphabetPuzzleScreen> {
+    with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetPuzzleScreen> {
   @override
   AudioPlayer get tofiPlayer => _player;
 
@@ -62,30 +58,27 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   final Map<int, PuzzlePiece> _placedPieces = {};
 
   late List<PuzzlePiece> _allPieces;
-  late String _fullImagePath; // Added for the background hint
+  late String _fullImagePath;
 
-  static const String _puzzleInstructionWav =
-      'audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
+  static const String _puzzleInstructionWav = 'audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   @override
   void initState() {
     super.initState();
     OrientationService.setLandscape();
 
-    // child's calibration separate from everyone else's.
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-    startAiCamera(); // <-- Start the camera
+    startAiCamera();
     _tapTracker.startSession();
 
-    // Lighting card can reappear later if the face is lost again mid-play.
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    // Load the correct pieces and background before starting the game
     _loadLetter(widget.letter);
     _playInstructionThenLetter();
     _resetGame();
@@ -104,7 +97,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     switch (letter.toUpperCase()) {
       case 'A':
         _fullImagePath =
-            'assets/images/alphabets_puzzle/apple_full.png'; // image for the background
+            'assets/images/alphabets_puzzle/apple_full.png';
         _allPieces = [
           PuzzlePiece(
             id: 0,
@@ -674,18 +667,22 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   }
 
   Future<void> _playInstructionThenLetter() async {
-    // Tutorial audio: stops if the child leaves the frame and plays again
-    // from the start when they're back (or the card is dismissed).
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      _puzzleInstructionWav,
-      timeout: const Duration(seconds: 30),
-    );
-    if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-    );
+    try {
+      await playVoiceRestartingOnFaceLoss(
+        _player,
+        _puzzleInstructionWav,
+        timeout: const Duration(seconds: 30),
+      );
+      if (!mounted) return;
+      await playVoiceRestartingOnFaceLoss(
+        _player,
+        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+      );
+    } catch (e) {
+      debugPrint('Instruction audio error: $e');
+    } finally {
+      if (mounted) setState(() => _inputEnabled = true);
+    }
   }
 
   Future<void> _saveDataAndShowSuccessDialog() async {
@@ -706,7 +703,9 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    // 3. Now show the normal win dialog
+    await Future.delayed(Duration(seconds: 2));
+    if (!mounted) return;
+
     _showSuccessDialog();
   }
 
@@ -997,8 +996,12 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                             itemBuilder: (context, index) {
                               final piece = _availablePieces[index];
 
-                              return Draggable<PuzzlePiece>(
+                              return
+                                Opacity(
+                                    opacity: _inputEnabled ? 1.0 : 0.75,
+                                    child: Draggable<PuzzlePiece>(
                                 data: piece,
+                                maxSimultaneousDrags: _inputEnabled ? 1 : 0,
                                 feedback: _PuzzlePieceWidget(
                                   imagePath: piece.imagePath,
                                   size: pieceSize,
@@ -1015,6 +1018,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                                   imagePath: piece.imagePath,
                                   size: pieceSize,
                                 ),
+                                    ),
                               );
                             },
                           ),
