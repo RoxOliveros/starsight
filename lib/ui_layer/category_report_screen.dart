@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,14 +14,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 class CategoryReportScreen extends StatefulWidget {
   final String categoryId;
   final String categoryName;
-  final String childId;     // NEW: Firestore document ID, never changes
-  final String childName;   // display name only
+  final String childId; // NEW: Firestore document ID, never changes
+  final String childName; // display name only
 
   const CategoryReportScreen({
     super.key,
     required this.categoryId,
     required this.categoryName,
-    required this.childId,  // NEW
+    required this.childId, // NEW
     required this.childName,
   });
 
@@ -78,7 +79,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     final lower = name.toLowerCase();
     if (lower.contains('alphabet forest')) {
       return 'assets/animations/characters/tofi_reading.webp';
-    } else if (lower.contains('lumitown')) {
+    } else if (lower.contains('lumi town')) {
       return 'assets/animations/characters/drwoo_teaching.webp';
     } else if (lower.contains('arctic numberland')) {
       return 'assets/animations/characters/doma_writing_on_board.webp';
@@ -94,7 +95,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     final lower = name.toLowerCase();
     if (lower.contains('alphabet forest')) {
       return 'A fun learning area where children explore letters, sounds, and simple words through interactive activities.';
-    } else if (lower.contains('lumitown')) {
+    } else if (lower.contains('lumi town')) {
       return 'A bright learning town where children build general knowledge through guided lessons, curious questions, and hands-on discovery activities.';
     } else if (lower.contains('arctic numberland')) {
       return 'A chilly numbers world where children practice counting, shapes, and simple math concepts through playful, interactive challenges.';
@@ -127,13 +128,23 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
 
   String _formatDateTime(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
-//Dont show again disclaimer helpers (saved per account)
+  //Dont show again disclaimer helpers (saved per account)
   String get _disclaimerPrefKey {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? 'guest';
     return 'hide_category_disclaimer_$uid';
@@ -163,7 +174,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
           .collection('users')
           .doc(uid)
           .collection('children')
-          .doc(widget.childId)        // was widget.childName
+          .doc(widget.childId) // was widget.childName
           .collection('category_progress')
           .doc(widget.categoryId);
 
@@ -179,7 +190,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       // _latestCycle.
       final slotDocs = await Future.wait(
         List.generate(_maxStoredCycles, (i) => i + 1).map(
-              (slot) => categoryRef.collection('cycles').doc('cycle_$slot').get(),
+          (slot) => categoryRef.collection('cycles').doc('cycle_$slot').get(),
         ),
       );
 
@@ -205,7 +216,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
 
       // Most recent playthrough first.
       slotsWithData.sort(
-            (a, b) =>
+        (a, b) =>
             (slotToPlaythrough[b] ?? b).compareTo(slotToPlaythrough[a] ?? a),
       );
 
@@ -241,7 +252,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
           .collection('users')
           .doc(uid)
           .collection('children')
-          .doc(widget.childId)      // was widget.childName
+          .doc(widget.childId) // was widget.childName
           .collection('category_progress')
           .doc(widget.categoryId)
           .collection('cycles')
@@ -263,7 +274,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         setState(() {
           _isLoading = false;
           _error =
-          "No games played in ${_playLabel(_slotToPlaythroughNumber[cycleToLoad] ?? cycleToLoad)} yet!";
+              "No games played in ${_playLabel(_slotToPlaythroughNumber[cycleToLoad] ?? cycleToLoad)} yet!";
         });
         return;
       }
@@ -309,6 +320,9 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         case 'alphabet_forest':
           totalCategoryGames = ForestProgressService.totalLevels;
           break;
+        case 'lumi_town': // ADD THIS CASE
+          totalCategoryGames = TownProgressService.totalLevels;
+          break;
         case 'arctic_numberland':
           totalCategoryGames = ArcticProgressService.totalLevels;
           break;
@@ -319,20 +333,20 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
           totalCategoryGames = PuzzleProgressService.totalLevels;
           break;
         default:
-        // Unknown category id - fall back to what was actually played
-        // rather than a guessed total.
+          // Unknown category id - fall back to what was actually played
+          // rather than a guessed total.
           totalCategoryGames = playedGameIds.length;
       }
 
       Map<String, dynamic> summaryMap =
-      await CategorySummaryService.generateCategoryReport(
-        categoryName: widget.categoryName,
-        childName: widget.childName,
-        completedGameIds: playedGameIds,
-        totalCategoryGames: totalCategoryGames,
-        aggregatedEmotions: allEmotions,
-        totalMistakes: totalMistakes,
-      );
+          await CategorySummaryService.generateCategoryReport(
+            categoryName: widget.categoryName,
+            childName: widget.childName,
+            completedGameIds: playedGameIds,
+            totalCategoryGames: totalCategoryGames,
+            aggregatedEmotions: allEmotions,
+            totalMistakes: totalMistakes,
+          );
 
       // E. SAVE TO CACHE: Save this new report so it stays consistent next time
       await cycleRef.set({
@@ -364,7 +378,10 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => Dialog(
           backgroundColor: ColorTheme.cream,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(28),
             side: BorderSide(color: accent.withValues(alpha: 0.5), width: 3),
@@ -409,7 +426,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                 // Intro
                 const Text(
                   'These insights come only from how your child plays '
-                      'inside the app.',
+                  'inside the app.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: 'Nunito',
@@ -437,8 +454,11 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.info_outline_rounded,
-                              size: 18, color: accent),
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 18,
+                            color: accent,
+                          ),
                           SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -525,7 +545,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             onChanged: (v) => setDialogState(
-                                    () => dontShowAgain = v ?? false),
+                              () => dontShowAgain = v ?? false,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -682,11 +703,11 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
 
   /// --- LEARN MORE DIALOG ---
   void _showLearnMoreDialog(
-      String title,
-      Map<String, dynamic> insightData,
-      Color color,
-      IconData icon,
-      ) {
+    String title,
+    Map<String, dynamic> insightData,
+    Color color,
+    IconData icon,
+  ) {
     // Plain-language explanation of how each indicator is measured.
     String measurementExplanation = "";
     String quickMeaning = "";
@@ -694,18 +715,19 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     if (title.toLowerCase() == "engagement") {
       quickMeaning = "How interested and happy your child seems while playing.";
       measurementExplanation =
-      "We look at your child's facial expressions while they play, such as "
+          "We look at your child's facial expressions while they play, such as "
           "smiling or looking surprised, to understand how they feel about the "
           "activity.";
     } else if (title.toLowerCase() == "attention") {
       quickMeaning = "Whether your child's eyes stay on the activity.";
       measurementExplanation =
-      "We track where your child is looking to see if they keep their eyes "
+          "We track where your child is looking to see if they keep their eyes "
           "on the lesson or often look away from the screen.";
     } else if (title.toLowerCase() == "focus") {
-      quickMeaning = "How steadily your child keeps working without long breaks.";
+      quickMeaning =
+          "How steadily your child keeps working without long breaks.";
       measurementExplanation =
-      "We watch how consistently your child taps, moves, and completes "
+          "We watch how consistently your child taps, moves, and completes "
           "tasks to see if they keep going without long pauses.";
     }
 
@@ -783,7 +805,11 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.search_rounded, size: 16, color: color),
+                                Icon(
+                                  Icons.search_rounded,
+                                  size: 16,
+                                  color: color,
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   'WHAT WE FOUND',
@@ -987,11 +1013,11 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                 ),
                 child: const Text(
                   'These are the three things we look at while your child plays: '
-                      'Engagement (how interested and happy they seem), Attention '
-                      '(whether their eyes stay on the activity), and Focus (how '
-                      'steadily they keep working without long pauses). Together, '
-                      'they give you a simple picture of how your child experienced '
-                      'the game.',
+                  'Engagement (how interested and happy they seem), Attention '
+                  '(whether their eyes stay on the activity), and Focus (how '
+                  'steadily they keep working without long pauses). Together, '
+                  'they give you a simple picture of how your child experienced '
+                  'the game.',
                   textAlign: TextAlign.justify,
                   style: TextStyle(
                     fontFamily: 'Nunito',
@@ -1034,11 +1060,11 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
 
   // --- CONSTRUCT ROW (one section inside the shared constructs box) ---
   Widget _buildConstructCard(
-      String title,
-      Map<String, dynamic> insightData,
-      Color color,
-      IconData icon,
-      ) {
+    String title,
+    Map<String, dynamic> insightData,
+    Color color,
+    IconData icon,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1127,24 +1153,34 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   Widget _buildConstructsBox() {
     final entries = <Widget>[];
     final specs = [
-      ('engagement', 'Engagement', ColorTheme.orange,
-      Icons.emoji_emotions_rounded),
+      (
+        'engagement',
+        'Engagement',
+        ColorTheme.orange,
+        Icons.emoji_emotions_rounded,
+      ),
       ('attention', 'Attention', ColorTheme.teal, Icons.visibility_rounded),
-      ('focus', 'Focus', ColorTheme.titleGold,
-      Icons.center_focus_strong_rounded),
+      (
+        'focus',
+        'Focus',
+        ColorTheme.titleGold,
+        Icons.center_focus_strong_rounded,
+      ),
     ];
 
     for (final (key, title, color, icon) in specs) {
       if (!_reportData!.containsKey(key)) continue;
       if (entries.isNotEmpty) {
         entries.add(const SizedBox(height: 18));
-        entries.add(const Divider(
-          color: Color(0xFF6fd3e3),
-          thickness: 1.2,
-          height: 1.2,
-          indent: 4,
-          endIndent: 4,
-        ));
+        entries.add(
+          const Divider(
+            color: Color(0xFF6fd3e3),
+            thickness: 1.2,
+            height: 1.2,
+            indent: 4,
+            endIndent: 4,
+          ),
+        );
         entries.add(const SizedBox(height: 18));
       }
       entries.add(_buildConstructCard(title, _reportData![key], color, icon));
@@ -1430,108 +1466,108 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
             Expanded(
               child: _isLoading
                   ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 120,
-                      child: Lottie.asset(
-                        'assets/animations/movie_clapperboard.json',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "Analyzing gameplay...",
-                      style: TextStyle(
-                        fontFamily: AppTextStyles.fredoka,
-                        fontSize: 18,
-                        color: ColorTheme.brown,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-                  : _error != null
-                  ? Center(
-                child: Text(
-                  _error!,
-                  style: const TextStyle(
-                    fontFamily: AppTextStyles.fredoka,
-                    color: Colors.red,
-                    fontSize: 16,
-                  ),
-                ),
-              )
-                  : SingleChildScrollView(
-                controller: _scrollController,
-                clipBehavior: Clip.hardEdge,
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // OVERALL ANALYSIS
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFDF5),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: const Color(0xFFF7D070).withOpacity(0.5),
-                          width: 3,
-                        ),
-                      ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.auto_awesome_rounded,
-                                size: 20,
-                                color: Color(0xFFF7C325),
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                " OVERALL ANALYSIS",
-                                style: TextStyle(
-                                  fontFamily: AppTextStyles.fredoka,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFFF7C325),
-                                  letterSpacing: 0.6,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
                           SizedBox(
-                            width: double.infinity,
-                            child: Text(
-                              _reportData!['overallAnalysis'] ?? '',
-                              textAlign: TextAlign.justify,
-                              style: const TextStyle(
-                                fontFamily: 'Nunito',
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                height: 1.45,
-                                color: ColorTheme.brown,
-                              ),
+                            width: 120,
+                            child: Lottie.asset(
+                              'assets/animations/movie_clapperboard.json',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            "Analyzing gameplay...",
+                            style: TextStyle(
+                              fontFamily: AppTextStyles.fredoka,
+                              fontSize: 18,
+                              color: ColorTheme.brown,
                             ),
                           ),
                         ],
                       ),
+                    )
+                  : _error != null
+                  ? Center(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                          fontFamily: AppTextStyles.fredoka,
+                          color: Colors.red,
+                          fontSize: 16,
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      controller: _scrollController,
+                      clipBehavior: Clip.hardEdge,
+                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // OVERALL ANALYSIS
+                          Container(
+                            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFFDF5),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: const Color(0xFFF7D070).withOpacity(0.5),
+                                width: 3,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.auto_awesome_rounded,
+                                      size: 20,
+                                      color: Color(0xFFF7C325),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      " OVERALL ANALYSIS",
+                                      style: TextStyle(
+                                        fontFamily: AppTextStyles.fredoka,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFFF7C325),
+                                        letterSpacing: 0.6,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Text(
+                                    _reportData!['overallAnalysis'] ?? '',
+                                    textAlign: TextAlign.justify,
+                                    style: const TextStyle(
+                                      fontFamily: 'Nunito',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.45,
+                                      color: ColorTheme.brown,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+
+                          // "WHAT WE OBSERVED" heading with (i) info icon
+                          _buildIndicatorsHeader(),
+                          const SizedBox(height: 10),
+
+                          // ENGAGEMENT / ATTENTION / FOCUS
+                          _buildConstructsBox(),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 30),
-
-                    // "WHAT WE OBSERVED" heading with (i) info icon
-                    _buildIndicatorsHeader(),
-                    const SizedBox(height: 10),
-
-                    // ENGAGEMENT / ATTENTION / FOCUS
-                    _buildConstructsBox(),
-                  ],
-                ),
-              ),
             ),
           ],
         ),

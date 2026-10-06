@@ -49,6 +49,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   bool _isLoading = true;
   final DateTime _loadStart = DateTime.now();
 
+  bool _hasCalibratedThisVisit = false;
   bool _hasShownTutorial = false; // NEW: guard flag
 
   @override
@@ -91,6 +92,24 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   }
 
   Future<void> _openLevel(Widget screen) async {
+    if (!_hasCalibratedThisVisit) {
+      _hasCalibratedThisVisit = true;
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+      await Navigator.push(
+        context,
+        // Use PageRouteBuilder with opaque: false to make it a transparent overlay!
+        PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              CalibrationScreen(
+                childSessionId: uid,
+                onCalibrationDone: () => Navigator.pop(context),
+              ),
+        ),
+      );
+      if (!mounted) return;
+    }
+
     final nextScreen = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),

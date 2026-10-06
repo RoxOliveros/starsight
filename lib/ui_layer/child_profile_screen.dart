@@ -233,13 +233,14 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
       // Resolve the stable Firestore document ID.
       // Once we know the ID, always use it instead of the nickname.
-      final wantedId = _childId ??
+      final wantedId =
+          _childId ??
           widget.child?.id ??
           widget.childNickname ??
           await DatabaseService().getNickname();
 
       final matches = rawChildren.where(
-            (c) => c['id'] == wantedId || c['nickname'] == wantedId,
+        (c) => c['id'] == wantedId || c['nickname'] == wantedId,
       );
 
       Map<String, dynamic>? childData;
@@ -529,11 +530,12 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     try {
       final rawChildren = await DatabaseService().getChildren();
       final data = rawChildren.firstWhere(
-            (c) => c['id'] == childId,
+        (c) => c['id'] == childId,
         orElse: () => <String, dynamic>{},
       );
 
-      final dynamic rawBirthday = data['childBirthdate'] ??
+      final dynamic rawBirthday =
+          data['childBirthdate'] ??
           data['birthdate'] ??
           data['birthDate'] ??
           data['birthday'];
@@ -545,10 +547,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         birthdayDate = rawBirthday.toDate();
       } else if (rawBirthday is String && rawBirthday.trim().isNotEmpty) {
         birthdayDate = _parseBirthdate(rawBirthday.trim());
-        if (birthdayDate == null) birthday = rawBirthday; // unparseable: show as-is
+        if (birthdayDate == null)
+          birthday = rawBirthday; // unparseable: show as-is
       }
       if (birthdayDate != null) birthday = _formatBirthday(birthdayDate);
-
 
       String? gender;
       if (rawGender is String && rawGender.trim().isNotEmpty) {
@@ -946,7 +948,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
               valueFontSize: 40,
               infoTitle: 'Games Completed',
               infoMessage:
-              'This counts the different games your child has finished '
+                  'This counts the different games your child has finished '
                   'across all subjects, out of $_totalLevelsAllCategories in total.',
             ),
           ),
@@ -959,7 +961,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
               valueFontSize: 18,
               infoTitle: 'Most Played Subject',
               infoMessage:
-              'This shows the subject where your child has finished the '
+                  'This shows the subject where your child has finished the '
                   'most games so far.',
             ),
           ),
@@ -1106,7 +1108,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
             final currentChildName =
                 _resolvedChild?.name ?? widget.child?.name ?? 'Demo Child';
             final currentChildId =
-                _resolvedChild?.id ?? _childId ?? widget.child?.id ?? currentChildName;
+                _resolvedChild?.id ??
+                _childId ??
+                widget.child?.id ??
+                currentChildName;
 
             Navigator.push(
               context,
@@ -1114,7 +1119,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
                 builder: (_) => CategoryReportScreen(
                   categoryId: subject.id,
                   categoryName: subject.name,
-                  childId: currentChildId,     // NEW
+                  childId: currentChildId, // NEW
                   childName: currentChildName,
                 ),
               ),
@@ -1189,7 +1194,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     switch (id) {
       case 'alphabet_forest':
         return 'assets/animations/forest.json';
-      case 'lumitown':
+      case 'lumi_town':
         return 'assets/animations/town.json';
       case 'arctic_numberland':
         return 'assets/animations/arctic.json';
@@ -1206,14 +1211,12 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
   // ── Real "games completed" data ─────────────────────────────────────
 
-  /// Total levels in Lumitown. TODO: swap for
-  /// TownProgressService.totalLevels if that constant exists.
   static const int _townTotalLevels = 20;
 
   /// Total levels per category — the ceiling for "games completed".
   static final Map<String, int> _categoryTotalLevels = {
     'alphabet_forest': ForestProgressService.totalLevels,
-    'lumitown': _townTotalLevels,
+    'lumi_town': _townTotalLevels,
     'arctic_numberland': ArcticProgressService.totalLevels,
     'discovery_lagoon': LagoonProgressService.totalLevels,
     'puzzle_glade': PuzzleProgressService.totalLevels,
@@ -1246,7 +1249,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         try {
           final snaps = await Future.wait(
             List.generate(_maxStoredCycles, (i) => i + 1).map(
-                  (slot) => progressRef
+              (slot) => progressRef
                   .doc(entry.key)
                   .collection('cycles')
                   .doc('cycle_$slot')
@@ -1270,9 +1273,9 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   }
 
   List<SubjectAnalysis> _mockAnalysesFor(
-      String childId,
-      Map<String, int> completedByCategory,
-      ) {
+    String childId,
+    Map<String, int> completedByCategory,
+  ) {
     final now = DateTime.now();
     final seed = childId.hashCode.abs();
 
@@ -1283,44 +1286,44 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
     final subjectsSpec = [
       (
-      'alphabet_forest',
-      'Alphabet Forest',
-      Icons.abc_rounded,
-      ColorTheme.orange,
-      'assets/images/avatars/avatar_dog.png',
-      'Letters, sound, alphabet',
+        'alphabet_forest',
+        'Alphabet Forest',
+        Icons.abc_rounded,
+        ColorTheme.orange,
+        'assets/images/avatars/avatar_dog.png',
+        'Letters, sound, alphabet',
       ),
       (
-      'lumitown',
-      'Lumitown',
-      Icons.science_rounded,
-      ColorTheme.titleSky,
-      'assets/images/avatars/avatar_owl.png',
-      'Curious questions and cause-and-effect!',
+        'lumi_town',
+        'Lumi Town',
+        Icons.science_rounded,
+        ColorTheme.titleSky,
+        'assets/images/avatars/avatar_owl.png',
+        'Curious questions and cause-and-effect!',
       ),
       (
-      'arctic_numberland',
-      'Arctic Numberland',
-      Icons.pin_rounded,
-      ColorTheme.deepNavyBlue,
-      'assets/images/avatars/avatar_penguin.png',
-      'Counting, matching, and number play!',
+        'arctic_numberland',
+        'Arctic Numberland',
+        Icons.pin_rounded,
+        ColorTheme.deepNavyBlue,
+        'assets/images/avatars/avatar_penguin.png',
+        'Counting, matching, and number play!',
       ),
       (
-      'discovery_lagoon',
-      'Discovery Lagoon',
-      Icons.favorite_rounded,
-      ColorTheme.titleGold,
-      'assets/images/avatars/avatar_cat.png',
-      'Kindness, sharing, and good choices!',
+        'discovery_lagoon',
+        'Discovery Lagoon',
+        Icons.favorite_rounded,
+        ColorTheme.titleGold,
+        'assets/images/avatars/avatar_cat.png',
+        'Kindness, sharing, and good choices!',
       ),
       (
-      'puzzle_glade',
-      'Puzzle Glade',
-      Icons.extension_rounded,
-      ColorTheme.teal,
-      'assets/images/avatars/avatar_bunny.png',
-      'Shapes, patterns, and problem-solving!',
+        'puzzle_glade',
+        'Puzzle Glade',
+        Icons.extension_rounded,
+        ColorTheme.teal,
+        'assets/images/avatars/avatar_bunny.png',
+        'Shapes, patterns, and problem-solving!',
       ),
     ];
 
@@ -1353,10 +1356,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   }
 
   String _mockDescription(
-      String subject,
-      LearningConstruct construct,
-      InsightBand band,
-      ) {
+    String subject,
+    LearningConstruct construct,
+    InsightBand band,
+  ) {
     switch (construct) {
       case LearningConstruct.engagement:
         switch (band) {
@@ -1397,8 +1400,6 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     }
   }
 }
-
-
 
 // ── Shared small decorative widget ──────────────────────────────────────
 
