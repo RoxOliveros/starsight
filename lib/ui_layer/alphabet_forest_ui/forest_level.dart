@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
-import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
@@ -41,8 +40,6 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   StreamSubscription<int>? _progressSub;
   final DateTime _loadStart = DateTime.now();
 
-  static String? _calibratedSessionId;
-
   @override
   void initState() {
     super.initState();
@@ -52,8 +49,8 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
 
   void _listenToProgress() {
     _progressSub = ForestProgressService.instance.streamUnlockedLevel().listen((
-        level,
-        ) async {
+      level,
+    ) async {
       if (!mounted) return;
 
       final wasLoading = _isLoadingProgress;
@@ -97,25 +94,6 @@ class _ForestLevelScreenState extends State<ForestLevelScreen> {
   }
 
   Future<void> _openLevel(Widget screen) async {
-    // Calibrate the camera once, before the first level of the session.
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-    if (_calibratedSessionId != uid) {
-      _calibratedSessionId = uid;
-      await Navigator.push(
-        context,
-
-        PageRouteBuilder(
-          opaque: false,
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              CalibrationScreen(
-                childSessionId: uid,
-                onCalibrationDone: () => Navigator.pop(context),
-              ),
-        ),
-      );
-      if (!mounted) return;
-    }
-
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
