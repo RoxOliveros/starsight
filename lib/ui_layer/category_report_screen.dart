@@ -281,12 +281,24 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
 
       List<String> allEmotions = [];
       int totalMistakes = 0;
-      Set<String> distinctGameIds = {};
+      Set<String> distinctLevels = {}; // Changed from distinctGameIds
 
       for (var doc in snapshot.docs) {
-        // Fallback to doc.id covers pre-migration docs — see note below.
         final gameId = doc.data()['gameId'] as String? ?? doc.id;
-        distinctGameIds.add(gameId);
+
+        // Group Alphabet Forest sub-games by their Map Level
+        if (widget.categoryId == 'alphabet_forest' &&
+            gameId.startsWith('letter_')) {
+          final letter = gameId.split('_').last;
+          final lvl = ForestProgressService.levelNumberForLetter(letter);
+          if (lvl != null) {
+            distinctLevels.add('Level $lvl');
+          } else {
+            distinctLevels.add(gameId);
+          }
+        } else {
+          distinctLevels.add(gameId);
+        }
 
         totalMistakes += (doc.data()['mistakes'] as num?)?.toInt() ?? 0;
         var emotions = List<String>.from(doc.data()['emotions'] ?? []);
@@ -294,7 +306,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       }
 
       int totalAttempts = snapshot.docs.length;
-      List<String> playedGameIds = distinctGameIds.toList();
+      List<String> playedGameIds = distinctLevels
+          .toList(); // Pass grouped levels to AI!
 
       // C. CACHE CHECK: Did we already generate a report for this exact number of games?
       if (cycleDoc.exists &&

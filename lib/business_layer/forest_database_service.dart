@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -49,13 +50,28 @@ class ForestDatabaseService {
       final gamesSnapshot = await currentCycleRef
           .collection('games_played')
           .get();
-      int totalGamesInCycle = gamesSnapshot.docs.length;
+
+      Set<String> distinctLevels = {};
+      for (var doc in gamesSnapshot.docs) {
+        String gId = doc.id;
+        if (gId.startsWith('letter_')) {
+          String letter = gId.split('_').last;
+          int? lvl = ForestProgressService.levelNumberForLetter(letter);
+          if (lvl != null) {
+            distinctLevels.add('level_$lvl');
+            continue;
+          }
+        }
+        distinctLevels.add(gId);
+      }
+
+      int totalLevelsInCycle = distinctLevels.length;
       bool gameAlreadyPlayed = gamesSnapshot.docs.any(
         (doc) => doc.id == gameId,
       );
 
-      // Only start a new cycle IF the forest is 100% complete (24 games) AND they replay a game
-      if (totalGamesInCycle >= 25 && gameAlreadyPlayed) {
+      // Only start a new cycle IF the forest is 100% complete (25 games) AND they replay a game
+      if (totalLevelsInCycle >= 25 && gameAlreadyPlayed) {
         currentCycle++;
         await trackerRef.set({
           'currentCycle': currentCycle,

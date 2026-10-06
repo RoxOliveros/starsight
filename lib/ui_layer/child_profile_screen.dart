@@ -1260,7 +1260,17 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
           final gameIds = <String>{};
           for (final snap in snaps) {
             for (final doc in snap.docs) {
-              gameIds.add(doc.data()['gameId'] as String? ?? doc.id);
+              String gId = doc.data()['gameId'] as String? ?? doc.id;
+
+              if (entry.key == 'alphabet_forest' && gId.startsWith('letter_')) {
+                String letter = gId.split('_').last;
+                int? lvl = ForestProgressService.levelNumberForLetter(letter);
+                if (lvl != null) {
+                  gameIds.add('forest_lvl_$lvl');
+                  continue;
+                }
+              }
+              gameIds.add(gId);
             }
           }
           result[entry.key] = gameIds.length.clamp(0, entry.value).toInt();

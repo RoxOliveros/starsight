@@ -8,7 +8,7 @@ class ForestProgressService {
   // --- Add a variable to track which child is currently playing ---
   String? activeChildId;
 
-  static const int totalLevels = 24;
+  static const int totalLevels = 25;
   static const int _defaultUnlockedLevel = 1;
 
   DocumentReference<Map<String, dynamic>>? get _docRef {
