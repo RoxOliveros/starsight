@@ -42,14 +42,11 @@ class AlphabetTraceScreen extends StatefulWidget {
 }
 
 class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
-    with
-        TofiReactionMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<AlphabetTraceScreen> {
-  final AudioPlayer _player = AudioPlayer();
+    with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetTraceScreen> {
 
-  // for tracking and analysis
+  final AudioPlayer _player = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
+  final GlobalKey _canvasKey = GlobalKey();
 
   @override
   AudioPlayer get tofiPlayer => _player;
@@ -57,23 +54,9 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
 
-  final GlobalKey _canvasKey = GlobalKey();
   int _currentLevelIndex = 0;
-
-  // Tracking Progress
   int _currentStrokeIndex = 0;
   int _currentPointIndex = 0;
-  List<List<Offset>> _denseStrokes = [];
-
-  late List<TraceLevel> _levels;
-
-  static final Random _random = Random();
-
-  static List<int> _miniGameQueue = [];
-  static int _miniGameIndex = 0;
-
-  static const String _traceInstructionWav =
-      'audio/alphabet_forest/trace_letter_instruction.wav';
 
   int _nextMiniGame() {
     if (_miniGameIndex >= _miniGameQueue.length) {
@@ -84,8 +67,22 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     return _miniGameQueue[_miniGameIndex++];
   }
 
+  List<List<Offset>> _denseStrokes = [];
+  late List<TraceLevel> _levels;
+
+  static final Random _random = Random();
+  static List<int> _miniGameQueue = [];
+  static int _miniGameIndex = 0;
+  static const String _traceInstructionWav = 'audio/alphabet_forest/trace_letter_instruction.wav';
+
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _awaitingLift = false;
+  bool _touchValid = false;
+  bool _audioFinished = false;
+  bool _isDotStroke(List<Offset> stroke) => stroke.length <= 3;
+
+  Size _lastCanvasSize = Size.zero;
 
   @override
   void initState() {
@@ -108,23 +105,23 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
 
     _loadLetter(widget.letter);
     _playInstructionThenLetter();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) => _generateDensePaths());
   }
 
   Future<void> _playInstructionThenLetter() async {
-    // Tutorial audio: stops if the child leaves the frame and plays again
-    // from the start when they're back (or the card is dismissed).
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      _traceInstructionWav,
-      timeout: const Duration(seconds: 30),
-    );
-    if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-    );
+    try {
+      await playVoiceRestartingOnFaceLoss(
+        _player,
+        _traceInstructionWav,
+        timeout: const Duration(seconds: 30),
+      );
+      if (!mounted) return;
+      await playVoiceRestartingOnFaceLoss(
+        _player,
+        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+      );
+    } finally {
+      if (mounted) setState(() => _audioFinished = true);
+    }
   }
 
   @override
@@ -153,15 +150,16 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.70, 0.50),
-                const Offset(0.50, 0.40),
-                const Offset(0.40, 0.45),
-                const Offset(0.30, 0.60),
-                const Offset(0.45, 0.80),
-                const Offset(0.65, 0.75),
-                const Offset(0.70, 0.65),
+                const Offset(0.66, 0.48),
+                const Offset(0.56, 0.41),
+                const Offset(0.44, 0.42),
+                const Offset(0.35, 0.52),
+                const Offset(0.34, 0.66),
+                const Offset(0.42, 0.77),
+                const Offset(0.54, 0.80),
+                const Offset(0.66, 0.74),
               ],
-              [const Offset(0.70, 0.35), const Offset(0.70, 0.85)],
+              [const Offset(0.66, 0.40), const Offset(0.66, 0.80)],
             ],
           ),
         ];
@@ -193,14 +191,18 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             letterName: "Small b",
             imagePath: '',
             strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
+              [const Offset(0.34, 0.20), const Offset(0.34, 0.80)],
               [
-                const Offset(0.3, 0.5),
-                const Offset(0.6, 0.5),
-                const Offset(0.7, 0.65),
-                const Offset(0.6, 0.8),
-                const Offset(0.3, 0.8),
-              ], // Loop
+                const Offset(0.34, 0.50),
+                const Offset(0.42, 0.42),
+                const Offset(0.54, 0.40),
+                const Offset(0.64, 0.48),
+                const Offset(0.67, 0.60),
+                const Offset(0.64, 0.72),
+                const Offset(0.54, 0.80),
+                const Offset(0.42, 0.78),
+                const Offset(0.34, 0.70),
+              ],
             ],
           ),
         ];
@@ -212,12 +214,15 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.7, 0.25),
-                const Offset(0.5, 0.2),
-                const Offset(0.3, 0.4),
-                const Offset(0.3, 0.6),
-                const Offset(0.5, 0.8),
-                const Offset(0.7, 0.75),
+                const Offset(0.70, 0.30),
+                const Offset(0.60, 0.22),
+                const Offset(0.48, 0.20),
+                const Offset(0.37, 0.28),
+                const Offset(0.31, 0.50),
+                const Offset(0.37, 0.72),
+                const Offset(0.48, 0.80),
+                const Offset(0.60, 0.78),
+                const Offset(0.70, 0.70),
               ],
             ],
           ),
@@ -226,12 +231,15 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.65, 0.55),
-                const Offset(0.5, 0.5),
-                const Offset(0.35, 0.6),
-                const Offset(0.35, 0.7),
-                const Offset(0.5, 0.8),
-                const Offset(0.65, 0.75),
+                const Offset(0.64, 0.48),
+                const Offset(0.56, 0.42),
+                const Offset(0.46, 0.41),
+                const Offset(0.38, 0.47),
+                const Offset(0.34, 0.60),
+                const Offset(0.38, 0.73),
+                const Offset(0.46, 0.79),
+                const Offset(0.56, 0.78),
+                const Offset(0.64, 0.72),
               ],
             ],
           ),
@@ -258,13 +266,16 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.6, 0.5),
-                const Offset(0.4, 0.5),
-                const Offset(0.3, 0.65),
-                const Offset(0.4, 0.8),
-                const Offset(0.6, 0.8),
-              ], // Loop
-              [const Offset(0.6, 0.2), const Offset(0.6, 0.8)], // Vertical
+                const Offset(0.66, 0.48),
+                const Offset(0.56, 0.41),
+                const Offset(0.44, 0.42),
+                const Offset(0.35, 0.52),
+                const Offset(0.34, 0.66),
+                const Offset(0.42, 0.77),
+                const Offset(0.54, 0.80),
+                const Offset(0.66, 0.74),
+              ],
+              [const Offset(0.66, 0.20), const Offset(0.66, 0.80)],
             ],
           ),
         ];
@@ -286,14 +297,16 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.35, 0.65),
-                const Offset(0.65, 0.65),
-                const Offset(0.65, 0.5),
-                const Offset(0.5, 0.45),
-                const Offset(0.35, 0.55),
-                const Offset(0.35, 0.75),
-                const Offset(0.5, 0.85),
-                const Offset(0.7, 0.75),
+                const Offset(0.34, 0.60),
+                const Offset(0.50, 0.60),
+                const Offset(0.66, 0.60),
+                const Offset(0.63, 0.48),
+                const Offset(0.52, 0.41),
+                const Offset(0.40, 0.45),
+                const Offset(0.33, 0.60),
+                const Offset(0.38, 0.74),
+                const Offset(0.50, 0.80),
+                const Offset(0.64, 0.75),
               ],
             ],
           ),
@@ -314,17 +327,15 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             letterName: "Small f",
             imagePath: '',
             strokes: [
-              // Stroke 1: The top hook and straight line down
               [
-                const Offset(0.60, 0.25), // Start at top right of the hook
-                const Offset(0.50, 0.15), // Curve up to the top middle
-                const Offset(0.40, 0.25), // Curve down to the left
-                const Offset(0.40, 0.85), // Go straight down to the bottom
+                const Offset(0.60, 0.25),
+                const Offset(0.50, 0.15),
+                const Offset(0.40, 0.25),
+                const Offset(0.40, 0.85),
               ],
-              // Stroke 2: The middle crossbar
               [
-                const Offset(0.25, 0.45), // Start left of the stem
-                const Offset(0.55, 0.45), // Cross over to the right
+                const Offset(0.25, 0.45),
+                const Offset(0.55, 0.45),
               ],
             ],
           ),
@@ -337,15 +348,19 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.7, 0.25),
-                const Offset(0.5, 0.2),
-                const Offset(0.3, 0.4),
-                const Offset(0.3, 0.6),
-                const Offset(0.5, 0.8),
-                const Offset(0.7, 0.7),
-                const Offset(0.7, 0.55),
-                const Offset(0.5, 0.55),
-              ], // C-curve into horizontal
+                const Offset(0.70, 0.30),
+                const Offset(0.60, 0.22),
+                const Offset(0.48, 0.20),
+                const Offset(0.37, 0.28),
+                const Offset(0.31, 0.50),
+                const Offset(0.37, 0.72),
+                const Offset(0.48, 0.80),
+                const Offset(0.60, 0.78),
+                const Offset(0.69, 0.70),
+                const Offset(0.70, 0.56),
+                const Offset(0.60, 0.55),
+                const Offset(0.52, 0.55),
+              ],
             ],
           ),
           TraceLevel(
@@ -353,19 +368,22 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.6, 0.4),
-                const Offset(0.4, 0.4),
-                const Offset(0.3, 0.55),
-                const Offset(0.4, 0.7),
-                const Offset(0.6, 0.7),
-                const Offset(0.6, 0.4),
-              ], // Top circle
+                const Offset(0.66, 0.36),
+                const Offset(0.56, 0.29),
+                const Offset(0.44, 0.30),
+                const Offset(0.35, 0.40),
+                const Offset(0.34, 0.54),
+                const Offset(0.42, 0.65),
+                const Offset(0.54, 0.68),
+                const Offset(0.66, 0.62),
+              ],
               [
-                const Offset(0.6, 0.4),
-                const Offset(0.6, 0.8),
-                const Offset(0.5, 0.9),
-                const Offset(0.35, 0.85),
-              ], // Stem & hook
+                const Offset(0.66, 0.28),
+                const Offset(0.66, 0.70),
+                const Offset(0.60, 0.80),
+                const Offset(0.48, 0.83),
+                const Offset(0.38, 0.78),
+              ],
             ],
           ),
         ];
@@ -493,11 +511,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             letterName: "Big L",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.3, 0.2),
-                const Offset(0.3, 0.8),
-                const Offset(0.7, 0.8),
-              ],
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)],
+              [const Offset(0.3, 0.8), const Offset(0.7, 0.8)],
             ],
           ),
           TraceLevel(
@@ -515,29 +530,32 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             letterName: "Big M",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.2, 0.8),
-                const Offset(0.2, 0.2),
-                const Offset(0.5, 0.5),
-                const Offset(0.8, 0.2),
-                const Offset(0.8, 0.8),
-              ],
+              [const Offset(0.20, 0.8), const Offset(0.20, 0.2)],
+              [const Offset(0.20, 0.2), const Offset(0.50, 0.58)],
+              [const Offset(0.50, 0.58), const Offset(0.80, 0.2)],
+              [const Offset(0.80, 0.2), const Offset(0.80, 0.8)],
             ],
           ),
           TraceLevel(
             letterName: "Small m",
             imagePath: '',
             strokes: [
-              [const Offset(0.25, 0.4), const Offset(0.25, 0.8)],
+              [const Offset(0.25, 0.40), const Offset(0.25, 0.80)],
               [
-                const Offset(0.25, 0.5),
-                const Offset(0.5, 0.4),
-                const Offset(0.5, 0.8),
+                const Offset(0.25, 0.56),
+                const Offset(0.29, 0.46),
+                const Offset(0.37, 0.41),
+                const Offset(0.45, 0.46),
+                const Offset(0.50, 0.56),
+                const Offset(0.50, 0.80),
               ],
               [
-                const Offset(0.5, 0.5),
-                const Offset(0.75, 0.4),
-                const Offset(0.75, 0.8),
+                const Offset(0.50, 0.56),
+                const Offset(0.54, 0.46),
+                const Offset(0.62, 0.41),
+                const Offset(0.70, 0.46),
+                const Offset(0.75, 0.56),
+                const Offset(0.75, 0.80),
               ],
             ],
           ),
@@ -549,27 +567,28 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             letterName: "Big N",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.3, 0.8),
-                const Offset(0.3, 0.2),
-                const Offset(0.7, 0.8),
-                const Offset(0.7, 0.2),
-              ],
+              [const Offset(0.30, 0.8), const Offset(0.30, 0.2)],
+              [const Offset(0.30, 0.2), const Offset(0.70, 0.8)],
+              [const Offset(0.70, 0.8), const Offset(0.70, 0.2)],
             ],
           ),
           TraceLevel(
             letterName: "Small n",
             imagePath: '',
             strokes: [
-              [const Offset(0.35, 0.4), const Offset(0.35, 0.8)],
+              [const Offset(0.35, 0.40), const Offset(0.35, 0.80)],
               [
-                const Offset(0.35, 0.5),
-                const Offset(0.65, 0.4),
-                const Offset(0.65, 0.8),
+                const Offset(0.35, 0.56),
+                const Offset(0.39, 0.46),
+                const Offset(0.50, 0.41),
+                const Offset(0.61, 0.46),
+                const Offset(0.65, 0.56),
+                const Offset(0.65, 0.80),
               ],
             ],
           ),
         ];
+        break;
       case 'O':
         _levels = [
           TraceLevel(
@@ -577,13 +596,20 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.5, 0.2),
-                const Offset(0.3, 0.3),
-                const Offset(0.3, 0.7),
-                const Offset(0.5, 0.8),
-                const Offset(0.7, 0.7),
-                const Offset(0.7, 0.3),
-                const Offset(0.5, 0.2),
+                const Offset(0.50, 0.20),
+                const Offset(0.40, 0.24),
+                const Offset(0.33, 0.35),
+                const Offset(0.30, 0.50),
+                const Offset(0.33, 0.65),
+                const Offset(0.40, 0.76),
+                const Offset(0.50, 0.80),
+                const Offset(0.60, 0.76),
+                const Offset(0.67, 0.65),
+                const Offset(0.70, 0.50),
+                const Offset(0.67, 0.35),
+                const Offset(0.60, 0.24),
+                const Offset(0.50, 0.20),
+                const Offset(0.40, 0.24),
               ],
             ],
           ),
@@ -592,55 +618,61 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.5, 0.4),
-                const Offset(0.35, 0.5),
-                const Offset(0.35, 0.7),
-                const Offset(0.5, 0.8),
-                const Offset(0.65, 0.7),
-                const Offset(0.65, 0.5),
-                const Offset(0.5, 0.4),
+                const Offset(0.50, 0.40),
+                const Offset(0.425, 0.43),
+                const Offset(0.37, 0.50),
+                const Offset(0.35, 0.60),
+                const Offset(0.37, 0.70),
+                const Offset(0.425, 0.77),
+                const Offset(0.50, 0.80),
+                const Offset(0.575, 0.77),
+                const Offset(0.63, 0.70),
+                const Offset(0.65, 0.60),
+                const Offset(0.63, 0.50),
+                const Offset(0.575, 0.43),
+                const Offset(0.50, 0.40),
+                const Offset(0.425, 0.43),
               ],
             ],
           ),
         ];
         break;
-
       case 'P':
         _levels = [
           TraceLevel(
             letterName: "Big P",
             imagePath: '',
             strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Line down
+              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)],
               [
                 const Offset(0.3, 0.2),
                 const Offset(0.6, 0.2),
                 const Offset(0.7, 0.35),
                 const Offset(0.6, 0.5),
                 const Offset(0.3, 0.5),
-              ], // Top loop
+              ],
             ],
           ),
           TraceLevel(
             letterName: "Small p",
             imagePath: '',
             strokes: [
+              [const Offset(0.34, 0.28), const Offset(0.34, 0.83)],
               [
-                const Offset(0.3, 0.4),
-                const Offset(0.3, 0.95),
-              ], // Line drops below baseline
-              [
-                const Offset(0.3, 0.4),
-                const Offset(0.6, 0.4),
-                const Offset(0.7, 0.55),
-                const Offset(0.6, 0.7),
-                const Offset(0.3, 0.7),
-              ], // Small loop
+                const Offset(0.34, 0.38),
+                const Offset(0.42, 0.30),
+                const Offset(0.54, 0.28),
+                const Offset(0.64, 0.36),
+                const Offset(0.67, 0.48),
+                const Offset(0.64, 0.60),
+                const Offset(0.54, 0.68),
+                const Offset(0.42, 0.66),
+                const Offset(0.34, 0.58),
+              ],
             ],
           ),
         ];
         break;
-
       case 'Q':
         _levels = [
           TraceLevel(
@@ -648,15 +680,22 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.5, 0.2),
-                const Offset(0.3, 0.3),
-                const Offset(0.3, 0.7),
-                const Offset(0.5, 0.8),
-                const Offset(0.7, 0.7),
-                const Offset(0.7, 0.3),
-                const Offset(0.5, 0.2),
+                const Offset(0.50, 0.20),
+                const Offset(0.40, 0.24),
+                const Offset(0.33, 0.35),
+                const Offset(0.30, 0.50),
+                const Offset(0.33, 0.65),
+                const Offset(0.40, 0.76),
+                const Offset(0.50, 0.80),
+                const Offset(0.60, 0.76),
+                const Offset(0.67, 0.65),
+                const Offset(0.70, 0.50),
+                const Offset(0.67, 0.35),
+                const Offset(0.60, 0.24),
+                const Offset(0.50, 0.20),
+                const Offset(0.40, 0.24),
               ], // Circle
-              [const Offset(0.55, 0.65), const Offset(0.75, 0.85)], // Tail
+              [const Offset(0.56, 0.66), const Offset(0.76, 0.86)],
             ],
           ),
           TraceLevel(
@@ -664,18 +703,20 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.65, 0.4),
-                const Offset(0.5, 0.4),
-                const Offset(0.35, 0.55),
-                const Offset(0.5, 0.7),
-                const Offset(0.65, 0.7),
-              ], // Left circle
-              [const Offset(0.65, 0.4), const Offset(0.65, 0.95)], // Line down
+                const Offset(0.66, 0.36),
+                const Offset(0.56, 0.29),
+                const Offset(0.44, 0.30),
+                const Offset(0.35, 0.40),
+                const Offset(0.34, 0.54),
+                const Offset(0.42, 0.65),
+                const Offset(0.54, 0.68),
+                const Offset(0.66, 0.62),
+              ],
+              [const Offset(0.66, 0.28), const Offset(0.66, 0.83)],
             ],
           ),
         ];
         break;
-
       case 'R':
         _levels = [
           TraceLevel(
@@ -707,7 +748,6 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
           ),
         ];
         break;
-
       case 'S':
         _levels = [
           TraceLevel(
@@ -715,13 +755,22 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.7, 0.3),
-                const Offset(0.5, 0.2),
-                const Offset(0.3, 0.35),
-                const Offset(0.5, 0.5),
-                const Offset(0.7, 0.65),
-                const Offset(0.5, 0.8),
-                const Offset(0.3, 0.7),
+                const Offset(0.68, 0.28),
+                const Offset(0.62, 0.22),
+                const Offset(0.53, 0.20),
+                const Offset(0.44, 0.21),
+                const Offset(0.36, 0.26),
+                const Offset(0.33, 0.34),
+                const Offset(0.37, 0.42),
+                const Offset(0.46, 0.48),
+                const Offset(0.55, 0.52),
+                const Offset(0.64, 0.57),
+                const Offset(0.68, 0.65),
+                const Offset(0.64, 0.73),
+                const Offset(0.56, 0.78),
+                const Offset(0.46, 0.80),
+                const Offset(0.38, 0.77),
+                const Offset(0.32, 0.71),
               ],
             ],
           ),
@@ -730,39 +779,43 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.65, 0.45),
-                const Offset(0.5, 0.4),
-                const Offset(0.35, 0.5),
-                const Offset(0.5, 0.6),
-                const Offset(0.65, 0.7),
-                const Offset(0.5, 0.8),
-                const Offset(0.35, 0.75),
+                const Offset(0.635, 0.453),
+                const Offset(0.59, 0.413),
+                const Offset(0.52, 0.40),
+                const Offset(0.455, 0.407),
+                const Offset(0.395, 0.44),
+                const Offset(0.37, 0.493),
+                const Offset(0.40, 0.547),
+                const Offset(0.47, 0.587),
+                const Offset(0.54, 0.613),
+                const Offset(0.605, 0.647),
+                const Offset(0.635, 0.70),
+                const Offset(0.605, 0.753),
+                const Offset(0.545, 0.787),
+                const Offset(0.47, 0.80),
+                const Offset(0.41, 0.78),
+                const Offset(0.365, 0.74),
               ],
             ],
           ),
         ];
         break;
-
       case 'T':
         _levels = [
           TraceLevel(
             letterName: "Big T",
             imagePath: '',
             strokes: [
-              [const Offset(0.2, 0.2), const Offset(0.8, 0.2)], // Top bar
-              [const Offset(0.5, 0.2), const Offset(0.5, 0.8)], // Stem down
+              [const Offset(0.2, 0.2), const Offset(0.8, 0.2)],
+              [const Offset(0.5, 0.2), const Offset(0.5, 0.8)],
             ],
           ),
           TraceLevel(
             letterName: "Small t",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.5, 0.2),
-                const Offset(0.5, 0.75),
-                const Offset(0.6, 0.8),
-              ], // Stem with bottom hook
-              [const Offset(0.3, 0.45), const Offset(0.7, 0.45)], // Cross bar
+              [const Offset(0.5, 0.2), const Offset(0.5, 0.8)],
+              [const Offset(0.3, 0.45), const Offset(0.7, 0.45)],
             ],
           ),
         ];
@@ -771,16 +824,18 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
       case 'U':
         _levels = [
           TraceLevel(
-            letterName: "Big U",
+            letterName: "Capital U",
             imagePath: '',
             strokes: [
               [
                 const Offset(0.3, 0.2),
-                const Offset(0.3, 0.65),
-                const Offset(0.5, 0.8),
-                const Offset(0.7, 0.65),
+                const Offset(0.3, 0.6),
+                const Offset(0.35, 0.72),
+                const Offset(0.5, 0.78),
+                const Offset(0.65, 0.72),
+                const Offset(0.7, 0.6),
                 const Offset(0.7, 0.2),
-              ], // Single large curve
+              ],
             ],
           ),
           TraceLevel(
@@ -788,13 +843,15 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             imagePath: '',
             strokes: [
               [
-                const Offset(0.3, 0.4),
-                const Offset(0.3, 0.7),
-                const Offset(0.5, 0.8),
-                const Offset(0.7, 0.7),
-                const Offset(0.7, 0.4),
-              ], // Small cup
-              [const Offset(0.7, 0.4), const Offset(0.7, 0.8)], // Stem down
+                const Offset(0.35, 0.4),
+                const Offset(0.35, 0.65),
+                const Offset(0.4, 0.73),
+                const Offset(0.5, 0.76),
+                const Offset(0.6, 0.73),
+                const Offset(0.65, 0.65),
+                const Offset(0.65, 0.4),
+              ],
+              [const Offset(0.65, 0.4), const Offset(0.65, 0.76)],
             ],
           ),
         ];
@@ -802,56 +859,43 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
       case 'V':
         _levels = [
           TraceLevel(
-            letterName: "Big V",
+            letterName: "Capital V",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.25, 0.2),
-                const Offset(0.5, 0.8),
-                const Offset(0.75, 0.2),
-              ],
+              [const Offset(0.25, 0.2), const Offset(0.5, 0.78)],
+              [const Offset(0.5, 0.78), const Offset(0.75, 0.2)],
             ],
           ),
           TraceLevel(
             letterName: "Small v",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.3, 0.45),
-                const Offset(0.5, 0.8),
-                const Offset(0.7, 0.45),
-              ],
+              [const Offset(0.3, 0.4), const Offset(0.5, 0.76)],
+              [const Offset(0.5, 0.76), const Offset(0.7, 0.4)],
             ],
           ),
         ];
         break;
-
       case 'W':
         _levels = [
           TraceLevel(
-            letterName: "Big W",
+            letterName: "Capital W",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.15, 0.2),
-                const Offset(0.3, 0.8),
-                const Offset(0.5, 0.45),
-                const Offset(0.7, 0.8),
-                const Offset(0.85, 0.2),
-              ],
+              [const Offset(0.15, 0.2), const Offset(0.32, 0.78)],
+              [const Offset(0.32, 0.78), const Offset(0.5, 0.35)],
+              [const Offset(0.5, 0.35), const Offset(0.68, 0.78)],
+              [const Offset(0.68, 0.78), const Offset(0.85, 0.2)],
             ],
           ),
           TraceLevel(
             letterName: "Small w",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.2, 0.45),
-                const Offset(0.35, 0.8),
-                const Offset(0.5, 0.55),
-                const Offset(0.65, 0.8),
-                const Offset(0.8, 0.45),
-              ],
+              [const Offset(0.15, 0.4), const Offset(0.32, 0.76)],
+              [const Offset(0.32, 0.76), const Offset(0.5, 0.5)],
+              [const Offset(0.5, 0.5), const Offset(0.68, 0.76)],
+              [const Offset(0.68, 0.76), const Offset(0.85, 0.4)],
             ],
           ),
         ];
@@ -893,16 +937,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             letterName: "Small y",
             imagePath: '',
             strokes: [
-              [
-                const Offset(0.3, 0.45),
-                const Offset(0.5, 0.65),
-                const Offset(0.7, 0.45),
-              ],
-              [
-                const Offset(0.5, 0.65),
-                const Offset(0.45, 0.95),
-                const Offset(0.3, 0.9),
-              ],
+              [const Offset(0.3, 0.4), const Offset(0.5, 0.7)],
+              [const Offset(0.7, 0.4), const Offset(0.4, 0.9)],
             ],
           ),
         ];
@@ -946,12 +982,9 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     }
   }
 
-  void _generateDensePaths() {
-    final RenderBox? renderBox =
-        _canvasKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
+  void _generateDensePaths(Size size) {
+    if (size.isEmpty) return;
 
-    final Size size = renderBox.size;
     List<List<Offset>> newDenseStrokes = [];
 
     for (var stroke in _levels[_currentLevelIndex].strokes) {
@@ -991,7 +1024,22 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     });
   }
 
-  // ADD this helper method (same technique as number_tracing_widget.dart)
+  void _onTapDown(TapDownDetails details) {
+    if (!_audioFinished) return;
+    if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length) {
+      return;
+    }
+
+    final stroke = _denseStrokes[_currentStrokeIndex];
+    if (!_isDotStroke(stroke)) return;
+
+    if ((details.localPosition - stroke.first).distance < 60.0) {
+      setState(() => _currentPointIndex = stroke.length);
+      _moveToNextStroke();
+      _awaitingLift = false;
+    }
+  }
+
   Offset _catmullRom(Offset p0, Offset p1, Offset p2, Offset p3, double t) {
     final t2 = t * t;
     final t3 = t2 * t;
@@ -1010,44 +1058,70 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     return Offset(x, y);
   }
 
-  void _onPanUpdate(DragUpdateDetails details) {
+  void _onPanStart(DragStartDetails details) {
+    _touchValid = false;
+    if (!_audioFinished) return;
+    if (_awaitingLift) return;
     if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length) {
       return;
     }
 
-    Offset dragPos = details.localPosition;
-    List<Offset> currentStroke = _denseStrokes[_currentStrokeIndex];
+    final stroke = _denseStrokes[_currentStrokeIndex];
+    if (_isDotStroke(stroke)) return;
+    if (_currentPointIndex >= stroke.length) return;
 
-    if (_currentPointIndex < currentStroke.length) {
-      Offset target = currentStroke[_currentPointIndex];
-      double distance = sqrt(
-        pow(dragPos.dx - target.dx, 2) + pow(dragPos.dy - target.dy, 2),
-      );
+    final d = (details.localPosition - stroke[_currentPointIndex]).distance;
+    _touchValid = d < 60.0;
+  }
 
-      if (distance < 40.0) {
-        setState(() {
-          while (_currentPointIndex < currentStroke.length &&
-              sqrt(
-                    pow(dragPos.dx - currentStroke[_currentPointIndex].dx, 2) +
-                        pow(
-                          dragPos.dy - currentStroke[_currentPointIndex].dy,
-                          2,
-                        ),
-                  ) <
-                  40.0) {
-            _currentPointIndex++;
-          }
-        });
+  void _onPanEnd(DragEndDetails details) {
+    _awaitingLift = false;
+    _touchValid = false;
+  }
 
-        if (_currentPointIndex >= currentStroke.length) {
-          _moveToNextStroke();
-        }
+  void _onPanCancel() {
+    _awaitingLift = false;
+    _touchValid = false;
+  }
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    if (_awaitingLift || !_touchValid) return;
+    if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length) {
+      return;
+    }
+
+    final dragPos = details.localPosition;
+    final currentStroke = _denseStrokes[_currentStrokeIndex];
+    if (_currentPointIndex >= currentStroke.length) return;
+
+    const double reach = 40.0;
+    const int lookAhead = 20;
+
+    int best = -1;
+    double bestDist = reach;
+    final end = min(currentStroke.length, _currentPointIndex + lookAhead);
+
+    for (int i = _currentPointIndex; i < end; i++) {
+      final d = (dragPos - currentStroke[i]).distance;
+      if (d < bestDist) {
+        bestDist = d;
+        best = i;
       }
+    }
+
+    if (best < 0) return;
+
+    setState(() => _currentPointIndex = best + 1);
+
+    if (_currentPointIndex >= currentStroke.length) {
+      _moveToNextStroke();
     }
   }
 
   void _moveToNextStroke() {
     _tapTracker.recordCorrectTap();
+    _awaitingLift = true;
+    _touchValid = false;
     setState(() {
       _currentStrokeIndex++;
       _currentPointIndex = 0;
@@ -1076,8 +1150,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
       setState(() {
         _resetBoard();
         _currentLevelIndex++;
-        _generateDensePaths();
       });
+      _generateDensePaths(_lastCanvasSize);
       return;
     }
 
@@ -1168,20 +1242,35 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
                                   width: 4,
                                 ),
                               ),
-                              child: Stack(
-                                children: [
-                                  GestureDetector(
-                                    onPanUpdate: _onPanUpdate,
-                                    child: CustomPaint(
-                                      painter: GuidedTracePainter(
-                                        denseStrokes: _denseStrokes,
-                                        currentStrokeIndex: _currentStrokeIndex,
-                                        currentPointIndex: _currentPointIndex,
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final size = constraints.biggest;
+                                  if (size != _lastCanvasSize) {
+                                    _lastCanvasSize = size;
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      if (mounted) _generateDensePaths(size);
+                                    });
+                                  }
+                                  return Stack(
+                                    children: [
+                                      GestureDetector(
+                                        onTapDown: _onTapDown,
+                                        onPanStart: _onPanStart,
+                                        onPanUpdate: _onPanUpdate,
+                                        onPanEnd: _onPanEnd,
+                                        onPanCancel: _onPanCancel,
+                                        child: CustomPaint(
+                                          painter: GuidedTracePainter(
+                                            denseStrokes: _denseStrokes,
+                                            currentStrokeIndex: _currentStrokeIndex,
+                                            currentPointIndex: _currentPointIndex,
+                                          ),
+                                          size: Size.infinite,
+                                        ),
                                       ),
-                                      size: Size.infinite,
-                                    ),
-                                  ),
-                                ],
+                                    ],
+                                  );
+                                },
                               ),
                             ),
                           ),
