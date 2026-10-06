@@ -14,6 +14,7 @@ import 'music_sounds_screen.dart';
 import 'download_analysis_screen.dart';
 import 'about_us_screen.dart';
 import 'help_center_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -156,6 +157,8 @@ class ParentsAreaScreen extends StatefulWidget {
 }
 
 class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
+  String _appVersion = '';
+
   List<ChildProfile> _children = [];
   int _selectedIndex = 0;
   bool _loading = true;
@@ -172,6 +175,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
   @override
   void initState() {
     super.initState();
+    _loadAppVersion();
 
     OrientationService.setPortrait();
     // Time spent in the Parent's Area shouldn't count as the child's play time.
@@ -187,6 +191,15 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
 
     ScreenTimeService.instance.resume();
     super.dispose();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _appVersion = 'StarSight v${info.version}';
+      });
+    }
   }
 
   Future<void> _loadChildren() async {
@@ -693,7 +706,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           const SizedBox(height: 14),
           Center(
             child: Text(
-              'StarSight v0.3.0',
+              _appVersion.isEmpty ? 'StarSight' : _appVersion,
               style: TextStyle(
                 fontFamily: AppTextStyles.fredoka,
                 fontSize: 12,

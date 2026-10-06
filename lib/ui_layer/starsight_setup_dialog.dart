@@ -491,38 +491,41 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
             ),
 
             // SKIP button
-            Positioned(
-              top: 20,
-              right: 20,
-              child: SafeArea(
-                child: GestureDetector(
-                  onTap: widget.onSkip,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 15,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFfdf8ec),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: const Color(0xFF775445),
-                        width: 3,
+            if (currentPage < 2)
+              Positioned(
+                top: 20,
+                right: 20,
+                child: SafeArea(
+                  child: GestureDetector(
+                    onTap: () {
+                      _goToPage(2);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                        vertical: 5,
                       ),
-                    ),
-                    child: const Text(
-                      'SKIP',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Fredoka',
-                        color: Color(0xFF6B4A2E),
-                        letterSpacing: 0.5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFfdf8ec),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: const Color(0xFF775445),
+                          width: 3,
+                        ),
+                      ),
+                      child: const Text(
+                        'SKIP',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Fredoka',
+                          color: Color(0xFF6B4A2E),
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),

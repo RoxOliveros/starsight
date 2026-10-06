@@ -38,10 +38,6 @@ class LumiLevelScreen extends StatefulWidget {
 }
 
 class _LumiLevelScreenState extends State<LumiLevelScreen> {
-  // Lives outside the State instance, so it survives the screen being re-created.
-  // Resets only when the app is restarted.
-  static bool _setupTutorialShownThisSession = false;
-
   int _unlockedLevel = 1;
   int _page = 0;
   bool _isLoadingProgress = true;
@@ -78,10 +74,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
       });
 
       // Only show once per app session, and only on the first data event.
-      if (wasLoading && !_setupTutorialShownThisSession) {
-        _setupTutorialShownThisSession =
-            true; // set immediately to block duplicates
-
+      if (wasLoading) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           StarsightSetupTutorial.show(
@@ -92,7 +85,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
           );
         });
       }
-    });
+    }); // <-- These were the missing brackets
   }
 
   @override
@@ -310,28 +303,6 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
     );
   }
 }
-
-// String? _townCalibratedSessionId;
-//
-// /// Shows the camera calibration
-// Future<void> _ensureTownCalibrated(BuildContext context) async {
-//   final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-//   if (_townCalibratedSessionId == uid) return;
-//   _townCalibratedSessionId = uid;
-//
-//   await Navigator.push(
-//     context,
-//
-//     PageRouteBuilder(
-//       opaque: false,
-//       pageBuilder: (context, animation, secondaryAnimation) =>
-//           CalibrationScreen(
-//             childSessionId: uid,
-//             onCalibrationDone: () => Navigator.pop(context),
-//           ),
-//     ),
-//   );
-// }
 
 class _LevelTile extends StatelessWidget {
   final int level;
