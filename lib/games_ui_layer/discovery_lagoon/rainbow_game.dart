@@ -29,7 +29,8 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
         KikiReactionMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<RainbowGameScreen> {
-  late final AudioPlayer _audioPlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
@@ -49,7 +50,6 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
     OrientationService.setLandscape();
 
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';

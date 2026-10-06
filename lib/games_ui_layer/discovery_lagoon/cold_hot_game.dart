@@ -43,7 +43,7 @@ class _ColdHotGameState extends State<ColdHotGame>
 
   late List<SortableItem> _remainingItems;
 
-  late final AudioPlayer _audioPlayer;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   final Random _random = Random();
   final AudioPlayer _kikiPlayer = AudioPlayer();
@@ -67,34 +67,23 @@ class _ColdHotGameState extends State<ColdHotGame>
   bool _hasSavedResult = false;
 
   // --- Asset paths ---
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_rainbow_lagoon.png';
-  static const String _coldBadgeImage =
-      'assets/images/objects/lagoon/cold_snowflake.png';
-  static const String _hotBadgeImage =
-      'assets/images/objects/lagoon/hot_flame.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
+  static const String _coldBadgeImage = 'assets/images/objects/lagoon/cold_snowflake.png';
+  static const String _hotBadgeImage = 'assets/images/objects/lagoon/hot_flame.png';
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
-  static const String _goodJobImage =
-      'assets/images/characters/cat_holding_fishbone.png';
+  static const String _goodJobImage = 'assets/images/characters/cat_holding_fishbone.png';
 
   static const String _iceImage = 'assets/images/objects/lagoon/ice_wb.png';
-  static const String _icecreamImage =
-      'assets/images/objects/lagoon/icecream_wb.png';
-  static const String _snowballImage =
-      'assets/images/objects/lagoon/snowball_wb.png';
-  static const String _snowmanImage =
-      'assets/images/objects/lagoon/snowman_wb.png';
+  static const String _icecreamImage = 'assets/images/objects/lagoon/icecream_wb.png';
+  static const String _snowballImage = 'assets/images/objects/lagoon/snowball_wb.png';
+  static const String _snowmanImage = 'assets/images/objects/lagoon/snowman_wb.png';
   static const String _iglooImage = 'assets/images/objects/lagoon/igloo_wb.png';
-  static const String _coffeeImage =
-      'assets/images/objects/lagoon/coffee_wb.png';
+  static const String _coffeeImage = 'assets/images/objects/lagoon/coffee_wb.png';
   static const String _sunImage = 'assets/images/objects/lagoon/sun_wb.png';
-  static const String _candleImage =
-      'assets/images/objects/lagoon/candle_wb.png';
-  static const String _kettleImage =
-      'assets/images/objects/lagoon/kettle_wb.png';
+  static const String _candleImage = 'assets/images/objects/lagoon/candle_wb.png';
+  static const String _kettleImage = 'assets/images/objects/lagoon/kettle_wb.png';
 
-  static const String _introAudio =
-      'audio/discovery_lagoon/cold_hot_game_intro&tutorial.wav';
+  static const String _introAudio = 'audio/discovery_lagoon/cold_hot_game_intro&tutorial.wav';
   static const String _bubblePopAudio = 'audio/sound_effects/bubble_pop.wav';
 
   @override
@@ -110,8 +99,6 @@ class _ColdHotGameState extends State<ColdHotGame>
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
-
-    _audioPlayer = AudioPlayer();
 
     _audioPlayer.onPlayerComplete.listen((event) {
       if (!mounted) return;
