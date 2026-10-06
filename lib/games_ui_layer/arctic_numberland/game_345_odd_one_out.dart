@@ -30,8 +30,12 @@ class Number345OddOneOutScreen extends StatefulWidget {
 }
 
 class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
-    with TickerProviderStateMixin, DomaReactionMixin, GameLoadingMixin, AiCameraMixin, AppAudioLifecycleMixin<Number345OddOneOutScreen> {
-
+    with
+        TickerProviderStateMixin,
+        DomaReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<Number345OddOneOutScreen> {
   @override
   AudioPlayer get domaPlayer => _player;
   @override
@@ -42,9 +46,11 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   static const List<int> _numbers = [3, 4, 5];
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level16/intro.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level16/intro.wav';
 
   static const Map<int, String> _numberAudio = {
     3: 'assets/audio/arctic_numberland/level16/odd_three.wav',
@@ -264,7 +270,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       });
       _correctCtrl.forward(from: 0);
       await _playAudio('assets/audio/arctic_numberland/$_oddCount.wav');
-      showDomaReaction(DomaState.correct);
+      await showDomaReaction(DomaState.correct);
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 
@@ -351,7 +357,10 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
     );
 
     Widget reactiveLightingCard() => LightingPromptCard(
-      onClose: () => setState(() => _hideLightingCard = true),
+      onClose: () {
+        setState(() => _hideLightingCard = true);
+        releaseFaceGate();
+      },
     );
 
     final gameContent = Stack(

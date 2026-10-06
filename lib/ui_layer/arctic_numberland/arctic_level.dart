@@ -1,6 +1,4 @@
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
-import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/games_ui_layer/arctic_numberland/game_addition_package_delivery.dart';
 import 'package:StarSight/ui_layer/arctic_numberland/arctic_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
@@ -49,9 +47,6 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   bool _isLoading = true;
   final DateTime _loadStart = DateTime.now();
 
-  bool _hasCalibratedThisVisit = false;
-  bool _hasShownTutorial = false; // NEW: guard flag
-
   @override
   void initState() {
     super.initState();
@@ -60,10 +55,11 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   }
 
   Future<void> _loadProgress() async {
+    final wasLoading = _isLoading; // Capture this before setting it to false
+
     final unlocked = await ArcticProgressService.instance.getUnlockedLevel();
 
     final elapsed = DateTime.now().difference(_loadStart);
-    // Loading time
     final remaining = const Duration(milliseconds: 1500) - elapsed;
     if (remaining > Duration.zero) {
       await Future.delayed(remaining);
@@ -75,10 +71,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
       _isLoading = false;
     });
 
-    // Only show the tutorial the first time progress loads —
-    // not every time _loadProgress() re-runs after finishing a level.
-    if (!_hasShownTutorial) {
-      _hasShownTutorial = true;
+    if (wasLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         StarsightSetupTutorial.show(
@@ -92,24 +85,6 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
   }
 
   Future<void> _openLevel(Widget screen) async {
-    if (!_hasCalibratedThisVisit) {
-      _hasCalibratedThisVisit = true;
-      final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-      await Navigator.push(
-        context,
-        // Use PageRouteBuilder with opaque: false to make it a transparent overlay!
-        PageRouteBuilder(
-          opaque: false,
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              CalibrationScreen(
-                childSessionId: uid,
-                onCalibrationDone: () => Navigator.pop(context),
-              ),
-        ),
-      );
-      if (!mounted) return;
-    }
-
     final nextScreen = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
