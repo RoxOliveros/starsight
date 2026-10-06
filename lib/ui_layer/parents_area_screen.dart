@@ -161,7 +161,9 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
   bool _loading = true;
   String? _error;
   bool _isLoggingOut = false;
-  int _screenTimeLimit = 0; // 0 = Off
+  // Daily limit (minutes) of the selected child; 0 = Off. Loaded from
+  // Firestore, so this default is only shown until that finishes.
+  int _screenTimeLimit = DatabaseService.defaultScreenTimeLimitMinutes;
   bool _autoBackup = false; // automatic backup toggle (UI only)
 
   ChildProfile? get _selectedChild =>
@@ -210,17 +212,16 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
 
       final children = rawChildren
           .map(
-            (data) =>
-            ChildProfile.fromMap(
+            (data) => ChildProfile.fromMap(
               data['id'] as String,
               data,
               fallbackAvatarPath: accountAvatarPath,
             ),
-      )
+          )
           .toList();
 
       final activeIndex = children.indexWhere(
-            (c) => c.id == widget.activeNickname,
+        (c) => c.id == widget.activeNickname,
       );
 
       if (!mounted) return;
@@ -229,12 +230,60 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
         _selectedIndex = activeIndex >= 0 ? activeIndex : 0;
         _loading = false;
       });
+      await _loadScreenTimeLimit();
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
         _error = "Couldn't load your children. Pull down to try again.";
       });
+    }
+  }
+
+  /// Reads the selected child's saved daily limit (0 = Off) into the dropdown.
+  Future<void> _loadScreenTimeLimit() async {
+    final id = _selectedChild?.id;
+    if (id == null) return;
+
+    final data = await DatabaseService().getScreenTime(id);
+    if (!mounted || id != _selectedChild?.id) return; // child changed meanwhile
+
+    setState(() {
+      _screenTimeLimit =
+          DatabaseService.screenTimeLimitOptions.contains(data.limitMinutes)
+          ? data.limitMinutes
+          : DatabaseService.defaultScreenTimeLimitMinutes;
+    });
+  }
+
+  /// Saves the dropdown choice for the selected child and applies it live.
+  Future<void> _setScreenTimeLimit(int minutes) async {
+    final id = _selectedChild?.id;
+    if (id == null) return;
+
+    final previous = _screenTimeLimit;
+    setState(() => _screenTimeLimit = minutes);
+
+    final ok = await DatabaseService().setScreenTimeLimit(id, minutes);
+    if (!mounted) return;
+
+    if (ok) {
+      // Applies immediately if this child is the one currently playing.
+      ScreenTimeService.instance.updateLimit(id, minutes);
+    } else if (id == _selectedChild?.id) {
+      setState(() => _screenTimeLimit = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(
+            20,
+            0,
+            20,
+            24 + MediaQuery.of(context).viewPadding.bottom,
+          ),
+          content: const Text("Couldn't save. Please try again."),
+        ),
+      );
     }
   }
 
@@ -253,11 +302,10 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) =>
-                  AnalysisReportsScreen(
-                    child: _selectedChild,
-                    isFromParentsArea: true,
-                  ),
+              builder: (_) => AnalysisReportsScreen(
+                child: _selectedChild,
+                isFromParentsArea: true,
+              ),
             ),
           );
 
@@ -295,10 +343,9 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                DownloadAnalysisScreen(
-                  childName: _selectedChild?.name ?? 'Child Name',
-                ),
+            builder: (_) => DownloadAnalysisScreen(
+              childName: _selectedChild?.name ?? 'Child Name',
+            ),
           ),
         );
         break;
@@ -345,7 +392,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const SignUpSignInScreen()),
-          (route) => false,
+      (route) => false,
     );
   }
 
@@ -358,124 +405,123 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) =>
-          Dialog(
-            backgroundColor: ColorTheme.cream,
-            insetPadding: const EdgeInsets.symmetric(
-                horizontal: 24, vertical: 24),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(28),
-              side: BorderSide(color: accent.withValues(alpha: 0.5), width: 3),
-            ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Icon badge
-                  Center(
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.swap_horiz_rounded,
-                        color: accent,
-                        size: 34,
-                      ),
-                    ),
+      builder: (dialogContext) => Dialog(
+        backgroundColor: ColorTheme.cream,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: BorderSide(color: accent.withValues(alpha: 0.5), width: 3),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Icon badge
+              Center(
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 14),
+                  child: const Icon(
+                    Icons.swap_horiz_rounded,
+                    color: accent,
+                    size: 34,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
 
-                  // Title
-                  Text(
-                    'Switch to ${child.name}?',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
+              // Title
+              Text(
+                'Switch to ${child.name}?',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: AppTextStyles.fredoka,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  color: ColorTheme.deepNavyBlue,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Message
+              Text(
+                'Are you sure you want to switch to ${child.name}? '
+                'The reports and settings shown here will be for '
+                '${child.name}.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.4,
+                  color: ColorTheme.brown,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Confirm
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text(
+                    'YES, SWITCH',
+                    style: TextStyle(
                       fontFamily: AppTextStyles.fredoka,
-                      fontSize: 21,
+                      fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: ColorTheme.deepNavyBlue,
+                      letterSpacing: 0.5,
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                ),
+              ),
+              const SizedBox(height: 4),
 
-                  // Message
-                  Text(
-                    'Are you sure you want to switch to ${child.name}? '
-                        'The reports and settings shown here will be for '
-                        '${child.name}.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Nunito',
+              // Cancel
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  style: TextButton.styleFrom(
+                    foregroundColor: ColorTheme.brown,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: const Text(
+                    'CANCEL',
+                    style: TextStyle(
+                      fontFamily: AppTextStyles.fredoka,
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      height: 1.4,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
                       color: ColorTheme.brown,
                     ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // Confirm
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(dialogContext, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: const StadiumBorder(),
-                      ),
-                      child: const Text(
-                        'YES, SWITCH',
-                        style: TextStyle(
-                          fontFamily: AppTextStyles.fredoka,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Cancel
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(dialogContext, false),
-                      style: TextButton.styleFrom(
-                        foregroundColor: ColorTheme.brown,
-                        shape: const StadiumBorder(),
-                      ),
-                      child: const Text(
-                        'CANCEL',
-                        style: TextStyle(
-                          fontFamily: AppTextStyles.fredoka,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                          color: ColorTheme.brown,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
+        ),
+      ),
     );
 
     if (confirmed == true && mounted) {
       setState(() => _selectedIndex = index);
+      _loadScreenTimeLimit();
     }
   }
 
@@ -485,7 +531,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        Navigator.pop(context, _selectedChild?.id); // was .name
+        Navigator.pop(context, _selectedChild?.id);
       },
       child: Scaffold(
         backgroundColor: ColorTheme.cream,
@@ -698,9 +744,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     final spans = <TextSpan>[];
     for (final char in text.split('')) {
       Color color;
-      if (char
-          .trim()
-          .isEmpty) {
+      if (char.trim().isEmpty) {
         color = ColorTheme.brown; // space, doesn't consume a color slot
       } else {
         final pairIndex = letterIndex ~/ 2; // 0,0,1,1,2,2,...
@@ -786,6 +830,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           Divider(color: ColorTheme.brown.withValues(alpha: 0.18), height: 1),
 
           const SizedBox(height: 5),
+
           // _CardMenuRow(
           //   icon: Icons.hourglass_bottom_rounded,
           //   label: 'Screen Time',
@@ -794,11 +839,10 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           //
           //   onTap: () => _openMenuItem('Screen Time'),
           // ),
-
           _ScreenTimeDropdownRow(
             value: _screenTimeLimit,
-            options: const [0, 15, 30, 45, 60],
-            onChanged: (v) => setState(() => _screenTimeLimit = v),
+            options: DatabaseService.screenTimeLimitOptions,
+            onChanged: _setScreenTimeLimit,
           ),
 
           const SizedBox(height: 10),
@@ -842,9 +886,9 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           return _ChildAvatarCircle(
             child: child,
             selected: selected,
-            onTap: () =>
-                _switchChild(
-                    index), // was: setState(() => _selectedIndex = index)
+            onTap: () => _switchChild(
+              index,
+            ), // was: setState(() => _selectedIndex = index)
           );
         },
       ),

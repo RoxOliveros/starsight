@@ -1,3 +1,4 @@
+import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
 
 import '../business_layer/database_service.dart';
@@ -66,7 +67,14 @@ class _LockContentState extends State<_LockContent> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    OrientationService.setPortrait();
+  }
+
+  @override
   void dispose() {
+    OrientationService.setLandscape();
     _pinController.dispose();
     super.dispose();
   }
@@ -134,6 +142,7 @@ class _LockContentState extends State<_LockContent> {
                     color: _brown,
                   ),
                 ),
+
                 const SizedBox(height: 24),
                 if (!_showPin)
                   TextButton(

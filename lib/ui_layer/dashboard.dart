@@ -12,6 +12,7 @@ import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/ui_layer/puzzle_glade/puzzle_level.dart';
+import 'package:StarSight/ui_layer/screen_time_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'arctic_numberland/arctic_level.dart';
@@ -58,7 +59,6 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   bool _animationsReady = false;
   bool _childLoading = true;
-
 
   final GlobalKey<_AvatarBadgeState> _avatarBadgeKey = GlobalKey();
 
@@ -121,6 +121,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     // Start counting this child's play time against today's limit.
     ScreenTimeService.instance.startSession(widget.nickname, this);
+    ScreenTimeService.instance.pause();
 
     _floatController = AnimationController(
       vsync: this,
@@ -144,8 +145,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       final children = await DatabaseService().getChildren();
 
       final myChild = children.firstWhere(
-            (c) =>
-        c['id'] == widget.nickname ||
+        (c) =>
+            c['id'] == widget.nickname ||
             (c['nickname'] as String?)?.toLowerCase() ==
                 widget.nickname.toLowerCase(),
         orElse: () => {},
@@ -192,9 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _loadAnimations() async {
     await Future.wait([
       Future.wait([
-        AssetLottie(
-          'assets/animations/white_clouds_mirrored.json',
-        ).load(),
+        AssetLottie('assets/animations/white_clouds_mirrored.json').load(),
         AssetLottie('assets/animations/white_cloud.json').load(),
         AssetLottie('assets/animations/forest.json').load(),
         AssetLottie('assets/animations/town.json').load(),
@@ -214,8 +213,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final displayedName =
-    _childName.isNotEmpty ? _childName : widget.nickname;
+    final displayedName = _childName.isNotEmpty ? _childName : widget.nickname;
 
     return Scaffold(
       onDrawerChanged: (isOpen) {
@@ -228,128 +226,125 @@ class _DashboardScreenState extends State<DashboardScreen>
       drawer: Drawer(
         backgroundColor: const Color(0xFFE9C679),
         child: ProfileDayDialog(
-          childId: widget.nickname,      // real doc ID, never changes
-          name: displayedName,           // display only
-          onProfileChanged: _loadChild,  // refresh dashboard after edits
+          childId: widget.nickname, // real doc ID, never changes
+          name: displayedName, // display only
+          onProfileChanged: _loadChild, // refresh dashboard after edits
         ),
       ),
       body: _animationsReady && !_childLoading
           ? Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // ── Full-screen cloud background ──────────────────────────
-          Positioned.fill(
-            child: IgnorePointer(
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Left cloud
-                  Positioned(
-                    left: -60,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: Lottie.asset(
-                        'assets/animations/white_clouds_mirrored.json',
-                        width: 550,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                        const SizedBox(width: 200),
-                      ),
-                    ),
-                  ),
+              clipBehavior: Clip.none,
+              children: [
+                // ── Full-screen cloud background ──────────────────────────
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Left cloud
+                        Positioned(
+                          left: -60,
+                          top: 0,
+                          bottom: 0,
+                          child: Center(
+                            child: Lottie.asset(
+                              'assets/animations/white_clouds_mirrored.json',
+                              width: 550,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox(width: 200),
+                            ),
+                          ),
+                        ),
 
-                  // Center cloud
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: -150,
-                    bottom: 0,
-                    child: Center(
-                      child: Lottie.asset(
-                        'assets/animations/white_cloud.json',
-                        width: 80,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                        const SizedBox(width: 80),
-                      ),
-                    ),
-                  ),
+                        // Center cloud
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: -150,
+                          bottom: 0,
+                          child: Center(
+                            child: Lottie.asset(
+                              'assets/animations/white_cloud.json',
+                              width: 80,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox(width: 80),
+                            ),
+                          ),
+                        ),
 
-                  // Right cloud
-                  Positioned(
-                    right: -200,
-                    top: -50,
-                    bottom: 0,
-                    child: Center(
-                      child: Lottie.asset(
-                        'assets/animations/white_clouds_mirrored.json',
-                        width: 550,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                        const SizedBox(width: 200),
-                      ),
+                        // Right cloud
+                        Positioned(
+                          right: -200,
+                          top: -50,
+                          bottom: 0,
+                          child: Center(
+                            child: Lottie.asset(
+                              'assets/animations/white_clouds_mirrored.json',
+                              width: 550,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox(width: 200),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // ── All UI on top ─────────────────────────────────────────
-          Column(
-            children: [
-              _TopBar(
-                nickname: displayedName,
-                avatarPath: _avatarPath,
-                avatarBadgeKey: _avatarBadgeKey,
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: _MainIslandCard(
-                    activities: _activities,
-                    floatAnimation: _floatAnimation,
-                    selectedTab: _selectedTab,
-                    onTabChanged: (i) =>
-                        setState(() => _selectedTab = i),
-                    currentIndex: _currentIndex,
-                    onIndexChanged: (i) =>
-                        setState(() => _currentIndex = i),
                   ),
                 ),
-              ),
-            ],
-          ),
 
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 15,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _activities.length,
-                    (index) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: _currentIndex == index ? 18 : 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: _currentIndex == index
-                        ? ColorTheme.orange
-                        : ColorTheme.yelloworange.withValues(
-                      alpha: 0.4,
+                // ── All UI on top ─────────────────────────────────────────
+                Column(
+                  children: [
+                    _TopBar(
+                      nickname: displayedName,
+                      avatarPath: _avatarPath,
+                      avatarBadgeKey: _avatarBadgeKey,
                     ),
-                    borderRadius: BorderRadius.circular(20),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: _MainIslandCard(
+                          activities: _activities,
+                          floatAnimation: _floatAnimation,
+                          selectedTab: _selectedTab,
+                          onTabChanged: (i) => setState(() => _selectedTab = i),
+                          currentIndex: _currentIndex,
+                          onIndexChanged: (i) =>
+                              setState(() => _currentIndex = i),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 15,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      _activities.length,
+                      (index) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: _currentIndex == index ? 18 : 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: _currentIndex == index
+                              ? ColorTheme.orange
+                              : ColorTheme.yelloworange.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ),
-        ],
-      )
+              ],
+            )
           : LoadingScreen.arctic(),
     );
   }
@@ -435,11 +430,7 @@ class _AvatarBadge extends StatefulWidget {
   final String name;
   final String avatarPath;
 
-  const _AvatarBadge({
-    super.key,
-    required this.name,
-    required this.avatarPath,
-  });
+  const _AvatarBadge({super.key, required this.name, required this.avatarPath});
 
   @override
   State<_AvatarBadge> createState() => _AvatarBadgeState();
@@ -495,10 +486,7 @@ class _AvatarBadgeState extends State<_AvatarBadge> {
     );
 
     final textPainter = TextPainter(
-      text: TextSpan(
-        text: widget.name,
-        style: pillTextStyle,
-      ),
+      text: TextSpan(text: widget.name, style: pillTextStyle),
       maxLines: 1,
       textDirection: TextDirection.ltr,
     )..layout();
@@ -677,8 +665,7 @@ class _IslandCarouselState extends State<_IslandCarousel> {
 
       final percent = currentScroll / maxScroll;
 
-      final newIndex =
-      (percent * (widget.activities.length - 1)).round();
+      final newIndex = (percent * (widget.activities.length - 1)).round();
 
       if (newIndex != _currentIndex) {
         setState(() {
@@ -778,9 +765,11 @@ class _IslandTileState extends State<_IslandTile>
       };
 
       if (screen != null) {
-        await navigator.push(
-          MaterialPageRoute(builder: (_) => screen),
-        );
+        ScreenTimeService.instance.resume();
+
+        await navigator.push(MaterialPageRoute(builder: (_) => screen));
+
+        ScreenTimeService.instance.pause();
       }
     } finally {
       _ownsNavigationLock = false;
@@ -800,12 +789,7 @@ class _IslandTileState extends State<_IslandTile>
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: 1.12,
-    ).animate(
-      CurvedAnimation(
-        parent: _tapController,
-        curve: Curves.easeOut,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _tapController, curve: Curves.easeOut));
   }
 
   @override
@@ -822,16 +806,10 @@ class _IslandTileState extends State<_IslandTile>
     return GestureDetector(
       onTap: () => _navigate(context),
       child: AnimatedBuilder(
-        animation: Listenable.merge([
-          widget.floatAnimation,
-          _scaleAnimation,
-        ]),
+        animation: Listenable.merge([widget.floatAnimation, _scaleAnimation]),
         builder: (_, child) => Transform.translate(
           offset: Offset(0, widget.floatAnimation.value),
-          child: Transform.scale(
-            scale: _scaleAnimation.value,
-            child: child,
-          ),
+          child: Transform.scale(scale: _scaleAnimation.value, child: child),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -842,12 +820,12 @@ class _IslandTileState extends State<_IslandTile>
                 shape: BoxShape.circle,
                 boxShadow: _glowing
                     ? [
-                  BoxShadow(
-                    color: ColorTheme.yellow.withValues(alpha: 0.8),
-                    blurRadius: 40,
-                    spreadRadius: 10,
-                  ),
-                ]
+                        BoxShadow(
+                          color: ColorTheme.yellow.withValues(alpha: 0.8),
+                          blurRadius: 40,
+                          spreadRadius: 10,
+                        ),
+                      ]
                     : [],
               ),
               child: Lottie.asset(
@@ -855,8 +833,7 @@ class _IslandTileState extends State<_IslandTile>
                 width: widget.size,
                 height: widget.size * 0.85,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) =>
-                    _IslandPlaceholder(large: true),
+                errorBuilder: (_, __, ___) => _IslandPlaceholder(large: true),
               ),
             ),
             Transform.translate(

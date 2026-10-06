@@ -6,8 +6,7 @@ class DatabaseService {
 
   // Screen time: parent picks from these presets (no free-text input).
   static const int defaultScreenTimeLimitMinutes = 30;
-  static const List<int> screenTimeLimitOptions = [1, 15, 30, 45, 60];
-
+  static const List<int> screenTimeLimitOptions = [0, 1, 15, 30, 45, 60];
 
   Future<void> createParentAndChild({
     required String uid,
@@ -32,12 +31,12 @@ class DatabaseService {
         .collection('children')
         .doc(childNickname)
         .set({
-      'nickname': childNickname,
-      'birthdate': childBirthdate,
-      'gender': childGender,
-      'screenTimeLimitMinutes': defaultScreenTimeLimitMinutes,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+          'nickname': childNickname,
+          'birthdate': childBirthdate,
+          'gender': childGender,
+          'screenTimeLimitMinutes': defaultScreenTimeLimitMinutes,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
   }
 
   // Check if an email is already registered
@@ -70,7 +69,7 @@ class DatabaseService {
       // resumes on the same profile the parent last selected.
       final userDoc = await _db.collection('users').doc(currentUser.uid).get();
       final activeChildNickname =
-      userDoc.data()?['activeChildNickname'] as String?;
+          userDoc.data()?['activeChildNickname'] as String?;
 
       if (activeChildNickname != null) {
         final activeDoc = await childrenRef.doc(activeChildNickname).get();
@@ -257,7 +256,7 @@ class DatabaseService {
 
       final limit =
           (data['screenTimeLimitMinutes'] as num?)?.toInt() ??
-              defaultScreenTimeLimitMinutes;
+          defaultScreenTimeLimitMinutes;
       final savedDate = data['screenTimeDate'] as String?;
       final used = (savedDate == todayKey())
           ? ((data['screenTimeUsedSeconds'] as num?)?.toInt() ?? 0)
@@ -304,10 +303,11 @@ class DatabaseService {
           .doc(currentUser.uid)
           .collection('children')
           .doc(childId)
-          .update({                       // was .set(..., SetOptions(merge: true))
-        'screenTimeUsedSeconds': usedSeconds,
-        'screenTimeDate': dateKey,
-      });
+          .update({
+            // was .set(..., SetOptions(merge: true))
+            'screenTimeUsedSeconds': usedSeconds,
+            'screenTimeDate': dateKey,
+          });
     } catch (e) {
       print("Error saving screen time usage: $e");
     }
@@ -315,11 +315,9 @@ class DatabaseService {
 
   /// The name to show in the UI. Falls back to the doc ID for older docs.
   static String displayNameOf(Map<String, dynamic> child) =>
-      ((child['nickname'] as String?)
-          ?.trim()
-          .isNotEmpty ?? false)
-          ? (child['nickname'] as String).trim()
-          : (child['id'] as String? ?? '');
+      ((child['nickname'] as String?)?.trim().isNotEmpty ?? false)
+      ? (child['nickname'] as String).trim()
+      : (child['id'] as String? ?? '');
 
   Future<String> getChildDisplayName(String childId) async {
     try {
@@ -360,8 +358,10 @@ class DatabaseService {
         return 'Please enter a nickname.';
       }
 
-      final childrenRef =
-      _db.collection('users').doc(user.uid).collection('children');
+      final childrenRef = _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('children');
 
       // Check if another child already has this nickname.
       final all = await childrenRef.get();
@@ -371,8 +371,8 @@ class DatabaseService {
         // Do not compare the child against itself.
         if (d.id == childId) return false;
 
-        final otherNickname =
-        ((d.data()['nickname'] as String?) ?? d.id).trim();
+        final otherNickname = ((d.data()['nickname'] as String?) ?? d.id)
+            .trim();
 
         return otherNickname.toLowerCase() == name.toLowerCase();
       });
@@ -398,8 +398,8 @@ class DatabaseService {
   }
 
   // Categories that store progress under category_progress/{id}.
-// If you add a new category, add it here too, otherwise its data
-// is left behind when a child is deleted.
+  // If you add a new category, add it here too, otherwise its data
+  // is left behind when a child is deleted.
   static const List<String> _progressCategoryIds = [
     'alphabet_forest',
     'lumitown',
@@ -408,12 +408,13 @@ class DatabaseService {
     'puzzle_glade',
   ];
 
-// cycle_1 ... cycle_N. Your reports only keep 2, this is just a safety margin.
+  // cycle_1 ... cycle_N. Your reports only keep 2, this is just a safety margin.
   static const int _maxCyclesToClear = 5;
 
   /// Deletes every document in a collection (in batches of 400).
   Future<void> _deleteCollection(
-      CollectionReference<Map<String, dynamic>> ref) async {
+    CollectionReference<Map<String, dynamic>> ref,
+  ) async {
     while (true) {
       final snap = await ref.limit(400).get();
       if (snap.docs.isEmpty) return;
@@ -470,10 +471,9 @@ class DatabaseService {
       final userDoc = await userRef.get();
       if (userDoc.data()?['activeChildNickname'] == childId) {
         final nextId = all.docs.firstWhere((d) => d.id != childId).id;
-        await userRef.set(
-          {'activeChildNickname': nextId},
-          SetOptions(merge: true),
-        );
+        await userRef.set({
+          'activeChildNickname': nextId,
+        }, SetOptions(merge: true));
       }
 
       return null;
@@ -490,7 +490,3 @@ class ScreenTimeData {
 
   const ScreenTimeData({required this.limitMinutes, required this.usedSeconds});
 }
-
-
-
-
