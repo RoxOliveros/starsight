@@ -106,9 +106,7 @@ class _CalibrationScreenState extends State<CalibrationScreen>
               child: SingleChildScrollView(
                 child: SizedBox(
                   width: double.infinity,
-                  child: Center(
-                    child: child,
-                  ),
+                  child: Center(child: child),
                 ),
               ),
             ),
@@ -121,10 +119,7 @@ class _CalibrationScreenState extends State<CalibrationScreen>
                 color: const Color(0xFF5F7199),
                 iconSize: 24,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 36,
-                  minHeight: 36,
-                ),
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 onPressed: () {
                   if (mounted) {
                     widget.onCalibrationDone();

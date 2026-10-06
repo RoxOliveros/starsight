@@ -81,31 +81,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
     setState(() => _unlockedLevel = unlocked);
   }
 
-  static String? _puzzleCalibratedSessionId;
-
-  Future<void> _ensurePuzzleCalibrated() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-    if (_puzzleCalibratedSessionId == uid) return;
-    _puzzleCalibratedSessionId = uid;
-
-    await Navigator.push(
-      context,
-
-      PageRouteBuilder(
-        opaque: false,
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            CalibrationScreen(
-              childSessionId: uid,
-              onCalibrationDone: () => Navigator.pop(context),
-            ),
-      ),
-    );
-  }
-
   Future<void> _openLevel(Widget screen) async {
-    await _ensurePuzzleCalibrated();
-    if (!mounted) return;
-
     final nextScreen = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
