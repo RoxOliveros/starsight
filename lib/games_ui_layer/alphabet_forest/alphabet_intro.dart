@@ -258,9 +258,9 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
 
             if (_introPhase == IntroPhase.done)
               Positioned(
-                bottom: 24,
-                right: 24,
-                child: GestureDetector(
+                bottom: 25,
+                right: 25,
+                child: ForestNextButton(
                   onTap: () {
                     _audioPlayer.stop();
                     Navigator.pushReplacement(
@@ -273,15 +273,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                       ),
                     );
                   },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Image.asset(
-                        'assets/images/buttons/next_button.png',
-                        width: 180,
-                      ),
-                    ],
-                  ),
                 ),
               ),
           ],

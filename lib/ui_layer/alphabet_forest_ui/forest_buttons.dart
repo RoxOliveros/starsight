@@ -60,3 +60,33 @@ class ForestSkipButton extends StatelessWidget {
     );
   }
 }
+
+class ForestNextButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const ForestNextButton({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        decoration: BoxDecoration(
+          color: ForestColorTheme.lightgrayishgreen,
+          borderRadius: BorderRadius.circular(40),
+          border: Border.all(color: ForestColorTheme.darkseagreen, width: 5),
+        ),
+        child: Text(
+          'Next',
+          style: TextStyle(
+            fontFamily: ForestAppTextStyles.fredoka,
+            fontSize: 30,
+            color: ForestColorTheme.darkseagreen,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}

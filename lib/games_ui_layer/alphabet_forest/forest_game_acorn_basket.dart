@@ -71,9 +71,9 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   static const List<String> _letterPool = ['D', 'E', 'F', 'd', 'e', 'f'];
-
   static const List<double> _laneXFractions = [0.12, 0.38, 0.64, 0.88];
 
+  late final List<String> _roundLetters;
   late final List<_FallingLane> _lanes;
 
   late String _targetLetter;
@@ -153,8 +153,8 @@ class _AcornBasketGameState extends State<AcornBasketGame>
       });
     }
 
+    _roundLetters = List<String>.of(_letterPool)..shuffle(_rand);
     _basketAcorns.clear();
-
     _loadRound();
 
     // Starts once loading is done (not behind the loading screen) and never
@@ -201,17 +201,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     }
   }
 
-  String _pickLetterForLane() {
-    // Weighted so the target letter shows up often enough to catch,
-    // while distractors keep the round from being trivial.
-    if (_rand.nextDouble() < 0.45) return _targetLetter;
-
-    String distractor;
-    do {
-      distractor = _letterPool[_rand.nextInt(_letterPool.length)];
-    } while (distractor.toUpperCase() == _targetLetter.toUpperCase());
-    return distractor;
-  }
+  String _pickLetterForLane() => _targetLetter;
 
   void _spawnLane(_FallingLane lane) {
     lane.letter = _pickLetterForLane();
@@ -223,14 +213,11 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   }
 
   void _loadRound() {
-    final target = _letterPool[_rand.nextInt(_letterPool.length)];
-
-    _targetLetter = target;
+    _targetLetter = _roundLetters[_currentRound % _roundLetters.length];
     _catchesThisRound = 0;
     _roundLocked = false;
     _wrongHoverFlash = false;
 
-    // First time only: start the falling animation
     if (_currentRound == 0) {
       for (final lane in _lanes) {
         lane.isBusy = false;
@@ -238,9 +225,9 @@ class _AcornBasketGameState extends State<AcornBasketGame>
       }
     } else {
       for (final lane in _lanes) {
-        if (!lane.isBusy && lane.controller.isCompleted) {
-          _spawnLane(lane);
-        }
+        if (lane.isBusy) continue;
+        lane.letter = _targetLetter;
+        if (lane.controller.isCompleted) _spawnLane(lane);
       }
     }
 

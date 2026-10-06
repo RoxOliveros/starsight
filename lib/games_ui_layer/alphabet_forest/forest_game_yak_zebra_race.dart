@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
@@ -96,6 +97,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   static const String _leafAsset = 'assets/images/objects/forest/leaf.png';
 
   static const String _audioBase = ForestAudioAssets.base;
+  static const String _audioStory = '$_audioBase/yak_zebra_race_story.wav';
   static const String _audioIntro = '$_audioBase/yak_zebra_race_intro.wav';
   static const String _audioTapY = '$_audioBase/sound_effects/sound_y.wav';
   static const String _audioTapZ = '$_audioBase/sound_effects/sound_z.wav';
@@ -131,6 +133,9 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   int _solvedRounds = 0;
   int? _correctSlotIndex;
   int? _wrongSlotIndex;
+  int _introStage = 0;
+
+  StreamSubscription<Duration>? _storyPosSub;
 
   double _yakProgress = 0;
   double _zebraProgress = 0;
@@ -259,8 +264,27 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    _storyPosSub = audio.voicePlayer.onPositionChanged.listen((pos) {
+      if (!mounted || _introStage == 2) return;
+      final stage = pos >= const Duration(seconds: 5) ? 1 : 0;
+      if (stage != _introStage) setState(() => _introStage = stage);
+    });
+
+    try {
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioStory);
+    } catch (e) {
+      debugPrint('Story audio error: $e');
+    }
+    await _storyPosSub?.cancel();
+    _storyPosSub = null;
+    if (!mounted) return;
+
+    setState(() => _introStage = 2);
     await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
     if (!mounted) return;
+
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
@@ -475,6 +499,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     _shakeCtrl.dispose();
     _celebrateCtrl.dispose();
     _ambientLeavesCtrl.dispose();
+    _storyPosSub?.cancel();
     super.dispose();
   }
 
@@ -486,7 +511,6 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
         gameBuilder: () => Stack(
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {
@@ -526,19 +550,29 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
               offset: Offset(
                 0,
                 Tween<double>(begin: -6, end: 6).evaluate(
-                  CurvedAnimation(
-                    parent: _tofiFloatCtrl,
-                    curve: Curves.easeInOut,
-                  ),
+                  CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
                 ),
               ),
               child: child,
             ),
-            child: Image.asset(
-              _dogImage,
-              height: screenH * 0.72,
-              errorBuilder: (_, __, ___) =>
-                  const Text('🐶', style: TextStyle(fontSize: 90)),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: _introStage == 2
+                  ? Row(
+                key: const ValueKey('both'),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(_yakAsset, height: screenH * 0.5, fit: BoxFit.contain),
+                  const SizedBox(width: 60),
+                  Image.asset(_zebraAsset, height: screenH * 0.5, fit: BoxFit.contain),
+                ],
+              )
+                  : Image.asset(
+                _introStage == 0 ? _yakAsset : _zebraAsset,
+                key: ValueKey(_introStage),
+                height: screenH * 0.6,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),
@@ -594,12 +628,9 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
                 ),
                 Expanded(
                   flex: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 60),
-                    child: LayoutBuilder(
+                  child: LayoutBuilder(
                       builder: (context, inner) =>
                           _buildStonesArea(inner.maxWidth, inner.maxHeight),
-                    ),
                   ),
                 ),
                 Padding(
