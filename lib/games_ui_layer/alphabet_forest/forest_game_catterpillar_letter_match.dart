@@ -69,13 +69,7 @@ class CaterpillarLetterMatchGame extends StatefulWidget {
 }
 
 class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
-    with
-        TickerProviderStateMixin,
-        GameLoadingMixin<CaterpillarLetterMatchGame>,
-        ForestAudioMixin<CaterpillarLetterMatchGame>,
-        TofiReactionMixin<CaterpillarLetterMatchGame>,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<CaterpillarLetterMatchGame> {
+    with TickerProviderStateMixin, GameLoadingMixin<CaterpillarLetterMatchGame>, ForestAudioMixin<CaterpillarLetterMatchGame>, TofiReactionMixin<CaterpillarLetterMatchGame>, AiCameraMixin, AppAudioLifecycleMixin<CaterpillarLetterMatchGame> {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
@@ -108,22 +102,22 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
   static const double _topY = 0.28;
   static const double _bottomY = 0.76;
 
-  // ── State ────────────────────────────────────────────────────────────────
-  bool _introPlaying = true;
   late List<_LetterPair> _pairs;
   late List<int> _lowerOrder;
+
   int _currentRoundIndex = 0;
   int _solvedRounds = 0;
-
   int? _wrongSlotIndex;
   int? _lastRejectedSlot;
-  bool _celebratingRound = false;
   int? _selectedUpper;
   int? _selectedLower;
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool _inputEnabled = false;
+  bool _celebratingRound = false;
+  bool _introPlaying = true;
+  bool _assetsPrecached = false;
 
   late AnimationController _tofiFloatCtrl;
   late AnimationController _instructionCtrl;
@@ -134,6 +128,8 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
   late AnimationController _shakeCtrl;
   late Animation<double> _shake;
   late AnimationController _ambientLeavesCtrl;
+
+  Future<void>? _precacheFuture;
 
   @override
   void initState() {
@@ -151,6 +147,25 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     _initAnimations();
     _setupRound(playInstruction: false);
     finishLoading(_startIntroFlow);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_assetsPrecached) return;
+    _assetsPrecached = true;
+
+    _precacheFuture = Future.wait([
+      for (final path in [
+        _caterpillarHeadAsset,
+        _caterpillarBodyAsset,
+        _bgImage,
+        _leafAsset,
+      ])
+        precacheImage(AssetImage(path), context),
+    ]).then((_) {}).catchError((e) {
+      debugPrint('Precache error: $e');
+    });
   }
 
   void _initAnimations() {
@@ -202,6 +217,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await _precacheFuture;
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);

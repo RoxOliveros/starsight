@@ -118,11 +118,11 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
 
   // ── Round structure ──────────────────────────────────────────────────────
   static const List<_RoundConfig> _roundConfigs = [
-    _RoundConfig(fireflyCount: 3, moveDurationMs: 2600, sizeFactor: 0.26),
-    _RoundConfig(fireflyCount: 4, moveDurationMs: 2200, sizeFactor: 0.26),
-    _RoundConfig(fireflyCount: 5, moveDurationMs: 1900, sizeFactor: 0.26),
-    _RoundConfig(fireflyCount: 5, moveDurationMs: 1500, sizeFactor: 0.26),
-    _RoundConfig(fireflyCount: 6, moveDurationMs: 1200, sizeFactor: 0.26),
+    _RoundConfig(fireflyCount: 3, moveDurationMs: 2600, sizeFactor: 0.36),
+    _RoundConfig(fireflyCount: 4, moveDurationMs: 2200, sizeFactor: 0.34),
+    _RoundConfig(fireflyCount: 5, moveDurationMs: 1900, sizeFactor: 0.32),
+    _RoundConfig(fireflyCount: 5, moveDurationMs: 1500, sizeFactor: 0.32),
+    _RoundConfig(fireflyCount: 6, moveDurationMs: 1200, sizeFactor: 0.30),
   ];
   static int get _totalRounds => _roundConfigs.length;
 
@@ -674,8 +674,7 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
             : 1.0;
 
         final rawLeft = firefly.anchor.dx * w - size / 2 + floatX;
-        final rawTop =
-            firefly.anchor.dy * h - size / 2 + floatY + celebrateBounce;
+        final rawTop = firefly.anchor.dy * h - size / 2 + floatY + celebrateBounce;
 
         final safeLeft = rawLeft.clamp(0.0, w - size).toDouble();
         final safeTop = rawTop.clamp(0.0, h - size).toDouble();

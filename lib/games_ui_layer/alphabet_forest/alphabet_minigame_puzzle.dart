@@ -28,9 +28,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class PuzzlePiece {
   final int id;
-  final String imagePath;
 
-  PuzzlePiece({required this.id, required this.imagePath});
+  PuzzlePiece({required this.id});
 }
 
 class AlphabetPuzzleScreen extends StatefulWidget {
@@ -79,7 +78,8 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    _loadLetter(widget.letter);
+    _fullImagePath = _getObjectImage(widget.letter);
+    _allPieces = List.generate(4, (i) => PuzzlePiece(id: i));
     _playInstructionThenLetter();
     _resetGame();
   }
@@ -92,572 +92,18 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     super.dispose();
   }
 
-  // --- 1. THE LETTER LOADING METHOD ---
-  void _loadLetter(String letter) {
-    switch (letter.toUpperCase()) {
-      case 'A':
-        _fullImagePath =
-            'assets/images/alphabets_puzzle/apple_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/apple_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/apple_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/apple_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/apple_br.png',
-          ),
-        ];
-        break;
-      case 'B':
-        _fullImagePath = 'assets/images/alphabets_puzzle/ball_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/ball_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/ball_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/ball_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/ball_br.png',
-          ),
-        ];
-        break;
-      case 'C':
-        _fullImagePath = 'assets/images/alphabets_puzzle/car_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/car_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/car_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/car_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/car_br.png',
-          ),
-        ];
-        break;
-      case 'D':
-        _fullImagePath = 'assets/images/alphabets_puzzle/duck_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/duck_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/duck_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/duck_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/duck_br.png',
-          ),
-        ];
-        break;
-      case 'E':
-        _fullImagePath = 'assets/images/alphabets_puzzle/egg_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/egg_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/egg_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/egg_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/egg_br.png',
-          ),
-        ];
-        break;
-      case 'F':
-        _fullImagePath = 'assets/images/alphabets_puzzle/feet_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/feet_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/feet_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/feet_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/feet_br.png',
-          ),
-        ];
-        break;
-      case 'G':
-        _fullImagePath = 'assets/images/alphabets_puzzle/glass_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/glass_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/glass_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/glass_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/glass_br.png',
-          ),
-        ];
-        break;
-      case 'H':
-        _fullImagePath = 'assets/images/alphabets_puzzle/hat_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/hat_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/hat_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/hat_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/hat_br.png',
-          ),
-        ];
-        break;
-      case 'I':
-        _fullImagePath = 'assets/images/alphabets_puzzle/igloo_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/igloo_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/igloo_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/igloo_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/igloo_br.png',
-          ),
-        ];
-        break;
-      case 'J':
-        _fullImagePath = 'assets/images/alphabets_puzzle/jar_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/jar_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/jar_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/jar_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/jar_br.png',
-          ),
-        ];
-        break;
-      case 'K':
-        _fullImagePath = 'assets/images/alphabets_puzzle/key_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/key_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/key_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/key_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/key_br.png',
-          ),
-        ];
-        break;
+  static const Map<String, String> _objectMap = {
+    'A': 'apple', 'B': 'ball', 'C': 'car', 'D': 'duck', 'E': 'egg',
+    'F': 'feet', 'G': 'glass', 'H': 'hat', 'I': 'igloo', 'J': 'jar',
+    'K': 'key', 'L': 'lamp', 'M': 'milk', 'N': 'nose', 'O': 'oil',
+    'P': 'pan', 'Q': 'queen', 'R': 'rain', 'S': 'sun', 'T': 'tree',
+    'U': 'umbrella', 'V': 'vase', 'W': 'window', 'X': 'xylophone',
+    'Y': 'yarn', 'Z': 'zero',
+  };
 
-      case 'L':
-        _fullImagePath = 'assets/images/alphabets_puzzle/lamp_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/lamp_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/lamp_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/lamp_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/lamp_br.png',
-          ),
-        ];
-        break;
-
-      case 'M':
-        _fullImagePath = 'assets/images/alphabets_puzzle/milk_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/milk_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/milk_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/milk_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/milk_br.png',
-          ),
-        ];
-        break;
-      case 'N':
-        _fullImagePath =
-            'assets/images/alphabets_puzzle/nose_full.png'; // Make sure this matches your image name!
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/nose_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/nose_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/nose_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/nose_br.png',
-          ),
-        ];
-        break;
-      case 'O':
-        _fullImagePath = 'assets/images/alphabets_puzzle/oil_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/oil_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/oil_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/oil_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/oil_br.png',
-          ),
-        ];
-        break;
-
-      case 'P':
-        _fullImagePath = 'assets/images/alphabets_puzzle/pan_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/pan_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/pan_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/pan_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/pan_br.png',
-          ),
-        ];
-        break;
-
-      case 'Q':
-        _fullImagePath = 'assets/images/alphabets_puzzle/queen_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/queen_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/queen_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/queen_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/queen_br.png',
-          ),
-        ];
-        break;
-
-      case 'R':
-        _fullImagePath = 'assets/images/alphabets_puzzle/rain_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/rain_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/rain_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/rain_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/rain_br.png',
-          ),
-        ];
-        break;
-
-      case 'S':
-        _fullImagePath = 'assets/images/alphabets_puzzle/sun_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/sun_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/sun_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/sun_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/sun_br.png',
-          ),
-        ];
-        break;
-      case 'T':
-        _fullImagePath = 'assets/images/alphabets_puzzle/tree_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/tree_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/tree_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/tree_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/tree_br.png',
-          ),
-        ];
-        break;
-      case 'U':
-        _fullImagePath = 'assets/images/alphabets_puzzle/umbrella_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/umbrella_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/umbrella_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/umbrella_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/umbrella_br.png',
-          ),
-        ];
-        break;
-
-      case 'V':
-        _fullImagePath = 'assets/images/alphabets_puzzle/vase_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/vase_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/vase_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/vase_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/vase_br.png',
-          ),
-        ];
-        break;
-      case 'W':
-        _fullImagePath = 'assets/images/alphabets_puzzle/window_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/window_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/window_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/window_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/window_br.png',
-          ),
-        ];
-        break;
-      case 'X':
-        _fullImagePath = 'assets/images/alphabets_puzzle/xylophone_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/xylophone_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/xylophone_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/xylophone_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/xylophone_br.png',
-          ),
-        ];
-        break;
-
-      case 'Y':
-        _fullImagePath = 'assets/images/alphabets_puzzle/yarn_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/yarn_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/yarn_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/yarn_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/yarn_br.png',
-          ),
-        ];
-        break;
-
-      case 'Z':
-        _fullImagePath = 'assets/images/alphabets_puzzle/zero_full.png';
-        _allPieces = [
-          PuzzlePiece(
-            id: 0,
-            imagePath: 'assets/images/alphabets_puzzle/zero_tl.png',
-          ),
-          PuzzlePiece(
-            id: 1,
-            imagePath: 'assets/images/alphabets_puzzle/zero_tr.png',
-          ),
-          PuzzlePiece(
-            id: 2,
-            imagePath: 'assets/images/alphabets_puzzle/zero_bl.png',
-          ),
-          PuzzlePiece(
-            id: 3,
-            imagePath: 'assets/images/alphabets_puzzle/zero_br.png',
-          ),
-        ];
-        break;
-      default:
-        // Fallback just in case
-        _fullImagePath = 'assets/images/alphabets_puzzle/apple_full.png';
-        _allPieces = [];
-    }
-  }
+  String _objectName(String letter) => _objectMap[letter.toUpperCase()] ?? 'apple';
+  String _getObjectImage(String letter) => 'assets/images/objects/forest/${_objectName(letter)}.png';
+  String _getObjectAudio(String letter) => 'audio/alphabet_forest/${_objectName(letter)}.wav';
 
   void _resetGame() {
     setState(() {
@@ -703,7 +149,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    await Future.delayed(Duration(seconds: 2));
+    await Future.delayed(Duration(seconds: 1));
     if (!mounted) return;
 
     _showSuccessDialog();
@@ -941,7 +387,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                           height: boardSize,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.5),
+                              color: Colors.white,
                               border: Border.all(
                                 color: ForestColorTheme.lightgreen,
                                 width: 4,
@@ -949,7 +395,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                               borderRadius: BorderRadius.circular(12),
                               image: DecorationImage(
                                 image: AssetImage(_fullImagePath),
-                                fit: BoxFit.cover,
+                                fit: BoxFit.contain,
                                 opacity: 0.65,
                               ),
                             ),
@@ -1002,22 +448,15 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                                     child: Draggable<PuzzlePiece>(
                                 data: piece,
                                 maxSimultaneousDrags: _inputEnabled ? 1 : 0,
-                                feedback: _PuzzlePieceWidget(
-                                  imagePath: piece.imagePath,
-                                  size: pieceSize,
-                                  isDragging: true,
-                                ),
+                                feedback: _PuzzlePieceWidget(imagePath: _fullImagePath, pieceId: piece.id, size: pieceSize)
+                                      ,
                                 childWhenDragging: Opacity(
                                   opacity: 0.2,
-                                  child: _PuzzlePieceWidget(
-                                    imagePath: piece.imagePath,
-                                    size: pieceSize,
-                                  ),
+                                  child: _PuzzlePieceWidget(imagePath: _fullImagePath, pieceId: piece.id, size: pieceSize)
+                                  ,
                                 ),
-                                child: _PuzzlePieceWidget(
-                                  imagePath: piece.imagePath,
-                                  size: pieceSize,
-                                ),
+                                child: _PuzzlePieceWidget(imagePath: _fullImagePath, pieceId: piece.id, size: pieceSize)
+                                      ,
                                     ),
                               );
                             },
@@ -1052,7 +491,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
       // Accept any drop so a wrong drop counts as exactly ONE mistake; the piece
       // simply returns to the tray because it is never removed from it.
       onWillAcceptWithDetails: (details) => true,
-      onAcceptWithDetails: (details) {
+      onAcceptWithDetails: (details) async {
         if (isFilled || details.data.id != slotIndex) {
           _tapTracker.recordMistake();
           return;
@@ -1063,13 +502,19 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
           _availablePieces.removeWhere((p) => p.id == details.data.id);
         });
 
-        showTofiReaction(TofiState.correct);
-
         if (_placedPieces.length == 4) {
-          Future.delayed(
-            const Duration(milliseconds: 400),
-            _saveDataAndShowSuccessDialog,
-          );
+          try {
+            await playVoiceRestartingOnFaceLoss(
+              _player,
+              _getObjectAudio(widget.letter),
+            );
+          } catch (e) {
+            debugPrint('Object audio error: $e');
+          }
+          if (!mounted) return;
+          _saveDataAndShowSuccessDialog();
+        } else {
+          showTofiReaction(TofiState.correct);
         }
       },
       builder: (context, candidateData, rejectedData) {
@@ -1090,10 +535,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                 : Colors.transparent,
           ),
           child: isFilled
-              ? _PuzzlePieceWidget(
-                  imagePath: placedPiece!.imagePath,
-                  size: size,
-                )
+              ? _PuzzlePieceWidget(imagePath: _fullImagePath, pieceId: placedPiece!.id, size: size)
               : null,
         );
       },
@@ -1103,42 +545,67 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
 
 class _PuzzlePieceWidget extends StatelessWidget {
   final String imagePath;
+  final int pieceId;
   final double size;
   final bool isDragging;
 
   const _PuzzlePieceWidget({
     required this.imagePath,
+    required this.pieceId,
     required this.size,
     this.isDragging = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Transform.scale(
-        scale: isDragging ? 1.05 : 1.0,
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            boxShadow: [
-              if (isDragging)
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 10,
-                  offset: const Offset(5, 5),
+    final alignment = Alignment(
+      pieceId.isEven ? -1.0 : 1.0,
+      pieceId < 2 ? -1.0 : 1.0,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double s = constraints.hasTightWidth && constraints.hasTightHeight
+            ? constraints.biggest.shortestSide
+            : size;
+
+        return Material(
+          color: Colors.transparent,
+          child: Transform.scale(
+            scale: isDragging ? 1.05 : 1.0,
+            child: Container(
+              width: s,
+              height: s,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  if (isDragging)
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(5, 5),
+                    ),
+                ],
+              ),
+              child: ClipRect(
+                child: OverflowBox(
+                  alignment: alignment,
+                  minWidth: s * 2,
+                  maxWidth: s * 2,
+                  minHeight: s * 2,
+                  maxHeight: s * 2,
+                  child: Image.asset(
+                    imagePath,
+                    width: s * 2,
+                    height: s * 2,
+                    fit: BoxFit.contain,
+                  ),
                 ),
-            ],
+              ),
+            ),
           ),
-          child: Image.asset(
-            imagePath,
-            width: size,
-            height: size,
-            fit: BoxFit.cover,
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -42,36 +42,35 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   @override
   AudioPlayer get tofiPlayer => _player;
 
-  final AudioPlayer _player = AudioPlayer();
-  final AudioPlayer _promptPlayer = AudioPlayer();
-
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player, _promptPlayer];
 
+  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _promptPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
-
   final Random _random = Random();
 
   static const String _vaseAsset = 'assets/images/objects/forest/vase.png';
-  static const String _findInstructionWav = 'audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
+  static const String _hammerAsset = 'assets/images/objects/forest/hammer.png';
+  static const String _findInstructionAudio = 'audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
+  static const String _breakVaseAudio = 'audio/sound_effects/break_vase.wav';
 
   static const int _totalRounds = 3;
-  int _completedRounds = 0;
 
   List<String> _vaseLetters = [];
+
+  int _completedRounds = 0;
   int _correctIndex = 0;
   int? _revealedIndex;
   int? _shakingIndex;
+  int _tapToken = 0;
+
+  late AnimationController _wiggleCtrl;
+  late Animation<double> _wiggle;
+
   bool _choicesLocked = false;
   bool _inputEnabled = false;
-
-  late AnimationController _wiggleCtrl; // ADD
-  late Animation<double> _wiggle; // ADD
-
   bool _isPlayingJarSequence = false;
-
-  // The lighting card is dismissible and only appears after the face is
-  // lost. It never delays the game start.
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -79,23 +78,18 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
-
-    // child's calibration separate from everyone else's.
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
 
-    // Lighting card can reappear later if the face is lost again mid-play.
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
     _wiggleCtrl = AnimationController(
-      // ADD
       vsync: this,
       duration: const Duration(milliseconds: 350),
     );
     _wiggle = TweenSequence([
-      // ADD
       TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.12), weight: 25),
       TweenSequenceItem(tween: Tween(begin: -0.12, end: 0.12), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 0.12, end: 0.0), weight: 25),
@@ -109,14 +103,12 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     final String target = widget.letter.toUpperCase();
     final int targetCode = target.codeUnitAt(0);
 
-    // Decoys pulled from letters BEFORE the target (already-learned letters).
     final List<String> previousLetters = [
       for (int c = 65; c < targetCode; c++) String.fromCharCode(c),
     ];
     previousLetters.shuffle(_random);
     final List<String> decoys = previousLetters.take(2).toList();
 
-    // Fallback for early letters (A/B) that don't have 2 previous letters yet.
     while (decoys.length < 2) {
       final candidate = String.fromCharCode(65 + _random.nextInt(26));
       if (candidate != target && !decoys.contains(candidate)) {
@@ -156,7 +148,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     try {
       await playVoiceRestartingOnFaceLoss(
         _player,
-        _findInstructionWav,
+        _findInstructionAudio,
         timeout: const Duration(seconds: 30),
       );
     } catch (e) {
@@ -201,7 +193,6 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   Future<void> _playLetterSound(String letter) async {
     final String lower = letter.toLowerCase();
-    // Same face-aware playback: each vase sound replays if the child looked away.
     await playVoiceRestartingOnFaceLoss(
       _promptPlayer,
       'audio/alphabet_forest/sound_effects/sound_$lower.wav',
@@ -209,14 +200,32 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     );
   }
 
+  Future<void> _playBreakSound() async {
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (!mounted) return;
+    final done = _promptPlayer.onPlayerComplete.first
+        .then<void>((_) {})
+        .timeout(const Duration(seconds: 3), onTimeout: () {});
+    await _promptPlayer.play(AssetSource(_breakVaseAudio));
+    await done;
+  }
+
   Future<void> _onVaseTapped(int index) async {
     if (!_inputEnabled || _choicesLocked) return;
+
+    final token = ++_tapToken;
+    _player.stop();
+    _promptPlayer.stop();
 
     if (index == _correctIndex) {
       _tapTracker.recordCorrectTap();
       _choicesLocked = true;
       setState(() => _revealedIndex = index);
+      await _playBreakSound();
+      if (!mounted || token != _tapToken) return;
+
       await showTofiReaction(TofiState.correct);
+      if (!mounted) return;
       setState(() => _completedRounds++);
 
       if (_completedRounds >= _totalRounds) {
@@ -232,25 +241,25 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
       _tapTracker.recordMistake();
       setState(() {
         _shakingIndex = index;
-        _revealedIndex = index; // Reveal the chosen wrong vase
+        _revealedIndex = index;
       });
 
       _wiggleCtrl.forward(from: 0);
+      await _playBreakSound();
+      if (!mounted || token != _tapToken) return;
+
       showTofiReaction(TofiState.wrong);
 
       await Future.delayed(const Duration(milliseconds: 3600));
-
-      if (!mounted) return;
+      if (!mounted || token != _tapToken) return;
 
       setState(() {
         _shakingIndex = null;
-        _revealedIndex = null; // Hide it again so they can keep guessing
+        _revealedIndex = null;
       });
     }
   }
 
-  // --- FLEXIBLE NAVIGATION ---
-  // Same "what comes next" pattern used by hunt/fall/match/paint.
   void _goToNext() {
     final String current = widget.letter.toUpperCase();
     int charCode = current.codeUnitAt(0);
@@ -586,8 +595,8 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
           height: 140,
           child: Stack(
             alignment: Alignment.center,
+            clipBehavior: Clip.none,
             children: [
-              // Letter sits behind the vase, revealed once opened.
               AnimatedOpacity(
                 opacity: revealed ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 300),
@@ -625,6 +634,31 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
                   ),
                 ),
               ),
+              if (revealed)
+                Positioned(
+                  top: -30,
+                  right: -25,
+                  child: TweenAnimationBuilder<double>(
+                    key: ValueKey('hammer_${index}_$_tapToken'),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 700),
+                    builder: (_, t, child) {
+                      final swing = Curves.easeIn.transform((t / 0.4).clamp(0.0, 1.0));
+                      final angle = 0.4 - 1.3 * swing;
+                      final opacity = t < 0.7 ? 1.0 : ((1 - t) / 0.3).clamp(0.0, 1.0);
+                      return Opacity(
+                        opacity: opacity,
+                        child: Transform.rotate(
+                          angle: angle,
+                          alignment: Alignment.bottomRight,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Image.asset(_hammerAsset, width: 80, fit: BoxFit.contain),
+                  ),
+                ),
+
               AnimatedOpacity(
                 opacity: revealed ? 0.0 : 1.0,
                 duration: const Duration(milliseconds: 300),

@@ -49,7 +49,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _treeAsset = 'assets/images/objects/lagoon/tree.png';
+  static const String _treeAsset = 'assets/images/objects/forest/tree.png';
   static const String _appleAsset = 'assets/images/objects/forest/apple.png';
   static const String _leafAsset = 'assets/images/objects/forest/leaf.png';
 
@@ -60,10 +60,10 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
   static const String _audioWin = '$_audioBase/apple_tree_win.wav';
 
   static const List<Offset> _baseAppleSlots = [
-    Offset(0.42, 0.28),
-    Offset(0.58, 0.28),
-    Offset(0.38, 0.40),
-    Offset(0.62, 0.40),
+    Offset(0.46, 0.30),
+    Offset(0.58, 0.30),
+    Offset(0.42, 0.44),
+    Offset(0.62, 0.44),
   ];
 
   static const int _totalRounds = 5;
@@ -78,12 +78,12 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
   late String _targetLetter;
   String? _previousTarget;
 
-  bool _foundThisRound = false;
-  bool _resolving = false;
+
   int? _fallingIndex;
   int? _wrongIndex;
   final Set<int> _pressedIndices = {};
-
+  bool _foundThisRound = false;
+  bool _resolving = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool _inputEnabled = false;
@@ -496,7 +496,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
   }
 
   Widget _buildTreeArea(double w, double h) {
-    final treeHeight = h * 0.8;
+    final treeHeight = h * 0.9;
 
     return SizedBox(
       width: w,
