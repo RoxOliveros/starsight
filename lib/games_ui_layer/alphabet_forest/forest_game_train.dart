@@ -62,21 +62,16 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── ASSETS ───────────────────────────────────────────────────────────────
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_forest_train_path.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_train_path.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _trainHeadImage =
-      'assets/images/objects/forest/train_head.png';
-  static const String _trainWagonImage =
-      'assets/images/objects/forest/train_wagon.png';
+  static const String _trainHeadImage = 'assets/images/objects/forest/train_head.png';
+  static const String _trainWagonImage = 'assets/images/objects/forest/train_wagon.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/alphabet_train_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/alphabet_train_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/alphabet_train_instruction.wav';
   static const String _audioCorrect = '$_audioBase/alphabet_train_correct.wav';
-  static const String _audioRoundComplete =
-      '$_audioBase/alphabet_train_round_complete.wav';
+  static const String _audioRoundComplete = '$_audioBase/alphabet_train_round_complete.wav';
   static const String _audioWin = '$_audioBase/alphabet_train_win.wav';
 
   // ── GAME STRUCTURE ───────────────────────────────────────────────────────
@@ -88,7 +83,6 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
   int _solvedRounds = 0;
   bool _roundLocked = false;
   bool _slotFilled = false;
-  bool _celebrating = false;
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -101,7 +95,6 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
   late AnimationController _tofiFloatCtrl;
   late AnimationController _trainBobCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _missingPulseCtrl;
@@ -145,13 +138,6 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -210,7 +196,6 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
   void _setupRound() {
     _roundLocked = false;
     _slotFilled = false;
-    _celebrating = false;
     _shakingChoice = null;
     _missingShaking = false;
 
@@ -300,7 +285,6 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
     showTofiReaction(TofiState.correct);
     if (!mounted) return;
 
-    setState(() => _celebrating = true);
     _trainNudgeCtrl.forward(from: 0);
 
     await Future.delayed(const Duration(milliseconds: 1500));
@@ -452,7 +436,13 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
 
     return Stack(
       children: [
-        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        Positioned.fill(
+          child: Image.asset(
+            _bgImage,
+            fit: BoxFit.cover,
+            alignment: Alignment.bottomCenter,
+          ),
+        ),
         const Positioned(top: 25, left: 25, child: ForestXButton()),
         Positioned(
           top: 25,
@@ -501,7 +491,13 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
   Widget _buildGameContent() {
     return Stack(
       children: [
-        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        Positioned.fill(
+          child: Image.asset(
+            _bgImage,
+            fit: BoxFit.cover,
+            alignment: Alignment.bottomCenter,
+          ),
+        ),
         _buildGameUI(),
       ],
     );

@@ -45,13 +45,7 @@ class FollowThePawPrintsGame extends StatefulWidget {
 }
 
 class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
-    with
-        TickerProviderStateMixin,
-        GameLoadingMixin<FollowThePawPrintsGame>,
-        ForestAudioMixin<FollowThePawPrintsGame>,
-        TofiReactionMixin<FollowThePawPrintsGame>,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<FollowThePawPrintsGame> {
+    with TickerProviderStateMixin, GameLoadingMixin<FollowThePawPrintsGame>, ForestAudioMixin<FollowThePawPrintsGame>, TofiReactionMixin<FollowThePawPrintsGame>, AiCameraMixin, AppAudioLifecycleMixin<FollowThePawPrintsGame> {
   @override
   AudioPlayer get tofiPlayer => audio.voicePlayer;
 
@@ -145,19 +139,19 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     return [
       _buildSingleTrail(
         letter: 'S',
-        centerX: 0.28,
+        centerX: 0.2,
         count: 5,
         animalAsset: 'assets/images/objects/forest/squirrel.png',
       ),
       _buildSingleTrail(
         letter: 'T',
-        centerX: 0.56,
+        centerX: 0.5,
         count: 3,
         animalAsset: 'assets/images/objects/forest/tiger.png',
       ),
       _buildSingleTrail(
         letter: 'U',
-        centerX: 0.85,
+        centerX: 0.8,
         count: 4,
         animalAsset: 'assets/images/objects/forest/unicorn.png',
       ),
@@ -179,7 +173,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
     });
     final angles = List.generate(
       count,
-      (i) => (i.isEven ? -0.18 : 0.18) + i * 0.015,
+          (i) => (i.isEven ? -0.18 : 0.18) + i * 0.015,
     );
 
     return _PawTrail(
@@ -405,7 +399,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
-        (e) {
+            (e) {
           debugPrint("Database Error marking level complete: $e");
         },
       );
@@ -497,7 +491,6 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
         gameBuilder: () => Stack(
           children: [
             if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {
@@ -549,7 +542,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
               _dogImage,
               height: screenH * 0.72,
               errorBuilder: (_, __, ___) =>
-                  const Text('🐶', style: TextStyle(fontSize: 90)),
+              const Text('🐶', style: TextStyle(fontSize: 90)),
             ),
           ),
         ),
@@ -589,7 +582,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
           const Positioned(top: 25, left: 25, child: ForestXButton()),
           Positioned(
             top: 25,
-            right: 20,
+            right: 25,
             child: ForestLevelBadge(level: widget.level),
           ),
           Padding(
@@ -663,24 +656,24 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
           child: Container(
             decoration: completed
                 ? BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: ForestColorTheme.mediumseagreen.withValues(
-                          alpha: 0.6,
-                        ),
-                        blurRadius: 16,
-                        spreadRadius: 4,
-                      ),
-                    ],
-                  )
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: ForestColorTheme.mediumseagreen.withValues(
+                    alpha: 0.6,
+                  ),
+                  blurRadius: 16,
+                  spreadRadius: 4,
+                ),
+              ],
+            )
                 : null,
             child: ColorFiltered(
               colorFilter: completed
                   ? ColorFilter.mode(
-                      ForestColorTheme.mediumseagreen.withValues(alpha: 0.55),
-                      BlendMode.srcATop,
-                    )
+                ForestColorTheme.mediumseagreen.withValues(alpha: 0.55),
+                BlendMode.srcATop,
+              )
                   : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
               child: Image.asset(
                 _pawAsset,
@@ -724,7 +717,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
                   _sparkleAsset,
                   width: 50,
                   errorBuilder: (_, __, ___) =>
-                      const Text('✨', style: TextStyle(fontSize: 34)),
+                  const Text('✨', style: TextStyle(fontSize: 34)),
                 ),
               ),
             ),
@@ -802,7 +795,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
                     _leafAsset,
                     width: 20,
                     errorBuilder: (_, __, ___) =>
-                        const Text('🍃', style: TextStyle(fontSize: 16)),
+                    const Text('🍃', style: TextStyle(fontSize: 16)),
                   ),
                 ),
               );
@@ -814,7 +807,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
                 _dogImage,
                 height: size,
                 errorBuilder: (_, __, ___) =>
-                    const Text('🐶', style: TextStyle(fontSize: 60)),
+                const Text('🐶', style: TextStyle(fontSize: 60)),
               ),
             ),
           ],
@@ -843,7 +836,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
                     _leafAsset,
                     width: 18,
                     errorBuilder: (_, __, ___) =>
-                        const Text('🍃', style: TextStyle(fontSize: 14)),
+                    const Text('🍃', style: TextStyle(fontSize: 14)),
                   ),
                 ),
               );
@@ -855,10 +848,10 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
   }
 
   Widget _outlinedLetter(
-    String letter, {
-    required double fontSize,
-    required Color fillColor,
-  }) {
+      String letter, {
+        required double fontSize,
+        required Color fillColor,
+      }) {
     return Stack(
       children: [
         Text(
