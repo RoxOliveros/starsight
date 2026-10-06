@@ -27,7 +27,9 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
         TrWooReactionMixin,
         AiCameraMixin<LumiClassroomScreen>,
         AppAudioLifecycleMixin<LumiClassroomScreen> {
-  late final AudioPlayer _audioPlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
@@ -37,7 +39,6 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
 
     OrientationService.setLandscape();
 

@@ -24,11 +24,9 @@ class Sorry1Screen extends StatefulWidget {
 }
 
 class _Sorry1ScreenState extends State<Sorry1Screen>
-    with
-        AiCameraMixin<Sorry1Screen>,
-        GameLoadingMixin,
-        AppAudioLifecycleMixin<Sorry1Screen> {
-  late final AudioPlayer _audioPlayer;
+    with AiCameraMixin<Sorry1Screen>, GameLoadingMixin, AppAudioLifecycleMixin<Sorry1Screen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
 
   bool _hideLightingCard = false;
@@ -48,8 +46,6 @@ class _Sorry1ScreenState extends State<Sorry1Screen>
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
-    _audioPlayer = AudioPlayer();
-
     finishLoading(_initAndPlayAudio);
   }
 

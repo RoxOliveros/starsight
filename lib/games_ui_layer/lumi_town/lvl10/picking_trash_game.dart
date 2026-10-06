@@ -41,7 +41,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
   final double drWooY = 0.33;
   final double drWooSize = 0.30;
 
-  late AudioPlayer _audioPlayer;
+  final AudioPlayer _audioPlayer = AudioPlayer();
   StreamSubscription<void>? _playerCompleteSubscription;
 
   List<TrashItemData> trashItems = [];
@@ -65,8 +65,6 @@ class _PickingTrashGameState extends State<PickingTrashGame>
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
-
-    _audioPlayer = AudioPlayer();
 
     finishLoading(_startGameAfterLoading);
   }

@@ -29,7 +29,8 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
         AppAudioLifecycleMixin<EmotionStarsScreen> {
   late AnimationController _fadeController;
   late Animation<double> _opacityAnimation;
-  late AudioPlayer _audioPlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
@@ -52,8 +53,6 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
-
-    _audioPlayer = AudioPlayer();
 
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 5000),
@@ -172,8 +171,10 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
                 ? screenWidth * 0.25
                 : screenHeight * 0.35;
 
-            return Stack(
-              children: [
+            return Material(
+                type: MaterialType.transparency,
+                child: Stack(
+                  children: [
                 Positioned.fill(
                   child: Image.asset(
                     'assets/images/backgrounds/bg_game_emotion.png',
@@ -253,6 +254,7 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
                     },
                   ),
               ],
+                ),
             );
           },
         ),

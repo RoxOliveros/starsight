@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../business_layer/orientation_service.dart';
+import '../../../ui_layer/game_loading_mixin.dart';
+import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/town_level.dart';
 import '../lumi_game_ui_layer.dart';
@@ -29,7 +31,7 @@ class Prayer1 extends StatefulWidget {
 }
 
 class _Prayer1State extends State<Prayer1>
-    with AiCameraMixin<Prayer1>, AppAudioLifecycleMixin<Prayer1> {
+    with AiCameraMixin<Prayer1>, AppAudioLifecycleMixin<Prayer1>, GameLoadingMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -70,11 +72,19 @@ class _Prayer1State extends State<Prayer1>
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    _initializeSequence();
+    finishLoading(_initializeSequence);
+  }
+
+  Future<void> _waitForComplete() async {
+    try {
+      await _audioPlayer.onPlayerComplete.first;
+    } on StateError {
+    }
   }
 
   Future<void> _initializeSequence() async {
     final status = await Permission.camera.request();
+    if (!mounted) return;
 
     if (mounted) {
       setState(() {
@@ -99,7 +109,7 @@ class _Prayer1State extends State<Prayer1>
       });
     });
 
-    await _audioPlayer.onPlayerComplete.first;
+    await _waitForComplete();
     if (!mounted || _gestureDetected) return;
 
     if (_hasCameraPermission) {
@@ -143,7 +153,7 @@ class _Prayer1State extends State<Prayer1>
     await _audioPlayer.stop();
     await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_2.wav'));
 
-    await _audioPlayer.onPlayerComplete.first;
+    await _waitForComplete();
     if (!mounted) return;
 
     setState(() {
@@ -152,7 +162,7 @@ class _Prayer1State extends State<Prayer1>
 
     await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_3.wav'));
 
-    await _audioPlayer.onPlayerComplete.first;
+    await _waitForComplete();
     if (!mounted) return;
 
     await _saveDataAndShowGoodJob();
@@ -211,117 +221,122 @@ class _Prayer1State extends State<Prayer1>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 500),
-              child: Image.asset(
-                _currentScene,
-                key: ValueKey<String>(_currentScene),
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
+      backgroundColor: Colors.white,
+      body: buildWithLoading(
+        loadingScreen: LoadingScreen.lumiTown(),
+        gameBuilder: () => Listener(
+          onPointerDown: (_) => _tapTracker.recordGenericTap(),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 500),
+                child: Image.asset(
+                  _currentScene,
+                  key: ValueKey<String>(_currentScene),
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
               ),
-            ),
 
-            if (_hasCameraPermission)
-              Positioned(
-                top: 0,
-                left: 0,
-                // The GestureCameraView is invisible and does not block user interaction
-                child: IgnorePointer(
-                  child: Opacity(
-                    opacity: 0.0,
-                    child: SizedBox(
-                      width: 4,
-                      height: 4,
-                      child: GestureCameraView(
-                        key: const ValueKey('prayer_camera_2_hands'),
-                        onGesture: _onGestureDetected,
-                        minConfidence: 0.7,
-                        requiredConsecutiveFrames: 4,
-                        requiredHands: 2,
+              if (_hasCameraPermission)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  // The GestureCameraView is invisible and does not block user interaction
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: 0.0,
+                      child: SizedBox(
+                        width: 4,
+                        height: 4,
+                        child: GestureCameraView(
+                          key: const ValueKey('prayer_camera_2_hands'),
+                          onGesture: _onGestureDetected,
+                          minConfidence: 0.7,
+                          requiredConsecutiveFrames: 4,
+                          requiredHands: 2,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
 
-            Positioned(top: 25, left: 25, child: LumiXButton()),
-            Positioned(
-              top: 25,
-              right: 25,
-              child: LumiLevelBadge(level: widget.level),
-            ),
-
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-
-            Positioned.fill(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: _showPromptCard
-                    ? PrayerPromptCard(
-                        key: const ValueKey('prompt_card'),
-                        onClose: () {
-                          setState(() {
-                            _showPromptCard = false;
-                          });
-                        },
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ),
-
-            // ---  Skip Button  ---
-            if (_showSkipButton)
+              Positioned(top: 25, left: 25, child: LumiXButton()),
               Positioned(
-                bottom: 25,
+                top: 25,
                 right: 25,
-                child: LumiSkipButton(
-                  onTap: () {
-                    if (!_gestureDetected) {
-                      _tapTracker.recordMistake();
-                      _triggerSuccessSequence();
-                    }
+                child: LumiLevelBadge(level: widget.level),
+              ),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
                   },
+                ),
+
+              Positioned.fill(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _showPromptCard
+                      ? PrayerPromptCard(
+                          key: const ValueKey('prompt_card'),
+                          onClose: () {
+                            setState(() {
+                              _showPromptCard = false;
+                            });
+                          },
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ),
 
-            if (_showGoodJob)
-              GoodJobOverlay(
-                characterImage: 'assets/images/characters/tr.woo_smiling.png',
-                onNext: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          Sorry1Screen(level: widget.level + 1),
-                    ),
-                  );
-                },
-                onRestart: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) => Prayer1(level: widget.level),
-                    ),
-                  );
-                },
-                onBack: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => LumiLevelScreen()),
-                  );
-                },
-              ),
-          ],
+              // ---  Skip Button  ---
+              if (_showSkipButton)
+                Positioned(
+                  bottom: 25,
+                  right: 25,
+                  child: LumiSkipButton(
+                    onTap: () {
+                      if (!_gestureDetected) {
+                        _tapTracker.recordMistake();
+                        _triggerSuccessSequence();
+                      }
+                    },
+                  ),
+                ),
+
+              if (_showGoodJob)
+                GoodJobOverlay(
+                  characterImage: 'assets/images/characters/tr.woo_smiling.png',
+                  onNext: () {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            Sorry1Screen(level: widget.level + 1),
+                      ),
+                    );
+                  },
+                  onRestart: () {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (_) => Prayer1(level: widget.level),
+                      ),
+                    );
+                  },
+                  onBack: () {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => LumiLevelScreen()),
+                    );
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
