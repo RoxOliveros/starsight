@@ -120,13 +120,11 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   // ASSETS
   // ═════════════════════════════════════════════════════════════════════
 
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_forest_river.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_big_lagoon.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _rodImage = 'assets/images/objects/forest/rod.png';
   static const String _fishImage = 'assets/images/objects/forest/fish.png';
-  static const String _rodFishImage =
-      'assets/images/objects/forest/rod_fish.png';
+  static const String _rodFishImage = 'assets/images/objects/forest/rod_fish.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _sfxBase = ForestAudioAssets.sfxBase;
