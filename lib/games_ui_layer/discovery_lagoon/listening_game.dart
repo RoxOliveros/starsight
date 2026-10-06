@@ -12,7 +12,6 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
 
@@ -24,6 +23,7 @@ enum GamePhase {
   completed,
   bodyParts,
   goodJob,
+  bodyPartsAnswered,
 }
 
 class ListeningGame extends StatefulWidget {
@@ -37,7 +37,9 @@ class ListeningGame extends StatefulWidget {
 
 class _ListeningGameState extends State<ListeningGame>
     with AiCameraMixin, AppAudioLifecycleMixin<ListeningGame> {
-  late final AudioPlayer _audioPlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
@@ -85,7 +87,6 @@ class _ListeningGameState extends State<ListeningGame>
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    _audioPlayer = AudioPlayer();
     _playIntroAudio();
   }
 
@@ -104,17 +105,19 @@ class _ListeningGameState extends State<ListeningGame>
     });
   }
 
+  void _afterAudio(VoidCallback next) {
+    _audioPlayer.onPlayerComplete.first.then((_) {
+      if (mounted) next();
+    }).catchError((_) {});
+  }
+
   Future<void> _playIntroAudio() async {
     try {
       await _audioPlayer.play(
         AssetSource('audio/discovery_lagoon/listening_intro.wav'),
       );
 
-      _audioPlayer.onPlayerComplete.first.then((_) {
-        if (mounted) {
-          _startListeningPhase();
-        }
-      });
+      _afterAudio(_startListeningPhase);
     } catch (e) {
       debugPrint("Error playing intro audio: $e");
     }
@@ -143,14 +146,14 @@ class _ListeningGameState extends State<ListeningGame>
 
       await _audioPlayer.play(AssetSource(audioPath));
 
-      _audioPlayer.onPlayerComplete.first.then((_) async {
+      _afterAudio(() async {
         if (mounted) {
           try {
             await _audioPlayer.play(
               AssetSource('audio/discovery_lagoon/listening_whatanimal.wav'),
             );
 
-            _audioPlayer.onPlayerComplete.first.then((_) {
+            _afterAudio(() {
               if (mounted) {
                 setState(() {
                   _currentPhase = GamePhase.choosing;
@@ -186,11 +189,10 @@ class _ListeningGameState extends State<ListeningGame>
       });
 
       _playKikiAudio('audio/sound_effects/shine.wav');
-      _audioPlayer.onPlayerComplete.first.then((_) {
-        if (mounted) {
-          _playKikiAudio('audio/discovery_lagoon/listening_rc.wav');
+      _afterAudio(() {
+        _playKikiAudio('audio/discovery_lagoon/listening_rc.wav');
 
-          _audioPlayer.onPlayerComplete.first.then((_) {
+        _afterAudio(() {
             if (mounted) {
               if (_targetAnimal == 'chicken') {
                 setState(() => _targetAnimal = 'frog');
@@ -210,7 +212,7 @@ class _ListeningGameState extends State<ListeningGame>
                 });
                 _playKikiAudio('audio/discovery_lagoon/listening_ending1.wav');
 
-                _audioPlayer.onPlayerComplete.first.then((_) {
+                _afterAudio(() {
                   if (mounted) {
                     setState(() {
                       _currentPhase = GamePhase.bodyParts;
@@ -223,7 +225,6 @@ class _ListeningGameState extends State<ListeningGame>
               }
             }
           });
-        }
       });
     } else {
       _tapTracker.recordMistake();
@@ -236,17 +237,11 @@ class _ListeningGameState extends State<ListeningGame>
 
     if (partId == 'ear') {
       _tapTracker.recordCorrectTap();
+      setState(() => _currentPhase = GamePhase.bodyPartsAnswered);
       _playKikiAudio('audio/sound_effects/shine.wav');
-      _audioPlayer.onPlayerComplete.first.then((_) {
-        if (mounted) {
-          _playKikiAudio('audio/discovery_lagoon/listening_whatpart_rc.wav');
-
-          _audioPlayer.onPlayerComplete.first.then((_) {
-            if (mounted) {
-              _saveDataAndShowGoodJob();
-            }
-          });
-        }
+      _afterAudio(() {
+        _playKikiAudio('audio/discovery_lagoon/listening_whatpart_rc.wav');
+        _afterAudio(_saveDataAndShowGoodJob);
       });
     } else {
       _tapTracker.recordMistake();

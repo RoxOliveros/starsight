@@ -60,7 +60,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
         AiCameraMixin,
         AppAudioLifecycleMixin<CatchingGameScreen> {
   late AnimationController _gameLoopController;
-  late final AudioPlayer _audioPlayer;
+  final AudioPlayer _audioPlayer = AudioPlayer();
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
@@ -142,7 +142,6 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    _audioPlayer = AudioPlayer();
     _playIntroSequence();
 
     _gameLoopController = AnimationController(
