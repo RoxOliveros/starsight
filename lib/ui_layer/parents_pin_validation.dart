@@ -1,6 +1,8 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/orientation_service.dart';
+import '../business_layer/audio_helper.dart';
 import 'app_dialog.dart';
 import '../business_layer/database_service.dart';
 
@@ -25,19 +27,19 @@ class ParentPinValidation extends StatefulWidget {
 
 class ParentPinValidationState extends State<ParentPinValidation> {
   final List<String> _digits = [];
+  final AudioPlayer _sfxPlayer = AudioPlayer();
+
   static const int _maxDigits = 4;
 
   bool _animationsReady = false;
-  bool _isSubmitting = false; // prevents double submit / extra taps
+  bool _isSubmitting = false;
 
   void _onDigitTap(String digit) {
     if (_isSubmitting) return;
     if (_digits.length < _maxDigits) {
       setState(() => _digits.add(digit));
 
-      // Auto-submit when the 4th digit is entered
       if (_digits.length == _maxDigits) {
-        // Short delay so the 4th dot is visible before validating
         Future.delayed(const Duration(milliseconds: 150), _onSubmit);
       }
     }
@@ -80,7 +82,7 @@ class ParentPinValidationState extends State<ParentPinValidation> {
 
   @override
   void dispose() {
-    //OrientationService.setLandscape();
+    _sfxPlayer.dispose();
     super.dispose();
   }
 
@@ -129,7 +131,11 @@ class ParentPinValidationState extends State<ParentPinValidation> {
     final fontSize = (keyH * 0.38).clamp(12.0, 26.0);
 
     return GestureDetector(
-      onTap: isDelete ? _onDelete : () => _onDigitTap(label),
+      onTap: () {
+        if (_isSubmitting) return;
+        SfxHelper.instance.play(Sfx.keyTap);
+        isDelete ? _onDelete() : _onDigitTap(label);
+      },
       child: Container(
         width: keyW,
         height: keyH,
