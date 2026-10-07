@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../business_layer/audio_helper.dart';
 import '../ui_layer/menu_dialog.dart';
 
 const String kDefaultAvatarPath = 'assets/images/avatars/avatar_star.png';
@@ -130,7 +131,10 @@ class _AvatarPickerDialogState extends State<AvatarPickerDialog> {
                         return _AvatarTile(
                           assetPath: path,
                           isSelected: isSelected,
-                          onTap: () => setState(() => _selected = path),
+                          onTap: () {
+                            SfxHelper.instance.play(Sfx.keyTap);
+                            setState(() => _selected = path);
+                          }
                         );
                       },
                     );
@@ -146,7 +150,10 @@ class _AvatarPickerDialogState extends State<AvatarPickerDialog> {
                 child: ElevatedButton(
                   onPressed: _selected == null
                       ? null
-                      : () => Navigator.pop(context, _selected),
+                      : () {
+                    SfxHelper.instance.play(Sfx.keyTap);
+                    Navigator.pop(context, _selected);
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: ColorTheme.orange,
                     disabledBackgroundColor: Colors.grey.shade400,

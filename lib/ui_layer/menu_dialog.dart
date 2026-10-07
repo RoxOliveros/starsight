@@ -2,10 +2,11 @@ import 'package:StarSight/business_layer/database_service.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:StarSight/ui_layer/parents_pin_validation.dart';
 import 'package:flutter/material.dart';
+import '../business_layer/audio_helper.dart';
 import 'avatar_picker_dialog.dart';
 import 'parents_area_screen.dart';
 import 'child_profile_screen.dart';
-import 'edit_child_screen.dart'; // EditChildResult
+import 'edit_child_screen.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -133,7 +134,10 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                     children: [
                       // 🐻 Tap avatar to open the picker
                       InkWell(
-                        onTap: _openAvatarPicker,
+                        onTap: (){
+                          SfxHelper.instance.play(Sfx.keyTap);
+                          _openAvatarPicker();
+                        },
                         borderRadius: BorderRadius.circular(24),
                         child: Container(
                           width: 40,
@@ -184,6 +188,7 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                   icon: Icons.auto_awesome,
                   label: "Child's Area",
                   onTap: () async {
+                    SfxHelper.instance.play(Sfx.keyTap);
                     final navigator = Navigator.of(context);
                     final childId = widget.childId;
                     final onChanged = widget.onProfileChanged;
@@ -219,6 +224,7 @@ class _ProfileDayDialogState extends State<ProfileDayDialog> {
                   icon: Icons.group,
                   label: "Grownup's Area",
                   onTap: () async {
+                    SfxHelper.instance.play(Sfx.keyTap);
                     final navigator = Navigator.of(context);
                     final childId = widget.childId;
                     final onChanged = widget.onProfileChanged;

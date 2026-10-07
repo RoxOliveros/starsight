@@ -15,6 +15,7 @@ import 'package:StarSight/ui_layer/puzzle_glade/puzzle_level.dart';
 import 'package:StarSight/ui_layer/screen_time_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/audio_helper.dart';
 import 'arctic_numberland/arctic_level.dart';
 import 'alphabet_forest_ui/forest_level.dart';
 import 'avatar_picker_dialog.dart';
@@ -501,7 +502,10 @@ class _AvatarBadgeState extends State<_AvatarBadge> {
     return Builder(
       builder: (context) {
         return GestureDetector(
-          onTap: () => _showProfileDialog(context),
+          onTap: () {
+            SfxHelper.instance.play(Sfx.keyTap);
+            _showProfileDialog(context);
+          },
           child: SizedBox(
             width: tileWidth,
             height: circleSize + pillHeight - pillOverlap,
