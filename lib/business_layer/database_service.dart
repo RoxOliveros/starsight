@@ -402,7 +402,7 @@ class DatabaseService {
   // is left behind when a child is deleted.
   static const List<String> _progressCategoryIds = [
     'alphabet_forest',
-    'lumitown',
+    'lumi_town',
     'arctic_numberland',
     'discovery_lagoon',
     'puzzle_glade',
