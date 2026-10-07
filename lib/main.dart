@@ -7,6 +7,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'business_layer/audio_helper.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   AppAudioLifecycleService.instance.init();
@@ -18,6 +20,10 @@ void main() async {
   await Future.wait([Firebase.initializeApp()]);
 
   await dotenv.load(fileName: ".env");
+
+  await SfxHelper.instance.init();
+  SfxHelper.instance.preload([Sfx.keyTap]);
+
   runApp(const App());
 }
 

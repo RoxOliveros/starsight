@@ -2,6 +2,7 @@ import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:StarSight/ui_layer/signup_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/audio_helper.dart';
 import 'app_dialog.dart';
 import 'appbar_signup.dart';
 
@@ -136,7 +137,14 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
   Widget _buildKey(String label) {
     final isDelete = label == '⌫';
     return GestureDetector(
-      onTap: isDelete ? _onDelete : () => _onDigitTap(label),
+      onTap: () {
+        SfxHelper.instance.play(Sfx.keyTap);
+        if (isDelete) {
+          _onDelete();
+        } else {
+          _onDigitTap(label);
+        }
+      },
       child: Container(
         width: 72,
         height: 56,
@@ -175,7 +183,11 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
     final current = _isConfirmStep ? _confirmPin : _pin;
     final bool isReady = current.length == _maxDigits;
     return GestureDetector(
-      onTap: isReady ? _onComplete : null,
+      onTap: () {
+        if (!isReady) return;
+        SfxHelper.instance.play(Sfx.keyTap);
+        _onComplete();
+      },
       child: Container(
         width: 72,
         height: 56,

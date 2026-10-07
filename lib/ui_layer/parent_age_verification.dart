@@ -2,6 +2,7 @@ import 'package:StarSight/ui_layer/child_nickname.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/audio_helper.dart';
 import '../business_layer/parent_age_verification_business_layer.dart';
 import 'app_dialog.dart';
 import 'appbar_signup.dart';
@@ -113,7 +114,10 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
   Widget _buildKey(String label) {
     final isDelete = label == '⌫';
     return GestureDetector(
-      onTap: isDelete ? _onDelete : () => _onDigitTap(label),
+      onTap: () {
+        SfxHelper.instance.play(Sfx.keyTap);
+        isDelete ? _onDelete() : _onDigitTap(label);
+      },
       child: Container(
         width: 72,
         height: 56,
@@ -151,7 +155,10 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
   Widget _buildNextButton() {
     final bool isReady = _digits.length == _maxDigits;
     return GestureDetector(
-      onTap: _onSubmit,
+      onTap: () {
+        SfxHelper.instance.play(Sfx.keyTap);
+        _onSubmit();
+      },
       child: Container(
         width: 72,
         height: 56,
