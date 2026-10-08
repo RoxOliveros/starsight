@@ -197,27 +197,6 @@ mixin ForestAudioMixin<T extends StatefulWidget> on State<T> {
   Future<void> playSfx(String asset) =>
       audio.playSfx(asset);
 
-  // ── GLOBAL BACKGROUND MUSIC ─────────────────────
-
-  Future<void> playBackgroundMusic({
-    String? track,
-    double volume = 0.10,
-  }) =>
-      backgroundAudio.playBackgroundMusic(
-        track: track,
-        volume: volume,
-      );
-
-  Future<void> stopBackgroundMusic() =>
-      backgroundAudio.stopBackgroundMusic();
-
-  Future<void> setBackgroundMusicVolume(
-      double volume,
-      ) =>
-      backgroundAudio.setBackgroundMusicVolume(
-        volume,
-      );
-
   @override
   void initState() {
     super.initState();
