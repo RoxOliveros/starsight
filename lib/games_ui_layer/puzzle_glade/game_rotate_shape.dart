@@ -678,10 +678,6 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
               alignment: Alignment.topCenter,
               children: [
                 Align(
-                  alignment: Alignment.center,
-                  child: _buildRotateInstruction(target),
-                ),
-                Align(
                   alignment: Alignment.centerRight,
                   child: PuzzleLevelBadge(level: widget.level),
                 ),
@@ -694,58 +690,6 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
             child: PuzzleProgressDots(
               currentRound: _round,
               totalRounds: _kTotalRounds,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRotateInstruction(_RotateObjectItem target) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-      decoration: BoxDecoration(
-        color: PuzzleColorTheme.lightgrayishyellow,
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: PuzzleColorTheme.sunnyhue, width: 5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'Rotate the',
-            style: TextStyle(
-              fontFamily: PuzzleAppTextStyles.fredoka,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: PuzzleColorTheme.sunnyhue,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            target.name,
-            style: const TextStyle(
-              fontFamily: PuzzleAppTextStyles.fredoka,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: PuzzleColorTheme.darkdesaturatedblue,
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            'to match!',
-            style: TextStyle(
-              fontFamily: PuzzleAppTextStyles.fredoka,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: PuzzleColorTheme.sunnyhue,
             ),
           ),
         ],

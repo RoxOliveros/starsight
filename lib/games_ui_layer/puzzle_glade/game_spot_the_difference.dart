@@ -71,16 +71,12 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/spot_the_difference_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/spot_the_difference_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/spot_the_difference_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/spot_the_difference_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/spot_the_difference_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/spot_the_difference_complete.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   _ScreenPhase _phase = _ScreenPhase.intro;
@@ -470,7 +466,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildPreviewPanel(label: 'Scene 1', showMark: false),
+          _buildPreviewPanel(showMark: false),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Icon(
@@ -479,33 +475,16 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
               color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
-          _buildPreviewPanel(label: 'Scene 2', showMark: true),
+          _buildPreviewPanel(showMark: true),
         ],
       ),
     );
   }
 
-  Widget _buildPreviewPanel({required String label, required bool showMark}) {
+  Widget _buildPreviewPanel({required bool showMark}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontFamily: PuzzleAppTextStyles.fredoka,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: PuzzleColorTheme.darkdesaturatedblue,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -600,20 +579,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Text(
-            _highlightedCorrectIndex != null
-                ? '🌟 Nakita mo!'
-                : 'Hanapin ang pagkakaiba!',
-            style: TextStyle(
-              fontFamily: PuzzleAppTextStyles.fredoka,
-              fontSize: 15,
-              color: Colors.white.withValues(alpha: 0.9),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -628,16 +593,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
                     Icons.compare_arrows_rounded,
                     color: Colors.white.withValues(alpha: 0.7),
                     size: 28,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'VS',
-                    style: TextStyle(
-                      fontFamily: PuzzleAppTextStyles.fredoka,
-                      fontSize: 13,
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontWeight: FontWeight.w700,
-                    ),
                   ),
                 ],
               ),

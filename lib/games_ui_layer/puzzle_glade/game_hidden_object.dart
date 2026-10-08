@@ -184,18 +184,14 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_puzzle_grass.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle_grass.png';
   static const String _grassImage = 'assets/images/objects/puzzle/grass.png';
+  static const String _magnifyingGlassImage = 'assets/images/objects/puzzle/magnifying_glass.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/hidden_object_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/hidden_object_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/hidden_object_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/hidden_object_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/hidden_object_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/hidden_object_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -210,7 +206,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   bool _isCompleting = false;
   DateTime? _lastWrongFeedback;
   bool _showWinDialog = false;
-
+  bool _instructionsFinished = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -336,6 +332,8 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
     await _playBgAudio(_audioInstructions);
+    if (!mounted) return;
+    setState(() => _instructionsFinished = true);
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -520,7 +518,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   }
 
   void _handleObjectTap(_PlacedObject obj) {
-    if (_isCompleting) return;
+    if (_isCompleting || !_instructionsFinished) return;
     if (obj.item.id == _targetItem.id) {
       _tapTracker.recordCorrectTap();
       _handleCorrectTap(obj);
@@ -777,8 +775,11 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
                 ),
               ),
               Transform.translate(
-                offset: Offset(sweepX, 0),
-                child: const Text('🔍', style: TextStyle(fontSize: 54)),
+                offset: Offset(sweepX, 10),
+                child: Image.asset(
+                  _magnifyingGlassImage,
+                  width: 80,
+                ),
               ),
             ],
           ),
@@ -839,16 +840,6 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Find the',
-            style: const TextStyle(
-              fontFamily: PuzzleAppTextStyles.fredoka,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: PuzzleColorTheme.sunnyhue,
-            ),
-          ),
-          const SizedBox(width: 8),
           Image.asset(
             _targetItem.asset,
             width: 32,
@@ -865,16 +856,6 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: PuzzleColorTheme.darkdesaturatedblue,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'in the picture!',
-            style: const TextStyle(
-              fontFamily: PuzzleAppTextStyles.fredoka,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: PuzzleColorTheme.sunnyhue,
             ),
           ),
         ],
