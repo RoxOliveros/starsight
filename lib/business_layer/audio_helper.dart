@@ -1,5 +1,9 @@
 import 'package:audioplayers/audioplayers.dart';
 
+
+// USAGE
+// SfxHelper.instance.play(Sfx.keyTap);
+
 abstract class Sfx {static const String keyTap = 'audio/sound_effects/bubble_click.wav';}
 
 class SfxHelper {

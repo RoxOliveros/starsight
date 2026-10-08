@@ -1,6 +1,7 @@
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/audio_helper.dart';
 import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
 import '../business_layer/orientation_service.dart';
@@ -283,8 +284,11 @@ class _SignInAccountState extends State<SignInAccount>
         backgroundColor: ColorTheme.cream,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: ColorTheme.deepNavyBlue),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: ColorTheme.deepNavyBlue),
+          onPressed: () {
+            SfxHelper.instance.play(Sfx.keyTap);
+            Navigator.pop(context);
+          }
         ),
       ),
       body: SafeArea(
@@ -345,6 +349,9 @@ class _SignInAccountState extends State<SignInAccount>
                                   TextField(
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
+                                    onTap: (){
+                                      SfxHelper.instance.play(Sfx.keyTap);
+                                    },
                                     autocorrect: false,
                                     enableSuggestions: false,
                                     style: const TextStyle(
@@ -386,6 +393,9 @@ class _SignInAccountState extends State<SignInAccount>
                                   TextField(
                                     controller: _passwordController,
                                     obscureText: _obscurePassword,
+                                    onTap: (){
+                                      SfxHelper.instance.play(Sfx.keyTap);
+                                    },
                                     style: const TextStyle(
                                       fontFamily: AppTextStyles.fredoka,
                                       fontSize: 15,
@@ -413,6 +423,7 @@ class _SignInAccountState extends State<SignInAccount>
                                           color: ColorTheme.deepNavyBlue,
                                         ),
                                         onPressed: () {
+                                          SfxHelper.instance.play(Sfx.keyTap);
                                           setState(() {
                                             _obscurePassword =
                                                 !_obscurePassword;
@@ -437,7 +448,10 @@ class _SignInAccountState extends State<SignInAccount>
                                   ),
                                   const SizedBox(height: 8),
                                   GestureDetector(
-                                    onTap: _onForgotPassword,
+                                    onTap: (){
+                                      SfxHelper.instance.play(Sfx.keyTap);
+                                      _onForgotPassword();
+                                    },
                                     child: const Text(
                                       "Forgot Password?",
                                       style: TextStyle(
@@ -455,7 +469,10 @@ class _SignInAccountState extends State<SignInAccount>
                                 width: 190,
                                 height: 52,
                                 child: ElevatedButton(
-                                  onPressed: _onSignIn,
+                                  onPressed: (){
+                                    SfxHelper.instance.play(Sfx.keyTap);
+                                    _onSignIn();
+                                  },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: ColorTheme.deepNavyBlue,
                                     foregroundColor: ColorTheme.cream,
@@ -492,7 +509,10 @@ class _SignInAccountState extends State<SignInAccount>
                               const SizedBox(height: 16),
 
                               GestureDetector(
-                                onTap: _onGoogleSignIn,
+                                onTap: (){
+                                  SfxHelper.instance.play(Sfx.keyTap);
+                                  _onGoogleSignIn();
+                                },
                                 child: Image.asset(
                                   'assets/images/buttons/google_signin.png',
                                   height: 52,

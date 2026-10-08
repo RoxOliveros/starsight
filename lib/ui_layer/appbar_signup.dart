@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../business_layer/audio_helper.dart';
+
 class AppTopBar extends StatelessWidget {
   final double progress;
 
@@ -12,7 +14,10 @@ class AppTopBar extends StatelessWidget {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
+            onTap: () {
+              SfxHelper.instance.play(Sfx.keyTap);
+              Navigator.of(context).pop();
+            },
             child: const Icon(
               Icons.arrow_back_ios_new_rounded,
               color: Colors.white,

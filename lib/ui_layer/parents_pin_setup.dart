@@ -367,6 +367,7 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
                           padding: const EdgeInsets.only(bottom: 30),
                           child: GestureDetector(
                             onTap: () {
+                              SfxHelper.instance.play(Sfx.keyTap);
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(

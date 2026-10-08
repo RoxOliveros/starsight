@@ -3,6 +3,7 @@ import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/audio_helper.dart';
 import '../business_layer/orientation_service.dart';
 import 'parent_age_verification.dart';
 import 'password_reset_screen.dart';
@@ -203,6 +204,7 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                             backgroundColor: ColorTheme.deepNavyBlue,
                             textColor: ColorTheme.cream,
                             onTap: () {
+                              SfxHelper.instance.play(Sfx.keyTap);
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -218,6 +220,7 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                             textColor: ColorTheme.deepNavyBlue,
                             borderColor: ColorTheme.deepNavyBlue,
                             onTap: () {
+                              SfxHelper.instance.play(Sfx.keyTap);
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(

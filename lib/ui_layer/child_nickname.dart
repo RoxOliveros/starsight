@@ -2,6 +2,7 @@ import 'package:StarSight/ui_layer/child_birthdate_screen.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/audio_helper.dart';
 import 'app_dialog.dart';
 import 'appbar_signup.dart';
 
@@ -240,7 +241,10 @@ class _ChildNickname extends State<ChildNickname> {
                                     Padding(
                                       padding: const EdgeInsets.all(6),
                                       child: ElevatedButton(
-                                        onPressed: _onNext,
+                                        onPressed: () {
+                                          SfxHelper.instance.play(Sfx.keyTap);
+                                          _onNext();
+                                        },
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: ColorTheme.cream,
                                           foregroundColor: ColorTheme.darkBlue,
@@ -286,6 +290,7 @@ class _ChildNickname extends State<ChildNickname> {
                           padding: const EdgeInsets.only(bottom: 30),
                           child: GestureDetector(
                             onTap: () {
+                              SfxHelper.instance.play(Sfx.keyTap);
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(

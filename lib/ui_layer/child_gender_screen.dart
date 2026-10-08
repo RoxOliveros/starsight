@@ -2,6 +2,7 @@ import 'package:StarSight/ui_layer/parents_pin_setup.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/audio_helper.dart';
 import 'appbar_signup.dart';
 
 abstract class ColorTheme {
@@ -198,7 +199,10 @@ class _ChildGenderScreenState extends State<ChildGenderScreen> {
                                 right: gender == 'Girl' ? 8 : 0,
                               ),
                               child: GestureDetector(
-                                onTap: () => setState(() => _selectedGender = gender),
+                                onTap: () {
+                                  SfxHelper.instance.play(Sfx.keyTap);
+                                  setState(() => _selectedGender = gender);
+                                },
                                 child: Column(
                                   children: [
                                     AnimatedContainer(
@@ -259,7 +263,12 @@ class _ChildGenderScreenState extends State<ChildGenderScreen> {
                           width: 200,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: isReady ? _onNext : null,
+                            onPressed: isReady
+                                ? () {
+                              SfxHelper.instance.play(Sfx.keyTap);
+                              _onNext();
+                            }
+                                : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: ColorTheme.goldenYellow,
                               disabledBackgroundColor: ColorTheme.goldenYellow
@@ -289,6 +298,7 @@ class _ChildGenderScreenState extends State<ChildGenderScreen> {
                       const SizedBox(height: 12),
                       GestureDetector(
                         onTap: () {
+                          SfxHelper.instance.play(Sfx.keyTap);
                           Navigator.push(
                             context,
                             MaterialPageRoute(
