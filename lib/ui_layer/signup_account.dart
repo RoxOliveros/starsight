@@ -2,6 +2,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/audio_helper.dart';
 import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
 import 'app_dialog.dart';
@@ -272,6 +273,9 @@ class _SignUpAccountState extends State<SignUpAccount>
                                   TextField(
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
+                                    onTap: (){
+                                      SfxHelper.instance.play(Sfx.keyTap);
+                                    },
                                     style: const TextStyle(
                                       fontFamily: AppTextStyles.fredoka,
                                       fontSize: 15,
@@ -312,6 +316,9 @@ class _SignUpAccountState extends State<SignUpAccount>
                                   TextField(
                                     controller: _passwordController,
                                     obscureText: _obscurePassword,
+                                    onTap: (){
+                                      SfxHelper.instance.play(Sfx.keyTap);
+                                    },
                                     style: const TextStyle(
                                       fontFamily: AppTextStyles.fredoka,
                                       fontSize: 15,
@@ -339,6 +346,7 @@ class _SignUpAccountState extends State<SignUpAccount>
                                           color: ColorTheme.deepNavyBlue,
                                         ),
                                         onPressed: () {
+                                          SfxHelper.instance.play(Sfx.keyTap);
                                           setState(
                                             () => _obscurePassword =
                                                 !_obscurePassword,
@@ -366,6 +374,9 @@ class _SignUpAccountState extends State<SignUpAccount>
                                   TextField(
                                     controller: _confirmPasswordController,
                                     obscureText: _obscureConfirmPassword,
+                                    onTap: (){
+                                      SfxHelper.instance.play(Sfx.keyTap);
+                                    },
                                     style: const TextStyle(
                                       fontFamily: AppTextStyles.fredoka,
                                       fontSize: 15,
@@ -393,6 +404,7 @@ class _SignUpAccountState extends State<SignUpAccount>
                                           color: ColorTheme.deepNavyBlue,
                                         ),
                                         onPressed: () {
+                                          SfxHelper.instance.play(Sfx.keyTap);
                                           setState(() {
                                             _obscureConfirmPassword =
                                                 !_obscureConfirmPassword;
@@ -424,7 +436,10 @@ class _SignUpAccountState extends State<SignUpAccount>
                                 width: 190,
                                 height: 52,
                                 child: ElevatedButton(
-                                  onPressed: _onSignUp,
+                                  onPressed: (){
+                                    SfxHelper.instance.play(Sfx.keyTap);
+                                    _onSignUp();
+                                  },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: ColorTheme.deepNavyBlue,
                                     foregroundColor: ColorTheme.cream,
@@ -461,7 +476,10 @@ class _SignUpAccountState extends State<SignUpAccount>
                               const SizedBox(height: 16),
 
                               GestureDetector(
-                                onTap: _onGoogleSignUp,
+                                onTap: (){
+                                  SfxHelper.instance.play(Sfx.keyTap);
+                                  _onGoogleSignUp();
+                                },
                                 child: Image.asset(
                                   'assets/images/buttons/google_signup.png',
                                   height: 52,

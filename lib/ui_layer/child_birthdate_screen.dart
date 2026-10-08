@@ -3,6 +3,7 @@ import 'package:StarSight/ui_layer/child_gender_screen.dart';
 import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import '../business_layer/audio_helper.dart';
 import 'appbar_signup.dart';
 
 abstract class ColorTheme {
@@ -156,6 +157,7 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
     );
 
     if (picked != null) {
+      SfxHelper.instance.play(Sfx.keyTap);
       setState(() => _selectedDate = picked);
     }
   }
@@ -344,7 +346,10 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                       ),
                       const SizedBox(height: 8),
                       GestureDetector(
-                        onTap: _selectDate,
+                        onTap: (){
+                          SfxHelper.instance.play(Sfx.keyTap);
+                          _selectDate();
+                        },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           height: 56,
@@ -410,7 +415,12 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                           width: 200,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: isReady ? _onNext : null,
+                            onPressed: isReady
+                                ? () {
+                              SfxHelper.instance.play(Sfx.keyTap);
+                              _onNext();
+                            }
+                                : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: ColorTheme.goldenYellow,
                               disabledBackgroundColor: ColorTheme.goldenYellow
@@ -440,6 +450,7 @@ class _ChildBirthdateScreenState extends State<ChildBirthdateScreen> {
                       const SizedBox(height: 12),
                       GestureDetector(
                         onTap: () {
+                          SfxHelper.instance.play(Sfx.keyTap);
                           Navigator.push(
                             context,
                             MaterialPageRoute(
