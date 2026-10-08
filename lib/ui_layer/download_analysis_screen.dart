@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'avatar_picker_dialog.dart'; // for kDefaultAvatarPath
+import '../business_layer/analysis_pdf_service.dart';
 
 abstract class _DlPalette {
   static const Color cream = Color(0xFFFAF7EB);
@@ -37,12 +40,15 @@ class _DlSubject {
 }
 
 class DownloadAnalysisScreen extends StatefulWidget {
-  /// Name and avatar of the child the report is for.
+  /// Firestore document ID of the child (never changes), plus the display
+  /// name and avatar of the child the report is for.
+  final String childId;
   final String childName;
   final String avatarPath;
 
   const DownloadAnalysisScreen({
     super.key,
+    required this.childId,
     this.childName = 'Child Name',
     this.avatarPath = kDefaultAvatarPath,
   });
@@ -62,7 +68,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
       softBg: Color(0xFFFCEFD1),
     ),
     _DlSubject(
-      id: 'lumitown',
+      id: 'lumi_town',
       name: 'Lumitown',
       lottie: 'assets/animations/town.json',
       fallbackIcon: Icons.science_rounded,
@@ -95,8 +101,8 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
     ),
   ];
 
-  // UI only: local selection state, nothing is generated or saved.
   final Set<String> _selected = {};
+  bool _isGenerating = false;
 
   bool get _allSelected => _selected.length == _subjects.length;
 
@@ -116,6 +122,272 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
           ..addAll(_subjects.map((s) => s.id));
       }
     });
+  }
+
+  Future<void> _showPromptCard({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String message,
+    String buttonLabel = 'GOT IT',
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+          decoration: BoxDecoration(
+            color: _DlPalette.cream,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: color, width: 2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withValues(alpha: 0.15),
+                ),
+                child: Icon(icon, size: 34, color: color),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: _DlFonts.fredoka,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.4,
+                  color: _DlPalette.brown,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: Text(
+                    buttonLabel,
+                    style: const TextStyle(
+                      fontFamily: _DlFonts.fredoka,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Lets the parent choose: save a copy on the device, or share it.
+  /// Returns 'saved', 'shared', or null if the parent cancelled.
+  Future<String?> _deliver(Uint8List bytes) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: _DlPalette.cream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'YOUR PDF IS READY',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: _DlFonts.fredoka,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: _DlPalette.orange,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildChoiceTile(
+                icon: Icons.save_alt_rounded,
+                color: _DlPalette.teal,
+                title: 'SAVE TO DEVICE',
+                subtitle: 'Choose a folder on this phone or tablet',
+                onTap: () => Navigator.pop(sheetContext, 'save'),
+              ),
+              const SizedBox(height: 10),
+              _buildChoiceTile(
+                icon: Icons.share_rounded,
+                color: _DlPalette.orange,
+                title: 'SHARE OR PRINT',
+                subtitle: 'Email, Drive, messages, print and more',
+                onTap: () => Navigator.pop(sheetContext, 'share'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (choice == null || !mounted) return null;
+
+    final filename = AnalysisPdfService.filenameFor(widget.childName);
+    if (choice == 'save') {
+      final saved = await AnalysisPdfService.saveToDevice(bytes, filename);
+      return saved ? 'saved' : null; // null = cancelled
+    }
+    await AnalysisPdfService.share(bytes, filename);
+    return 'shared';
+  }
+
+  Widget _buildChoiceTile({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color, width: 1.8),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 28, color: color),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontFamily: _DlFonts.fredoka,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: _DlPalette.deepNavyBlue,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontFamily: 'Nunito',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _DlPalette.brown,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _download() async {
+    if (_isGenerating || _selected.isEmpty) return;
+    setState(() => _isGenerating = true);
+
+    try {
+      // Keep the on-screen order of the subjects.
+      final chosen = {
+        for (final s in _subjects)
+          if (_selected.contains(s.id)) s.id: s.name,
+      };
+
+      final result = await AnalysisPdfService.build(
+        childId: widget.childId,
+        childName: widget.childName,
+        subjects: chosen,
+      );
+      if (!mounted) return;
+
+      final bytes = result.bytes;
+      if (bytes == null) {
+        await _showPromptCard(
+          icon: Icons.assignment_outlined,
+          color: _DlPalette.teal,
+          title: 'NO REPORTS YET',
+          message:
+              'There is nothing to download for your selected subjects yet. '
+              'Play at least one level in any of the selected subjects first, '
+              'then come back and try again.',
+        );
+        return;
+      }
+
+      final outcome = await _deliver(bytes);
+      if (!mounted || outcome == null) return;
+
+      final missing = result.missingSubjects;
+      final leftOut = missing.isEmpty
+          ? ''
+          : 'Left out (no report yet): ${missing.join(', ')}.';
+
+      if (outcome == 'saved') {
+        await _showPromptCard(
+          icon: Icons.check_circle_rounded,
+          color: _DlPalette.teal,
+          title: 'SAVED!',
+          message: leftOut.isEmpty
+              ? 'Your report was saved to your device.'
+              : 'Your report was saved to your device.\n\n$leftOut',
+        );
+      } else if (leftOut.isNotEmpty) {
+        await _showPromptCard(
+          icon: Icons.info_outline_rounded,
+          color: _DlPalette.orange,
+          title: 'HEADS UP',
+          message: leftOut,
+        );
+      }
+    } catch (e) {
+      print('Error creating PDF: $e');
+      await _showPromptCard(
+        icon: Icons.error_outline_rounded,
+        color: _DlPalette.orange,
+        title: 'OOPS!',
+        message: 'We could not create the PDF. Please try again.',
+      );
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
   }
 
   @override
@@ -252,7 +524,12 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
         color = palette[(letterIndex ~/ 2) % palette.length];
         letterIndex++;
       }
-      spans.add(TextSpan(text: char, style: TextStyle(color: color)));
+      spans.add(
+        TextSpan(
+          text: char,
+          style: TextStyle(color: color),
+        ),
+      );
     }
     return RichText(
       textAlign: TextAlign.center,
@@ -400,10 +677,10 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
               ),
               child: selected
                   ? const Icon(
-                Icons.check_rounded,
-                size: 18,
-                color: Colors.white,
-              )
+                      Icons.check_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    )
                   : null,
             ),
           ],
@@ -427,7 +704,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
           Expanded(
             child: Text(
               'The PDF includes the selected subjects\' insights. It is a '
-                  'helpful guide based on gameplay, not a formal assessment.',
+              'helpful guide based on gameplay, not a formal assessment.',
               style: TextStyle(
                 fontFamily: 'Nunito',
                 fontSize: 12,
@@ -460,11 +737,8 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
       child: SizedBox(
         height: 52,
         child: ElevatedButton.icon(
-          onPressed: enabled
-              ? () {
-            // TODO: generate and download the PDF
-          }
-              : null,
+          // While generating, keep the button looking active but inert.
+          onPressed: enabled ? (_isGenerating ? () {} : _download) : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: _DlPalette.orange,
             foregroundColor: Colors.white,
@@ -475,9 +749,20 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
             elevation: 0,
             shape: const StadiumBorder(),
           ),
-          icon: const Icon(Icons.download_rounded, size: 22),
+          icon: _isGenerating
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.download_rounded, size: 22),
           label: Text(
-            enabled
+            _isGenerating
+                ? 'CREATING PDF...'
+                : enabled
                 ? 'DOWNLOAD PDF  (${_selected.length})'
                 : 'SELECT A SUBJECT',
             style: const TextStyle(

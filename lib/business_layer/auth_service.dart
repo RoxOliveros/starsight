@@ -95,4 +95,64 @@ class AuthService {
       return "An unknown error occurred.";
     }
   }
+
+  // 6. RE-VERIFY THE SIGNED-IN PARENT (used by Forgot PIN)
+  // Which sign-in methods the current account uses, e.g. 'password', 'google.com'.
+  List<String> get signInProviders =>
+      FirebaseAuth.instance.currentUser?.providerData
+          .map((p) => p.providerId)
+          .toList() ??
+      [];
+
+  // Returns null if the password is correct, or an error message if not.
+  Future<String?> reauthenticateWithPassword(String password) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final email = user?.email;
+    if (user == null || email == null) {
+      return "You're not signed in. Please sign in and try again.";
+    }
+    try {
+      await user.reauthenticateWithCredential(
+        EmailAuthProvider.credential(email: email, password: password),
+      );
+      return null; // Success!
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        return "That password isn't right. Please try again.";
+      }
+      if (e.code == 'too-many-requests') {
+        return "Too many tries. Please wait a few minutes and try again later.";
+      }
+      return e.message ?? "Could not verify your password.";
+    } catch (e) {
+      return "An unknown error occurred.";
+    }
+  }
+
+  // Returns null if verified, or an error message (also if cancelled).
+  Future<String?> reauthenticateWithGoogle() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return "You're not signed in. Please sign in and try again.";
+    }
+    try {
+      await GoogleSignIn.instance.initialize();
+      final GoogleSignInAccount googleUser = await GoogleSignIn.instance
+          .authenticate();
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      await user.reauthenticateWithCredential(
+        GoogleAuthProvider.credential(idToken: googleAuth.idToken),
+      );
+      return null; // Success!
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-mismatch') {
+        return "Please choose the Google account you signed up with.";
+      }
+      return e.message ?? "Could not verify with Google.";
+    } catch (e) {
+      print("Error during Google re-verification: $e");
+      return "Could not verify with Google. Please try again.";
+    }
+  }
 }
