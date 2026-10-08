@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../business_layer/audio_helper.dart';
+import '../games_ui_layer/audio_helper.dart';
 
 class AppTopBar extends StatelessWidget {
   final double progress;

@@ -2,7 +2,7 @@ import 'package:StarSight/ui_layer/signin_account.dart';
 import 'package:StarSight/ui_layer/signup_account.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import '../business_layer/audio_helper.dart';
+import '../games_ui_layer/audio_helper.dart';
 import 'app_dialog.dart';
 import 'appbar_signup.dart';
 
