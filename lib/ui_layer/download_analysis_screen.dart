@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'avatar_picker_dialog.dart'; // for kDefaultAvatarPath
+import '../business_layer/analysis_pdf_service.dart';
 
 abstract class _DlPalette {
   static const Color cream = Color(0xFFFAF7EB);
@@ -37,12 +40,15 @@ class _DlSubject {
 }
 
 class DownloadAnalysisScreen extends StatefulWidget {
-  /// Name and avatar of the child the report is for.
+  /// Firestore document ID of the child (never changes), plus the display
+  /// name and avatar of the child the report is for.
+  final String childId;
   final String childName;
   final String avatarPath;
 
   const DownloadAnalysisScreen({
     super.key,
+    required this.childId,
     this.childName = 'Child Name',
     this.avatarPath = kDefaultAvatarPath,
   });
@@ -62,7 +68,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
       softBg: Color(0xFFFCEFD1),
     ),
     _DlSubject(
-      id: 'lumitown',
+      id: 'lumi_town',
       name: 'Lumitown',
       lottie: 'assets/animations/town.json',
       fallbackIcon: Icons.science_rounded,
@@ -95,8 +101,8 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
     ),
   ];
 
-  // UI only: local selection state, nothing is generated or saved.
   final Set<String> _selected = {};
+  bool _isGenerating = false;
 
   bool get _allSelected => _selected.length == _subjects.length;
 
@@ -116,6 +122,167 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
           ..addAll(_subjects.map((s) => s.id));
       }
     });
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Lets the parent choose: save a copy on the device, or share it.
+  /// Returns a short confirmation message, or null if nothing was done.
+  Future<String?> _deliver(Uint8List bytes) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: _DlPalette.cream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'YOUR PDF IS READY',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: _DlFonts.fredoka,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: _DlPalette.orange,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildChoiceTile(
+                icon: Icons.save_alt_rounded,
+                color: _DlPalette.teal,
+                title: 'SAVE TO DEVICE',
+                subtitle: 'Choose a folder on this phone or tablet',
+                onTap: () => Navigator.pop(sheetContext, 'save'),
+              ),
+              const SizedBox(height: 10),
+              _buildChoiceTile(
+                icon: Icons.share_rounded,
+                color: _DlPalette.orange,
+                title: 'SHARE OR PRINT',
+                subtitle: 'Email, Drive, messages, print and more',
+                onTap: () => Navigator.pop(sheetContext, 'share'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (choice == null || !mounted) return null;
+
+    final filename = AnalysisPdfService.filenameFor(widget.childName);
+    if (choice == 'save') {
+      final saved = await AnalysisPdfService.saveToDevice(bytes, filename);
+      return saved ? 'Saved to your device.' : null; // null = cancelled
+    }
+    await AnalysisPdfService.share(bytes, filename);
+    return 'Done!';
+  }
+
+  Widget _buildChoiceTile({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color, width: 1.8),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 28, color: color),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontFamily: _DlFonts.fredoka,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: _DlPalette.deepNavyBlue,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontFamily: 'Nunito',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _DlPalette.brown,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _download() async {
+    if (_isGenerating || _selected.isEmpty) return;
+    setState(() => _isGenerating = true);
+
+    try {
+      // Keep the on-screen order of the subjects.
+      final chosen = {
+        for (final s in _subjects)
+          if (_selected.contains(s.id)) s.id: s.name,
+      };
+
+      final result = await AnalysisPdfService.build(
+        childId: widget.childId,
+        childName: widget.childName,
+        subjects: chosen,
+      );
+      if (!mounted) return;
+
+      final bytes = result.bytes;
+      if (bytes == null) {
+        _snack(
+          'No reports to download yet. Open a subject\'s report first, '
+          'then try again.',
+        );
+        return;
+      }
+
+      final note = await _deliver(bytes);
+      if (!mounted) return;
+
+      final messages = [
+        if (note != null) note,
+        if (note != null && result.missingSubjects.isNotEmpty)
+          'Left out (no report yet): ${result.missingSubjects.join(', ')}',
+      ];
+      if (messages.isNotEmpty) _snack(messages.join('\n'));
+    } catch (e) {
+      print('Error creating PDF: $e');
+      _snack('Could not create the PDF. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
   }
 
   @override
@@ -252,7 +419,12 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
         color = palette[(letterIndex ~/ 2) % palette.length];
         letterIndex++;
       }
-      spans.add(TextSpan(text: char, style: TextStyle(color: color)));
+      spans.add(
+        TextSpan(
+          text: char,
+          style: TextStyle(color: color),
+        ),
+      );
     }
     return RichText(
       textAlign: TextAlign.center,
@@ -400,10 +572,10 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
               ),
               child: selected
                   ? const Icon(
-                Icons.check_rounded,
-                size: 18,
-                color: Colors.white,
-              )
+                      Icons.check_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    )
                   : null,
             ),
           ],
@@ -427,7 +599,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
           Expanded(
             child: Text(
               'The PDF includes the selected subjects\' insights. It is a '
-                  'helpful guide based on gameplay, not a formal assessment.',
+              'helpful guide based on gameplay, not a formal assessment.',
               style: TextStyle(
                 fontFamily: 'Nunito',
                 fontSize: 12,
@@ -460,11 +632,8 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
       child: SizedBox(
         height: 52,
         child: ElevatedButton.icon(
-          onPressed: enabled
-              ? () {
-            // TODO: generate and download the PDF
-          }
-              : null,
+          // While generating, keep the button looking active but inert.
+          onPressed: enabled ? (_isGenerating ? () {} : _download) : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: _DlPalette.orange,
             foregroundColor: Colors.white,
@@ -475,9 +644,20 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
             elevation: 0,
             shape: const StadiumBorder(),
           ),
-          icon: const Icon(Icons.download_rounded, size: 22),
+          icon: _isGenerating
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.download_rounded, size: 22),
           label: Text(
-            enabled
+            _isGenerating
+                ? 'CREATING PDF...'
+                : enabled
                 ? 'DOWNLOAD PDF  (${_selected.length})'
                 : 'SELECT A SUBJECT',
             style: const TextStyle(

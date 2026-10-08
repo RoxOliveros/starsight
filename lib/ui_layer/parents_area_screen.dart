@@ -353,14 +353,19 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
         break;
 
       case 'Download Analysis':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DownloadAnalysisScreen(
-              childName: _selectedChild?.name ?? 'Child Name',
+        final child = _selectedChild;
+        if (child != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DownloadAnalysisScreen(
+                childId: child.id,
+                childName: child.name,
+                avatarPath: child.avatarPath,
+              ),
             ),
-          ),
-        );
+          );
+        }
         break;
 
       case 'About Us':
