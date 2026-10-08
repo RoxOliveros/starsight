@@ -130,18 +130,20 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   // STATE
   // ═════════════════════════════════════════════════════════════════════
 
-  bool _introPlaying = true;
   int _currentRound = 0;
   int _solvedRounds = 0;
+  int? _wrongFireflyIndex;
+
   String _targetLetter = 'A';
 
   late List<Firefly> _fireflies;
-  int? _wrongFireflyIndex;
+
+  bool _introPlaying = true;
   bool _interactionLocked = false;
   bool _roundCelebrating = false;
-
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _tofiFloatCtrl;
@@ -248,12 +250,17 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   }
 
   Future<void> _announceTarget() async {
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioFindPrefix);
-    if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
-      ForestAudioAssets.forLetter(_targetLetter),
-    );
+    _inputEnabled = false;
+    try {
+      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioFindPrefix);
+      if (!mounted) return;
+      await playVoiceRestartingOnFaceLoss(
+        audio.voicePlayer,
+        ForestAudioAssets.forLetter(_targetLetter),
+      );
+    } finally {
+      if (mounted) _inputEnabled = true;
+    }
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -284,6 +291,7 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     _wrongFireflyIndex = null;
     _interactionLocked = false;
     _roundCelebrating = false;
+    _inputEnabled = false;
 
     for (final ctrl in _shakeCtrls) {
       ctrl.reset();
@@ -344,7 +352,12 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   }
 
   Future<void> _handleFireflyTap(Firefly firefly, int index) async {
-    if (_interactionLocked || firefly.popped || _roundCelebrating) return;
+    if (!_inputEnabled ||
+        _interactionLocked ||
+        firefly.popped ||
+        _roundCelebrating) {
+      return;
+    }
 
     if (firefly.isTarget) {
       await _handleCorrectAnswer(firefly, index);
