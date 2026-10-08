@@ -124,15 +124,94 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
     });
   }
 
-  void _snack(String message) {
+  Future<void> _showPromptCard({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String message,
+    String buttonLabel = 'GOT IT',
+  }) async {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+          decoration: BoxDecoration(
+            color: _DlPalette.cream,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: color, width: 2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withValues(alpha: 0.15),
+                ),
+                child: Icon(icon, size: 34, color: color),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: _DlFonts.fredoka,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.4,
+                  color: _DlPalette.brown,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: Text(
+                    buttonLabel,
+                    style: const TextStyle(
+                      fontFamily: _DlFonts.fredoka,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// Lets the parent choose: save a copy on the device, or share it.
-  /// Returns a short confirmation message, or null if nothing was done.
+  /// Returns 'saved', 'shared', or null if the parent cancelled.
   Future<String?> _deliver(Uint8List bytes) async {
     final choice = await showModalBottomSheet<String>(
       context: context,
@@ -184,10 +263,10 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
     final filename = AnalysisPdfService.filenameFor(widget.childName);
     if (choice == 'save') {
       final saved = await AnalysisPdfService.saveToDevice(bytes, filename);
-      return saved ? 'Saved to your device.' : null; // null = cancelled
+      return saved ? 'saved' : null; // null = cancelled
     }
     await AnalysisPdfService.share(bytes, filename);
-    return 'Done!';
+    return 'shared';
   }
 
   Widget _buildChoiceTile({
@@ -261,25 +340,51 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
 
       final bytes = result.bytes;
       if (bytes == null) {
-        _snack(
-          'No reports to download yet. Open a subject\'s report first, '
-          'then try again.',
+        await _showPromptCard(
+          icon: Icons.assignment_outlined,
+          color: _DlPalette.teal,
+          title: 'NO REPORTS YET',
+          message:
+              'There is nothing to download for your selected subjects yet. '
+              'Play at least one level in any of the selected subjects first, '
+              'then come back and try again.',
         );
         return;
       }
 
-      final note = await _deliver(bytes);
-      if (!mounted) return;
+      final outcome = await _deliver(bytes);
+      if (!mounted || outcome == null) return;
 
-      final messages = [
-        if (note != null) note,
-        if (note != null && result.missingSubjects.isNotEmpty)
-          'Left out (no report yet): ${result.missingSubjects.join(', ')}',
-      ];
-      if (messages.isNotEmpty) _snack(messages.join('\n'));
+      final missing = result.missingSubjects;
+      final leftOut = missing.isEmpty
+          ? ''
+          : 'Left out (no report yet): ${missing.join(', ')}.';
+
+      if (outcome == 'saved') {
+        await _showPromptCard(
+          icon: Icons.check_circle_rounded,
+          color: _DlPalette.teal,
+          title: 'SAVED!',
+          message: leftOut.isEmpty
+              ? 'Your report was saved to your device.'
+              : 'Your report was saved to your device.\n\n$leftOut',
+        );
+      } else if (leftOut.isNotEmpty) {
+        await _showPromptCard(
+          icon: Icons.info_outline_rounded,
+          color: _DlPalette.orange,
+          title: 'HEADS UP',
+          message: leftOut,
+        );
+      }
     } catch (e) {
       print('Error creating PDF: $e');
-      _snack('Could not create the PDF. Please try again.');
+      await _showPromptCard(
+        icon: Icons.error_outline_rounded,
+        color: _DlPalette.orange,
+        title: 'OOPS!',
+        message: 'We could not create the PDF. Please try again.',
+      );
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }

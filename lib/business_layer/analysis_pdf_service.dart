@@ -406,7 +406,7 @@ class AnalysisPdfService {
     );
   }
 
-  // ── Helpers (same wording as CategoryReportScreen) ───────────────────────
+  // ── Helpers ───────────────────────
 
   static String _playLabel(int n) {
     if (n % 100 >= 11 && n % 100 <= 13) return '${n}th Play';
