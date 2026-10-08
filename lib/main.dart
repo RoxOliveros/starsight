@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'business_layer/audio_settings.dart';
 import 'games_ui_layer/audio_helper.dart';
 
 void main() async {
@@ -23,6 +24,9 @@ void main() async {
 
   await SfxHelper.instance.init();
   SfxHelper.instance.preload([Sfx.keyTap]);
+
+  WidgetsFlutterBinding.ensureInitialized();
+  await AudioSettings.instance.load();
 
   runApp(const App());
 }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../business_layer/audio_settings.dart';
+import '../games_ui_layer/audio_helper.dart';
+
 abstract class _MusPalette {
   static const Color cream = Color(0xFFFAF7EB);
   static const Color deepNavyBlue = Color(0xFF5F7199);
@@ -24,15 +27,6 @@ class MusicSoundsScreen extends StatefulWidget {
 }
 
 class _MusicSoundsScreenState extends State<MusicSoundsScreen> {
-  // UI only: local state so the controls react, nothing is saved.
-  bool _musicOn = true;
-  double _musicVolume = 0.7;
-
-  bool _sfxOn = true;
-  double _sfxVolume = 0.8;
-
-  bool _voiceOn = true;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,38 +44,39 @@ class _MusicSoundsScreenState extends State<MusicSoundsScreen> {
                     Center(child: _buildRainbowTitle('MUSIC & SOUNDS')),
                     const SizedBox(height: 28),
 
-                    // ── Background music (orange) ──
-                    _SoundCard(
-                      color: _MusPalette.orange,
-                      icon: Icons.music_note_rounded,
-                      label: 'Background Music',
-                      enabled: _musicOn,
-                      onToggle: (v) => setState(() => _musicOn = v),
-                      volume: _musicVolume,
-                      onVolumeChanged: (v) =>
-                          setState(() => _musicVolume = v),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ── Sound effects (teal) ──
-                    _SoundCard(
-                      color: _MusPalette.teal,
-                      icon: Icons.graphic_eq_rounded,
-                      label: 'Sound Effects',
-                      enabled: _sfxOn,
-                      onToggle: (v) => setState(() => _sfxOn = v),
-                      volume: _sfxVolume,
-                      onVolumeChanged: (v) => setState(() => _sfxVolume = v),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ── Voice narration (navy, toggle only) ──
-                    _SoundCard(
-                      color: _MusPalette.deepNavyBlue,
-                      icon: Icons.record_voice_over_rounded,
-                      label: 'Voice Narration',
-                      enabled: _voiceOn,
-                      onToggle: (v) => setState(() => _voiceOn = v),
+                    ListenableBuilder(
+                      listenable: AudioSettings.instance,
+                      builder: (context, _) {
+                        final s = AudioSettings.instance;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _SoundCard(
+                              color: _MusPalette.orange,
+                              icon: Icons.music_note_rounded,
+                              label: 'Background Music',
+                              enabled: s.musicOn,
+                              onToggle: s.setMusicOn,
+                              volume: s.musicVolume,
+                              onVolumeChanged: s.setMusicVolume,
+                            ),
+                            const SizedBox(height: 20),
+                            _SoundCard(
+                              color: _MusPalette.teal,
+                              icon: Icons.graphic_eq_rounded,
+                              label: 'Sound Effects',
+                              enabled: s.sfxOn,
+                              onToggle: (v) {
+                                s.setSfxOn(v);
+                                if (v) SfxHelper.instance.play(Sfx.keyTap); // preview
+                              },
+                              volume: s.sfxVolume,
+                              onVolumeChanged: s.setSfxVolume,
+                              onVolumeChangeEnd: (_) => SfxHelper.instance.play(Sfx.keyTap),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -152,6 +147,7 @@ class _SoundCard extends StatelessWidget {
   final ValueChanged<bool> onToggle;
   final double? volume; // null = no slider
   final ValueChanged<double>? onVolumeChanged;
+  final ValueChanged<double>? onVolumeChangeEnd;
 
   const _SoundCard({
     required this.color,
@@ -161,6 +157,7 @@ class _SoundCard extends StatelessWidget {
     required this.onToggle,
     this.volume,
     this.onVolumeChanged,
+    this.onVolumeChangeEnd,
   });
 
   @override
@@ -232,6 +229,7 @@ class _SoundCard extends StatelessWidget {
                       child: Slider(
                         value: volume!,
                         onChanged: enabled ? onVolumeChanged : null,
+                        onChangeEnd: enabled ? onVolumeChangeEnd : null,
                       ),
                     ),
                   ),
