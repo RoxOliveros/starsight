@@ -128,7 +128,6 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
   @override
   void dispose() {
     disposeAiCamera();
-    stopBackgroundMusic();
     _tofiFloatCtrl.dispose();
     _mailboxBounceController.dispose();
     _mailboxShakeController.dispose();

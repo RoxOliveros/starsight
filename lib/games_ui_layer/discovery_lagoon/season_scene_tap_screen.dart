@@ -141,8 +141,6 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
 
     initLagoonIntro();
 
-    _audioHelper.playBackgroundMusic();
-
     _rounds = List<SeasonScene>.from(_allScenes)..shuffle();
 
     _bounceCtrl = AnimationController(
@@ -174,7 +172,6 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _audioHelper.stopBackgroundMusic();
     _audioHelper.dispose();
 
     disposeLagoonIntro();

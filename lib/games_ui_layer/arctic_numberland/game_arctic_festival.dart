@@ -223,7 +223,6 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
   @override
   void dispose() {
     disposeAiCamera();
-    _audioHelper.stopBackgroundMusic();
     _audioHelper.dispose();
 
     _narrationPlayer.stop();
@@ -334,11 +333,6 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
-
-    // Background music starts here and is never stopped/restarted until
-    // dispose — everything else (narration, Doma reactions, SFX) plays
-    // over it via separate AudioPlayer instances.
-    unawaited(_audioHelper.playBackgroundMusic());
 
     _domaSlideCtrl.forward();
 
