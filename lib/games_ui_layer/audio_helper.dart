@@ -2,6 +2,8 @@ import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 
+import '../business_layer/audio_settings.dart';
+
 // USAGE
 // WidgetsBindingObserver - for pause & resume
 //
@@ -24,10 +26,32 @@ class AudioHelper with WidgetsBindingObserver {
   String? _currentBgTrack;
 
   final bool Function()? shouldResumeOnForeground;
+  double _baseVolume = 0.10;
+  String? _pendingTrack;
+
+  double get _effectiveVolume =>
+      (_baseVolume * AudioSettings.instance.musicVolume).clamp(0.0, 1.0);
 
   AudioHelper({this.shouldResumeOnForeground}) {
     _applyMixingAudioContext();
     WidgetsBinding.instance.addObserver(this);
+    AudioSettings.instance.addListener(_onSettingsChanged);
+  }
+
+  void _onSettingsChanged() {
+    if (!AudioSettings.instance.musicOn) {
+      pauseBackgroundMusic();
+      return;
+    }
+    bgPlayer.setVolume(_effectiveVolume);
+    final canPlay = shouldResumeOnForeground?.call() ?? true;
+    if (!canPlay) return;
+
+    if (bgPlayer.state == PlayerState.paused) {
+      resumeBackgroundMusic();
+    } else if (bgPlayer.state != PlayerState.playing && _pendingTrack != null) {
+      playBackgroundMusic(track: _pendingTrack, volume: _baseVolume);
+    }
   }
 
   @override
@@ -72,24 +96,19 @@ class AudioHelper with WidgetsBindingObserver {
         ? BgMusicAssets.resolve(track)
         : BgMusicAssets.random();
 
-    // Don't restart the exact same song if it's already playing.
-    if (_currentBgTrack == resolved &&
-        bgPlayer.state == PlayerState.playing) {
+    _baseVolume = volume;
+    _pendingTrack = resolved;
+    if (!AudioSettings.instance.musicOn) return;
+
+    if (_currentBgTrack == resolved && bgPlayer.state == PlayerState.playing) {
       return;
     }
 
     try {
       await bgPlayer.stop();
-
-      await bgPlayer.setReleaseMode(
-        ReleaseMode.loop,
-      );
-
-      await bgPlayer.setVolume(volume);
-
-      await bgPlayer.play(
-        AssetSource(_strip(resolved)),
-      );
+      await bgPlayer.setReleaseMode(ReleaseMode.loop);
+      await bgPlayer.setVolume(_effectiveVolume);
+      await bgPlayer.play(AssetSource(_strip(resolved)));
 
       _currentBgTrack = resolved;
 
@@ -104,6 +123,7 @@ class AudioHelper with WidgetsBindingObserver {
   }
 
   Future<void> stopBackgroundMusic() async {
+    _pendingTrack = null;
     try {
       await bgPlayer.stop();
       _currentBgTrack = null;
@@ -127,6 +147,7 @@ class AudioHelper with WidgetsBindingObserver {
   }
 
   Future<void> resumeBackgroundMusic() async {
+    if (!AudioSettings.instance.musicOn) return;
     try {
       if (bgPlayer.state == PlayerState.paused) {
         await bgPlayer.resume();
@@ -138,12 +159,9 @@ class AudioHelper with WidgetsBindingObserver {
     }
   }
 
-  Future<void> setBackgroundMusicVolume(
-      double volume,
-      ) async {
-    await bgPlayer.setVolume(
-      volume.clamp(0.0, 1.0),
-    );
+  Future<void> setBackgroundMusicVolume(double volume) async {
+    _baseVolume = volume.clamp(0.0, 1.0);
+    await bgPlayer.setVolume(_effectiveVolume);
   }
 
   String _strip(String asset) {
@@ -152,6 +170,7 @@ class AudioHelper with WidgetsBindingObserver {
 
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    AudioSettings.instance.removeListener(_onSettingsChanged);
     bgPlayer.dispose();
   }
 }
@@ -267,11 +286,13 @@ class SfxHelper {
       init().then((_) => play(asset, volume: volume)).catchError((_) {});
       return;
     }
+    final s = AudioSettings.instance;
+    if (!s.sfxOn) return;
     final p = _pool[_next];
     _next = (_next + 1) % _pool.length;
     p
         .stop()
-        .then((_) => p.play(AssetSource(asset), volume: volume))
+        .then((_) => p.play(AssetSource(asset), volume: (volume * s.sfxVolume).clamp(0.0, 1.0)))
         .catchError((_) {});
   }
 }
