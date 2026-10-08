@@ -12,10 +12,9 @@ import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/ui_layer/puzzle_glade/puzzle_level.dart';
-import 'package:StarSight/ui_layer/screen_time_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import '../business_layer/audio_helper.dart';
+import '../games_ui_layer/audio_helper.dart';
 import 'arctic_numberland/arctic_level.dart';
 import 'alphabet_forest_ui/forest_level.dart';
 import 'avatar_picker_dialog.dart';
@@ -60,6 +59,11 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   bool _animationsReady = false;
   bool _childLoading = true;
+  bool _isOnDashboard = true;
+
+  late final AudioHelper _audioHelper = AudioHelper(
+    shouldResumeOnForeground: () => _isOnDashboard,
+  );
 
   final GlobalKey<_AvatarBadgeState> _avatarBadgeKey = GlobalKey();
 
@@ -107,6 +111,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     OrientationService.setLandscape();
+
+    _audioHelper.playBackgroundMusic();
 
     // Keep all existing child/progress functionality unchanged.
     ForestProgressService.instance.activeChildId = widget.nickname;
@@ -187,8 +193,20 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     ScreenTimeService.instance.stopSession(this);
+    _audioHelper.stopBackgroundMusic();
+    _audioHelper.dispose();
     _floatController.dispose();
     super.dispose();
+  }
+
+  void _onLeaveDashboard() {
+    _isOnDashboard = false;
+    _audioHelper.pauseBackgroundMusic();
+  }
+
+  void _onReturnToDashboard() {
+    _isOnDashboard = true;
+    _audioHelper.resumeBackgroundMusic();
   }
 
   Future<void> _loadAnimations() async {
@@ -315,6 +333,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                           currentIndex: _currentIndex,
                           onIndexChanged: (i) =>
                               setState(() => _currentIndex = i),
+                          onLeave: _onLeaveDashboard,
+                          onReturn: _onReturnToDashboard,
                         ),
                       ),
                     ),
@@ -579,6 +599,8 @@ class _MainIslandCard extends StatelessWidget {
   final ValueChanged<int> onTabChanged;
   final int currentIndex;
   final ValueChanged<int> onIndexChanged;
+  final VoidCallback onLeave;
+  final VoidCallback onReturn;
 
   const _MainIslandCard({
     required this.activities,
@@ -587,6 +609,8 @@ class _MainIslandCard extends StatelessWidget {
     required this.onTabChanged,
     required this.currentIndex,
     required this.onIndexChanged,
+    required this.onLeave,
+    required this.onReturn,
   });
 
   @override
@@ -608,26 +632,13 @@ class _MainIslandCard extends StatelessWidget {
                     floatAnimation: floatAnimation,
                     height: islandHeight,
                     onIndexChanged: onIndexChanged,
+                    onLeave: onLeave,
+                    onReturn: onReturn,
                   ),
                 ),
                 const Spacer(),
               ],
             ),
-
-            // story mode button bottom-right
-            // Positioned(
-            //   right: 5,
-            //   bottom: 5,
-            //   child: GestureDetector(
-            //     onTap: () {},
-            //     child: Lottie.asset(
-            //       'assets/animations/movie_clapperboard.json',
-            //       width: 60,
-            //       height: 60,
-            //       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            //     ),
-            //   ),
-            // ),
           ],
         );
       },
@@ -643,12 +654,16 @@ class _IslandCarousel extends StatefulWidget {
   final Animation<double> floatAnimation;
   final double height;
   final ValueChanged<int> onIndexChanged;
+  final VoidCallback onLeave;
+  final VoidCallback onReturn;
 
   const _IslandCarousel({
     required this.activities,
     required this.floatAnimation,
     required this.height,
     required this.onIndexChanged,
+    required this.onLeave,
+    required this.onReturn,
   });
 
   @override
@@ -699,6 +714,8 @@ class _IslandCarouselState extends State<_IslandCarousel> {
                 activity: widget.activities[index],
                 floatAnimation: widget.floatAnimation,
                 size: widget.height,
+                onLeave: widget.onLeave,
+                onReturn: widget.onReturn,
               );
             },
           ),
@@ -716,12 +733,15 @@ class _IslandTile extends StatefulWidget {
   final Animation<double> floatAnimation;
   final double size;
   final Duration glowDuration;
+  final VoidCallback onLeave;
+  final VoidCallback onReturn;
 
   const _IslandTile({
     required this.activity,
     required this.floatAnimation,
     required this.size,
-    // ignore: unused_element_parameter
+    required this.onLeave,
+    required this.onReturn,
     this.glowDuration = const Duration(milliseconds: 300),
   });
 
@@ -747,6 +767,8 @@ class _IslandTileState extends State<_IslandTile>
     _ownsNavigationLock = true;
 
     final navigator = Navigator.of(context);
+    final onLeave = widget.onLeave;
+    final onReturn = widget.onReturn;
 
     try {
       setState(() => _glowing = true);
@@ -769,11 +791,13 @@ class _IslandTileState extends State<_IslandTile>
       };
 
       if (screen != null) {
+        onLeave();
         ScreenTimeService.instance.resume();
 
         await navigator.push(MaterialPageRoute(builder: (_) => screen));
 
         ScreenTimeService.instance.pause();
+        onReturn();
       }
     } finally {
       _ownsNavigationLock = false;
