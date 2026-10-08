@@ -1,3 +1,4 @@
+import 'package:StarSight/ui_layer/forgot_pin_screen.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -102,26 +103,26 @@ class ParentPinValidationState extends State<ParentPinValidation> {
       width: slotWidth,
       child: Center(
         child: filled
-        // Hidden PIN: show a dot instead of the digit
+            // Hidden PIN: show a dot instead of the digit
             ? Container(
-          width: slotWidth * 0.35,
-          height: slotWidth * 0.35,
-          decoration: const BoxDecoration(
-            color: ColorTheme.warmBrown,
-            shape: BoxShape.circle,
-          ),
-        )
+                width: slotWidth * 0.35,
+                height: slotWidth * 0.35,
+                decoration: const BoxDecoration(
+                  color: ColorTheme.warmBrown,
+                  shape: BoxShape.circle,
+                ),
+              )
             : SizedBox(
-          width: slotWidth * 0.6,
-          height: slotWidth * 0.65,
-          child: const DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: ColorTheme.orange, width: 2),
+                width: slotWidth * 0.6,
+                height: slotWidth * 0.65,
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: ColorTheme.orange, width: 2),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -146,19 +147,19 @@ class ParentPinValidationState extends State<ParentPinValidation> {
         alignment: Alignment.center,
         child: isDelete
             ? Icon(
-          Icons.backspace,
-          color: ColorTheme.warmBrown,
-          size: fontSize * 1.1,
-        )
+                Icons.backspace,
+                color: ColorTheme.warmBrown,
+                size: fontSize * 1.1,
+              )
             : Text(
-          label,
-          style: TextStyle(
-            fontSize: fontSize,
-            fontFamily: Fonts.fredoka,
-            fontWeight: FontWeight.bold,
-            color: ColorTheme.warmBrown,
-          ),
-        ),
+                label,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  fontFamily: Fonts.fredoka,
+                  fontWeight: FontWeight.bold,
+                  color: ColorTheme.warmBrown,
+                ),
+              ),
       ),
     );
   }
@@ -174,11 +175,11 @@ class ParentPinValidationState extends State<ParentPinValidation> {
     Widget row(List<String> labels) => Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children:
-      labels
-          .map((l) => _buildKey(l, keyW, keyH))
-          .expand((w) => [w, SizedBox(width: gap)])
-          .toList()
-        ..removeLast(),
+          labels
+              .map((l) => _buildKey(l, keyW, keyH))
+              .expand((w) => [w, SizedBox(width: gap)])
+              .toList()
+            ..removeLast(),
     );
 
     return Column(
@@ -220,10 +221,7 @@ class ParentPinValidationState extends State<ParentPinValidation> {
           final double rightW = w * 0.50;
           final double lottieSz = (h * 0.42).clamp(60.0, 150.0); // was 0.30
           final double titleSz = (h * 0.085).clamp(16.0, 34.0); // was 0.075
-          final double subtitleSz = (h * 0.040).clamp(
-            8.0,
-            16.0,
-          ); // was 0.038
+          final double subtitleSz = (h * 0.040).clamp(8.0, 16.0); // was 0.038
           final double slotW = (h * 0.14).clamp(28.0, 58.0); // was 0.11
           final double vGapSm = h * 0.02;
           final double vGapMd = h * 0.01;
@@ -237,22 +235,20 @@ class ParentPinValidationState extends State<ParentPinValidation> {
                     width: leftW,
                     child: Center(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: leftW * 0.08,
-                        ),
+                        padding: EdgeInsets.symmetric(horizontal: leftW * 0.08),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             _animationsReady
                                 ? Lottie.asset(
-                              'assets/animations/doma_writing_onboard.json',
-                              width: lottieSz,
-                            )
+                                    'assets/animations/doma_writing_onboard.json',
+                                    width: lottieSz,
+                                  )
                                 : Image.asset(
-                              'assets/images/characters/doma_writing_on_board.png',
-                              width: lottieSz,
-                            ),
+                                    'assets/images/characters/doma_writing_on_board.png',
+                                    width: lottieSz,
+                                  ),
                             SizedBox(height: vGapSm),
                             Text(
                               "GROWNUP ONLY",
@@ -282,9 +278,7 @@ class ParentPinValidationState extends State<ParentPinValidation> {
                                 vertical: slotW * 0.25,
                               ),
                               decoration: BoxDecoration(
-                                color: ColorTheme.cream.withValues(
-                                  alpha: 0.25,
-                                ),
+                                color: ColorTheme.cream.withValues(alpha: 0.25),
                                 borderRadius: BorderRadius.circular(
                                   slotW * 0.40,
                                 ),
@@ -293,15 +287,22 @@ class ParentPinValidationState extends State<ParentPinValidation> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: List.generate(
                                   _maxDigits,
-                                      (i) => _buildSlot(i, slotW),
+                                  (i) => _buildSlot(i, slotW),
                                 ),
                               ),
                             ),
                             SizedBox(height: vGapSm),
-                            // ── FORGOT PIN (UI only, no function yet) ──
+                            // ── FORGOT PIN ──
                             GestureDetector(
                               onTap: () {
-                                // TODO: implement forgot pin flow
+                                if (_isSubmitting) return;
+                                setState(() => _digits.clear());
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ForgotPinScreen(),
+                                  ),
+                                );
                               },
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -316,7 +317,7 @@ class ParentPinValidationState extends State<ParentPinValidation> {
                                     fontFamily: Fonts.fredoka,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.red,
-                                  //  decoration: TextDecoration.underline,
+                                    //  decoration: TextDecoration.underline,
                                     decorationColor: ColorTheme.darkBlue,
                                   ),
                                 ),

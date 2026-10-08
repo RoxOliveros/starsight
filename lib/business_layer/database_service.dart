@@ -125,6 +125,22 @@ class DatabaseService {
     return null;
   }
 
+  Future<String?> updateParentPin(String newPin) async {
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        return "You're not signed in. Please sign in and try again.";
+      }
+      await _db.collection('users').doc(currentUser.uid).set({
+        'parentPin': newPin,
+      }, SetOptions(merge: true));
+      return null;
+    } catch (e) {
+      print("Error updating PIN: $e");
+      return "Something went wrong while saving your new PIN. Please try again.";
+    }
+  }
+
   // Fetch the signed-in parent's birth year
   Future<String?> getParentBirthYear() async {
     try {
