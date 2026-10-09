@@ -263,7 +263,10 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       GestureDetector(
-                        onTap: _handleThumbsUp,
+                        onTap: (){
+                          GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+                          _handleThumbsUp();
+                        },
                         child: _ThumbButton(
                           imagePath: 'assets/images/objects/lumi/thumbs_up.png',
                           backgroundColor: const Color.fromARGB(0, 0, 0, 0),
@@ -274,7 +277,10 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
                       ),
                       SizedBox(width: sw * 0.04),
                       GestureDetector(
-                        onTap: _handleThumbsDown,
+                        onTap: (){
+                          GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+                          _handleThumbsDown();
+                        },
                         child: _ThumbButton(
                           imagePath:
                               'assets/images/objects/lumi/thumbs_down.png',

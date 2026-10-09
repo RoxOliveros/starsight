@@ -13,6 +13,7 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
 import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
+import '../tr.woo_reaction.dart';
 
 class Sorry7Screen extends StatefulWidget {
   final List<String> priorEmotions;
@@ -31,11 +32,15 @@ class Sorry7Screen extends StatefulWidget {
 }
 
 class _Sorry7ScreenState extends State<Sorry7Screen>
-    with AiCameraMixin<Sorry7Screen>, AppAudioLifecycleMixin<Sorry7Screen> {
+    with AiCameraMixin<Sorry7Screen>, AppAudioLifecycleMixin<Sorry7Screen>, TrWooReactionMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _trWooPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
+
+  @override
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   int _currentPhase = 1;
   bool _canDrag = true;
@@ -134,6 +139,7 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
   void dispose() {
     disposeAiCamera();
     _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     super.dispose();
   }
 
@@ -481,11 +487,13 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
       onAcceptWithDetails: (details) async {
         if (details.data == id) {
           widget.tapTracker.recordCorrectTap();
+          unawaited(_trWooPlayer.stop());
           await GamesSfxPlayer.instance.play(GameSfx.shine);
           onAccept();
         } else {
           widget.tapTracker.recordMistake();
           GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+          showTrWooReaction(TrWooState.wrong);
         }
       },
       builder: (context, candidateData, rejectedData) {

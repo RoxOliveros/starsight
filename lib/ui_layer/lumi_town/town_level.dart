@@ -11,9 +11,9 @@ import 'package:StarSight/games_ui_layer/lumi_town/lvl8/prayer_1.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/audio_helper.dart';
 import '../../business_layer/music_zones.dart';
 import '../../business_layer/orientation_service.dart';
-import '../../games_ui_layer/games_audio_helper.dart';
 import '../../games_ui_layer/lumi_town/1/wakeup1.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_behavior.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_cleaning.dart';
@@ -253,6 +253,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen>
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
+                            SfxHelper.instance.play(Sfx.keyTap);
                             if (_page > 0) setState(() => _page--);
                           },
                           child: Opacity(
@@ -271,6 +272,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen>
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
+                            SfxHelper.instance.play(Sfx.keyTap);
                             if (_page < 2) {
                               setState(() => _page++);
                             }
@@ -367,7 +369,7 @@ class _LevelTile extends StatelessWidget {
         if (screen == null) return;
         // await _ensureTownCalibrated(context);
         // if (!context.mounted) return;
-        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+        SfxHelper.instance.play(Sfx.keyTap);
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => screen),

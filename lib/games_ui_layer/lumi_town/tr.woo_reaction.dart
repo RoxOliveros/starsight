@@ -20,7 +20,7 @@ import '../games_audio_helper.dart';
 // unawaited(showTrWooReaction(TrWooState.correct));
 //
 // wrong
-// unawaited(showTrWooReaction(TrWooState.wrong));
+// showTrWooReaction(TrWooState.wrong);
 //
 // build
 // if (_screenPhase == introgame) buildTrWoo(context),

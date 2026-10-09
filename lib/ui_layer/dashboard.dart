@@ -65,7 +65,6 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   bool _animationsReady = false;
   bool _childLoading = true;
-  bool _isOnDashboard = true;
 
   final GlobalKey<_AvatarBadgeState> _avatarBadgeKey = GlobalKey();
 
@@ -204,11 +203,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _onLeaveDashboard() {
-    _isOnDashboard = false;
   }
 
   void _onReturnToDashboard() {
-    _isOnDashboard = true;
     _audioHelper.resumeBackgroundMusic();
   }
 
@@ -735,7 +732,6 @@ class _IslandTile extends StatefulWidget {
   final _ActivityCard activity;
   final Animation<double> floatAnimation;
   final double size;
-  final Duration glowDuration;
   final VoidCallback onLeave;
   final VoidCallback onReturn;
 
@@ -745,7 +741,6 @@ class _IslandTile extends StatefulWidget {
     required this.size,
     required this.onLeave,
     required this.onReturn,
-    this.glowDuration = const Duration(milliseconds: 300),
   });
 
   @override
@@ -777,7 +772,7 @@ class _IslandTileState extends State<_IslandTile>
       setState(() => _glowing = true);
 
       await _tapController.forward();
-      await Future.delayed(widget.glowDuration);
+      await Future.delayed(Duration(milliseconds: 300));
       await _tapController.reverse();
 
       if (!mounted) return;
@@ -836,7 +831,7 @@ class _IslandTileState extends State<_IslandTile>
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        SfxHelper.instance.play(Sfx.bubblePop);
+        SfxHelper.instance.play(Sfx.keyTap);
         _navigate(context);
       },
       child: AnimatedBuilder(
