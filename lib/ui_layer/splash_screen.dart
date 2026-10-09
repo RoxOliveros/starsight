@@ -4,6 +4,8 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:StarSight/ui_layer/consent_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -168,8 +170,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Wait for the loading bar to finish reaching 100%
     await _loadingController.forward();
-
-    // --- UPDATED LOGIC: Auth Check + Database Safety Check ---
+    // --- UPDATED LOGIC: Auth Check + Database Safety Check + Permissions ---
     if (mounted) {
       final user = FirebaseAuth.instance.currentUser;
 
@@ -178,16 +179,34 @@ class _SplashScreenState extends State<SplashScreen>
           String? fetchedNickname = await DatabaseService().getNickname();
 
           if (fetchedNickname != null && fetchedNickname.isNotEmpty) {
+            // NEW: Check permission states
+            bool cameraGranted = await Permission.camera.isGranted;
+            bool micGranted = await Permission.microphone.isGranted;
+
             if (!mounted) return;
-            Navigator.of(context).pushReplacement(
-              PageRouteBuilder(
-                transitionDuration: const Duration(milliseconds: 500),
-                pageBuilder: (_, __, ___) =>
-                    DashboardScreen(nickname: fetchedNickname),
-                transitionsBuilder: (_, anim, __, child) =>
-                    FadeTransition(opacity: anim, child: child),
-              ),
-            );
+
+            if (cameraGranted && micGranted) {
+              // Both granted: Go to Dashboard
+              Navigator.of(context).pushReplacement(
+                PageRouteBuilder(
+                  transitionDuration: const Duration(milliseconds: 500),
+                  pageBuilder: (_, __, ___) =>
+                      DashboardScreen(nickname: fetchedNickname),
+                  transitionsBuilder: (_, anim, __, child) =>
+                      FadeTransition(opacity: anim, child: child),
+                ),
+              );
+            } else {
+              // Permissions missing: Force to Consent Screen
+              Navigator.of(context).pushReplacement(
+                PageRouteBuilder(
+                  transitionDuration: const Duration(milliseconds: 500),
+                  pageBuilder: (_, __, ___) => const ConsentScreen(),
+                  transitionsBuilder: (_, anim, __, child) =>
+                      FadeTransition(opacity: anim, child: child),
+                ),
+              );
+            }
           } else {
             // DB is empty/deleted! Force a logout.
             throw Exception("Database profile missing.");
