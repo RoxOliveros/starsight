@@ -124,16 +124,15 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
+  static const String _btnClockwise = 'assets/images/buttons/rotate_clockwise_button.png';
+  static const String _btnCounterClockwise = 'assets/images/buttons/rotate_counterclockwise_button.png';
+  static const String _btnCheck = 'assets/images/buttons/check_button.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/rotate_shape_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/rotate_shape_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/rotate_shape_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/rotate_shape_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/rotate_shape_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/rotate_shape_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -404,7 +403,6 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     _snapCtrl.forward(from: 0).whenComplete(() {
       if (!mounted) return;
       setState(() => _isRotating = false);
-      _checkMatch();
     });
   }
 
@@ -526,7 +524,6 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
                         opacity: _gameFade,
                         child: _buildGameLayer(),
                       ),
-                      buildRoxie(context),
                     ],
                   ),
             Positioned(top: 25, left: 25, child: PuzzleXButton()),
@@ -686,6 +683,31 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
           ),
           Expanded(child: Center(child: _buildGameArea(target))),
           Padding(
+            padding: const EdgeInsets.only(left: 20, right: 25, bottom: 8),
+            child: SizedBox(
+              height: 96,
+              child: Stack(
+                children: [
+                  Align(
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildRotateButton(_btnCounterClockwise, -1),
+                        const SizedBox(width: 16),
+                        _buildRotateButton(_btnClockwise, 1),
+                      ],
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _buildCheckButton(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
             padding: const EdgeInsets.only(bottom: 15),
             child: PuzzleProgressDots(
               currentRound: _round,
@@ -700,37 +722,11 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   Widget _buildGameArea(_RotateObjectItem target) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxW = constraints.maxWidth * 0.92;
-        final maxH = constraints.maxHeight * 0.92;
-
-        return Container(
-          width: maxW,
-          height: maxH,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                alpha: 0.25,
-              ),
-              width: 3,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                  alpha: 0.15,
-                ),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
+        return Row(
             children: [
               Expanded(child: _buildTargetObject(target)),
               Expanded(child: _buildPuzzleObject(target)),
             ],
-          ),
         );
       },
     );
@@ -748,40 +744,103 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   }
 
   Widget _buildPuzzleObject(_RotateObjectItem target) {
-    return Center(
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_celebrateCtrl, _wiggleCtrl]),
-        builder: (context, child) {
-          final wiggle = _isWrongFlash
-              ? sin(_wiggleCtrl.value * pi * 6) * 8 * (1 - _wiggleCtrl.value)
-              : 0.0;
-          final bounce = _celebrateCtrl.isAnimating
-              ? 1.0 + (sin(_celebrateCtrl.value * pi) * 0.25)
-              : 1.0;
-          return Transform.translate(
-            offset: Offset(wiggle, 0),
-            child: Transform.scale(
-              scale: bounce,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (_celebrateCtrl.isAnimating) _buildStarBurst(),
-                  child!,
-                ],
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Center(
+          child: AnimatedBuilder(
+            animation: Listenable.merge([_celebrateCtrl, _wiggleCtrl]),
+            builder: (context, child) {
+              final wiggle = _isWrongFlash
+                  ? sin(_wiggleCtrl.value * pi * 6) *
+                        8 *
+                        (1 - _wiggleCtrl.value)
+                  : 0.0;
+              final bounce = _celebrateCtrl.isAnimating
+                  ? 1.0 + (sin(_celebrateCtrl.value * pi) * 0.25)
+                  : 1.0;
+              return Transform.translate(
+                offset: Offset(wiggle, 0),
+                child: Transform.scale(
+                  scale: bounce,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (_celebrateCtrl.isAnimating) _buildStarBurst(),
+                      child!,
+                    ],
+                  ),
+                ),
+              );
+            },
+            child: GestureDetector(
+              key: _objectKey,
+              onPanStart: _onPanStart,
+              onPanUpdate: _onPanUpdate,
+              onPanEnd: _onPanEnd,
+              behavior: HitTestBehavior.opaque,
+              child: _ObjectImage(
+                item: target,
+                size: 170,
+                rotation: _currentRotation,
               ),
             ),
-          );
-        },
-        child: GestureDetector(
-          key: _objectKey,
-          onPanStart: _onPanStart,
-          onPanUpdate: _onPanUpdate,
-          onPanEnd: _onPanEnd,
-          behavior: HitTestBehavior.opaque,
-          child: _ObjectImage(
-            item: target,
-            size: 170,
-            rotation: _currentRotation,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _onCheckTap() {
+    if (_isRotating || _isCompleting) return;
+    _checkMatch();
+  }
+
+  Widget _buildCheckButton() {
+    final disabled = _isRotating || _isCompleting;
+    return GestureDetector(
+      onTap: _onCheckTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: AnimatedOpacity(
+          opacity: disabled ? 0.6 : 1.0,
+          duration: const Duration(milliseconds: 150),
+          child: Image.asset(_btnCheck, width: 80),
+        ),
+      ),
+    );
+  }
+
+  void _onRotateButtonTap(int direction) {
+    if (_isRotating || _isCompleting) return;
+    final next =
+        ((_currentRotation / _snapRad).round() + direction) * _snapRad;
+    _animateSnapTo(next);
+  }
+
+  Widget _buildRotateButton(String asset, int direction) {
+    final disabled = _isRotating || _isCompleting;
+    return GestureDetector(
+      onTap: () => _onRotateButtonTap(direction),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.all(6), // extra tap area
+        child: AnimatedOpacity(
+          opacity: disabled ? 0.6 : 1.0,
+          duration: const Duration(milliseconds: 150),
+          child: Image.asset(
+            asset,
+            width: 84,
+            height: 84,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Icon(
+              direction > 0
+                  ? Icons.rotate_right_rounded
+                  : Icons.rotate_left_rounded,
+              size: 60,
+              color: PuzzleColorTheme.goldenyellow,
+            ),
           ),
         ),
       ),
@@ -855,14 +914,12 @@ class _ObjectImage extends StatelessWidget {
   final _RotateObjectItem item;
   final double size;
   final double rotation;
-  final bool elevated;
   final bool faded;
 
   const _ObjectImage({
     required this.item,
     required this.size,
     required this.rotation,
-    this.elevated = false,
     this.faded = false,
   });
 
@@ -870,20 +927,9 @@ class _ObjectImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Transform.rotate(
       angle: rotation,
-      child: Container(
+      child: SizedBox(
         width: size,
         height: size,
-        decoration: elevated
-            ? BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              )
-            : null,
         child: Opacity(
           opacity: faded ? 0.55 : 1.0,
           child: Image.asset(
