@@ -65,16 +65,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
     });
   }
 
-  Future<void> _playAlarm() async {
-    try {
-      await playAssetAudio(
-        _audioPlayer,
-        'assets/audio/sound_effects/alarmclock.wav',
-      );
-    } catch (e) {
-      debugPrint('[Audio] Error: $e');
-    }
-  }
+  Future<void> _playAlarm() => GamesSfxPlayer.instance.play(GameSfx.alarmClock);
 
   Future<void> _playNext() async {
     try {

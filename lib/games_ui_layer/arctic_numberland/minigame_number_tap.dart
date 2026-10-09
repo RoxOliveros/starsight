@@ -164,7 +164,7 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
         await _sfxPlayer.stop();
         if (!mounted) return;
         try {
-          await _playAndWait(_sfxPlayer, 'audio/sound_effects/bubble_pop.wav');
+          await _playAndWait(_sfxPlayer, 'audio/sound_effects/sfx_bubble_pop.wav');
           if (!mounted) return;
         } catch (_) {}
       } catch (_) {}

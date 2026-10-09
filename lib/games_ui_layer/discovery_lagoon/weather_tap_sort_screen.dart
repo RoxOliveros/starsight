@@ -67,9 +67,9 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
 
   static const String _introAudio =
       'assets/audio/discovery_lagoon/tapsort_intro.wav';
-  static const String _shineAudio = 'assets/audio/sound_effects/shine.wav';
+  static const String _shineAudio = 'assets/audio/sound_effects/sfx_shine.wav';
   static const String _bubblePopAudio =
-      'assets/audio/sound_effects/bubble_pop.wav';
+      'assets/audio/sound_effects/sfx_bubble_pop.wav';
 
   // ── Game data ────────────────────────────────────────────────────────────
 

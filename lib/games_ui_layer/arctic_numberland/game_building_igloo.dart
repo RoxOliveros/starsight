@@ -52,7 +52,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
       'assets/audio/arctic_numberland/building_igloo_intro.wav';
   static const String _audioInstruction =
       'assets/audio/arctic_numberland/building_igloo_instruction.wav';
-  static const String _audioBuild = 'assets/audio/sound_effects/build.wav';
+  static const String _audioBuild = 'assets/audio/sound_effects/sfx_build.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();

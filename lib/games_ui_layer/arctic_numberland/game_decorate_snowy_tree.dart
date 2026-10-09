@@ -428,7 +428,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
       }
     } else {
       _tapTracker.recordMistake();
-      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
+      await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       HapticFeedback.heavyImpact();
       setState(() => _trayWrong = true);

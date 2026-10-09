@@ -230,7 +230,7 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
       _tapTracker.recordMistake();
 
       HapticFeedback.heavyImpact();
-      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
+      await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;

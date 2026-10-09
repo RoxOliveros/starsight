@@ -52,7 +52,7 @@ class _TreeGameScreenState extends State<TreeGameScreen>
   static const String _branchAudio = 'audio/discovery_lagoon/branch.wav';
   static const String _trunkAudio = 'audio/discovery_lagoon/trunk.wav';
   static const String _rootAudio = 'audio/discovery_lagoon/roots.wav';
-  static const String _shineAudio = 'audio/sound_effects/shine.wav';
+  static const String _shineAudio = 'audio/sound_effects/sfx_shine.wav';
 
   static const String _fullTreeAsset =
       'assets/images/objects/lagoon/t5_tree.png';

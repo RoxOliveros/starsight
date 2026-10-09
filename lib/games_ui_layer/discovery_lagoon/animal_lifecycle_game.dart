@@ -172,7 +172,7 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame>
 
     if (isCorrect) {
       _tapTracker.recordCorrectTap();
-      _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+      _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
 
       if (currentLevelIndex < allCorrectSequences.length - 1) {
         Future.delayed(const Duration(seconds: 2), () {

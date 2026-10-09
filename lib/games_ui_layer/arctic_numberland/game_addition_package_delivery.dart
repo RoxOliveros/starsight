@@ -57,7 +57,7 @@ class _AdditionPackageDeliveryGameState
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/package_delivery_intro.wav';
   static const String _audioPackageAddRemove =
-      'assets/audio/sound_effects/thump.wav';
+      'assets/audio/sound_effects/sfx_thump.wav';
   static const String _audioWin = '$_audioBase/package_delivery_win.wav';
 
   static final Animation<double> _kZeroAnim = AlwaysStoppedAnimation<double>(

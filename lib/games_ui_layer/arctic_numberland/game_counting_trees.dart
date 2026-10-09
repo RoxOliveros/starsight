@@ -389,7 +389,7 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
     } else {
       _tapTracker.recordMistake();
 
-      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await _playAudio('assets/audio/sound_effects/sfx_bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
 
       if (!mounted) return;

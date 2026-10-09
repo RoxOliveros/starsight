@@ -302,7 +302,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       // ── Wrong: tapped a matching card ──
       setState(() => _wrongTappedIndex = cardIndex);
       _wrongCtrlList[cardIndex].forward(from: 0);
-      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await _playAudio('assets/audio/sound_effects/sfx_bubble_pop.wav');
       await showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 200));
       if (mounted) setState(() => _wrongTappedIndex = -1);

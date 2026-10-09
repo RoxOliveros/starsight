@@ -14,7 +14,7 @@ mixin TrWooReactionMixin<T extends StatefulWidget> on State<T> {
     setState(() => trWooState = state);
 
     if (state == TrWooState.correct) {
-      await _playTrWooAudio('assets/audio/sound_effects/shine.wav');
+      await _playTrWooAudio('assets/audio/sound_effects/sfx_shine.wav');
     } else if (state == TrWooState.wrong) {
       await _playTrWooAudio('assets/audio/lumi_town/dr.woo_tryagain.wav');
     }

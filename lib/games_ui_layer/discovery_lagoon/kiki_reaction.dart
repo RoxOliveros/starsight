@@ -37,7 +37,7 @@ mixin KikiReactionMixin<T extends StatefulWidget> on State<T> {
     setState(() => kikiState = state);
 
     if (state == KikiState.correct) {
-      await _playKikiAudio('assets/audio/sound_effects/shine.wav');
+      await _playKikiAudio('assets/audio/sound_effects/sfx_shine.wav');
     } else if (state == KikiState.wrong) {
       await _playKikiAudio('assets/audio/discovery_lagoon/kiki_tryagain.wav');
     }

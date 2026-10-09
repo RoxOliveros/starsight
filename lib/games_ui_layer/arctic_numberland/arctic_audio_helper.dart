@@ -60,7 +60,7 @@ class ArcticAudioAssets {
   static const String sfxBase = 'assets/audio/sound_effects';
 
   // Generic SFX
-  static const String bubblePop = '$sfxBase/bubble_pop.wav';
+  static const String bubblePop = '$sfxBase/sfx_bubble_pop.wav';
 
   // Shape name call-outs (shared by any game involving shape matching/ID)
   static const String circle = '$base/circle.wav';

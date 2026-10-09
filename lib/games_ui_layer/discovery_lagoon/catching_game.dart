@@ -346,7 +346,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
       _canTapFavorite = false;
     });
 
-    _playSound('audio/sound_effects/shine.wav');
+    _playSound('audio/sound_effects/sfx_shine.wav');
 
     _waitForAudioComplete().then((_) {
       if (!mounted || _disposed) return;
@@ -438,7 +438,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
                   _repeatCurrentRound();
                 });
               } else {
-                _playSound('audio/sound_effects/shine.wav');
+                _playSound('audio/sound_effects/sfx_shine.wav');
                 _waitForAudioComplete().then((_) {
                   if (!mounted || _disposed) return;
                   if (_currentRound == TasteRound.sweet) {
@@ -454,7 +454,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
               }
             } else {
               if (caughtItem.isTarget) {
-                _playSound('audio/sound_effects/shine.wav');
+                _playSound('audio/sound_effects/sfx_shine.wav');
               } else {
                 _playSound('audio/discovery_lagoon/kiki_tryagain.wav');
               }

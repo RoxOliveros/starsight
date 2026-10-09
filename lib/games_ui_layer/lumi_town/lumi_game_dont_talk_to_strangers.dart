@@ -58,7 +58,7 @@ const String _teacherWooWarningAudio =
     '${_audioBase}stranger_teacher_woo_warning.wav';
 const String _safetyLessonAudio = '${_audioBase}stranger_lesson.wav';
 const String _winAudio = '${_audioBase}stranger_win.wav';
-const String _bubblePopAudio = 'assets/audio/sound_effects/bubble_pop.wav';
+const String _bubblePopAudio = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
 
 // ============================================================================
 // MODEL

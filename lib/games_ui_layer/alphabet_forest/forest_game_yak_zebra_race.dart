@@ -101,7 +101,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   static const String _audioIntro = '$_audioBase/yak_zebra_race_intro.wav';
   static const String _audioTapY = '$_audioBase/sound_effects/sound_y.wav';
   static const String _audioTapZ = '$_audioBase/sound_effects/sound_z.wav';
-  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioCorrect = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
   static const String _audioYIsForYak = '$_audioBase/y_is_for_yak.wav';
   static const String _audioZIsForZebra = '$_audioBase/z_is_for_zebra.wav';
   static const String _audioWin = '$_audioBase/yak_zebra_race_win.wav';

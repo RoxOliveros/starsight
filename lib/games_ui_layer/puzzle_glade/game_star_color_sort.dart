@@ -55,8 +55,8 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
       'assets/audio/puzzle_glade/star_sort_complete.wav';
 
   static const String _audioCorrect =
-      'assets/audio/sound_effects/bubble_pop.wav';
-  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
+      'assets/audio/sound_effects/sfx_bubble_pop.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/sfx_shine.wav';
 
   static const String _characterImage =
       'assets/images/characters/roxie_the_rabbit.png';

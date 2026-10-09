@@ -66,7 +66,7 @@ class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/paw_prints_intro.wav';
-  static const String _audioTap = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioTap = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
   static const String _audioWin = '$_audioBase/paw_prints_win.wav';
 
   static const Map<String, String> _instructionAudioForLetter = {

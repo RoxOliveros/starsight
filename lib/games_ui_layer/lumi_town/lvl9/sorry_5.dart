@@ -90,7 +90,7 @@ class _Sorry5ScreenState extends State<Sorry5Screen>
     try {
       await _audioPlayer.stop();
 
-      await _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+      await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 

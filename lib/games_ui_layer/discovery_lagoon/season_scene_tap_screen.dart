@@ -74,7 +74,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
 
   static const String _audioIntro =
       'assets/audio/discovery_lagoon/season_tap_intro.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
 
   static const Map<String, String> _seasonNames = {
     'spring': 'Spring',

@@ -84,7 +84,7 @@ class _ColdHotGameState extends State<ColdHotGame>
   static const String _kettleImage = 'assets/images/objects/lagoon/kettle_wb.png';
 
   static const String _introAudio = 'audio/discovery_lagoon/cold_hot_game_intro&tutorial.wav';
-  static const String _bubblePopAudio = 'audio/sound_effects/bubble_pop.wav';
+  static const String _bubblePopAudio = 'audio/sound_effects/sfx_bubble_pop.wav';
 
   @override
   void initState() {

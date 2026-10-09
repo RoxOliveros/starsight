@@ -123,7 +123,7 @@ class _RainbowGameScreenState extends State<RainbowGameScreen>
       _tapTracker.recordCorrectTap();
       setState(() => kikiState = KikiState.correct);
 
-      await _playAudio('assets/audio/sound_effects/shine.wav');
+      await _playAudio('assets/audio/sound_effects/sfx_shine.wav');
 
       if (_currentLevel == 8) {
         await _playAudio('assets/audio/discovery_lagoon/what_part_rc.wav');

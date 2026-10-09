@@ -53,7 +53,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   static const String _vaseAsset = 'assets/images/objects/forest/vase.png';
   static const String _hammerAsset = 'assets/images/objects/forest/hammer.png';
   static const String _findInstructionAudio = 'audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
-  static const String _breakVaseAudio = 'audio/sound_effects/break_vase.wav';
+  static const String _breakVaseAudio = 'audio/sound_effects/sfx_break_vase.wav';
 
   static const int _totalRounds = 3;
 

@@ -79,7 +79,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
 
   static const String _introAudio = 'audio/discovery_lagoon/soft&hard_intro&tutorial.wav';
   static const String _instructionAudio = 'audio/discovery_lagoon/soft&hard_instruction.wav';
-  static const String _wrongAudio = 'audio/sound_effects/bubble_pop.wav';
+  static const String _wrongAudio = 'audio/sound_effects/sfx_bubble_pop.wav';
 
   @override
   void initState() {
