@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../games_ui_layer/audio_helper.dart';
+import '../business_layer/audio_helper.dart';
 import '../ui_layer/menu_dialog.dart';
 
 const String kDefaultAvatarPath = 'assets/images/avatars/avatar_star.png';

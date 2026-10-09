@@ -15,6 +15,7 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class Lumi1ValuesWakeup extends StatefulWidget {
@@ -47,7 +48,6 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _audioPlayer = AudioPlayer();
-  StreamSubscription? _completeSub;
   String? _audioError;
   bool _audioFinished = false;
 
@@ -123,26 +123,12 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
 
   Future<void> _initAudio() async {
     try {
-      final Directory cacheDir = await getTemporaryDirectory();
-
-      await _audioPlayer.setVolume(widget.volume);
-      await _audioPlayer.setReleaseMode(ReleaseMode.release);
-
-      // Load and play gising.wav directly
-      final ByteData data = await rootBundle.load(widget.audioBinPath2);
-      final Uint8List bytes = data.buffer.asUint8List();
-      final String fileName = widget.audioBinPath2.split('/').last;
-      final File tempFile = File('${cacheDir.path}/$fileName');
-      await tempFile.writeAsBytes(bytes, flush: true);
-      await _audioPlayer.play(DeviceFileSource(tempFile.path));
-
-      // Start listening after audio finishes
-      _completeSub = _audioPlayer.onPlayerComplete.listen((_) {
-        _completeSub?.cancel();
-        debugPrint('[Speech] Audio done, now listening...');
-        if (mounted) setState(() => _audioFinished = true);
-        _initSpeech();
-      });
+      await playAssetAudio(_audioPlayer, widget.audioBinPath2);
+      await waitForAudio(_audioPlayer);
+      if (!mounted) return;
+      debugPrint('[Speech] Audio done, now listening...');
+      setState(() => _audioFinished = true);
+      _initSpeech();
     } catch (e) {
       debugPrint('[Lumi1ValuesWakeup] Audio error: $e');
       if (mounted) setState(() => _audioError = e.toString());
@@ -310,7 +296,6 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   @override
   void dispose() {
     disposeAiCamera();
-    _completeSub?.cancel();
     _stopSpeech();
     _audioPlayer.dispose();
     OrientationService.setLandscape();

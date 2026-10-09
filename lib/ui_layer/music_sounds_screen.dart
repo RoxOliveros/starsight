@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../business_layer/audio_settings.dart';
-import '../games_ui_layer/audio_helper.dart';
+import '../business_layer/audio_helper.dart';
 
 abstract class _MusPalette {
   static const Color cream = Color(0xFFFAF7EB);
@@ -74,6 +74,16 @@ class _MusicSoundsScreenState extends State<MusicSoundsScreen> {
                               onVolumeChanged: s.setSfxVolume,
                               onVolumeChangeEnd: (_) => SfxHelper.instance.play(Sfx.keyTap),
                             ),
+                            const SizedBox(height: 20),
+                            _SoundCard(
+                              color: _MusPalette.titleSky,
+                              icon: Icons.record_voice_over_rounded,
+                              label: 'Games Audio',
+                              enabled: true,
+                              onToggle: null,
+                              volume: s.gamesVolume,
+                              onVolumeChanged: s.setGamesVolume,
+                            ),
                           ],
                         );
                       },
@@ -144,7 +154,7 @@ class _SoundCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool enabled;
-  final ValueChanged<bool> onToggle;
+  final ValueChanged<bool>? onToggle;
   final double? volume; // null = no slider
   final ValueChanged<double>? onVolumeChanged;
   final ValueChanged<double>? onVolumeChangeEnd;
@@ -154,10 +164,10 @@ class _SoundCard extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.enabled,
-    required this.onToggle,
     this.volume,
     this.onVolumeChanged,
     this.onVolumeChangeEnd,
+    this.onToggle,
   });
 
   @override
@@ -192,16 +202,16 @@ class _SoundCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Switch(
-                  value: enabled,
-                  onChanged: onToggle,
-                  activeColor: Colors.white,
-                  activeTrackColor: color,
-                  inactiveThumbColor: Colors.white,
-                  inactiveTrackColor: _MusPalette.mutedGrey,
-                  trackOutlineColor:
-                  WidgetStateProperty.all(Colors.transparent),
-                ),
+                if (onToggle != null)
+                  Switch(
+                    value: enabled,
+                    onChanged: onToggle,
+                    activeColor: Colors.white,
+                    activeTrackColor: color,
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: _MusPalette.mutedGrey,
+                    trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+                  ),
               ],
             ),
           ),

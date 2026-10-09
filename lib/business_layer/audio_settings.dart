@@ -14,6 +14,14 @@ class AudioSettings extends ChangeNotifier {
   double get musicVolume => _musicVolume;
   bool get sfxOn => _sfxOn;
   double get sfxVolume => _sfxVolume;
+  double _gamesVolume = 1.0;
+  double get gamesVolume => _gamesVolume;
+
+  void setGamesVolume(double v) {
+    _gamesVolume = v.clamp(0.0, 1.0);
+    notifyListeners();
+    _save((p) => p.setDouble('games_volume', _gamesVolume));
+  }
 
   Future<void> load() async {
     try {
@@ -22,6 +30,7 @@ class AudioSettings extends ChangeNotifier {
       _musicVolume = p.getDouble('music_volume') ?? 1.0;
       _sfxOn = p.getBool('sfx_on') ?? true;
       _sfxVolume = p.getDouble('sfx_volume') ?? 1.0;
+      _gamesVolume = p.getDouble('games_volume') ?? 1.0;
     } catch (e) {
       debugPrint('AudioSettings: load failed: $e');
     }

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/cupertino.dart';
 
-import '../audio_helper.dart';
+import '../../business_layer/audio_helper.dart';
 
 class ForestAudioHelper {
   final AudioPlayer voicePlayer = AudioPlayer();

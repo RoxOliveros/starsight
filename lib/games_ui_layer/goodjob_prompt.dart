@@ -1,6 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../ui_layer/app_dialog.dart';
+import '../business_layer/audio_helper.dart';
 
 class GoodJobOverlay extends StatefulWidget {
   final String characterImage;
@@ -253,7 +254,10 @@ class _CloseButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: (){
+        SfxHelper.instance.play(Sfx.keyTap);
+        onTap();
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         decoration: BoxDecoration(
@@ -325,6 +329,7 @@ class _ImageButtonState extends State<_ImageButton>
         onTapDown: (_) => _ctrl.reverse(),
         onTapUp: (_) {
           _ctrl.forward();
+          SfxHelper.instance.play(Sfx.keyTap);
           widget.onTap();
         },
         onTapCancel: () => _ctrl.forward(),

@@ -3,7 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/orientation_service.dart';
-import '../games_ui_layer/audio_helper.dart';
+import '../business_layer/audio_helper.dart';
 import 'app_dialog.dart';
 import '../business_layer/database_service.dart';
 

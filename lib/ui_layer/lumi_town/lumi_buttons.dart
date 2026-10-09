@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../business_layer/audio_helper.dart';
 import 'lumi_theme.dart';
 
 class LumiBackButton extends StatelessWidget {
@@ -7,7 +8,10 @@ class LumiBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pop(context),
+      onTap: () {
+        SfxHelper.instance.play(Sfx.keyTap);
+        Navigator.pop(context);
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -40,7 +44,10 @@ class LumiXButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap ?? () => Navigator.pop(context),
+      onTap: onTap ?? () {
+        SfxHelper.instance.play(Sfx.keyTap);
+        Navigator.pop(context);
+      },
       child: Image.asset('assets/images/buttons/x_rust.png', width: 50)
     );
   }
@@ -54,7 +61,10 @@ class LumiSkipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: (){
+        SfxHelper.instance.play(Sfx.keyTap);
+        onTap();
+      },
       child: Image.asset(
         'assets/images/buttons/skip_lumi.png',
         width: 90,

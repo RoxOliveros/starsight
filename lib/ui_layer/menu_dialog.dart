@@ -2,7 +2,7 @@ import 'package:StarSight/business_layer/database_service.dart';
 import 'package:StarSight/ui_layer/dashboard.dart';
 import 'package:StarSight/ui_layer/parents_pin_validation.dart';
 import 'package:flutter/material.dart';
-import '../games_ui_layer/audio_helper.dart';
+import '../business_layer/audio_helper.dart';
 import 'avatar_picker_dialog.dart';
 import 'parents_area_screen.dart';
 import 'child_profile_screen.dart';
