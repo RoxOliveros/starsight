@@ -1,11 +1,10 @@
 import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/cupertino.dart';
-
-import '../business_layer/audio_settings.dart';
+import 'package:flutter/widgets.dart';
+import 'audio_settings.dart';
 
 // USAGE
-// WidgetsBindingObserver - for pause & resume
+// The observer is registered/removed by AudioHelper itself — don't add it in the screen.
 //
 // late final AudioHelper _audioHelper = AudioHelper(
 //   shouldResumeOnForeground: () => _screenPhase == LagoonScreenPhase.game,
@@ -13,10 +12,8 @@ import '../business_layer/audio_settings.dart';
 //
 // init
 // _audioHelper.playBackgroundMusic();
-// WidgetsBinding.instance.addObserver(this);
 //
 // dispose
-// WidgetsBinding.instance.removeObserver(this);
 // _audioHelper.stopBackgroundMusic();
 // _audioHelper.dispose();
 
@@ -28,12 +25,13 @@ class AudioHelper with WidgetsBindingObserver {
   final bool Function()? shouldResumeOnForeground;
   double _baseVolume = 0.10;
   String? _pendingTrack;
+  late final Future<void> _ctxReady;
 
   double get _effectiveVolume =>
       (_baseVolume * AudioSettings.instance.musicVolume).clamp(0.0, 1.0);
 
   AudioHelper({this.shouldResumeOnForeground}) {
-    _applyMixingAudioContext();
+    _ctxReady = _applyMixingAudioContext();
     WidgetsBinding.instance.addObserver(this);
     AudioSettings.instance.addListener(_onSettingsChanged);
   }
@@ -79,6 +77,9 @@ class AudioHelper with WidgetsBindingObserver {
         usageType: AndroidUsageType.media,
         audioFocus: AndroidAudioFocus.none,
       ),
+      iOS: AudioContextIOS(
+        category: AVAudioSessionCategory.ambient,
+      ),
     );
 
     try {
@@ -104,6 +105,8 @@ class AudioHelper with WidgetsBindingObserver {
       return;
     }
 
+    await _ctxReady;
+
     try {
       await bgPlayer.stop();
       await bgPlayer.setReleaseMode(ReleaseMode.loop);
@@ -112,13 +115,9 @@ class AudioHelper with WidgetsBindingObserver {
 
       _currentBgTrack = resolved;
 
-      debugPrint(
-        'AudioHelper: playing background music $resolved',
-      );
+      debugPrint('AudioHelper: playing background music $resolved');
     } catch (e) {
-      debugPrint(
-        'AudioHelper: background music error ($resolved): $e',
-      );
+      debugPrint('AudioHelper: background music error ($resolved): $e');
     }
   }
 
@@ -128,9 +127,7 @@ class AudioHelper with WidgetsBindingObserver {
       await bgPlayer.stop();
       _currentBgTrack = null;
     } catch (e) {
-      debugPrint(
-        'AudioHelper: failed to stop background music: $e',
-      );
+      debugPrint('AudioHelper: failed to stop background music: $e');
     }
   }
 
@@ -140,9 +137,7 @@ class AudioHelper with WidgetsBindingObserver {
         await bgPlayer.pause();
       }
     } catch (e) {
-      debugPrint(
-        'AudioHelper: failed to pause background music: $e',
-      );
+      debugPrint('AudioHelper: failed to pause background music: $e');
     }
   }
 
@@ -153,9 +148,7 @@ class AudioHelper with WidgetsBindingObserver {
         await bgPlayer.resume();
       }
     } catch (e) {
-      debugPrint(
-        'AudioHelper: failed to resume background music: $e',
-      );
+      debugPrint('AudioHelper: failed to resume background music: $e');
     }
   }
 
@@ -178,32 +171,15 @@ class AudioHelper with WidgetsBindingObserver {
 class BgMusicAssets {
   BgMusicAssets._();
 
-  static const String base =
-      'assets/audio/bg_musics';
-
-  static const String adventurous =
-      '$base/bg_music_adventurous.wav';
-
-  static const String cheerful =
-      '$base/bg_music_cheerful.wav';
-
-  static const String cute =
-      '$base/bg_music_cute.wav';
-
-  static const String funny =
-      '$base/bg_music_funny.wav';
-
-  static const String happy =
-      '$base/bg_music_happy.wav';
-
-  static const String happy2 =
-      '$base/bg_music_happy2.wav';
-
-  static const String happy3 =
-      '$base/bg_music_happy3.wav';
-
-  static const String happy4 =
-      '$base/bg_music_happy4.wav';
+  static const String base = 'assets/audio/bg_musics';
+  static const String adventurous = '$base/bg_music_adventurous.wav';
+  static const String cheerful = '$base/bg_music_cheerful.wav';
+  static const String cute = '$base/bg_music_cute.wav';
+  static const String funny = '$base/bg_music_funny.wav';
+  static const String happy = '$base/bg_music_happy.wav';
+  static const String happy2 = '$base/bg_music_happy2.wav';
+  static const String happy3 = '$base/bg_music_happy3.wav';
+  static const String happy4 = '$base/bg_music_happy4.wav';
 
   static const List<String> tracks = [
     adventurous,
@@ -216,11 +192,7 @@ class BgMusicAssets {
     happy4,
   ];
 
-  static String random() {
-    return tracks[
-    Random().nextInt(tracks.length)
-    ];
-  }
+  static String random() => tracks[Random().nextInt(tracks.length)];
 
   static String resolve(String track) {
     if (track.startsWith('assets/')) {
@@ -245,7 +217,13 @@ class BgMusicAssets {
   }
 }
 
-abstract class Sfx {static const String keyTap = 'audio/sound_effects/bubble_click.wav';}
+// USAGE
+// SfxHelper.instance.play(Sfx.bubblePop);
+
+abstract class Sfx {
+  static const String keyTap = 'audio/sound_effects/bubble_click.wav';
+  static const String bubblePop = 'audio/sound_effects/bubble_pop.wav';
+}
 
 class SfxHelper {
   SfxHelper._();
@@ -254,12 +232,11 @@ class SfxHelper {
   static const int _poolSize = 4;
   final List<AudioPlayer> _pool = [];
   int _next = 0;
-  bool _ready = false;
+  Future<void>? _initFuture;
 
-  Future<void> init() async {
-    if (_ready) return;
-    _ready = true;
+  Future<void> init() => _initFuture ??= _init();
 
+  Future<void> _init() async {
     final ctx = AudioContext(
       android: const AudioContextAndroid(
         audioFocus: AndroidAudioFocus.none,
@@ -282,17 +259,15 @@ class SfxHelper {
       AudioCache.instance.loadAll(assets);
 
   void play(String asset, {double volume = 1.0}) {
-    if (!_ready) {
-      init().then((_) => play(asset, volume: volume)).catchError((_) {});
-      return;
-    }
     final s = AudioSettings.instance;
     if (!s.sfxOn) return;
-    final p = _pool[_next];
-    _next = (_next + 1) % _pool.length;
-    p
-        .stop()
-        .then((_) => p.play(AssetSource(asset), volume: (volume * s.sfxVolume).clamp(0.0, 1.0)))
-        .catchError((_) {});
+    init().then((_) {
+      final p = _pool[_next];
+      _next = (_next + 1) % _pool.length;
+      return p.stop().then((_) => p.play(
+        AssetSource(asset),
+        volume: (volume * s.sfxVolume).clamp(0.0, 1.0),
+      ));
+    }).catchError((_) {});
   }
 }

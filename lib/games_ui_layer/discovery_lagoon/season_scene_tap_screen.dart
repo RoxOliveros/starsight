@@ -15,7 +15,7 @@ import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
-import '../audio_helper.dart';
+import '../../business_layer/audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../star_round_indicator.dart';
 import 'intro_phase.dart';

@@ -4,7 +4,7 @@ import 'package:lottie/lottie.dart';
 import '../business_layer/auth_service.dart';
 import '../business_layer/database_service.dart';
 import '../business_layer/orientation_service.dart';
-import '../games_ui_layer/audio_helper.dart';
+import '../business_layer/audio_helper.dart';
 import 'app_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';

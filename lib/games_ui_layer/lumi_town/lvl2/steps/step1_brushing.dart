@@ -1,11 +1,10 @@
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
-import '../../../../ui_layer/lumi_town/town_level.dart';
 import '../../lumi_game_ui_layer.dart';
-import '../audio_helper.dart';
+import '../../lvl3/clean_bedroom_audio_helper.dart';
 import '../widgets/bubble_overlay.dart';
 import '../widgets/sparkle_overlay.dart';
 import 'step2_choice.dart';

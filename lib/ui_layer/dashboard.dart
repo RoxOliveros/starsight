@@ -14,7 +14,7 @@ import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/ui_layer/puzzle_glade/puzzle_level.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import '../games_ui_layer/audio_helper.dart';
+import '../business_layer/audio_helper.dart';
 import 'arctic_numberland/arctic_level.dart';
 import 'alphabet_forest_ui/forest_level.dart';
 import 'avatar_picker_dialog.dart';
@@ -832,7 +832,10 @@ class _IslandTileState extends State<_IslandTile>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _navigate(context),
+      onTap: () {
+        SfxHelper.instance.play(Sfx.bubblePop);
+        _navigate(context);
+      },
       child: AnimatedBuilder(
         animation: Listenable.merge([widget.floatAnimation, _scaleAnimation]),
         builder: (_, child) => Transform.translate(
