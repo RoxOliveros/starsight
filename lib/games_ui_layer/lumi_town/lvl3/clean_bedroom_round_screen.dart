@@ -12,6 +12,7 @@ import '../lumi_game_ui_layer.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'clean_bedroom_audio_helper.dart';
 import 'clean_bedroom_data.dart';
 import 'clean_bedroom_ending_screen.dart';
 
