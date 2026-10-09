@@ -36,6 +36,8 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
 
+  static const String _introAudio = 'assets/audio/lumi_town/level2/vo_intro.wav';
+
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
@@ -68,7 +70,7 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
     try {
       await playAssetAudio(
         _audioPlayer,
-        'assets/audio/lumi_town/level2/vo_intro.wav',
+        _introAudio,
       );
       await waitForAudio(_audioPlayer);
     } catch (_) {}

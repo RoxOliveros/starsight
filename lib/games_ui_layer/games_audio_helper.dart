@@ -3,7 +3,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
-
 import '../business_layer/audio_settings.dart';
 
 final AudioContext _voiceContext = AudioContext(
@@ -13,7 +12,6 @@ final AudioContext _voiceContext = AudioContext(
 final Expando<bool> _configured = Expando<bool>();
 Directory? _dir;
 
-/// Copies a bundled asset to a temp file (once) and returns its path.
 Future<String> _assetToFile(String assetPath) async {
   _dir ??= await getTemporaryDirectory();
   final bytes = (await rootBundle.load(assetPath)).buffer.asUint8List();
@@ -25,6 +23,9 @@ Future<String> _assetToFile(String assetPath) async {
 }
 
 // ── Narration (follows the Games Audio volume) ───────────────────────────────
+// USAGE
+// await playAssetAudio(_audioPlayer, );
+// await waitForAudio(_audioPlayer);
 
 Future<void> playAssetAudio(AudioPlayer player, String assetPath) async {
   if (_configured[player] != true) {
@@ -53,6 +54,9 @@ Future<void> waitForAudio(AudioPlayer player) async {
 
 // ── Sound effects (follow the Sound Effects on/off + volume) ─────────────────
 
+// USAGE
+// GamesSfxPlayer.instance.play(GameSfx.);
+
 abstract class GameSfx {
   static const String _base = 'assets/audio/sound_effects';
   static const String alarmClock = '$_base/sfx_alarmclock.wav';
@@ -60,16 +64,21 @@ abstract class GameSfx {
   static const String bubbleClick = '$_base/sfx_bubble_click.wav';
   static const String bubblePop = '$_base/sfx_bubble_pop.wav';
   static const String build = '$_base/sfx_build.wav';
+  static const String brush = '$_base/sfx_brush.wav';
   static const String clack = '$_base/sfx_clack.wav';
+  static const String comb = '$_base/sfx_comb.wav';
   static const String eggCrack = '$_base/sfx_egg_crack.wav';
   static const String erase = '$_base/sfx_erase.wav';
   static const String flip = '$_base/sfx_flip.wav';
+  static const String glowBlink = '$_base/sfx_glow_blink.wav';
   static const String plip = '$_base/sfx_plip.wav';
   static const String pour = '$_base/sfx_pour.wav';
   static const String shine = '$_base/sfx_shine.wav';
   static const String sizzle = '$_base/sfx_sizzle.wav';
   static const String thump = '$_base/sfx_thump.wav';
+  static const String wash = '$_base/sfx_wash.wav';
   static const String whisk = '$_base/sfx_whisk.wav';
+  static const String wipe = '$_base/sfx_wipe.wav';
   static const String yey = '$_base/sfx_yey.wav';
 
   static const List<String> all = [
@@ -103,7 +112,7 @@ class GamesSfxPlayer with WidgetsBindingObserver {
     }
   }
 
-  Future<void> play(String asset, {double volume = 1.0}) async {
+  Future<void> play(String asset, {double volume = 1.0, bool loop = false}) async {
     final s = AudioSettings.instance;
     if (!s.sfxOn) return;
     try {
@@ -112,12 +121,12 @@ class GamesSfxPlayer with WidgetsBindingObserver {
       if (p == null) {
         p = AudioPlayer();
         _players[asset] = p;
-        await p.setReleaseMode(ReleaseMode.stop);
+        await p.setReleaseMode(loop ? ReleaseMode.loop : ReleaseMode.stop);
         await p.setAudioContext(_voiceContext);
       }
       await p.play(
         DeviceFileSource(path),
-        volume: (volume * s.sfxVolume).clamp(0.0, 1.0),
+        volume: (volume * s.gamesVolume).clamp(0.0, 1.0),
       );
     } catch (e) {
       debugPrint('GamesSfxPlayer: failed to play $asset: $e');

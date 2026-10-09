@@ -11,6 +11,7 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class Sorry7Screen extends StatefulWidget {
@@ -81,8 +82,8 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
       setState(() => _canDrag = false);
       await _audioPlayer.stop();
 
-      await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
-      await _audioPlayer.onPlayerComplete.first;
+      await GamesSfxPlayer.instance.play(GameSfx.shine);
+      await waitForAudio(_audioPlayer);    
       if (!mounted) return;
 
       setState(() {
@@ -105,14 +106,12 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
       setState(() => _canDrag = false);
       await _audioPlayer.stop();
 
-      await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
-      await _audioPlayer.onPlayerComplete.first;
+      await GamesSfxPlayer.instance.play(GameSfx.shine);
+      await waitForAudio(_audioPlayer);    
       if (!mounted) return;
 
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level9/sorry_8.wav'),
-      );
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_8.wav');
+      await waitForAudio(_audioPlayer);    
       if (!mounted) return;
 
       final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
@@ -478,10 +477,16 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
     required VoidCallback onAccept,
   }) {
     return DragTarget<String>(
-      onWillAcceptWithDetails: (details) => details.data == id && !isPlaced,
-      onAcceptWithDetails: (details) {
-        widget.tapTracker.recordCorrectTap();
-        onAccept();
+      onWillAcceptWithDetails: (details) => !isPlaced,
+      onAcceptWithDetails: (details) async {
+        if (details.data == id) {
+          widget.tapTracker.recordCorrectTap();
+          await GamesSfxPlayer.instance.play(GameSfx.shine);
+          onAccept();
+        } else {
+          widget.tapTracker.recordMistake();
+          GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+        }
       },
       builder: (context, candidateData, rejectedData) {
         final bool isHovered = candidateData.isNotEmpty;
@@ -576,11 +581,6 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
 
     return Draggable<String>(
       data: id,
-      onDragEnd: (details) {
-        if (!details.wasAccepted) {
-          widget.tapTracker.recordMistake();
-        }
-      },
       feedback: Material(
         color: Colors.transparent,
         child: Transform.scale(scale: 1.10, child: pieceImage),

@@ -52,8 +52,10 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
   double _toothbrushX = 0.0;
   double _toothbrushY = 0.0;
   bool _isBrushing = false;
-
   bool _audioFired = false;
+
+  static const String _brushDoneAudio = 'assets/audio/lumi_town/level2/vo_brush_done.wav';
+  static const String _brushMidAudio = 'assets/audio/lumi_town/level2/vo_brush_mid.wav';
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
@@ -88,6 +90,7 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
     disposeAiCamera();
     _player.dispose();
     _wobbleCtrl.dispose();
+    GamesSfxPlayer.instance.stop(GameSfx.brush);
     super.dispose();
   }
 
@@ -96,13 +99,15 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
   }
 
   Future<void> _onBrushComplete() async {
+    GamesSfxPlayer.instance.stop(GameSfx.brush);
     widget.tapTracker.recordCorrectTap();
     setState(() => _bubbleState = BubbleState.none);
     setState(() => _starState = StarState.lot);
     _wobbleCtrl.stop();
+    _wobbleCtrl.stop();
     await playAssetAudio(
       _player,
-      'assets/audio/lumi_town/level2/vo_brush_done.wav',
+      _brushDoneAudio,
     );
     await waitForAudio(_player);
     if (!mounted) return;
@@ -175,6 +180,9 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
                             child: GestureDetector(
                               behavior: HitTestBehavior.translucent,
                               onPanStart: (details) {
+                                if (!_completeFired) {
+                                  GamesSfxPlayer.instance.play(GameSfx.brush, loop: true);
+                                }
                                 setState(() {
                                   _isBrushing = true;
                                   _toothbrushX = details.globalPosition.dx;
@@ -195,7 +203,7 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
                                   _audioFired = true;
                                   playAssetAudio(
                                     _player,
-                                    'assets/audio/lumi_town/level2/vo_brush_mid.wav',
+                                    _brushMidAudio,
                                   );
                                 }
                                 if (!_quarterFired && _brushProgress >= 0.5) {
@@ -213,8 +221,10 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
                                   _onBrushComplete();
                                 }
                               },
-                              onPanEnd: (_) =>
-                                  setState(() => _isBrushing = false),
+                              onPanEnd: (_) {
+                                GamesSfxPlayer.instance.stop(GameSfx.brush);
+                                setState(() => _isBrushing = false);
+                              },
                               child: Container(
                                 width: 160,
                                 height: 80,

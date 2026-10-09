@@ -15,7 +15,9 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
+import '../tr.woo_reaction.dart';
 
 // ==========================================
 // 🛠️ TRASH ITEM DATA MODEL
@@ -37,11 +39,7 @@ class ThrowingTrashGame extends StatefulWidget {
 }
 
 class _ThrowingTrashGameState extends State<ThrowingTrashGame>
-    with
-        TickerProviderStateMixin,
-        AiCameraMixin<ThrowingTrashGame>,
-        GameLoadingMixin,
-        AppAudioLifecycleMixin<ThrowingTrashGame> {
+    with TickerProviderStateMixin, AiCameraMixin<ThrowingTrashGame>, GameLoadingMixin, AppAudioLifecycleMixin<ThrowingTrashGame>, TrWooReactionMixin {
   // ==========================================
   // 🛠️ ADJUSTERS
   // ==========================================
@@ -61,7 +59,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
   late final AnimationController _walkCtrl;
   late final AnimationController _jumpCtrl;
   final AudioPlayer _audioPlayer = AudioPlayer();
-
+  final AudioPlayer _trWooPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -79,7 +77,10 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
   Offset? _droppedPosition;
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
+
+  @override
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   @override
   void initState() {
@@ -115,21 +116,21 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
         if (!mounted) return;
 
         setState(() => _introStep = 2);
-        _playAudio('audio/lumi_town/level11/throwing_trash_game_trashcan1.wav');
+        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan1.wav');
       } else if (_introStep == 2) {
         setState(() => _introStep = -1);
         await Future.delayed(Duration(milliseconds: audioIntervalMilliseconds));
         if (!mounted) return;
 
         setState(() => _introStep = 3);
-        _playAudio('audio/lumi_town/level11/throwing_trash_game_trashcan2.wav');
+        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan2.wav');
       } else if (_introStep == 3) {
         setState(() => _introStep = -1);
         await Future.delayed(Duration(milliseconds: audioIntervalMilliseconds));
         if (!mounted) return;
 
         setState(() => _introStep = 4);
-        _playAudio('audio/lumi_town/level11/throwing_trash_game_trashcan3.wav');
+        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan3.wav');
       } else if (_introStep == 4) {
         setState(() {
           _introStep = 5;
@@ -145,7 +146,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
     _walkCtrl.forward().then((_) {
       if (mounted) {
         setState(() => _introStep = 1);
-        _playAudio('audio/lumi_town/level11/throwing_trash_game_intro.wav');
+        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_intro.wav');
       }
     });
   }
@@ -224,21 +225,13 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
     }
   }
 
-  Future<void> _playAudio(String path) async {
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource(path));
-    } catch (e) {
-      debugPrint("Error playing audio ($path): $e");
-    }
-  }
-
   void _handleDrop(DragTargetDetails<TrashItem> details, int targetBinId) {
     final TrashItem item = details.data;
 
     if (item.correctBinId == targetBinId) {
       _tapTracker.recordCorrectTap();
-      _playAudio('audio/sound_effects/sfx_shine.wav');
+      unawaited(_trWooPlayer.stop());
+      GamesSfxPlayer.instance.play(GameSfx.shine);
 
       setState(() {
         _isTrashFading = true;
@@ -258,7 +251,8 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
       });
     } else {
       _tapTracker.recordMistake();
-      _playAudio('audio/lumi_town/dr.woo_tryagain.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTrWooReaction(TrWooState.wrong);
 
       setState(() => _sadBinId = targetBinId);
 
@@ -276,6 +270,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
     _walkCtrl.dispose();
     _jumpCtrl.dispose();
     _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }

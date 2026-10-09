@@ -9,7 +9,9 @@ import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../../business_layer/app_audio_lifecycle_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../../games_audio_helper.dart';
 import '../../tryagain_prompt.dart';
 import '../lumi_game_ui_layer.dart';
 import 'character_entrance.dart';
@@ -38,10 +40,13 @@ class Sharing2 extends StatefulWidget {
 
 class _Sharing2State extends State<Sharing2>
     with AiCameraMixin<Sharing2>, AppAudioLifecycleMixin<Sharing2> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  final AudioPlayer _voice = AudioPlayer();
+  static const String _voiceBase = 'assets/audio/lumi_town/level5/';
+  bool _disposed = false;
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_voice];
 
   // ── State Variables ──────────────────────────────────────────────────
   Timer? _cancelBtnTimer;
@@ -89,12 +94,12 @@ class _Sharing2State extends State<Sharing2>
   };
 
   static const Map<String, String> characterThankYouVoiceovers = {
-    'bunny': 'audio/lumi_town/level5/bunny_thankyou.wav',
-    'cat': 'audio/lumi_town/level5/cat_thankyou.wav',
-    'fox': 'audio/lumi_town/level5/fox_thankyou.wav',
-    'penguin': 'audio/lumi_town/level5/penguin_thankyou.wav',
-    'owl': 'audio/lumi_town/level5/owl_thankyou.wav',
-    'dog': 'audio/lumi_town/level5/dog_thankyou.wav',
+    'bunny': 'bunny_thankyou.wav',
+    'cat': 'cat_thankyou.wav',
+    'fox': 'fox_thankyou.wav',
+    'penguin': 'penguin_thankyou.wav',
+    'owl': 'owl_thankyou.wav',
+    'dog': 'dog_thankyou.wav',
   };
 
   final List<String> _sequence = [
@@ -140,13 +145,20 @@ class _Sharing2State extends State<Sharing2>
   }
 
   void _startRoundAudioAndTimers() {
+    _cancelBtnTimer?.cancel();
     _cancelBtnTimer = Timer(const Duration(seconds: 8), () {
-      if (mounted) {
-        setState(() {
-          _showCancelBtn = true;
-        });
-      }
+      if (!_disposed && mounted) setState(() => _showCancelBtn = true);
     });
+  }
+
+  @override
+  void onAppBackgrounded() {
+    _cancelBtnTimer?.cancel();
+  }
+
+  @override
+  void onAppForegrounded() {
+    if (!_showTutorial && !_showCancelBtn) _startRoundAudioAndTimers();
   }
 
   void _handleTutorialClose() {
@@ -154,6 +166,30 @@ class _Sharing2State extends State<Sharing2>
       _showTutorial = false;
     });
     _startRoundAudioAndTimers();
+  }
+
+  Future<void> _speak(String file) async {
+    if (_disposed || !mounted) return;
+    try {
+      await _voice.stop();
+      await playAssetAudio(_voice, '$_voiceBase$file');
+      await waitForAudio(_voice);
+    } catch (e) {
+      debugPrint('[Sharing2] Voice error ($file): $e');
+    }
+  }
+
+  Future<bool> _delay(Duration d) async {
+    const tick = Duration(milliseconds: 100);
+    var remaining = d;
+    while (remaining > Duration.zero) {
+      await Future.delayed(tick);
+      if (_disposed || !mounted) return false;
+      if (AppAudioLifecycleService.instance.isForeground.value) {
+        remaining -= tick;
+      }
+    }
+    return true;
   }
 
   void _setReady(bool ready) {
@@ -176,87 +212,64 @@ class _Sharing2State extends State<Sharing2>
 
   @override
   void dispose() {
+    _disposed = true;
     disposeAiCamera();
     _cancelBtnTimer?.cancel();
-    _audioPlayer.dispose();
+    _voice.dispose();
 
     OrientationService.setLandscape();
     super.dispose();
   }
 
   Future<void> _checkNextCharacter() async {
-    final bool done = _hasGivenPancake && _hasGivenWater;
+    if (!(_hasGivenPancake && _hasGivenWater)) return;
 
-    if (done) {
-      String currentCharKey = _sequence[_charIndex];
+    final String currentCharKey = _sequence[_charIndex];
+    setState(() => _currentMood = 'smiling');
 
+    final String audioFile = _bearPhase
+        ? 'littlebear_thankyou.wav'
+        : (characterThankYouVoiceovers[currentCharKey] ??
+        'littlebear_thankyou.wav');
+
+    _speak(audioFile);
+
+    if (!await _delay(const Duration(milliseconds: 2500))) return;
+
+    if (_charIndex < _sequence.length - 1) {
       setState(() {
-        _currentMood = 'smiling';
+        _setReady(false);
+        _charIndex++;
+        _hasGivenPancake = false;
+        _hasGivenWater = false;
+        _currentMood = 'normal';
       });
 
-      String audioPath = _bearPhase
-          ? 'audio/lumi_town/level5/littlebear_thankyou.wav'
-          : (characterThankYouVoiceovers[currentCharKey] ??
-                'audio/lumi_town/level5/littlebear_thankyou.wav');
-
-      await _audioPlayer.play(AssetSource(audioPath));
-
-      Future.delayed(const Duration(milliseconds: 2500), () {
-        if (!mounted) return;
-
-        if (_charIndex < _sequence.length - 1) {
-          setState(() {
-            _setReady(false);
-            _charIndex++;
-            _hasGivenPancake = false;
-            _hasGivenWater = false;
-            _currentMood = 'normal';
-          });
-
-          Future.delayed(const Duration(milliseconds: 200), () {
-            if (!mounted) return;
-            setState(() {
-              _setReady(true);
-            });
-          });
-        } else if (_secondFoxCanceled && !_bearPhase) {
-          setState(() {
-            _setReady(false);
-            _bearPhase = true;
-            _hasGivenPancake = false;
-            _hasGivenWater = false;
-            _currentMood = 'normal';
-          });
-
-          Future.delayed(const Duration(milliseconds: 200), () {
-            if (!mounted) return;
-            setState(() {
-              _setReady(true);
-            });
-          });
-        } else {
-          setState(() {
-            _setReady(false);
-          });
-
-          if (_secondFoxCanceled) {
-            _saveDataAndShowWinDialog();
-          } else {
-            setState(() {
-              _showSadBearFailedUI = true;
-            });
-            _audioPlayer.play(
-              AssetSource('audio/lumi_town/level5/sharing_wrong.wav'),
-            );
-            Future.delayed(const Duration(seconds: 17), () {
-              if (!mounted) return;
-              setState(() {
-                _showTryAgainButton = true;
-              });
-            });
-          }
-        }
+      if (!await _delay(const Duration(milliseconds: 200))) return;
+      setState(() => _setReady(true));
+    } else if (_secondFoxCanceled && !_bearPhase) {
+      setState(() {
+        _setReady(false);
+        _bearPhase = true;
+        _hasGivenPancake = false;
+        _hasGivenWater = false;
+        _currentMood = 'normal';
       });
+
+      if (!await _delay(const Duration(milliseconds: 200))) return;
+      setState(() => _setReady(true));
+    } else {
+      setState(() => _setReady(false));
+
+      if (_secondFoxCanceled) {
+        _saveDataAndShowWinDialog();
+      } else {
+        setState(() => _showSadBearFailedUI = true);
+        _speak('sharing_wrong.wav');
+
+        if (!await _delay(const Duration(seconds: 17))) return;
+        setState(() => _showTryAgainButton = true);
+      }
     }
   }
 
@@ -282,37 +295,30 @@ class _Sharing2State extends State<Sharing2>
       debugPrint("Database Error marking level complete: $e");
     });
 
-    if (mounted) {
-      setState(() {
-        _showAllCharactersSuccessUI = true;
-      });
-      _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            _showGoodJobOverlay = true;
-          });
-        }
-      });
-    }
+    if (!mounted) return;
+    setState(() => _showAllCharactersSuccessUI = true);
+    GamesSfxPlayer.instance.play(GameSfx.shine);
+
+    if (!await _delay(const Duration(seconds: 2))) return;
+    setState(() => _showGoodJobOverlay = true);
   }
 
-  void _handleCancel() {
+  Future<void> _handleCancel() async {
     if (_isCancelProcessing) return;
+
+    GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
 
     if (_charIndex != 5) {
       widget.tapTracker.recordMistake();
-      _audioPlayer.play(AssetSource('audio/lumi_town/level5/cancel_wrong.wav'));
+      _speak('cancel_wrong.wav');
       return;
     }
 
     _isCancelProcessing = true;
-
     widget.tapTracker.recordCorrectTap();
 
     setState(() {
       _showCancelBtn = false;
-
       _secondFoxCanceled = true;
       _currentMood = 'sad';
       _canGive = false;
@@ -324,23 +330,17 @@ class _Sharing2State extends State<Sharing2>
       _hasGivenWater = false;
     });
 
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (!mounted) return;
+    if (!await _delay(const Duration(milliseconds: 1500))) return;
+    setState(() {
+      _setReady(false);
+      _charIndex++;
+      _currentMood = 'normal';
+    });
 
-      setState(() {
-        _setReady(false);
-        _charIndex++;
-        _currentMood = 'normal';
-      });
-
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (!mounted) return;
-
-        setState(() {
-          _setReady(true);
-          _isCancelProcessing = false;
-        });
-      });
+    if (!await _delay(const Duration(milliseconds: 300))) return;
+    setState(() {
+      _setReady(true);
+      _isCancelProcessing = false;
     });
   }
 
@@ -413,12 +413,14 @@ class _Sharing2State extends State<Sharing2>
               child: DragTarget<String>(
                 onWillAcceptWithDetails: (details) {
                   if (!_canGive) return false;
-                  if (details.data == 'pancake' && !_hasGivenPancake)
+                  if (details.data == 'pancake' && !_hasGivenPancake) {
                     return true;
+                  }
                   if (details.data == 'water' && !_hasGivenWater) return true;
                   return false;
                 },
                 onAcceptWithDetails: (details) {
+                  GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
                   widget.tapTracker.recordCorrectTap();
                   if (details.data == 'pancake') {
                     setState(() {
@@ -541,6 +543,7 @@ class _Sharing2State extends State<Sharing2>
                                   maxSimultaneousDrags: _canGive ? 1 : 0,
                                   onDragEnd: (details) {
                                     if (!details.wasAccepted) {
+                                      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
                                       widget.tapTracker.recordMistake();
                                     }
                                   },
@@ -602,6 +605,7 @@ class _Sharing2State extends State<Sharing2>
                             maxSimultaneousDrags: _canGive ? 1 : 0,
                             onDragEnd: (details) {
                               if (!details.wasAccepted) {
+                                GamesSfxPlayer.instance.play(GameSfx.bubblePop);
                                 widget.tapTracker.recordMistake();
                               }
                             },

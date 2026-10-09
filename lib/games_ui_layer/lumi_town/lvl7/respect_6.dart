@@ -10,7 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class Respect6Screen extends StatefulWidget {
@@ -19,11 +19,11 @@ class Respect6Screen extends StatefulWidget {
   final int level;
 
   const Respect6Screen({
-    Key? key,
+    super.key,
     required this.priorEmotions,
     required this.tapTracker,
     required this.level,
-  }) : super(key: key);
+  });
 
   @override
   State<Respect6Screen> createState() => _Respect6ScreenState();
@@ -35,7 +35,7 @@ class _Respect6ScreenState extends State<Respect6Screen>
         TrWooReactionMixin,
         AiCameraMixin<Respect6Screen>,
         AppAudioLifecycleMixin<Respect6Screen> {
-  late final AudioPlayer _audioPlayer;
+  final AudioPlayer _audioPlayer = AudioPlayer();
   late final AnimationController _walkController;
 
   final Duration _walkDuration = const Duration(milliseconds: 1800);
@@ -52,8 +52,6 @@ class _Respect6ScreenState extends State<Respect6Screen>
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
-
     _walkController = AnimationController(vsync: this, duration: _walkDuration);
 
     OrientationService.setLandscape();
@@ -92,11 +90,8 @@ class _Respect6ScreenState extends State<Respect6Screen>
 
   Future<void> _playSceneAudio() async {
     try {
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level7/respect_roxie2.wav'),
-      );
-
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_roxie2.wav');
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
 
       setState(() {
@@ -194,6 +189,7 @@ class _Respect6ScreenState extends State<Respect6Screen>
                   onTap: () {
                     if (_answered) return;
                     widget.tapTracker.recordMistake();
+                    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
                     showTrWooReaction(TrWooState.wrong);
                   },
                   child: Image.asset(
@@ -213,16 +209,9 @@ class _Respect6ScreenState extends State<Respect6Screen>
                     if (_answered) return;
                     setState(() => _answered = true);
                     widget.tapTracker.recordCorrectTap();
-                    _audioPlayer.play(
-                      AssetSource(
-                        'audio/lumi_town/level7/respect_roxie2_rc.wav',
-                      ),
-                    );
-                    await Future.wait([
-                      showDrWooReactionQuietly(TrWooState.correct),
-                      _audioPlayer.onPlayerComplete.first,
-                    ]);
-
+                    showTrWooReaction(TrWooState.correct);
+                    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_roxie2_rc.wav');
+                    await waitForAudio(_audioPlayer);
                     if (!mounted) return;
 
                     final emotionsSoFar = [

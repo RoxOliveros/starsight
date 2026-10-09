@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class Emotion7Screen extends StatefulWidget {
@@ -32,11 +33,12 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
         TrWooReactionMixin,
         AiCameraMixin<Emotion7Screen>,
         AppAudioLifecycleMixin<Emotion7Screen> {
-  late final AudioPlayer _audioPlayer;
-  late final AudioPlayer _narratorPlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _trWooPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _narratorPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
 
   bool _isCorrectlyAnswered = false;
   bool _showSparkles = false;
@@ -44,8 +46,8 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
   bool _isSuccessAudioPlaying = false;
   bool _hideLightingCard = false;
 
-  static const String _audioP5 = 'audio/lumi_town/level6/emotion_p5.wav';
-  static const String _audioP5Rc = 'audio/lumi_town/level6/emotion_p5_rc.wav';
+  static const String _audioP5 = 'assets/audio/lumi_town/level6/emotion_p5.wav';
+  static const String _audioP5Rc = 'assets/audio/lumi_town/level6/emotion_p5_rc.wav';
 
   @override
   void initState() {
@@ -59,14 +61,11 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    _audioPlayer = AudioPlayer();
-    _narratorPlayer = AudioPlayer();
-
     _playIntroAudio();
   }
 
   Future<void> _playIntroAudio() async {
-    _narratorPlayer.onPlayerComplete.listen((_) {
+    _audioPlayer.onPlayerComplete.listen((_) {
       if (mounted) {
         if (_isSuccessAudioPlaying) {
           final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
@@ -86,15 +85,14 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
         }
       }
     });
-
-    await _narratorPlayer.play(AssetSource(_audioP5));
+    await playAssetAudio(_audioPlayer, _audioP5);
   }
 
   @override
   void dispose() {
     disposeAiCamera();
     _audioPlayer.dispose();
-    _narratorPlayer.dispose();
+    _trWooPlayer.dispose();
     super.dispose();
   }
 
@@ -127,7 +125,7 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
   }
 
   @override
-  AudioPlayer get trWooPlayer => _audioPlayer;
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   @override
   Widget build(BuildContext context) {
@@ -171,8 +169,7 @@ class _Emotion7ScreenState extends State<Emotion7Screen>
                         setState(() => _showStars = false);
 
                         await Future.delayed(const Duration(milliseconds: 500));
-                        await _narratorPlayer.stop();
-                        await _narratorPlayer.play(AssetSource(_audioP5Rc));
+                        await playAssetAudio(_audioPlayer, _audioP5Rc);
 
                         setState(() => _showSparkles = true);
                         await Future.delayed(const Duration(seconds: 1));

@@ -1,18 +1,16 @@
-import 'dart:io';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../business_layer/orientation_service.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
-import '../../../../ui_layer/lumi_town/town_level.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 import 'clean_bedroom_data.dart';
 import 'clean_bedroom_round_screen.dart';
@@ -39,10 +37,14 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
 
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
+
+  static const String _introAudio = 'assets/audio/lumi_town/level3/vo_intro.wav';
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_lumi_messy_bed.png';
+
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
 
-  @override
   @override
   void initState() {
     super.initState();
@@ -69,8 +71,8 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
   Future<void> _playIntroThenProceed() async {
     _fadeCtrl.forward();
     try {
-      await _playAudio('assets/audio/lumi_town/level3/vo_intro.wav');
-      await _player.onPlayerComplete.first;
+      await playAssetAudio(_player, _introAudio);
+      await waitForAudio(_player);
     } catch (_) {}
 
     if (!mounted) return;
@@ -95,16 +97,6 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
     );
   }
 
-  Future<void> _playAudio(String assetPath) async {
-    final dir = await getTemporaryDirectory();
-    final data = await rootBundle.load(assetPath);
-    final bytes = data.buffer.asUint8List();
-    final fileName = assetPath.split('/').last;
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsBytes(bytes, flush: true);
-    await _player.play(DeviceFileSource(file.path));
-  }
-
   @override
   void dispose() {
     disposeAiCamera();
@@ -126,7 +118,7 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
               fit: StackFit.expand,
               children: [
                 Image.asset(
-                  'assets/images/backgrounds/bg_lumi_messy_bed.png',
+                  _bgImage,
                   fit: BoxFit.cover,
                 ),
 

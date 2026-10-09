@@ -1,9 +1,7 @@
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-/// Progress indicator for whisking / cooking timers
 class CookingProgressBar extends StatelessWidget {
   final double progress;
   final String label;
@@ -36,7 +34,7 @@ class CookingProgressBar extends StatelessWidget {
           width: 200,
           height: 18,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFF5C3A1E), width: 2),
           ),
@@ -146,7 +144,7 @@ class _ShineStarPainter extends CustomPainter {
     path.close();
 
     final glowPaint = Paint()
-      ..color = Colors.white.withOpacity(0.6)
+      ..color = Colors.white.withValues(alpha: 0.6)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
@@ -156,135 +154,4 @@ class _ShineStarPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Tap hint animation (glowing circle pulse)
-class TapHint extends StatelessWidget {
-  final bool visible;
-
-  const TapHint({super.key, this.visible = false});
-
-  @override
-  Widget build(BuildContext context) {
-    if (!visible) return const SizedBox.shrink();
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFFFCC44), width: 3),
-      ),
-    )
-        .animate(onPlay: (c) => c.repeat())
-        .scale(
-          begin: const Offset(0.8, 0.8),
-          end: const Offset(1.4, 1.4),
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeOut,
-        )
-        .fade(begin: 1, end: 0, duration: const Duration(milliseconds: 800));
-  }
-}
-
-/// Animated water drop / pour particle
-class PourParticles extends StatelessWidget {
-  final bool visible;
-
-  const PourParticles({super.key, this.visible = false});
-
-  @override
-  Widget build(BuildContext context) {
-    if (!visible) return const SizedBox.shrink();
-    return Column(
-      children: List.generate(3, (i) {
-        return Container(
-          width: 8,
-          height: 12,
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.amber.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(4),
-          ),
-        )
-            .animate(delay: Duration(milliseconds: i * 100))
-            .moveY(
-              begin: -10,
-              end: 30,
-              duration: const Duration(milliseconds: 400),
-            )
-            .fade();
-      }),
-    );
-  }
-}
-
-/// Settings toggle row (sfx / music / voice)
-class SettingsRow extends StatelessWidget {
-  final bool sfxOn;
-  final bool musicOn;
-  final bool voiceOn;
-  final VoidCallback onToggleSfx;
-  final VoidCallback onToggleMusic;
-  final VoidCallback onToggleVoice;
-
-  const SettingsRow({
-    super.key,
-    required this.sfxOn,
-    required this.musicOn,
-    required this.voiceOn,
-    required this.onToggleSfx,
-    required this.onToggleMusic,
-    required this.onToggleVoice,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.85),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF5C3A1E), width: 2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ToggleBtn(icon: sfxOn ? '🔊' : '🔇', label: 'SFX', onTap: onToggleSfx),
-          const SizedBox(width: 8),
-          _ToggleBtn(icon: musicOn ? '🎵' : '🔕', label: 'Music', onTap: onToggleMusic),
-          const SizedBox(width: 8),
-          _ToggleBtn(icon: voiceOn ? '🐻' : '😶', label: 'Voice', onTap: onToggleVoice),
-        ],
-      ),
-    );
-  }
-}
-
-class _ToggleBtn extends StatelessWidget {
-  final String icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _ToggleBtn({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(icon, style: const TextStyle(fontSize: 22)),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 10, color: Color(0xFF5C3A1E)),
-          ),
-        ],
-      ),
-    );
-  }
 }

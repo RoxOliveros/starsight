@@ -9,6 +9,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'business_layer/audio_settings.dart';
 import 'business_layer/audio_helper.dart';
+import 'business_layer/music_zones.dart';
+import 'games_ui_layer/games_audio_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,11 +24,11 @@ void main() async {
 
   await dotenv.load(fileName: ".env");
 
+  await AudioSettings.instance.load();
+
   await SfxHelper.instance.init();
   SfxHelper.instance.preload([Sfx.keyTap]);
-
-  WidgetsFlutterBinding.ensureInitialized();
-  await AudioSettings.instance.load();
+  GamesSfxPlayer.instance.preload(GameSfx.all);
 
   runApp(const App());
 }
@@ -38,6 +40,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [MusicZones.instance],
       builder: (context, child) => ScreenTimeGate(child: child),
       home: SplashScreen(),
     );

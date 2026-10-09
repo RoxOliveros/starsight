@@ -15,7 +15,6 @@ import '../lvl4_cooking/game_screen.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-import 'clean_bedroom_audio_helper.dart';
 import 'clean_bedroom_game_screen.dart';
 
 class CleanBedroomEndingScreen extends StatefulWidget {
@@ -49,6 +48,11 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
 
+  static const String _endingAudio = 'assets/audio/lumi_town/level3/vo_ending.wav';
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_lumi_bed.png';
+  static const String _trWooImage = 'assets/images/characters/tr.woo_the_owl.png';
+
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
 
@@ -78,7 +82,7 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
   Future<void> _playEndingThenShow() async {
     await playAssetAudio(
       _player,
-      'assets/audio/lumi_town/level3/vo_ending.wav',
+      _endingAudio,
     );
     await waitForAudio(_player);
     if (!mounted) return;
@@ -136,7 +140,7 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
             fit: StackFit.expand,
             children: [
               Image.asset(
-                'assets/images/backgrounds/bg_lumi_bed.png',
+                _bgImage,
                 fit: BoxFit.cover,
               ),
 
@@ -149,7 +153,7 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
 
               if (_showOverlay)
                 GoodJobOverlay(
-                  characterImage: 'assets/images/characters/tr.woo_the_owl.png',
+                  characterImage: _trWooImage,
                   onNext: _onNext,
                   onRestart: _onRestart,
                   onBack: _onBack,

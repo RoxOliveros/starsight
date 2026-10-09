@@ -11,7 +11,9 @@ import 'package:StarSight/games_ui_layer/lumi_town/lvl8/prayer_1.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/music_zones.dart';
 import '../../business_layer/orientation_service.dart';
+import '../../games_ui_layer/games_audio_helper.dart';
 import '../../games_ui_layer/lumi_town/1/wakeup1.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_behavior.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_cleaning.dart';
@@ -24,8 +26,6 @@ import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl3/clean_bedroom_game_screen.dart';
 import '../../games_ui_layer/lumi_town/lvl4_cooking/game_screen.dart';
 import '../loading_screen.dart';
-import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'lumi_buttons.dart';
 import 'lumi_theme.dart';
 import '../starsight_setup_dialog.dart';
@@ -37,7 +37,9 @@ class LumiLevelScreen extends StatefulWidget {
   State<LumiLevelScreen> createState() => _LumiLevelScreenState();
 }
 
-class _LumiLevelScreenState extends State<LumiLevelScreen> {
+class _LumiLevelScreenState extends State<LumiLevelScreen>
+  with MusicZoneMixin{
+
   int _unlockedLevel = 1;
   int _page = 0;
   bool _isLoadingProgress = true;
@@ -73,7 +75,6 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
         _isLoadingProgress = false;
       });
 
-      // Only show once per app session, and only on the first data event.
       if (wasLoading) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
@@ -85,7 +86,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen> {
           );
         });
       }
-    }); // <-- These were the missing brackets
+    });
   }
 
   @override
@@ -365,7 +366,8 @@ class _LevelTile extends StatelessWidget {
         final screen = _screenForLevel();
         if (screen == null) return;
         // await _ensureTownCalibrated(context);
-        if (!context.mounted) return;
+        // if (!context.mounted) return;
+        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => screen),

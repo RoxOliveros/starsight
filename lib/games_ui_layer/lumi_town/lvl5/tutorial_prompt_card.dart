@@ -3,24 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-/// A universal "How to Play" tutorial overlay.
-///
-/// This is content-agnostic — it only knows about layout, animation timing,
-/// and the fade/slide "hint" reveal. Every screen (sharing, lighting, etc.)
-/// supplies its own title, instructions, demo visual, hint, and audio.
-///
-/// Usage:
-/// ```dart
-/// TutorialPromptCard(
-///   title: 'How to Play!',
-///   instructionText: 'Drag the pancake and water to share with your friends!',
-///   demoVisual: MyDemoRow(...),
-///   hintText: 'If they come back, tap the Cancel button!',
-///   hintImagePath: 'assets/images/objects/lumi/cancel_btn.png',
-///   audioAssetPath: 'audio/lumi_town/level5/sharing.wav',
-///   onClose: _handleTutorialClose,
-/// )
-/// ```
 class TutorialPromptCard extends StatefulWidget {
   final String title;
   final String instructionText;

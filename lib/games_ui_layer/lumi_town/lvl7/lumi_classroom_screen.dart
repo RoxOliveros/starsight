@@ -1,13 +1,12 @@
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 import 'respect_1.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
@@ -16,7 +15,7 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 class LumiClassroomScreen extends StatefulWidget {
   final int level;
 
-  const LumiClassroomScreen({Key? key, required this.level}) : super(key: key);
+  const LumiClassroomScreen({super.key, required this.level});
 
   @override
   State<LumiClassroomScreen> createState() => _LumiClassroomScreenState();
@@ -74,23 +73,18 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
 
   Future<void> _playIntroAudio() async {
     try {
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level7/respect_intro.wav'),
-      );
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_intro.wav');
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
 
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level7/respect_tutorial.wav'),
-      );
-
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_tutorial.wav');
       Future.delayed(const Duration(seconds: 6), () {
         if (mounted) {
           showDrWooReactionQuietly(TrWooState.correct);
         }
       });
 
-      await _audioPlayer.onPlayerComplete.first;
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
 
       final emotionsSoFar = stopAiCamera();

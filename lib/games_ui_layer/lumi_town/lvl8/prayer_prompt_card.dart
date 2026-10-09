@@ -1,5 +1,3 @@
-// File: lib/prayer_prompt_card.dart
-
 import 'package:flutter/material.dart';
 
 class PrayerPromptCard extends StatelessWidget {

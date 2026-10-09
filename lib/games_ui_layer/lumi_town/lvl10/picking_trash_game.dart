@@ -12,9 +12,9 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-
 import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class PickingTrashGame extends StatefulWidget {
@@ -197,9 +197,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
   }
 
   Future<void> _playIntroSequence() async {
-    await _audioPlayer.play(
-      AssetSource('audio/lumi_town/level10/picking_trash_game_intro.wav'),
-    );
+    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level10/picking_trash_game_intro.wav');
 
     _playerCompleteSubscription?.cancel();
 
@@ -217,9 +215,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
       _showDrWoo = true;
     });
 
-    await _audioPlayer.play(
-      AssetSource('audio/lumi_town/level10/picking_trash_game_ending.wav'),
-    );
+    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level10/picking_trash_game_ending.wav');
 
     _playerCompleteSubscription?.cancel();
 
@@ -278,7 +274,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
     });
 
     await Future.delayed(const Duration(milliseconds: 800));
-    await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
+    await GamesSfxPlayer.instance.play(GameSfx.shine);
 
     setState(() {
       if (startedOnLeft) {
@@ -337,7 +333,10 @@ class _PickingTrashGameState extends State<PickingTrashGame>
                   top: screenSize.height * item.y,
                   width: screenSize.width * item.size,
                   child: GestureDetector(
-                    onTap: () => _handleTrashTap(item),
+                    onTap: () {
+                      GamesSfxPlayer.instance.play(GameSfx.shine);
+                      _handleTrashTap(item);
+                    },
                     child: Image.asset(item.image, fit: BoxFit.contain),
                   ),
                 );

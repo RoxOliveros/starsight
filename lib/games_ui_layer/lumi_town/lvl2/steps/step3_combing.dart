@@ -47,6 +47,8 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
 
   late AnimationController _wobbleCtrl;
 
+  static const String _combDoneAudio = 'assets/audio/lumi_town/level2/vo_comb_done.wav';
+
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
 
@@ -71,11 +73,12 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
   }
 
   Future<void> _onCombComplete() async {
+    GamesSfxPlayer.instance.stop(GameSfx.comb);
     widget.tapTracker.recordCorrectTap();
     _wobbleCtrl.stop();
     await playAssetAudio(
       _player,
-      'assets/audio/lumi_town/level2/vo_comb_done.wav',
+      _combDoneAudio,
     );
     await waitForAudio(_player);
     if (!mounted) return;
@@ -96,6 +99,7 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
     disposeAiCamera();
     _player.dispose();
     _wobbleCtrl.dispose();
+    GamesSfxPlayer.instance.stop(GameSfx.comb);
     super.dispose();
   }
 
@@ -137,6 +141,9 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
                     onPanStart: (details) {
+                      if (!_completeFired) {
+                        GamesSfxPlayer.instance.play(GameSfx.comb, loop: true);
+                      }
                       setState(() {
                         _isCombing = true;
                         _combX = details.globalPosition.dx;
@@ -166,7 +173,10 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
                         _onCombComplete();
                       }
                     },
-                    onPanEnd: (_) => setState(() => _isCombing = false),
+                    onPanEnd: (_) {
+                      GamesSfxPlayer.instance.stop(GameSfx.comb);
+                      setState(() => _isCombing = false);
+                    },
                     child: Container(
                       width: 160,
                       height: 80,

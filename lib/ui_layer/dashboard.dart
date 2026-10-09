@@ -15,6 +15,7 @@ import 'package:StarSight/ui_layer/puzzle_glade/puzzle_level.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/audio_helper.dart';
+import '../business_layer/music_zones.dart';
 import 'arctic_numberland/arctic_level.dart';
 import 'alphabet_forest_ui/forest_level.dart';
 import 'avatar_picker_dialog.dart';
@@ -52,7 +53,12 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, MusicZoneMixin {
+
+  late final AudioHelper _audioHelper = AudioHelper(
+    shouldResumeOnForeground: () => MusicZones.instance.active,
+  );
+
   int _selectedTab = 0; // 0 = play, 1 = film, 2 = list, 3 = archive
   late AnimationController _floatController;
   late Animation<double> _floatAnimation;
@@ -60,10 +66,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool _animationsReady = false;
   bool _childLoading = true;
   bool _isOnDashboard = true;
-
-  late final AudioHelper _audioHelper = AudioHelper(
-    shouldResumeOnForeground: () => _isOnDashboard,
-  );
 
   final GlobalKey<_AvatarBadgeState> _avatarBadgeKey = GlobalKey();
 
@@ -112,6 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.initState();
     OrientationService.setLandscape();
 
+    MusicZones.instance.helper = _audioHelper;
     _audioHelper.playBackgroundMusic();
 
     // Keep all existing child/progress functionality unchanged.
@@ -193,6 +196,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     ScreenTimeService.instance.stopSession(this);
+    MusicZones.instance.helper = null;
     _audioHelper.stopBackgroundMusic();
     _audioHelper.dispose();
     _floatController.dispose();
@@ -201,7 +205,6 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   void _onLeaveDashboard() {
     _isOnDashboard = false;
-    _audioHelper.pauseBackgroundMusic();
   }
 
   void _onReturnToDashboard() {

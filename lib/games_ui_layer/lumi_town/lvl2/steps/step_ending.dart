@@ -44,6 +44,8 @@ class _StepEndingScreenState extends State<StepEndingScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
+  static const String _endingAudio = 'assets/audio/lumi_town/level2/vo_ending.wav';
+
   @override
   void initState() {
     super.initState();
@@ -62,7 +64,7 @@ class _StepEndingScreenState extends State<StepEndingScreen>
   Future<void> _playEndingThenShow() async {
     await playAssetAudio(
       _player,
-      'assets/audio/lumi_town/level2/vo_ending.wav',
+      _endingAudio,
     );
     await waitForAudio(_player);
     if (!mounted) return;

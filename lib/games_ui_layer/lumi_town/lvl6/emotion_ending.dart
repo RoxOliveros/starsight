@@ -12,7 +12,7 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 import 'emotion_stars_screen.dart';
 
@@ -37,7 +37,8 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
         SingleTickerProviderStateMixin,
         AiCameraMixin<EmotionEndingScreen>,
         AppAudioLifecycleMixin<EmotionEndingScreen> {
-  late AudioPlayer _audioPlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
@@ -52,8 +53,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  static const String _audioEnding =
-      'audio/lumi_town/level6/emotion_ending.wav';
+  static const String _audioEnding = 'assets/audio/lumi_town/level6/emotion_ending.wav';
 
   @override
   void initState() {
@@ -76,7 +76,6 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
       CurvedAnimation(parent: _flickerController, curve: Curves.easeInOut),
     );
 
-    _audioPlayer = AudioPlayer();
     _playEndingAudio();
   }
 
@@ -88,8 +87,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
         });
       }
     });
-
-    await _audioPlayer.play(AssetSource(_audioEnding));
+    await playAssetAudio(_audioPlayer, _audioEnding);
   }
 
   @override
