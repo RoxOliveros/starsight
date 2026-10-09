@@ -12,6 +12,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 enum _CameraGestureState { checking, granted, denied }
@@ -92,11 +93,8 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
         }
       });
 
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level9/sorry_2.wav'),
-      );
-
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_2.wav');
+      await waitForAudio(_audioPlayer);    
       _positionSub?.cancel();
       if (!mounted) return;
 
@@ -106,10 +104,8 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
         });
       }
 
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level9/sorry_3.wav'),
-      );
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_3.wav');
+      await waitForAudio(_audioPlayer);    
       if (!mounted) return;
 
       setState(() {
@@ -126,9 +122,7 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
   Future<void> _playThumbsPrompt() async {
     try {
       final done = _audioPlayer.onPlayerComplete.first;
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/thumbsup_thumbsdown.wav'),
-      );
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/thumbsup_thumbsdown.wav');
       await done;
     } catch (e) {
       debugPrint('Error playing thumbsup_thumbsdown.wav: $e');
@@ -169,10 +163,8 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
 
     try {
       await _audioPlayer.stop();
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level9/sorry_4.wav'),
-      );
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_4.wav');
+      await waitForAudio(_audioPlayer);    
     } catch (e) {
       debugPrint('Error playing sorry_4.wav: $e');
     }
@@ -206,10 +198,8 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
 
     try {
       await _audioPlayer.stop();
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/dr.woo_tryagain.wav'),
-      );
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/dr.woo_tryagain.wav');
+      await waitForAudio(_audioPlayer);    
     } catch (e) {
       debugPrint('Error playing dr.woo_tryagain.wav: $e');
     }
@@ -273,7 +263,10 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       GestureDetector(
-                        onTap: _handleThumbsUp,
+                        onTap: (){
+                          GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+                          _handleThumbsUp();
+                        },
                         child: _ThumbButton(
                           imagePath: 'assets/images/objects/lumi/thumbs_up.png',
                           backgroundColor: const Color.fromARGB(0, 0, 0, 0),
@@ -284,7 +277,10 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
                       ),
                       SizedBox(width: sw * 0.04),
                       GestureDetector(
-                        onTap: _handleThumbsDown,
+                        onTap: (){
+                          GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+                          _handleThumbsDown();
+                        },
                         child: _ThumbButton(
                           imagePath:
                               'assets/images/objects/lumi/thumbs_down.png',

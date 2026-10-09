@@ -1,7 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../ui_layer/app_dialog.dart';
-import '../business_layer/audio_helper.dart';
+import 'games_audio_helper.dart';
 
 class GoodJobOverlay extends StatefulWidget {
   final String characterImage;
@@ -92,15 +92,13 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
   }
 
   Future<void> _playYeySound() async {
-    await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_yey.wav'));
+    await GamesSfxPlayer.instance.play(GameSfx.yey);
   }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Fall back to MediaQuery if this widget is given unbounded/loose
-        // constraints (e.g. wrapped in a Stack without explicit size).
         final mq = MediaQuery.of(context).size;
         final double screenWidth = constraints.maxWidth.isFinite
             ? constraints.maxWidth
@@ -108,15 +106,9 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
         final double screenHeight = constraints.maxHeight.isFinite
             ? constraints.maxHeight
             : mq.height;
-
-        // Use the shorter side so layout stays sane in both portrait and
-        // landscape, and on tablets/desktop as well as phones.
         final double shortestSide = screenWidth < screenHeight
             ? screenWidth
             : screenHeight;
-
-        // Reference: a 390pt-wide phone is "1.0" scale. Clamp so things
-        // don't get comically small on tiny screens or huge on tablets.
         final double scale = (shortestSide / 390).clamp(0.7, 1.6);
 
         // ── Responsive metrics ────────────────────────────────────────
@@ -139,7 +131,6 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
           child: Container(
             width: double.infinity,
             height: double.infinity,
-            // Semi-transparent dark overlay so game background shows through
             color: Colors.black.withValues(alpha: 0.45),
             child: Stack(
               children: [
@@ -254,8 +245,8 @@ class _CloseButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: (){
-        SfxHelper.instance.play(Sfx.keyTap);
+      onTap: () async {
+        await GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
         onTap();
       },
       child: Container(
@@ -327,9 +318,9 @@ class _ImageButtonState extends State<_ImageButton>
       message: widget.tooltip,
       child: GestureDetector(
         onTapDown: (_) => _ctrl.reverse(),
-        onTapUp: (_) {
+        onTapUp: (_) async {
           _ctrl.forward();
-          SfxHelper.instance.play(Sfx.keyTap);
+          await GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
           widget.onTap();
         },
         onTapCancel: () => _ctrl.forward(),

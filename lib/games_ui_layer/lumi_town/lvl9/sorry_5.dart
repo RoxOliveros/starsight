@@ -10,8 +10,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
+import '../tr.woo_reaction.dart';
 
 class Sorry5Screen extends StatefulWidget {
   final List<String> priorEmotions;
@@ -30,11 +31,16 @@ class Sorry5Screen extends StatefulWidget {
 }
 
 class _Sorry5ScreenState extends State<Sorry5Screen>
-    with AiCameraMixin<Sorry5Screen>, AppAudioLifecycleMixin<Sorry5Screen> {
+    with AiCameraMixin<Sorry5Screen>, AppAudioLifecycleMixin<Sorry5Screen>, TrWooReactionMixin {
+
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _trWooPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
+
+  @override
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   bool _canDrag = false;
 
@@ -63,11 +69,8 @@ class _Sorry5ScreenState extends State<Sorry5Screen>
 
   Future<void> _startIntroAudio() async {
     try {
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level9/sorry_5.wav'),
-      );
-
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_5.wav');
+      await waitForAudio(_audioPlayer);    
       if (!mounted) return;
 
       setState(() {
@@ -90,14 +93,12 @@ class _Sorry5ScreenState extends State<Sorry5Screen>
     try {
       await _audioPlayer.stop();
 
-      await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
-      await _audioPlayer.onPlayerComplete.first;
+      await GamesSfxPlayer.instance.play(GameSfx.shine);
+      await waitForAudio(_audioPlayer);    
       if (!mounted) return;
 
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level9/sorry_6.wav'),
-      );
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_6.wav');
+      await waitForAudio(_audioPlayer);    
       if (!mounted) return;
 
       final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
@@ -120,6 +121,7 @@ class _Sorry5ScreenState extends State<Sorry5Screen>
   void dispose() {
     disposeAiCamera();
     _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     super.dispose();
   }
 
@@ -308,10 +310,18 @@ class _Sorry5ScreenState extends State<Sorry5Screen>
     required VoidCallback onAccept,
   }) {
     return DragTarget<String>(
-      onWillAcceptWithDetails: (details) => details.data == id && !isPlaced,
-      onAcceptWithDetails: (details) {
-        widget.tapTracker.recordCorrectTap();
-        onAccept();
+      onWillAcceptWithDetails: (details) => !isPlaced,
+      onAcceptWithDetails: (details) async {
+        if (details.data == id) {
+          widget.tapTracker.recordCorrectTap();
+          unawaited(_trWooPlayer.stop());
+          await GamesSfxPlayer.instance.play(GameSfx.shine);
+          onAccept();
+        } else {
+          widget.tapTracker.recordMistake();
+          GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+          showTrWooReaction(TrWooState.wrong);
+        }
       },
       builder: (context, candidateData, rejectedData) {
         final bool isHovered = candidateData.isNotEmpty;
@@ -402,11 +412,6 @@ class _Sorry5ScreenState extends State<Sorry5Screen>
 
     return Draggable<String>(
       data: id,
-      onDragEnd: (details) {
-        if (!details.wasAccepted) {
-          widget.tapTracker.recordMistake();
-        }
-      },
       feedback: Material(
         color: Colors.transparent,
         child: Transform.scale(scale: 1.10, child: pieceImage),

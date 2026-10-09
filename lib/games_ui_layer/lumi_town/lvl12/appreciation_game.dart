@@ -13,9 +13,9 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-
 import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class AppreciationGame extends StatefulWidget {
@@ -208,7 +208,7 @@ class _AppreciationGameState extends State<AppreciationGame>
 
       if (_introStep == 0) {
         setState(() => _introStep = 1);
-        _playAudio('audio/lumi_town/level12/appreciation_game_tutorial.wav');
+        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_tutorial.wav');
       } else if (_introStep == 1) {
         setState(() => _introStep = 2);
       } else if (_introStep == 3) {
@@ -231,7 +231,7 @@ class _AppreciationGameState extends State<AppreciationGame>
               _isJumping = false;
               _introStep = 5;
             });
-            _playAudio('audio/lumi_town/level12/appreciation_game_ending.wav');
+            playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_ending.wav');
           }
         });
       } else if (_introStep == 5) {
@@ -245,7 +245,7 @@ class _AppreciationGameState extends State<AppreciationGame>
   void _startIntroFlow() {
     if (!mounted) return;
     _walkCtrl.forward();
-    _playAudio('audio/lumi_town/level12/appreciation_game_intro.wav');
+    playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_intro.wav');
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
@@ -275,24 +275,6 @@ class _AppreciationGameState extends State<AppreciationGame>
     }
   }
 
-  Future<void> _playAudio(String path) async {
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource(path));
-    } catch (e) {
-      debugPrint("Error playing audio ($path): $e");
-    }
-  }
-
-  Future<void> _playShineSound() async {
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
-    } catch (e) {
-      debugPrint("Error playing audio: $e");
-    }
-  }
-
   void _checkWinCondition() {
     if (_currentPuzzle == 1 &&
         isMaramingPlaced &&
@@ -314,7 +296,7 @@ class _AppreciationGameState extends State<AppreciationGame>
           setState(() {
             _introStep = 3;
           });
-          _playAudio('audio/lumi_town/level12/appreciation_game_part1.wav');
+          playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_part1.wav');
         }
       });
     } else if (_currentPuzzle == 3 &&
@@ -326,7 +308,7 @@ class _AppreciationGameState extends State<AppreciationGame>
           setState(() {
             _introStep = 4;
           });
-          _playAudio('audio/lumi_town/level12/appreciation_game_part2.wav');
+          playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_part2.wav');
         }
       });
     }
@@ -819,9 +801,7 @@ class _AppreciationGameState extends State<AppreciationGame>
                         _walkCtrl.reset();
                         _jumpCtrl.stop();
                         _walkCtrl.forward();
-                        _playAudio(
-                          'audio/lumi_town/level12/appreciation_game_intro.wav',
-                        );
+                        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_intro.wav',);
                       });
                     },
                     onBack: () => Navigator.of(context).pop(),
@@ -850,13 +830,16 @@ class _AppreciationGameState extends State<AppreciationGame>
           fit: BoxFit.contain,
         );
       },
-      onWillAcceptWithDetails: (details) {
-        return details.data == expectedId && !isPlaced;
-      },
+      onWillAcceptWithDetails: (details) => !isPlaced,
       onAcceptWithDetails: (details) {
-        _tapTracker.recordCorrectTap();
-        _playShineSound();
-        onPlaced();
+        if (details.data == expectedId) {
+          _tapTracker.recordCorrectTap();
+          GamesSfxPlayer.instance.play(GameSfx.shine);
+          onPlaced();
+        } else {
+          _tapTracker.recordMistake();
+          GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+        }
       },
     );
   }
@@ -873,11 +856,6 @@ class _AppreciationGameState extends State<AppreciationGame>
 
     return Draggable<String>(
       data: id,
-      onDragEnd: (details) {
-        if (!details.wasAccepted) {
-          _tapTracker.recordMistake();
-        }
-      },
       feedback: Material(
         color: Colors.transparent,
         child: Image.asset(assetPath, width: width * 1.1, fit: BoxFit.contain),

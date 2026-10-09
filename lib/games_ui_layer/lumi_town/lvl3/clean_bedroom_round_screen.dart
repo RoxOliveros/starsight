@@ -12,7 +12,6 @@ import '../lumi_game_ui_layer.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-import 'clean_bedroom_audio_helper.dart';
 import 'clean_bedroom_data.dart';
 import 'clean_bedroom_ending_screen.dart';
 
@@ -70,6 +69,11 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
 
   bool _roundComplete = false;
 
+  static const String _roundDoneAudio = 'assets/audio/lumi_town/level3/vo_round_done.wav';
+  static const String _wrongAudio = 'assets/audio/lumi_town/level3/vo_wrong.wav';
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_lumi_bed.png';
+
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
 
@@ -79,8 +83,6 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     OrientationService.setLandscape();
 
-    // Camera + tap tracking travel with the player across every round;
-    // the tracker instance is shared, emotions accumulate round-to-round.
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
 
@@ -152,6 +154,8 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
     _hintTimer?.cancel();
     _hintPulseCtrl.dispose();
     _player.dispose();
+    GamesSfxPlayer.instance.stop(GameSfx.shine);
+    GamesSfxPlayer.instance.stop(GameSfx.bubblePop);
     for (final c in _slotShakeCtrl) {
       c.dispose();
     }
@@ -187,10 +191,8 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
       });
 
       // AFTER
+      GamesSfxPlayer.instance.play(GameSfx.shine);
       _slotPopCtrl[slotIndex].forward(from: 0);
-      final toy = toyById(droppedToyId);
-      await playAssetAudio(_player, toy.audioPath);
-      await waitForAudio(_player); // ✅ wait for toy audio to finish
 
       // Check if round complete
       if (_filledSlots.length == 3 && !_roundComplete) {
@@ -198,7 +200,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
         await Future.delayed(const Duration(milliseconds: 300));
         await playAssetAudio(
           _player,
-          'assets/audio/lumi_town/level3/vo_round_done.wav',
+          _roundDoneAudio,
         );
         await waitForAudio(_player);
         if (!mounted) return;
@@ -207,10 +209,11 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
     } else {
       // ❌ Wrong slot
       widget.tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       _slotShakeCtrl[slotIndex].forward(from: 0);
       await playAssetAudio(
         _player,
-        'assets/audio/lumi_town/level3/vo_wrong.wav',
+        _wrongAudio,
       );
     }
   }
@@ -288,7 +291,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
                   width: sceneW,
                   height: screenH,
                   child: Image.asset(
-                    'assets/images/backgrounds/bg_lumi_bed.png',
+                    _bgImage,
                     fit: BoxFit.cover,
                   ),
                 ),

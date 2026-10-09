@@ -57,6 +57,9 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
 
+  static const String _washDoneAudio = 'assets/audio/lumi_town/level2/vo_wash_done.wav';
+  static const String _dryDoneAudio = 'assets/audio/lumi_town/level2/vo_dry_done.wav';
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +85,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
   }
 
   Future<void> _onWashComplete() async {
+    GamesSfxPlayer.instance.stop(GameSfx.wash);
     widget.tapTracker.recordCorrectTap();
     setState(() {
       _starState = StarState.lot;
@@ -89,10 +93,12 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
       _isWashing = false;
     });
     _wobbleCtrl.stop();
+    await playAssetAudio(_player, _washDoneAudio);
   }
 
   Future<void> _onTowelComplete() async {
     if (_phase != _WashPhase.drying) return;
+    GamesSfxPlayer.instance.stop(GameSfx.wipe);
     widget.tapTracker.recordCorrectTap();
     setState(() {
       _phase = _WashPhase.done;
@@ -101,7 +107,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
     });
     await playAssetAudio(
       _player,
-      'assets/audio/lumi_town/level2/vo_wash_done.wav',
+      _dryDoneAudio,
     );
     await waitForAudio(_player);
     if (!mounted) return;
@@ -122,6 +128,8 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
     disposeAiCamera();
     _player.dispose();
     _wobbleCtrl.dispose();
+    GamesSfxPlayer.instance.stop(GameSfx.wash);
+    GamesSfxPlayer.instance.stop(GameSfx.wipe);
     super.dispose();
   }
 
@@ -179,6 +187,9 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
                               child: GestureDetector(
                                 behavior: HitTestBehavior.translucent,
                                 onPanStart: (details) {
+                                  if (!_towelCompleteFired) {
+                                    GamesSfxPlayer.instance.play(GameSfx.wipe, loop: true);
+                                  }
                                   setState(() {
                                     _isWiping = true;
                                     _towelX = details.globalPosition.dx;
@@ -201,8 +212,10 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
                                     _onTowelComplete();
                                   }
                                 },
-                                onPanEnd: (_) =>
-                                    setState(() => _isWiping = false),
+                                onPanEnd: (_) {
+                                  GamesSfxPlayer.instance.stop(GameSfx.wipe);
+                                  setState(() => _isWiping = false);
+                                },
                                 child: Container(
                                   width: 160,
                                   height: 80,
@@ -228,6 +241,9 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
                     onPanStart: (details) {
+                      if (!_completeFired) {
+                        GamesSfxPlayer.instance.play(GameSfx.wash, loop: true);
+                      }
                       setState(() {
                         _isWashing = true;
                         _splashX = details.globalPosition.dx;
@@ -252,7 +268,10 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
                         _onWashComplete();
                       }
                     },
-                    onPanEnd: (_) => setState(() => _isWashing = false),
+                    onPanEnd: (_) {
+                      GamesSfxPlayer.instance.stop(GameSfx.wash);
+                      setState(() => _isWashing = false);
+                    },
                     child: Container(
                       width: 160,
                       height: 80,

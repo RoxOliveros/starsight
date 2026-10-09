@@ -13,6 +13,7 @@ import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/town_level.dart';
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 import 'prayer_prompt_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -38,7 +39,6 @@ class _Prayer1State extends State<Prayer1>
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
-  // Track which scene is currently active
   String _currentScene = 'assets/images/objects/lumi/lvl8_scene1.png';
 
   // Timers
@@ -75,13 +75,6 @@ class _Prayer1State extends State<Prayer1>
     finishLoading(_initializeSequence);
   }
 
-  Future<void> _waitForComplete() async {
-    try {
-      await _audioPlayer.onPlayerComplete.first;
-    } on StateError {
-    }
-  }
-
   Future<void> _initializeSequence() async {
     final status = await Permission.camera.request();
     if (!mounted) return;
@@ -92,7 +85,7 @@ class _Prayer1State extends State<Prayer1>
       });
     }
 
-    await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_1.wav'));
+    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level8/pray_1.wav');
 
     _scene2Timer = Timer(const Duration(seconds: 4), () {
       if (!mounted || _gestureDetected) return;
@@ -109,7 +102,7 @@ class _Prayer1State extends State<Prayer1>
       });
     });
 
-    await _waitForComplete();
+    await waitForAudio(_audioPlayer);
     if (!mounted || _gestureDetected) return;
 
     if (_hasCameraPermission) {
@@ -151,18 +144,16 @@ class _Prayer1State extends State<Prayer1>
     });
 
     await _audioPlayer.stop();
-    await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_2.wav'));
-
-    await _waitForComplete();
+    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level8/pray_2.wav');
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
       _currentScene = 'assets/images/objects/lumi/lvl8_scene2.png';
     });
 
-    await _audioPlayer.play(AssetSource('audio/lumi_town/level8/pray_3.wav'));
-
-    await _waitForComplete();
+    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level8/pray_3.wav');
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     await _saveDataAndShowGoodJob();

@@ -9,7 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class Emotion2 extends StatefulWidget {
@@ -52,9 +52,8 @@ class _Emotion2State extends State<Emotion2>
     'assets/images/objects/lumi/e6_wrong.png',
   ];
 
-  static const String _audioStart = 'audio/lumi_town/level6/emotion_start.wav';
-  static const String _audioTutorial =
-      'audio/lumi_town/level6/emotion_tutorial.wav';
+  static const String _audioStart = 'assets/audio/lumi_town/level6/emotion_start.wav';
+  static const String _audioTutorial = 'assets/audio/lumi_town/level6/emotion_tutorial.wav';
 
   @override
   void initState() {
@@ -79,7 +78,8 @@ class _Emotion2State extends State<Emotion2>
     ) async {
       if (isTutorialPlaying) {
         isTutorialPlaying = false;
-        await _audioPlayer.play(AssetSource(_audioStart));
+        if (!mounted) return;
+        await playAssetAudio(_audioPlayer, _audioStart);
       } else {
         if (mounted) {
           final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
@@ -96,7 +96,7 @@ class _Emotion2State extends State<Emotion2>
       }
     });
 
-    await _audioPlayer.play(AssetSource(_audioTutorial));
+    await playAssetAudio(_audioPlayer, _audioTutorial);
 
     _carouselAppearanceTimer = Timer(const Duration(seconds: 6), () {
       if (mounted) {

@@ -42,6 +42,10 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
   late AnimationController _iconEntranceCtrl;
   late Animation<double> _iconFade;
 
+  static const String _washStartAudio = 'assets/audio/lumi_town/level2/vo_wash_start.wav';
+  static const String _step2QuestionAudio = 'assets/audio/lumi_town/level2/vo_step2_question.wav';
+  static const String _step2WrongAudio = 'assets/audio/lumi_town/level2/vo_step1_wrong.wav';
+
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
 
@@ -72,7 +76,7 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
   Future<void> _playQuestionAudio() async {
     await playAssetAudio(
       _player,
-      'assets/audio/lumi_town/level2/vo_step2_question.wav',
+      _step2QuestionAudio,
     );
     await waitForAudio(_player);
     if (mounted) _iconEntranceCtrl.forward();
@@ -80,9 +84,10 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
 
   Future<void> _onCorrect() async {
     widget.tapTracker.recordCorrectTap();
+    GamesSfxPlayer.instance.play(GameSfx.shine);
     await playAssetAudio(
       _player,
-      'assets/audio/lumi_town/level2/vo_wash_start.wav',
+      _washStartAudio,
     );
     await waitForAudio(_player);
     if (!mounted) return;
@@ -101,9 +106,10 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
   Future<void> _onWrong(GlobalKey<ShakeWidgetState> key) async {
     widget.tapTracker.recordMistake();
     key.currentState?.shake();
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
     await playAssetAudio(
       _player,
-      'assets/audio/lumi_town/level2/vo_step1_wrong.wav',
+      _step2WrongAudio,
     );
   }
 

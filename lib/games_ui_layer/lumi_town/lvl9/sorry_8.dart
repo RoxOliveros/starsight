@@ -9,14 +9,13 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-
 import '../../../ui_layer/lumi_town/town_level.dart';
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class Sorry8Screen extends StatefulWidget {
@@ -89,11 +88,8 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
 
   Future<void> _playStorySequence() async {
     try {
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level9/sorry_9.wav'),
-      );
-
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_9.wav');
+      await waitForAudio(_audioPlayer);    
       if (!mounted) return;
 
       await _walkController.forward(from: 0);
@@ -111,10 +107,8 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
       await _jumpController.forward(from: 0);
       if (!mounted) return;
 
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level9/sorry_ending.wav'),
-      );
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_ending.wav');
+      await waitForAudio(_audioPlayer);    
       if (!mounted) return;
 
       await _saveDataAndShowGoodJob();

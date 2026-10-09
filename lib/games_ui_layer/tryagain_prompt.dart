@@ -1,6 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../ui_layer/app_dialog.dart';
+import 'games_audio_helper.dart';
 
 class TryJobOverlay extends StatefulWidget {
   final String characterImage;
@@ -175,7 +176,10 @@ class _TryJobOverlayState extends State<TryJobOverlay>
                   left: edgeMargin,
                   child: _ImageButton(
                     imagePath: 'assets/images/buttons/restart.png',
-                    onTap: widget.onRestart,
+                    onTap: () {
+                      GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+                      widget.onRestart();
+                    },
                     size: actionButtonSize,
                     tooltip: 'Restart',
                   ),
@@ -185,7 +189,12 @@ class _TryJobOverlayState extends State<TryJobOverlay>
                 Positioned(
                   top: 25,
                   left: 25,
-                  child: _CloseButton(onTap: widget.onBack),
+                  child: _CloseButton(
+                    onTap: () {
+                      GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+                      widget.onBack();
+                    },
+                  ),
                 ),
               ],
             ),

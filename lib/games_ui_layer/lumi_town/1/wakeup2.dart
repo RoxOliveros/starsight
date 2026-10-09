@@ -45,6 +45,12 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
+  static const String _salamatAudio = 'assets/audio/lumi_town/level1/salamat.wav';
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_lumi_bed.png';
+  static const String _trWooImage = 'assets/images/characters/tr.woo_the_owl.png';
+  static const String _littleBearImage = 'assets/images/characters/little_bear.png';
+
   @override
   void initState() {
     super.initState();
@@ -71,7 +77,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
     try {
       await playAssetAudio(
         _audioPlayer,
-        'assets/audio/lumi_town/level1/salamat.wav',
+        _salamatAudio,
       );
       await waitForAudio(_audioPlayer);
     } catch (e) {
@@ -149,7 +155,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
 
             if (_showGoodJob)
               GoodJobOverlay(
-                characterImage: 'assets/images/characters/tr.woo_the_owl.png',
+                characterImage: _trWooImage,
                 onNext: () async {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
@@ -202,7 +208,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
         fit: StackFit.expand,
         children: [
           Image.asset(
-            'assets/images/backgrounds/bg_lumi_bed.png',
+            _bgImage,
             fit: BoxFit.cover,
           ),
           Align(
@@ -210,7 +216,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
             child: Transform.translate(
               offset: const Offset(0, 80),
               child: Image.asset(
-                'assets/images/characters/little_bear.png',
+                _littleBearImage,
                 width: 300,
                 fit: BoxFit.contain,
               ),

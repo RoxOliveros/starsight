@@ -1,4 +1,5 @@
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:StarSight/games_ui_layer/games_audio_helper.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_2.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
@@ -39,7 +40,7 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
 
   bool _hideLightingCard = false;
 
-  static const String _audioIntro = 'audio/lumi_town/level6/emotion_intro.wav';
+  static const String _audioIntro = 'assets/audio/lumi_town/level6/emotion_intro.wav';
 
   @override
   void initState() {
@@ -122,6 +123,7 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
 
   void _startIntroFlow() {
     if (!mounted) return;
+    GamesSfxPlayer.instance.play(GameSfx.glowBlink);
     _fadeController.forward();
   }
 
@@ -140,12 +142,13 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
         );
       }
     });
-
-    await _audioPlayer.play(AssetSource(_audioIntro));
+    GamesSfxPlayer.instance.stop(GameSfx.glowBlink);
+    await playAssetAudio(_audioPlayer, _audioIntro);
   }
 
   @override
   void dispose() {
+    GamesSfxPlayer.instance.stop(GameSfx.glowBlink);
     disposeAiCamera();
     _fadeController.dispose();
     _audioPlayer.dispose();

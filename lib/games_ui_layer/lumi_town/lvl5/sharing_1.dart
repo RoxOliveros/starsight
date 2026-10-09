@@ -15,7 +15,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 enum _CameraGestureState { checking, granted, denied }
@@ -34,19 +34,19 @@ class _Sharing1State extends State<Sharing1>
         AiCameraMixin<Sharing1>,
         GameLoadingMixin,
         AppAudioLifecycleMixin<Sharing1> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_voice];
 
   final GameTapTracker _tapTracker = GameTapTracker();
+  final AudioPlayer _voice = AudioPlayer();
+  static const String _voiceBase = 'assets/audio/lumi_town/';
 
   _CameraGestureState _cameraState = _CameraGestureState.checking;
 
+  bool _disposed = false;
   bool _actionTaken = false;
   bool _introFinished = false;
-
-  StreamSubscription<void>? _introSub;
   bool _hideLightingCard = false;
 
   static const _noHandsTimeout = Duration(seconds: 8);
@@ -70,35 +70,37 @@ class _Sharing1State extends State<Sharing1>
 
     _requestCameraPermission();
 
-    finishLoading(_playIntro);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) finishLoading(_playIntro);
+    });
+  }
+
+  Future<void> _speak(String file) async {
+    try {
+      await _voice.stop();
+      await playAssetAudio(_voice, '$_voiceBase$file');
+      await waitForAudio(_voice);
+    } catch (e) {
+      debugPrint('[Sharing1] Voice error ($file): $e');
+    }
   }
 
   Future<void> _playIntro() async {
-    if (!mounted) return;
-    _introSub = _audioPlayer.onPlayerComplete.listen((_) async {
-      _introSub?.cancel();
-      if (!mounted || _introFinished) return;
-      setState(() => _introFinished = true);
-      _startNoHandsTimer();
+    if (_disposed || !mounted) return;
 
-      try {
-        final done = _audioPlayer.onPlayerComplete.first; // subscribe first
-        await _audioPlayer.play(
-          AssetSource('audio/lumi_town/thumbsup_thumbsdown.wav'),
-        );
-        await done;
-      } catch (e) {
-        debugPrint('[Sharing1] Prompt audio error: $e');
-      } finally {
-        if (!_promptDone.isCompleted) _promptDone.complete();
-      }
-    });
-    await _audioPlayer.play(AssetSource('audio/lumi_town/level5/intro.wav'));
+    await _speak('level5/intro.wav');
+    if (_disposed || !mounted) return;
+
+    setState(() => _introFinished = true);
+    _startNoHandsTimer();
+
+    await _speak('thumbsup_thumbsdown.wav');
+    if (!_promptDone.isCompleted) _promptDone.complete();
   }
 
   Future<void> _requestCameraPermission() async {
     final status = await Permission.camera.request();
-    if (!mounted) return;
+    if (_disposed || !mounted) return;
 
     setState(() {
       _cameraState = status.isGranted
@@ -108,9 +110,19 @@ class _Sharing1State extends State<Sharing1>
     if (_introFinished) _startNoHandsTimer();
   }
 
+  @override
+  void onAppBackgrounded() {
+    _noHandsTimer?.cancel();
+  }
+
+  @override
+  void onAppForegrounded() {
+    if (_introFinished) _startNoHandsTimer();
+  }
+
   void _startNoHandsTimer() {
     _noHandsTimer?.cancel();
-    if (_showButtons || !mounted) return;
+    if (_showButtons || _disposed || !mounted) return;
 
     if (_cameraState == _CameraGestureState.denied) {
       setState(() => _showButtons = true);
@@ -119,16 +131,17 @@ class _Sharing1State extends State<Sharing1>
     if (_cameraState == _CameraGestureState.checking) return;
 
     _noHandsTimer = Timer(_noHandsTimeout, () {
-      if (mounted) setState(() => _showButtons = true);
+      if (!_disposed && mounted) setState(() => _showButtons = true);
     });
   }
 
   @override
   void dispose() {
+    _disposed = true;
     disposeAiCamera();
-    _audioPlayer.dispose();
-    _introSub?.cancel();
     _noHandsTimer?.cancel();
+    _voice.dispose();
+    if (!_promptDone.isCompleted) _promptDone.complete();
     super.dispose();
   }
 
@@ -136,21 +149,14 @@ class _Sharing1State extends State<Sharing1>
     if (_actionTaken) return;
     _actionTaken = true;
 
-    // Let the prompt finish before reacting, so it never gets cut off.
     await _promptDone.future;
-    if (!mounted) return;
+    if (_disposed || !mounted) return;
 
     _tapTracker.recordCorrectTap();
     _noHandsTimer?.cancel();
 
-    debugPrint('Thumbs Up!');
-    await _audioPlayer.stop();
-    await _audioPlayer.play(
-      AssetSource('audio/lumi_town/level5/share_yes.wav'),
-    );
-
-    await _audioPlayer.onPlayerComplete.first;
-    if (!mounted) return;
+    await _speak('level5/share_yes.wav');
+    if (_disposed || !mounted) return;
 
     final emotionsSoFar = stopAiCamera();
     Navigator.of(context).pushReplacement(
@@ -168,20 +174,15 @@ class _Sharing1State extends State<Sharing1>
     if (_actionTaken) return;
     _actionTaken = true;
 
-    // Let the prompt finish before reacting, so it never gets cut off.
     await _promptDone.future;
-    if (!mounted) return;
+    if (_disposed || !mounted) return;
 
     _tapTracker.recordMistake();
 
-    debugPrint('Thumbs Down!');
-    await _audioPlayer.stop();
-    await _audioPlayer.play(AssetSource('audio/lumi_town/level5/share_no.wav'));
+    await _speak('level5/share_no.wav');
+    if (_disposed || !mounted) return;
 
-    if (!mounted) return;
-    setState(() {
-      _actionTaken = false;
-    });
+    setState(() => _actionTaken = false);
   }
 
   @override
@@ -369,7 +370,11 @@ class _Sharing1State extends State<Sharing1>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         GestureDetector(
-                          onTap: _handleThumbsUp,
+                          onTap: () {
+                            if (_actionTaken) return;
+                            GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+                            _handleThumbsUp();
+                          },
                           child: _ThumbButton(
                             imagePath:
                                 'assets/images/objects/lumi/thumbs_up.png',
@@ -381,10 +386,13 @@ class _Sharing1State extends State<Sharing1>
                         ),
                         SizedBox(width: sw * 0.04),
                         GestureDetector(
-                          onTap: _handleThumbsDown,
+                          onTap: () {
+                            if (_actionTaken) return;
+                            GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+                            _handleThumbsDown();
+                          },
                           child: _ThumbButton(
-                            imagePath:
-                                'assets/images/objects/lumi/thumbs_down.png',
+                            imagePath: 'assets/images/objects/lumi/thumbs_down.png',
                             backgroundColor: const Color.fromARGB(0, 0, 0, 0),
                             size: thumbBtnSize,
                             iconSize: thumbSize,

@@ -83,6 +83,7 @@ class _MusicSoundsScreenState extends State<MusicSoundsScreen> {
                               onToggle: null,
                               volume: s.gamesVolume,
                               onVolumeChanged: s.setGamesVolume,
+                              minVolume: 0.2,
                             ),
                           ],
                         );
@@ -158,6 +159,7 @@ class _SoundCard extends StatelessWidget {
   final double? volume; // null = no slider
   final ValueChanged<double>? onVolumeChanged;
   final ValueChanged<double>? onVolumeChangeEnd;
+  final double minVolume;
 
   const _SoundCard({
     required this.color,
@@ -168,6 +170,7 @@ class _SoundCard extends StatelessWidget {
     this.onVolumeChanged,
     this.onVolumeChangeEnd,
     this.onToggle,
+    this.minVolume = 0.0,
   });
 
   @override
@@ -237,7 +240,9 @@ class _SoundCard extends StatelessWidget {
                         ),
                       ),
                       child: Slider(
-                        value: volume!,
+                        min: minVolume,
+                        max: 1.0,
+                        value: volume!.clamp(minVolume, 1.0),
                         onChanged: enabled ? onVolumeChanged : null,
                         onChangeEnd: enabled ? onVolumeChangeEnd : null,
                       ),

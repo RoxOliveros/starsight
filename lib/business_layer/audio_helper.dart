@@ -89,6 +89,12 @@ class AudioHelper with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _queue = Future.value();
+
+  Future<void> _enqueue(Future<void> Function() op) {
+    return _queue = _queue.then((_) => op()).catchError((_) {});
+  }
+
   Future<void> playBackgroundMusic({
     String? track,
     double volume = 0.10,
@@ -131,7 +137,7 @@ class AudioHelper with WidgetsBindingObserver {
     }
   }
 
-  Future<void> pauseBackgroundMusic() async {
+  Future<void> pauseBackgroundMusic() => _enqueue(() async {
     try {
       if (bgPlayer.state == PlayerState.playing) {
         await bgPlayer.pause();
@@ -139,9 +145,9 @@ class AudioHelper with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('AudioHelper: failed to pause background music: $e');
     }
-  }
+  });
 
-  Future<void> resumeBackgroundMusic() async {
+  Future<void> resumeBackgroundMusic() => _enqueue(() async {
     if (!AudioSettings.instance.musicOn) return;
     try {
       if (bgPlayer.state == PlayerState.paused) {
@@ -150,7 +156,7 @@ class AudioHelper with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('AudioHelper: failed to resume background music: $e');
     }
-  }
+  });
 
   Future<void> setBackgroundMusicVolume(double volume) async {
     _baseVolume = volume.clamp(0.0, 1.0);

@@ -8,7 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class Sorry6Screen extends StatefulWidget {
@@ -29,7 +29,7 @@ class Sorry6Screen extends StatefulWidget {
 
 class _Sorry6ScreenState extends State<Sorry6Screen>
     with AiCameraMixin<Sorry6Screen>, AppAudioLifecycleMixin<Sorry6Screen> {
-  late final AudioPlayer _audioPlayer;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
@@ -39,7 +39,6 @@ class _Sorry6ScreenState extends State<Sorry6Screen>
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
     OrientationService.setLandscape();
 
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
@@ -56,11 +55,8 @@ class _Sorry6ScreenState extends State<Sorry6Screen>
 
   Future<void> _playSceneAudio() async {
     try {
-      await _audioPlayer.play(
-        AssetSource('audio/lumi_town/level9/sorry_7.wav'),
-      );
-
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_7.wav');
+      await waitForAudio(_audioPlayer);    
       if (!mounted) return;
 
       final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];

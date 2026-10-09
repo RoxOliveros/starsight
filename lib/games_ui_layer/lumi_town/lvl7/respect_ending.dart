@@ -15,7 +15,7 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-
+import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class RespectEnding extends StatefulWidget {
@@ -72,10 +72,7 @@ class _RespectEndingState extends State<RespectEnding>
   }
 
   void _startEndingSequence() {
-    _audioPlayer.play(
-      AssetSource('audio/lumi_town/level7/respect_success.wav'),
-    );
-
+    playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_success.wav');
     Future.delayed(const Duration(seconds: 20), () async {
       if (!mounted) return;
       await _saveDataAndMarkComplete();

@@ -2,6 +2,31 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../games_audio_helper.dart';
+
+// USAGE
+//
+// TrWooReactionMixin
+//
+// final AudioPlayer _trWooPlayer = AudioPlayer();
+//
+// @override
+// AudioPlayer get trWooPlayer => _trWooPlayer;
+//
+// dispose
+// _trWooPlayer.dispose();
+//
+// right
+// unawaited(showTrWooReaction(TrWooState.correct));
+//
+// wrong
+// showTrWooReaction(TrWooState.wrong);
+//
+// build
+// if (_screenPhase == introgame) buildTrWoo(context),
+// or
+// buildtrwoo in gamephase or after introphase
+
 enum TrWooState { normal, correct, wrong }
 
 mixin TrWooReactionMixin<T extends StatefulWidget> on State<T> {
@@ -14,29 +39,13 @@ mixin TrWooReactionMixin<T extends StatefulWidget> on State<T> {
     setState(() => trWooState = state);
 
     if (state == TrWooState.correct) {
-      await _playTrWooAudio('assets/audio/sound_effects/sfx_shine.wav');
+      GamesSfxPlayer.instance.play(GameSfx.shine);
     } else if (state == TrWooState.wrong) {
-      await _playTrWooAudio('assets/audio/lumi_town/dr.woo_tryagain.wav');
+      await playAssetAudio(trWooPlayer, 'assets/audio/lumi_town/dr.woo_tryagain.wav');
     }
 
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => trWooState = TrWooState.normal);
-  }
-
-  Future<void> _playTrWooAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = trWooPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await trWooPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Dr. Woo audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
   }
 
   Widget buildTrWoo(BuildContext context) {
