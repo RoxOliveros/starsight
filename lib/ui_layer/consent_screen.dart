@@ -4,6 +4,7 @@ import 'package:StarSight/ui_layer/signup_signin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../business_layer/database_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -79,9 +80,122 @@ class _ConsentScreenState extends State<ConsentScreen> {
     );
   }
 
-  void _onAllowAndContinue() {
+  void _onAllowAndContinue() async {
     if (!_isChecked) return;
-    showAllowedDialog(context);
+
+    // Trigger the native device permission prompts
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.camera,
+      Permission.microphone,
+    ].request();
+
+    if (!mounted) return;
+
+    bool cameraGranted = statuses[Permission.camera]!.isGranted;
+    bool micGranted = statuses[Permission.microphone]!.isGranted;
+
+    bool cameraDeniedForever = statuses[Permission.camera]!.isPermanentlyDenied;
+    bool micDeniedForever =
+        statuses[Permission.microphone]!.isPermanentlyDenied;
+
+    if (cameraGranted && micGranted) {
+      showAllowedDialog(context);
+    } else if (cameraDeniedForever || micDeniedForever) {
+      // OS blocks re-prompting. Must send user to App Settings.
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: ColorTheme.cream,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'Settings Update Required',
+              style: TextStyle(
+                fontFamily: AppTextStyles.fredoka,
+                color: ColorTheme.deepNavyBlue,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text(
+              'You have previously denied camera or microphone access. Please enable them in your device settings to continue using StarSight.',
+              style: TextStyle(
+                fontFamily: AppTextStyles.nunito,
+                color: ColorTheme.brown,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(
+                    fontFamily: AppTextStyles.fredoka,
+                    color: ColorTheme.brown,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await openAppSettings(); // This opens the native OS app settings
+                },
+                child: const Text(
+                  'Open Settings',
+                  style: TextStyle(
+                    fontFamily: AppTextStyles.fredoka,
+                    color: ColorTheme.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      // Standard denial prompt card
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: ColorTheme.cream,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'Permissions Required',
+              style: TextStyle(
+                fontFamily: AppTextStyles.fredoka,
+                color: ColorTheme.deepNavyBlue,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text(
+              'Camera and Microphone permissions are required to use StarSight features. Please grant access to continue.',
+              style: TextStyle(
+                fontFamily: AppTextStyles.nunito,
+                color: ColorTheme.brown,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  'Okay',
+                  style: TextStyle(
+                    fontFamily: AppTextStyles.fredoka,
+                    color: ColorTheme.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   @override

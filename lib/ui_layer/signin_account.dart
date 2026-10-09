@@ -8,6 +8,8 @@ import '../business_layer/audio_helper.dart';
 import 'app_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:StarSight/ui_layer/consent_screen.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -116,13 +118,26 @@ class _SignInAccountState extends State<SignInAccount>
         return;
       }
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DashboardScreen(nickname: fetchedNickname),
-        ),
-        (route) => false,
-      );
+      bool cameraGranted = await Permission.camera.isGranted;
+      bool micGranted = await Permission.microphone.isGranted;
+
+      if (!mounted) return;
+
+      if (cameraGranted && micGranted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DashboardScreen(nickname: fetchedNickname),
+          ),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const ConsentScreen()),
+          (route) => false,
+        );
+      }
     } else {
       String friendlyMessage = error;
       String lowerCaseError = error.toLowerCase();
@@ -254,13 +269,26 @@ class _SignInAccountState extends State<SignInAccount>
           );
           return;
         }
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DashboardScreen(nickname: fetchedNickname),
-          ),
-          (route) => false,
-        );
+        bool cameraGranted = await Permission.camera.isGranted;
+        bool micGranted = await Permission.microphone.isGranted;
+
+        if (!mounted) return;
+
+        if (cameraGranted && micGranted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DashboardScreen(nickname: fetchedNickname),
+            ),
+            (route) => false,
+          );
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const ConsentScreen()),
+            (route) => false,
+          );
+        }
       } else {
         if (!mounted) return;
         Navigator.pop(context);
@@ -284,11 +312,14 @@ class _SignInAccountState extends State<SignInAccount>
         backgroundColor: ColorTheme.cream,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: ColorTheme.deepNavyBlue),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: ColorTheme.deepNavyBlue,
+          ),
           onPressed: () {
             SfxHelper.instance.play(Sfx.keyTap);
             Navigator.pop(context);
-          }
+          },
         ),
       ),
       body: SafeArea(
@@ -349,7 +380,7 @@ class _SignInAccountState extends State<SignInAccount>
                                   TextField(
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
-                                    onTap: (){
+                                    onTap: () {
                                       SfxHelper.instance.play(Sfx.keyTap);
                                     },
                                     autocorrect: false,
@@ -393,7 +424,7 @@ class _SignInAccountState extends State<SignInAccount>
                                   TextField(
                                     controller: _passwordController,
                                     obscureText: _obscurePassword,
-                                    onTap: (){
+                                    onTap: () {
                                       SfxHelper.instance.play(Sfx.keyTap);
                                     },
                                     style: const TextStyle(
@@ -448,7 +479,7 @@ class _SignInAccountState extends State<SignInAccount>
                                   ),
                                   const SizedBox(height: 8),
                                   GestureDetector(
-                                    onTap: (){
+                                    onTap: () {
                                       SfxHelper.instance.play(Sfx.keyTap);
                                       _onForgotPassword();
                                     },
@@ -469,7 +500,7 @@ class _SignInAccountState extends State<SignInAccount>
                                 width: 190,
                                 height: 52,
                                 child: ElevatedButton(
-                                  onPressed: (){
+                                  onPressed: () {
                                     SfxHelper.instance.play(Sfx.keyTap);
                                     _onSignIn();
                                   },
@@ -509,7 +540,7 @@ class _SignInAccountState extends State<SignInAccount>
                               const SizedBox(height: 16),
 
                               GestureDetector(
-                                onTap: (){
+                                onTap: () {
                                   SfxHelper.instance.play(Sfx.keyTap);
                                   _onGoogleSignIn();
                                 },
