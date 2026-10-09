@@ -188,7 +188,7 @@ class _ListeningGameState extends State<ListeningGame>
         _currentPhase = GamePhase.answered;
       });
 
-      _playKikiAudio('audio/sound_effects/shine.wav');
+      _playKikiAudio('audio/sound_effects/sfx_shine.wav');
       _afterAudio(() {
         _playKikiAudio('audio/discovery_lagoon/listening_rc.wav');
 
@@ -238,7 +238,7 @@ class _ListeningGameState extends State<ListeningGame>
     if (partId == 'ear') {
       _tapTracker.recordCorrectTap();
       setState(() => _currentPhase = GamePhase.bodyPartsAnswered);
-      _playKikiAudio('audio/sound_effects/shine.wav');
+      _playKikiAudio('audio/sound_effects/sfx_shine.wav');
       _afterAudio(() {
         _playKikiAudio('audio/discovery_lagoon/listening_whatpart_rc.wav');
         _afterAudio(_saveDataAndShowGoodJob);

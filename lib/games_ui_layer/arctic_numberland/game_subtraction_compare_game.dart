@@ -58,7 +58,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       '$_audioBase/treat_compare_instruction.wav';
   static const String _audioQuestion = '$_audioBase/treat_compare_question.wav';
   static const String _audioTreatPlaceRemove =
-      'assets/audio/sound_effects/bubble_pop.wav';
+      'assets/audio/sound_effects/sfx_bubble_pop.wav';
   static const String _audioWin = '$_audioBase/mahusay.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────

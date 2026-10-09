@@ -54,7 +54,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
       'assets/audio/arctic_numberland/012_recog_instruction.wav';
 
   static const String _audioBubblePop =
-      'assets/audio/sound_effects/bubble_pop.wav';
+      'assets/audio/sound_effects/sfx_bubble_pop.wav';
 
   late int _correctNumber;
   late List<int> _choices;

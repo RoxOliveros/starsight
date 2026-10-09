@@ -219,7 +219,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
       _tapTracker.recordMistake();
 
       HapticFeedback.heavyImpact();
-      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
+      await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       setState(() => _wrongShake = true);
       await Future.delayed(const Duration(milliseconds: 1100));

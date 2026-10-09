@@ -27,7 +27,7 @@ const String _teacherWooImage = 'assets/images/characters/tr.woo_the_owl.png';
 const String _audioBase = 'assets/audio/lumi_town/';
 const String _introAudio = '${_audioBase}cleaning_intro.wav';
 const String _instructionAudio = '${_audioBase}cleaning_instruction.wav';
-const String _wrongAudio = 'assets/audio/sound_effects/bubble_pop.wav';
+const String _wrongAudio = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
 const String _winAudio = '${_audioBase}cleaning_win.wav';
 
 const String _sceneImageBase = 'assets/images/objects/lumi/';

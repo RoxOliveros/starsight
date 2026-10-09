@@ -52,7 +52,7 @@ class _SeedGameState extends State<SeedGame>
       'audio/discovery_lagoon/seed_game_thankyou.wav';
   static const String _introAudio =
       'audio/discovery_lagoon/seed_game_intro.wav';
-  static const String _shineAudio = 'audio/sound_effects/shine.wav';
+  static const String _shineAudio = 'audio/sound_effects/sfx_shine.wav';
 
   final List<List<String>> allCorrectSequences = [
     [

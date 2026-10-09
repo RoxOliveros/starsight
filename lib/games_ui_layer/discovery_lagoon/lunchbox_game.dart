@@ -545,7 +545,7 @@ class _LunchboxGameState extends State<LunchboxGame>
 
       final completed = _sfxPlayer.onPlayerComplete.first;
 
-      await _sfxPlayer.play(AssetSource('audio/sound_effects/bubble_pop.wav'));
+      await _sfxPlayer.play(AssetSource('audio/sound_effects/sfx_bubble_pop.wav'));
 
       await completed;
     } catch (e) {

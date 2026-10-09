@@ -47,7 +47,7 @@
     static const String _penguinImage = 'assets/images/characters/doma_the_penguin.png';
 
     static const String _audioInstruction = 'audio/arctic_numberland/ice_path_instruction.wav';
-    static const String _audioBubblePop = 'audio/sound_effects/bubble_pop.wav';
+    static const String _audioBubblePop = 'audio/sound_effects/sfx_bubble_pop.wav';
     static const String _audioMahusay = 'audio/arctic_numberland/mahusay.wav';
 
     late List<int> _sequence;

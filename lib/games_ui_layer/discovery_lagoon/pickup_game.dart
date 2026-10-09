@@ -393,7 +393,7 @@ class _PickupGameState extends State<PickupGame>
     }
 
     _tapTracker.recordCorrectTap();
-    _playAudio('audio/sound_effects/shine.wav');
+    _playAudio('audio/sound_effects/sfx_shine.wav');
 
     setState(() {
       _isTargetMoving = true;

@@ -58,12 +58,12 @@ class AudioManager {
   }
 
   // Preset SFX helpers
-  Future<void> playPour() => playSfx('pour.wav');
-  Future<void> playWhisk() => playSfx('whisk.wav');
-  Future<void> playSizzle() => playSfx('sizzle.wav');
-  Future<void> playFlip() => playSfx('flip.wav');
-  Future<void> playTap() => playSfx('bubble_pop.wav');
-  Future<void> playCrack() => playSfx('egg_crack.wav');
+  Future<void> playPour() => playSfx('sfx_pour.wav');
+  Future<void> playWhisk() => playSfx('sfx_whisk.wav');
+  Future<void> playSizzle() => playSfx('sfx_sizzle.wav');
+  Future<void> playFlip() => playSfx('sfx_flip.wav');
+  Future<void> playTap() => playSfx('sfx_bubble_pop.wav');
+  Future<void> playCrack() => playSfx('sfx_egg_crack.wav');
 
   void toggleSfx() => _sfxEnabled = !_sfxEnabled;
   void toggleMusic() => _musicEnabled = !_musicEnabled;

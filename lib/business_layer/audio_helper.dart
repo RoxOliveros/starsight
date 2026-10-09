@@ -221,8 +221,8 @@ class BgMusicAssets {
 // SfxHelper.instance.play(Sfx.bubblePop);
 
 abstract class Sfx {
-  static const String keyTap = 'audio/sound_effects/bubble_click.wav';
-  static const String bubblePop = 'audio/sound_effects/bubble_pop.wav';
+  static const String keyTap = 'audio/sound_effects/sfx_bubble_click.wav';
+  static const String bubblePop = 'audio/sound_effects/sfx_bubble_pop.wav';
 }
 
 class SfxHelper {

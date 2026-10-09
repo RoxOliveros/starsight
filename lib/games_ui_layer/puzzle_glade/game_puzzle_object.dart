@@ -64,8 +64,8 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
   static const String _audioComplete =
       'assets/audio/puzzle_glade/puzzle_object_complete.wav';
 
-  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/sfx_shine.wav';
+  static const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;

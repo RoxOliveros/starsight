@@ -53,8 +53,8 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
   static const String _audioIntro =
       'assets/audio/arctic_numberland/level17/intro.wav';
   static const String _audioSlotCorrect =
-      'assets/audio/sound_effects/bubble_pop.wav';
-  static const String _audioWin = 'assets/audio/sound_effects/shine.wav';
+      'assets/audio/sound_effects/sfx_bubble_pop.wav';
+  static const String _audioWin = 'assets/audio/sound_effects/sfx_shine.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -313,7 +313,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         _slotWrong[slotIndex] = true;
       });
 
-      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await _playAudio('assets/audio/sound_effects/sfx_bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
 
       await Future.delayed(const Duration(milliseconds: 600));

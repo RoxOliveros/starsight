@@ -34,7 +34,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   static const String _snowflakeImage = 'assets/images/objects/arctic/snowflake.png';
 
   String get _snowflakeRequestAudio => 'audio/arctic_numberland/snowflake_${widget.number}.wav';
-  static const String _audioBubblePop = 'audio/sound_effects/bubble_pop.wav';
+  static const String _audioBubblePop = 'audio/sound_effects/sfx_bubble_pop.wav';
   static const String _audioMahusay = 'audio/arctic_numberland/mahusay.wav';
 
   final Random _random = Random();

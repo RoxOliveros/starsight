@@ -155,7 +155,7 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
   Future<void> _playShineSound() async {
     try {
       await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+      await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
     } catch (e) {
       debugPrint("Error playing audio: $e");
     }

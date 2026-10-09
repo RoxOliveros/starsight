@@ -71,7 +71,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       'assets/audio/puzzle_glade/shape_fit_intro.wav';
   static const String _audioInstructions =
       'assets/audio/puzzle_glade/shape_fit_instruction.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
   static const String _audioComplete =
       'assets/audio/puzzle_glade/shape_fit_complete.wav';
 

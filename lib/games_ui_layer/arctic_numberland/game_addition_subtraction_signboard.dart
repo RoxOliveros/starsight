@@ -79,9 +79,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
       '$_audioBase/signboard_add_instruction.wav';
   static const String _audioRoundPromptSub =
       '$_audioBase/signboard_sub_instruction.wav';
-  static const String _audioBury = 'assets/audio/sound_effects/erase.wav';
+  static const String _audioBury = 'assets/audio/sound_effects/sfx_erase.wav';
   static const String _audioBubblePop =
-      'assets/audio/sound_effects/bubble_pop.wav';
+      'assets/audio/sound_effects/sfx_bubble_pop.wav';
   static const String _audioWin = '$_audioBase/signboard_win.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────

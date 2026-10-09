@@ -91,7 +91,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/caterpillar_intro.wav';
   static const String _audioInstruction = '$_audioBase/caterpillar_instruction.wav';
-  static const String _audioCorrect = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioCorrect = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
   static const String _audioWin = '$_audioBase/caterpillar_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────

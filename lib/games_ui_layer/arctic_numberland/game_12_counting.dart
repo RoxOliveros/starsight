@@ -53,7 +53,7 @@ class _Number12CountingObjectsScreenState
   static const String _audioInstruction =
       'assets/audio/arctic_numberland/012_counting_instruction.wav';
   static const String _audioBubblePop =
-      'assets/audio/sound_effects/bubble_pop.wav';
+      'assets/audio/sound_effects/sfx_bubble_pop.wav';
 
   late int _correctCount;
   late List<int> _choices;

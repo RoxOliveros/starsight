@@ -57,7 +57,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   static const String _audioInstructionPrompt =
       '$_audioBase/rescue_bridge_instruction.wav';
   static const String _audioWeightAddRemove =
-      'assets/audio/sound_effects/clack.wav';
+      'assets/audio/sound_effects/sfx_clack.wav';
   static const String _audioWin = '$_audioBase/rescue_bridge_win.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────

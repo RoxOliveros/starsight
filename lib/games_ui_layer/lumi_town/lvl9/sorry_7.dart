@@ -81,7 +81,7 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
       setState(() => _canDrag = false);
       await _audioPlayer.stop();
 
-      await _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+      await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 
@@ -105,7 +105,7 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
       setState(() => _canDrag = false);
       await _audioPlayer.stop();
 
-      await _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+      await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
       await _audioPlayer.onPlayerComplete.first;
       if (!mounted) return;
 

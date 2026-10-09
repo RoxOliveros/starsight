@@ -291,7 +291,7 @@ class _Number345CountingObjectsScreenState
     } else {
       _tapTracker.recordMistake(); // <-- TRACK MISTAKE
 
-      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await _playAudio('assets/audio/sound_effects/sfx_bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
 
       await Future.delayed(const Duration(milliseconds: 600));

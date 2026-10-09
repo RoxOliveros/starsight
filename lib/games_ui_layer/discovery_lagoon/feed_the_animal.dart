@@ -74,7 +74,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
 
   static const String _audioIntro =
       'audio/discovery_lagoon/feed_the_animal_game_intro.wav';
-  static const String _audioCorrect = 'audio/sound_effects/shine.wav';
+  static const String _audioCorrect = 'audio/sound_effects/sfx_shine.wav';
   static const String _audioWrong = 'audio/discovery_lagoon/kiki_tryagain.wav';
 
   late final List<AnimalLevel> _levels = [

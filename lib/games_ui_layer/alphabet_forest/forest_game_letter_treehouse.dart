@@ -118,7 +118,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
 
   static const String _audioIntro = '$_audioBase/letter_treehouse_intro.wav';
   static const String _audioWin = '$_audioBase/letter_treehouse_win.wav';
-  static const String _sfxBuild = '$_sfxBase/build.wav';
+  static const String _sfxBuild = '$_sfxBase/sfx_build.wav';
 
   // ═════════════════════════════════════════════════════════════════════
   // GAME STRUCTURE

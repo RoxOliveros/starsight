@@ -64,8 +64,8 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   static const String _audioInstructions = 'assets/audio/puzzle_glade/whats_missing_instruction.wav';
   static const String _audioComplete = 'assets/audio/puzzle_glade/whats_missing_complete.wav';
 
-  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/sfx_shine.wav';
+  static const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   _GamePhase _gamePhase = _GamePhase.showing;

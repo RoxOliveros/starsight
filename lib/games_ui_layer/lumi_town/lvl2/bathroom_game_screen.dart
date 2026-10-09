@@ -1,20 +1,18 @@
-import 'dart:io';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
-import '../../../ui_layer/lumi_town/town_level.dart';
 import '../lumi_game_ui_layer.dart';
 import 'steps/step1_choice.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/games_ui_layer/games_audio_helper.dart';
 
 class Lvl2BathroomGameScreen extends StatefulWidget {
   final int level;
@@ -68,8 +66,11 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
     _fadeCtrl.forward();
 
     try {
-      await _playAudio('assets/audio/lumi_town/level2/vo_intro.wav');
-      await _audioPlayer.onPlayerComplete.first;
+      await playAssetAudio(
+        _audioPlayer,
+        'assets/audio/lumi_town/level2/vo_intro.wav',
+      );
+      await waitForAudio(_audioPlayer);
     } catch (_) {}
 
     if (!mounted) return;
@@ -86,16 +87,6 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
         ),
       ),
     );
-  }
-
-  Future<void> _playAudio(String assetPath) async {
-    final dir = await getTemporaryDirectory();
-    final data = await rootBundle.load(assetPath);
-    final bytes = data.buffer.asUint8List();
-    final fileName = assetPath.split('/').last;
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsBytes(bytes, flush: true);
-    await _audioPlayer.play(DeviceFileSource(file.path));
   }
 
   @override

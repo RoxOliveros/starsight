@@ -222,7 +222,7 @@ class _AppreciationGameState extends State<AppreciationGame>
         });
         _jumpCtrl.repeat(reverse: true);
 
-        await _audioPlayer.play(AssetSource('audio/sound_effects/yey.wav'));
+        await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_yey.wav'));
 
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
@@ -287,7 +287,7 @@ class _AppreciationGameState extends State<AppreciationGame>
   Future<void> _playShineSound() async {
     try {
       await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+      await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
     } catch (e) {
       debugPrint("Error playing audio: $e");
     }

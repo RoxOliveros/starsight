@@ -238,7 +238,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
 
     if (item.correctBinId == targetBinId) {
       _tapTracker.recordCorrectTap();
-      _playAudio('audio/sound_effects/shine.wav');
+      _playAudio('audio/sound_effects/sfx_shine.wav');
 
       setState(() {
         _isTrashFading = true;

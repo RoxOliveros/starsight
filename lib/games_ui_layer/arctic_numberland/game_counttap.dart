@@ -354,7 +354,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     } else {
       _tapTracker.recordMistake();
 
-      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await _playAudio('assets/audio/sound_effects/sfx_bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
       _wrongShakeCtrl.forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 2000));

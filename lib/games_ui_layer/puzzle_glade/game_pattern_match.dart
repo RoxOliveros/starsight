@@ -83,7 +83,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
       'assets/audio/puzzle_glade/pattern_match_instruction.wav';
   static const String _audioComplete =
       'assets/audio/puzzle_glade/pattern_match_complete.wav';
-  static const String _audioSuccess = 'assets/audio/sound_effects/shine.wav';
+  static const String _audioSuccess = 'assets/audio/sound_effects/sfx_shine.wav';
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
 

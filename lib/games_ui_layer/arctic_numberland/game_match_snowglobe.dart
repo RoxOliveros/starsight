@@ -308,7 +308,7 @@ class _Number1to5MatchSnowglobesScreenState
 
       // Shake the wrong globe
       setState(() => _shakingIndex = index);
-      await _playAudio('assets/audio/sound_effects/bubble_pop.wav');
+      await _playAudio('assets/audio/sound_effects/sfx_bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
 
       _shakeCtrl[index].forward(from: 0);

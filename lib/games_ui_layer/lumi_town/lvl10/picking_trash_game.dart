@@ -278,7 +278,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
     });
 
     await Future.delayed(const Duration(milliseconds: 800));
-    await _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+    await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
 
     setState(() {
       if (startedOnLeft) {

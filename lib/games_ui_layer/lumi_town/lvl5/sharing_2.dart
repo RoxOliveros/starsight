@@ -286,7 +286,7 @@ class _Sharing2State extends State<Sharing2>
       setState(() {
         _showAllCharactersSuccessUI = true;
       });
-      _audioPlayer.play(AssetSource('audio/sound_effects/shine.wav'));
+      _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           setState(() {

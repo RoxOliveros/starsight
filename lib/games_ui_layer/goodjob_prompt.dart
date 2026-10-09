@@ -92,7 +92,7 @@ class _GoodJobOverlayState extends State<GoodJobOverlay>
   }
 
   Future<void> _playYeySound() async {
-    await _audioPlayer.play(AssetSource('audio/sound_effects/yey.wav'));
+    await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_yey.wav'));
   }
 
   @override

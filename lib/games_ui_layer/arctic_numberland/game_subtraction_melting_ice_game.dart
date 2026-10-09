@@ -54,7 +54,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
       '$_audioBase/melting_ice_instruction.wav';
   static const String _audioQuestion = '$_audioBase/melting_ice_question.wav';
   static const String _audioMeltRefreeze =
-      'assets/audio/sound_effects/plip.wav';
+      'assets/audio/sound_effects/sfx_plip.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
   static const int _totalRounds = 5;

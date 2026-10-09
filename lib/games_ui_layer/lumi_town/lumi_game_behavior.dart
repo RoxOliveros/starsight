@@ -26,8 +26,8 @@ const String _audioBase = 'assets/audio/lumi_town/';
 const String _introAudio = '${_audioBase}behavior_intro.wav';
 const String _instructionAudio = '${_audioBase}behavior_instructions.wav';
 const String _winAudio = '${_audioBase}behavior_win.wav';
-const String _audioCorrect = 'assets/audio/sound_effects/shine.wav';
-const String _audioWrong = 'assets/audio/sound_effects/bubble_pop.wav';
+const String _audioCorrect = 'assets/audio/sound_effects/sfx_shine.wav';
+const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
 
 const String _redButton = 'assets/images/buttons/red_button.png';
 const String _redButtonClicked = 'assets/images/buttons/red_clicked.png';

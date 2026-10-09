@@ -233,7 +233,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
     } else {
       _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
-      await playSfx('assets/audio/sound_effects/bubble_pop.wav');
+      await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
       showDomaReaction(DomaState.wrong);
 
       setState(() => _wrongSpotId = option.id);
