@@ -91,10 +91,10 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_grassland.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _yakAsset = 'assets/images/objects/forest/yak.png';
-  static const String _zebraAsset = 'assets/images/objects/forest/zebra.png';
-  static const String _stoneAsset = 'assets/images/objects/forest/stone.png';
-  static const String _leafAsset = 'assets/images/objects/forest/leaf.png';
+  static const String _yakImage = 'assets/images/objects/forest/yak.png';
+  static const String _zebraImage = 'assets/images/objects/forest/zebra.png';
+  static const String _stoneImage = 'assets/images/objects/forest/stone.png';
+  static const String _leafImage = 'assets/images/objects/forest/leaf.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioStory = '$_audioBase/yak_zebra_race_story.wav';
@@ -562,13 +562,13 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
                 key: const ValueKey('both'),
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset(_yakAsset, height: screenH * 0.5, fit: BoxFit.contain),
+                  Image.asset(_yakImage, height: screenH * 0.5, fit: BoxFit.contain),
                   const SizedBox(width: 60),
-                  Image.asset(_zebraAsset, height: screenH * 0.5, fit: BoxFit.contain),
+                  Image.asset(_zebraImage, height: screenH * 0.5, fit: BoxFit.contain),
                 ],
               )
                   : Image.asset(
-                _introStage == 0 ? _yakAsset : _zebraAsset,
+                _introStage == 0 ? _yakImage : _zebraImage,
                 key: ValueKey(_introStage),
                 height: screenH * 0.6,
                 fit: BoxFit.contain,
@@ -677,7 +677,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
             tween: Tween(begin: _yakProgress, end: yakT),
             duration: const Duration(milliseconds: 700),
             builder: (context, t, _) => _buildAnimal(
-              asset: _yakAsset,
+              asset: _yakImage,
               fallbackEmoji: '🐂',
               t: t,
               w: w,
@@ -690,7 +690,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
             tween: Tween(begin: _zebraProgress, end: zebraT),
             duration: const Duration(milliseconds: 700),
             builder: (context, t, _) => _buildAnimal(
-              asset: _zebraAsset,
+              asset: _zebraImage,
               fallbackEmoji: '🦓',
               t: t,
               w: w,
@@ -810,7 +810,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
                       )
                     : null,
                 child: Image.asset(
-                  _stoneAsset,
+                  _stoneImage,
                   width: size,
                   height: size,
                   fit: BoxFit.contain,
@@ -859,7 +859,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
                 child: Opacity(
                   opacity: 0.5,
                   child: Image.asset(
-                    _leafAsset,
+                    _leafImage,
                     width: 18,
                     errorBuilder: (_, __, ___) =>
                         const Text('🍃', style: TextStyle(fontSize: 14)),
