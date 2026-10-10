@@ -9,7 +9,6 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/forest_game_mail_delivery.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -454,9 +453,13 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // 1. Your original game UI
-          ForestBackground(
-            child: Stack(
+      Positioned.fill(
+      child: Image.asset(
+        'assets/images/backgrounds/bg_game_forest.png',
+        fit: BoxFit.cover,
+      ),
+    ),
+    Stack(
               children: [
                 buildTofi(context),
 
@@ -574,7 +577,6 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                 ),
               ],
             ),
-          ),
 
           // 2. The Lighting Prompt Card Overlay
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)

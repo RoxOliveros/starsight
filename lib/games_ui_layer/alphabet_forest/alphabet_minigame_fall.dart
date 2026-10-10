@@ -9,7 +9,6 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
-import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
@@ -467,8 +466,14 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     return Scaffold(
       body: Stack(
         children: [
-          ForestBackground(
-            child: Stack(
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/bg_game_forest.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          Stack(
               children: [
                 const Positioned(top: 25, left: 25, child: ForestXButton()),
                 Positioned(
@@ -557,7 +562,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                 ),
               ],
             ),
-          ),
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {

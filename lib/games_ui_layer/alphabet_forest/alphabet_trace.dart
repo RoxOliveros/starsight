@@ -3,7 +3,6 @@ import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_pop.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -1197,9 +1196,14 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // 1. Your original game UI
-          ForestBackground(
-            child: Stack(
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/bg_game_forest.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          Stack(
               children: [
                 Column(
                   children: [
@@ -1283,7 +1287,6 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
                 buildTofi(context),
               ],
             ),
-          ),
 
           // 2. The Lighting Prompt Card (Valid here because it's inside the outer Stack's children list)
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)

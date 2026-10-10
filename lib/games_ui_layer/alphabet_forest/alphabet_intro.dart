@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
-import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -207,10 +206,15 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       return Scaffold(body: LoadingScreen.alphabetForest());
     }
 
-    return Scaffold(
-      body: ForestBackground(
-        child: Stack(
+    return Stack(
           children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/backgrounds/bg_game_forest.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+
             const Positioned(top: 25, left: 25, child: ForestXButton()),
 
             Positioned(
@@ -276,8 +280,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
                 ),
               ),
           ],
-        ),
-      ),
     );
   }
 
