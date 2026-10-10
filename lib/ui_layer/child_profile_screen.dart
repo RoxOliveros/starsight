@@ -44,47 +44,6 @@ extension LearningConstructX on LearningConstruct {
   }
 }
 
-/// Relative band, already computed upstream — never a raw number. Shown
-/// to parents as a short word plus a simple 1–3 star glance, never a
-/// percentage or numeric score.
-enum InsightBand { emerging, developing, confident }
-
-extension InsightBandX on InsightBand {
-  String get label {
-    switch (this) {
-      case InsightBand.emerging:
-        return 'Emerging';
-      case InsightBand.developing:
-        return 'Developing';
-      case InsightBand.confident:
-        return 'Confident';
-    }
-  }
-
-  /// 1–3 — used only to fill in stars, never displayed as a raw number.
-  int get starCount {
-    switch (this) {
-      case InsightBand.emerging:
-        return 1;
-      case InsightBand.developing:
-        return 2;
-      case InsightBand.confident:
-        return 3;
-    }
-  }
-
-  Color get color {
-    switch (this) {
-      case InsightBand.emerging:
-        return ColorTheme.orange;
-      case InsightBand.developing:
-        return ColorTheme.titleGold;
-      case InsightBand.confident:
-        return ColorTheme.teal;
-    }
-  }
-}
-
 enum InsightTrend { up, down, flat }
 
 extension InsightTrendX on InsightTrend {
@@ -111,19 +70,17 @@ extension InsightTrendX on InsightTrend {
   }
 }
 
-/// One construct's result for a subject: band + trend + the plain-language
+/// One construct's result for a subject: trend + the plain-language
 /// sentence a teacher/parent actually reads. `lowConfidence` should be set
 /// when tracker data was incomplete for the session(s) behind this insight.
 class ConstructInsight {
   final LearningConstruct construct;
-  final InsightBand band;
   final InsightTrend trend;
   final String description;
   final bool lowConfidence;
 
   const ConstructInsight({
     required this.construct,
-    required this.band,
     required this.trend,
     required this.description,
     this.lowConfidence = false,
@@ -517,15 +474,6 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
   String _formatDate(DateTime d) => '${d.month}/${d.day}/${d.year}';
 
-  // ── Birthday + gender (read from the child's Firestore document) ─────
-
-  /// Reads the child's raw document and fills [_birthdayText] and
-  /// [_genderText]. Sign-up saves the birthdate as "M/D/YYYY" and the
-  /// gender as "Boy" / "Girl".
-  ///
-  /// The exact Firestore key names live in DatabaseService, which I can't
-  /// see, so the likely names are tried in order. Once you confirm the
-  /// real ones in the Firestore console, you can delete the others.
   Future<void> _loadBirthdayAndGender(String childId) async {
     try {
       final rawChildren = await DatabaseService().getChildren();
@@ -1289,8 +1237,6 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     final now = DateTime.now();
     final seed = childId.hashCode.abs();
 
-    InsightBand bandAt(int i) =>
-        InsightBand.values[(seed + i) % InsightBand.values.length];
     InsightTrend trendAt(int i) =>
         InsightTrend.values[(seed + i * 3) % InsightTrend.values.length];
 
@@ -1344,9 +1290,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         final construct = entry.value;
         return ConstructInsight(
           construct: construct,
-          band: bandAt(i),
           trend: trendAt(i),
-          description: _mockDescription(name, construct, bandAt(i)),
+          description: _mockDescription(construct),
           lowConfidence: (seed + i) % 7 == 0,
         );
       }).toList();
@@ -1365,48 +1310,16 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     });
   }
 
-  String _mockDescription(
-    String subject,
-    LearningConstruct construct,
-    InsightBand band,
-  ) {
+  String _mockDescription(LearningConstruct construct) {
     switch (construct) {
       case LearningConstruct.engagement:
-        switch (band) {
-          case InsightBand.confident:
-            return 'Starts $subject activities right away and often replays favorite games without prompting.';
-          case InsightBand.developing:
-            return 'Engages well once a game starts, with occasional pauses before beginning a new round.';
-          case InsightBand.emerging:
-            return 'Needs a little encouragement to start $subject games, but stays once playing.';
-        }
+        return 'Engages well once a game starts, with occasional pauses before beginning a new round.';
       case LearningConstruct.attention:
-        switch (band) {
-          case InsightBand.confident:
-            return 'Consistently looks at and taps the correct targets across most attempts.';
-          case InsightBand.developing:
-            return 'Attention is mostly on-target, with some looking away between rounds.';
-          case InsightBand.emerging:
-            return 'Attention shifts often; benefits from shorter activity bursts in $subject.';
-        }
+        return 'Attention is mostly on-target, with some looking away between rounds.';
       case LearningConstruct.focus:
-        switch (band) {
-          case InsightBand.confident:
-            return 'Stays on a single activity for extended stretches without switching away.';
-          case InsightBand.developing:
-            return 'Holds focus for the first part of a session, tapering off midway through.';
-          case InsightBand.emerging:
-            return 'Focus is brief and easily interrupted by other elements on screen.';
-        }
+        return 'Holds focus for the first part of a session, tapering off midway through.';
       case LearningConstruct.learning:
-        switch (band) {
-          case InsightBand.confident:
-            return 'Accuracy has steadily improved across recent $subject sessions.';
-          case InsightBand.developing:
-            return 'Showing gradual improvement, with performance still varying session to session.';
-          case InsightBand.emerging:
-            return 'Performance is still establishing a baseline; not enough sessions yet for a clear trend.';
-        }
+        return 'Showing gradual improvement, with performance still varying session to session.';
     }
   }
 }
