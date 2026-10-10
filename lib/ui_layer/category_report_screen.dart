@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
 import '../business_layer/CategorySummaryService.dart';
+import '../business_layer/child_name_lookup.dart';
 import '../business_layer/forest_progress_service.dart';
 import '../business_layer/arctic_progress_service.dart';
 import '../business_layer/lagoon_progress_service.dart';
@@ -238,6 +239,12 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   }
 
   // 2. Load the data (with Smart Caching!)
+  /// The Firestore document ID is the child's *initial* nickname and never
+  /// changes, so the name used in the report (and cached with it) is read
+  /// from the child's current 'nickname' field. Returns null when it can't
+  /// be read right now (e.g. offline).
+  Future<String?> _currentChildName() => tryGetChildDisplayName(widget.childId);
+
   Future<void> _loadSpecificCycle(int cycleToLoad) async {
     if (!mounted) return;
     setState(() {
@@ -315,16 +322,21 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       List<String> playedGameIds = distinctLevels
           .toList(); // Pass grouped levels to AI!
 
+      // null = couldn't check the name (e.g. offline): trust the saved report
+      // instead of mistaking a failed lookup for a rename.
+      final checkedChildName = await _currentChildName();
+      final reportChildName = checkedChildName ?? widget.childName;
+
       // C. CACHE CHECK: Did we already generate a report for this exact number of games?
       if (cycleDoc.exists &&
           cycleDoc.data()!.containsKey('cachedReportCount')) {
         int cachedCount = cycleDoc.data()!['cachedReportCount'];
 
-        // If the game count hasn't changed, just use the saved report!
-        // cachedReportVersion 2 = attention-only reports (no emotion/bands).
-        // Older cached reports are regenerated once.
         if (cachedCount == totalAttempts &&
-            cycleDoc.data()!['cachedReportVersion'] == 2 &&
+            cycleDoc.data()!['cachedReportVersion'] == 3 &&
+            (checkedChildName == null ||
+                cycleDoc.data()!['cachedReportChildName'] ==
+                    checkedChildName) &&
             cycleDoc.data()!.containsKey('cachedReportData')) {
           if (!mounted) return;
           setState(() {
@@ -363,17 +375,19 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       Map<String, dynamic> summaryMap =
           await CategorySummaryService.generateCategoryReport(
             categoryName: widget.categoryName,
-            childName: widget.childName,
+            childName: reportChildName,
             completedGameIds: playedGameIds,
             totalCategoryGames: totalCategoryGames,
             attentionStates: allAttentionStates,
             totalMistakes: totalMistakes,
+            totalAttempts: totalAttempts,
           );
 
       // E. SAVE TO CACHE: Save this new report so it stays consistent next time
       await cycleRef.set({
         'cachedReportCount': totalAttempts,
-        'cachedReportVersion': 2,
+        'cachedReportVersion': 3,
+        'cachedReportChildName': reportChildName,
         'cachedReportData': summaryMap,
       }, SetOptions(merge: true));
 
@@ -401,6 +415,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     }
   }
 
+  /// Error state: a plain explanation (Wi-Fi vs. app/service) and, for real
+  /// failures, a button to try again. "No games played yet" is not retryable.
   Widget _buildErrorBody() {
     if (!_errorCanRetry) {
       return Center(
@@ -809,7 +825,15 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     String measurementExplanation = "";
     String quickMeaning = "";
 
-    if (title.toLowerCase() == "attention") {
+    if (title.toLowerCase() == "engagement") {
+      quickMeaning =
+          "How much your child joined in and stayed with the activities.";
+      measurementExplanation =
+          "We look at how many activities your child played and replayed, and "
+          "whether they stayed in front of the screen with their eyes open and "
+          "alert while playing. These are automatic estimates from gameplay "
+          "and the camera.";
+    } else if (title.toLowerCase() == "attention") {
       quickMeaning = "Whether your child's eyes stay on the activity.";
       measurementExplanation =
           "We check whether your child's face and eyes stay turned toward the "
@@ -1105,11 +1129,12 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Text(
-                  'These are the two things we look at while your child plays: '
-                  'Attention (whether their eyes stay on the activity) and '
-                  'Focus (how steadily they keep working without long pauses). '
-                  'Together, they give you a simple picture of how your child '
-                  'experienced the game.',
+                  'These are the three things we look at while your child plays: '
+                  'Engagement (how much they join in and stay with the '
+                  'activities), Attention (whether their eyes stay on the '
+                  'activity), and Focus (how steadily they keep working '
+                  'without long pauses). Together, they give you a simple '
+                  'picture of how your child experienced the game.',
                   textAlign: TextAlign.justify,
                   style: TextStyle(
                     fontFamily: 'Nunito',
@@ -1245,12 +1270,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   Widget _buildConstructsBox() {
     final entries = <Widget>[];
     final specs = [
-      (
-        'engagement',
-        'Engagement',
-        ColorTheme.orange,
-        Icons.emoji_emotions_rounded,
-      ),
+      ('engagement', 'Engagement', ColorTheme.orange, Icons.bolt_rounded),
       ('attention', 'Attention', ColorTheme.teal, Icons.visibility_rounded),
       (
         'focus',

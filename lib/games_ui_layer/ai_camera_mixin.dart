@@ -11,6 +11,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   Future<void>? _cameraInitFuture;
   Timer? _analysisTimer;
   bool isCameraInitialized = false;
+
   bool isFaceDetected = false;
   bool _isCameraDisposed = false;
 
@@ -211,7 +212,12 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           _serverTimeout,
         );
         var jsonResponse = jsonDecode(responseBody);
-        String detectedEmotion = jsonResponse['emotion'];
+
+        String detectedEmotion =
+            jsonResponse['emotion']?.toString() ??
+            jsonResponse['label']?.toString() ??
+            "NO FACE DETECTED";
+
         final faceNowDetected = detectedEmotion != "NO FACE DETECTED";
         final isFirstReading = !hasCapturedFirstFrame;
         final changed = faceNowDetected != isFaceDetected;
@@ -223,17 +229,21 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           });
         }
 
-        if (jsonResponse['calibration_progress'] != null) {
-          final newProgress = jsonResponse['calibration_progress'] as int;
-          final newNeeded =
-              jsonResponse['calibration_needed'] as int? ?? calibrationNeeded;
-          if (mounted &&
-              !_isCameraDisposed &&
-              (newProgress != calibrationProgress ||
-                  newNeeded != calibrationNeeded)) {
+        // FIX 2: Check both the root JSON and the 'debug' dictionary for progress
+        var debugMap = jsonResponse['debug'] as Map<String, dynamic>?;
+        int? parsedProgress =
+            jsonResponse['calibration_progress'] as int? ??
+            debugMap?['calibration_progress'] as int?;
+        int? parsedNeeded =
+            jsonResponse['calibration_needed'] as int? ??
+            debugMap?['calibration_needed'] as int?;
+
+        if (parsedProgress != null && mounted && !_isCameraDisposed) {
+          if (parsedProgress != calibrationProgress ||
+              parsedNeeded != calibrationNeeded) {
             setState(() {
-              calibrationProgress = newProgress;
-              calibrationNeeded = newNeeded;
+              calibrationProgress = parsedProgress;
+              calibrationNeeded = parsedNeeded ?? calibrationNeeded;
             });
           }
         }
@@ -250,6 +260,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         final isUsableReading =
             detectedEmotion != "NO FACE DETECTED" &&
             !detectedEmotion.startsWith("CALIBRATING");
+
         if (isUsableReading) {
           sessionEmotions.add(detectedEmotion);
           if (!_hasFiredCalibrationComplete) {
@@ -258,9 +269,14 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
           }
         }
 
-        print("Live Emotion: $detectedEmotion");
+        print("Live Output: $detectedEmotion");
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
+      // ADD THIS LINE TO SEE THE REAL ERROR IN YOUR TERMINAL:
+      print("NETWORK ERROR: $e");
+
       // Clean up the file even if the network fails
       if (imageFile != null && await imageFile.exists()) {
         await imageFile.delete();

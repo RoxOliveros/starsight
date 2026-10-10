@@ -33,7 +33,7 @@ extension LearningConstructX on LearningConstruct {
   IconData get icon {
     switch (this) {
       case LearningConstruct.engagement:
-        return Icons.emoji_emotions_rounded;
+        return Icons.bolt_rounded;
       case LearningConstruct.attention:
         return Icons.visibility_rounded;
       case LearningConstruct.focus:
@@ -474,6 +474,15 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
 
   String _formatDate(DateTime d) => '${d.month}/${d.day}/${d.year}';
 
+  // ── Birthday + gender (read from the child's Firestore document) ─────
+
+  /// Reads the child's raw document and fills [_birthdayText] and
+  /// [_genderText]. Sign-up saves the birthdate as "M/D/YYYY" and the
+  /// gender as "Boy" / "Girl".
+  ///
+  /// The exact Firestore key names live in DatabaseService, which I can't
+  /// see, so the likely names are tried in order. Once you confirm the
+  /// real ones in the Firestore console, you can delete the others.
   Future<void> _loadBirthdayAndGender(String childId) async {
     try {
       final rawChildren = await DatabaseService().getChildren();

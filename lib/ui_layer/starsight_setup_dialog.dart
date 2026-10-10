@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Public entry point — call this from any level screen.
 class StarsightSetupTutorial {
-  static const _prefsKeyPrefix = 'starsight_setup_seen_';
+  static const _prefsKeyPrefix = 'starsight_setup_seen_v2_';
 
   static bool isSessionCalibrated = false;
 
@@ -141,6 +141,14 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
   String? _statusText() {
     if (_isCalibrationDone) return null;
     if (!isFaceDetected) return 'PLEASE LOOK AT THE CAMERA...';
+
+    // Change the message based on how many frames are done
+    if (calibrationProgress >= 25) {
+      return 'HOLD ON, NEARLY THERE...';
+    } else if (calibrationProgress >= 15) {
+      return 'HALFWAY THERE, KEEP LOOKING...';
+    }
+
     return 'STARSIGHT IS GETTING TO KNOW YOUR CHILD...';
   }
 

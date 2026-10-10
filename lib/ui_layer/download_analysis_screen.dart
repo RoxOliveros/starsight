@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'avatar_picker_dialog.dart'; // for kDefaultAvatarPath
 import '../business_layer/analysis_pdf_service.dart';
+import '../business_layer/child_name_lookup.dart';
 
 abstract class _DlPalette {
   static const Color cream = Color(0xFFFAF7EB);
@@ -103,6 +104,27 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
 
   final Set<String> _selected = {};
   bool _isGenerating = false;
+
+  // The Firestore document ID is the child's *initial* nickname and never
+  // changes, so the name shown here (and printed on the PDF) is read from
+  // the child's current 'nickname' field instead of the ID.
+  late String _displayName = widget.childName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDisplayName();
+  }
+
+  // True once the nickname was actually read (stays false when offline).
+  bool _nameVerified = false;
+
+  Future<void> _loadDisplayName() async {
+    final name = await tryGetChildDisplayName(widget.childId);
+    if (!mounted || name == null || name.trim().isEmpty) return; // unknown
+    _nameVerified = true;
+    if (name != _displayName) setState(() => _displayName = name);
+  }
 
   bool get _allSelected => _selected.length == _subjects.length;
 
@@ -260,7 +282,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
 
     if (choice == null || !mounted) return null;
 
-    final filename = AnalysisPdfService.filenameFor(widget.childName);
+    final filename = AnalysisPdfService.filenameFor(_displayName);
     if (choice == 'save') {
       final saved = await AnalysisPdfService.saveToDevice(bytes, filename);
       return saved ? 'saved' : null; // null = cancelled
@@ -325,6 +347,9 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
     setState(() => _isGenerating = true);
 
     try {
+      // Make sure the PDF carries the latest edited nickname.
+      await _loadDisplayName();
+
       // Keep the on-screen order of the subjects.
       final chosen = {
         for (final s in _subjects)
@@ -333,7 +358,8 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
 
       final result = await AnalysisPdfService.build(
         childId: widget.childId,
-        childName: widget.childName,
+        childName: _displayName,
+        nameVerified: _nameVerified,
         subjects: chosen,
       );
       if (!mounted) return;
@@ -346,8 +372,9 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
           title: 'NO REPORTS YET',
           message:
               'There is nothing to download for your selected subjects yet. '
-              'Play at least one level in any of the selected subjects first, '
-              'then come back and try again.',
+              'Play at least one level in any of the selected subjects, open '
+              "its report from your child's profile, then come back and try "
+              'again.',
         );
         return;
       }
@@ -358,7 +385,8 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
       final missing = result.missingSubjects;
       final leftOut = missing.isEmpty
           ? ''
-          : 'Left out (no report yet): ${missing.join(', ')}.';
+          : 'Left out (no up-to-date report yet): ${missing.join(', ')}. '
+                'Open each one\'s report from your child\'s profile first.';
 
       if (outcome == 'saved') {
         await _showPromptCard(
@@ -595,7 +623,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  widget.childName,
+                  _displayName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(

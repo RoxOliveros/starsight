@@ -82,8 +82,9 @@ class CategorySummaryService {
     final readings = states.map(_bucketFor).where((b) => b != 'other').toList();
     if (readings.isEmpty) {
       return 'No camera readings were available for this session. Do NOT make '
-          'any claims about where the child was looking; base "attention" '
-          'only on mistakes and games completed.';
+          'any claims about where the child was looking or whether their eyes '
+          'looked alert; base "attention" and "engagement" only on mistakes, '
+          'games completed and replays.';
     }
 
     final counts = <String, int>{};
@@ -124,6 +125,7 @@ class CategorySummaryService {
     required int totalCategoryGames,
     required List<String> attentionStates,
     required int totalMistakes,
+    int? totalAttempts, // play sessions including replays
   }) async {
     List<String> testedCriteria = [];
     for (String gameId in completedGameIds) {
@@ -152,6 +154,7 @@ Raw Session Data:
 - Activities Played: ${completedGameIds.join(', ')}
 - ${_summarizeAttention(attentionStates)}
 - Total Mistakes Made: $totalMistakes
+- Play sessions in total, including replays: ${totalAttempts ?? completedGameIds.length}
 
 IMPORTANT — this report is written by students, not licensed professionals.
 It must stay strictly observational:
@@ -163,9 +166,14 @@ It must stay strictly observational:
 - The camera readings are automatic estimates, so use soft wording such as
   "appeared to" or "seemed to". Do NOT quote any numbers or percentages;
   describe amounts in words like "most of the time" or "occasionally".
-- Do NOT describe or guess the child's emotions or mood. Only attention
-  (where they seemed to be looking), and how steadily they worked, are
-  measured.
+- Do NOT describe or guess the child's emotions or mood. Only these three
+  things are measured:
+  * Engagement: how much the child joined in and stayed with the activities
+    (activities played and replayed, staying in front of the screen, and
+    whether their eyes looked alert or tired).
+  * Attention: where their eyes and face seemed to be (toward the screen,
+    looking away, head turned).
+  * Focus: how steadily they worked, based on mistakes and completion.
 
 These two fields serve very different places in the UI and must never overlap in content:
 - "shortSummary" appears ALONE on a small outer summary card, with no other
@@ -189,6 +197,10 @@ These two fields serve very different places in the UI and must never overlap in
 Provide a JSON response strictly matching this structure (no other keys):
 {
   "overallAnalysis": "Write 3-4 sentences summarizing their overall performance, in plain language a parent can easily follow.",
+  "engagement": {
+    "shortSummary": "1-2 complete sentences (~20-30 words) for the outer card — the single most notable takeaway about how much they joined in and stayed with the activities, not a summary of detailedDescription.",
+    "detailedDescription": "3-5 sentences, shown only in the 'Learn More' dialog, describing their engagement in detail, based on how many activities they played or replayed and on the camera readings about staying in front of the screen and eyes looking alert or tired — what was observed, and what it generally suggests."
+  },
   "attention": {
     "shortSummary": "1-2 complete sentences (~20-30 words) for the outer card — the single most notable takeaway about where their eyes and face seemed to be during play, not a summary of detailedDescription.",
     "detailedDescription": "3-5 sentences, shown only in the 'Learn More' dialog, describing their attention in detail, based mainly on the camera readings — what was observed, and what it generally suggests."
@@ -216,6 +228,7 @@ Provide a JSON response strictly matching this structure (no other keys):
         final decoded = jsonDecode(response.text!);
         if (decoded is! Map<String, dynamic> ||
             decoded['overallAnalysis'] is! String ||
+            decoded['engagement'] is! Map ||
             decoded['attention'] is! Map ||
             decoded['focus'] is! Map) {
           throw const ReportGenerationException(ReportErrorType.serviceError);
@@ -228,7 +241,7 @@ Provide a JSON response strictly matching this structure (no other keys):
         // <=35 words, but if it ever overshoots, the card would cut it off
         // mid-sentence and look broken. Trim at a clean word boundary
         // instead of letting the UI hard-truncate.
-        for (final key in ['attention', 'focus']) {
+        for (final key in ['engagement', 'attention', 'focus']) {
           final construct = reportData[key];
           if (construct is Map && construct['shortSummary'] is String) {
             construct['shortSummary'] = _clampShortSummary(
