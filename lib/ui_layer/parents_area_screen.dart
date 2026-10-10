@@ -167,7 +167,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
   // Daily limit (minutes) of the selected child; 0 = Off. Loaded from
   // Firestore, so this default is only shown until that finishes.
   int _screenTimeLimit = DatabaseService.defaultScreenTimeLimitMinutes;
-  bool _autoBackup = false; // automatic backup toggle (UI only)
+ // bool _autoBackup = false; // automatic backup toggle (UI only)
 
   ChildProfile? get _selectedChild =>
       _children.isEmpty ? null : _children[_selectedIndex];
@@ -629,10 +629,10 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           _buildOutlinedMenuCard(
             borderColor: ColorTheme.teal,
             iconColor: ColorTheme.teal,
-            topWidget: _AutoBackupRow(
-              value: _autoBackup,
-              onChanged: (v) => setState(() => _autoBackup = v),
-            ),
+            // topWidget: _AutoBackupRow(
+            //   value: _autoBackup,
+            //   onChanged: (v) => setState(() => _autoBackup = v),
+            // ),
             rows: [
               _MenuRowData(
                 icon: Icons.download_rounded,

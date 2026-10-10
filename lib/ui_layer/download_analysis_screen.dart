@@ -427,7 +427,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
                       children: [
                         const Expanded(
                           child: Text(
-                            'CHOOSE SUBJECTS',
+                            'CHOOSE CATEGORY',
                             style: TextStyle(
                               fontFamily: _DlFonts.fredoka,
                               fontSize: 20,
