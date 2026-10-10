@@ -95,6 +95,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
   void dispose() {
     disposeAiCamera();
     _audioPlayer.dispose();
+    GamesSfxPlayer.instance.stop(GameSfx.alarmClock);
     super.dispose();
   }
 
