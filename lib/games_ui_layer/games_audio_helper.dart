@@ -65,6 +65,7 @@ abstract class GameSfx {
   static const String bubblePop = '$_base/sfx_bubble_pop.wav';
   static const String build = '$_base/sfx_build.wav';
   static const String brush = '$_base/sfx_brush.wav';
+  static const String carPassBy = '$_base/sfx_car_pass_by.wav';
   static const String clack = '$_base/sfx_clack.wav';
   static const String comb = '$_base/sfx_comb.wav';
   static const String eggCrack = '$_base/sfx_egg_crack.wav';
@@ -76,6 +77,7 @@ abstract class GameSfx {
   static const String shine = '$_base/sfx_shine.wav';
   static const String sizzle = '$_base/sfx_sizzle.wav';
   static const String thump = '$_base/sfx_thump.wav';
+  static const String walk = '$_base/sfx_walk.wav';
   static const String wash = '$_base/sfx_wash.wav';
   static const String whisk = '$_base/sfx_whisk.wav';
   static const String wipe = '$_base/sfx_wipe.wav';

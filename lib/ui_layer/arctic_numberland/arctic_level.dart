@@ -3,6 +3,7 @@ import 'package:StarSight/games_ui_layer/arctic_numberland/game_addition_package
 import 'package:StarSight/ui_layer/arctic_numberland/arctic_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/music_zones.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/arctic_numberland/game_addition_rescue_bridge.dart';
 import '../../games_ui_layer/arctic_numberland/game_addition_subtraction_signboard.dart';
@@ -41,7 +42,9 @@ class ArcticLevelScreen extends StatefulWidget {
   State<ArcticLevelScreen> createState() => _ArcticLevelScreenState();
 }
 
-class _ArcticLevelScreenState extends State<ArcticLevelScreen> {
+class _ArcticLevelScreenState extends State<ArcticLevelScreen>
+  with MusicZoneMixin{
+
   int _page = 0;
   int _unlockedLevel = 1;
   bool _isLoading = true;

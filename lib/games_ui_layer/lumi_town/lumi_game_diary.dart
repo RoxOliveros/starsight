@@ -9,9 +9,9 @@ import '../../business_layer/orientation_service.dart';
 import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_behavior.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
@@ -26,8 +26,7 @@ import 'lumi_game_ui_layer.dart';
 
 const String _roomBg = 'assets/images/backgrounds/bg_classroom_closeup.png';
 const String _tableBg = 'assets/images/backgrounds/bg_table.png';
-const String _bearWritingBookImage =
-    'assets/images/characters/bear_writing_book.png';
+const String _bearWritingBookImage = 'assets/images/characters/bear_writing_book.png';
 
 const String _audioBase = 'assets/audio/lumi_town/';
 const String _introAudio = '${_audioBase}diary_intro.wav';
@@ -85,19 +84,14 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
-  final AudioPlayer _narrationPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _drWooPlayer = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _trWooPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _narrationPlayer,
-    _completePlayer,
-    _drWooPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
 
   @override
-  AudioPlayer get trWooPlayer => _drWooPlayer;
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   // --- Game state -------------------------------------------------------
   late List<DiarySceneCard> _slotScenes;
@@ -155,9 +149,8 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _narrationPlayer.dispose();
-    _completePlayer.dispose();
-    _drWooPlayer.dispose();
+    _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     super.dispose();
   }
 
@@ -191,8 +184,8 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
       _dragEnabled = false;
     });
 
-    await _playAndWait(_narrationPlayer, _introAudio);
-
+    await playAssetAudio(_audioPlayer, _introAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
@@ -200,33 +193,14 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
       _dragEnabled = false;
     });
 
-    await _playAndWait(_narrationPlayer, _instructionAudio);
-
+    await playAssetAudio(_audioPlayer, _instructionAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
       _phase = DailySequencePhase.game;
       _dragEnabled = true;
     });
-  }
-
-  Future<void> _playAndWait(AudioPlayer player, String asset) async {
-    final completer = Completer<void>();
-    late final StreamSubscription<void> sub;
-
-    sub = player.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-
-    try {
-      await player.stop();
-      await player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-    } catch (_) {
-      if (!completer.isCompleted) completer.complete();
-    } finally {
-      await sub.cancel();
-    }
   }
 
   Future<void> _onDrop(int originIndex, int targetIndex) async {
@@ -250,8 +224,8 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
           _slotLocked[originIndex] = true;
         }
       });
-
-      unawaited(showTrWooReaction(TrWooState.correct));
+      unawaited(_trWooPlayer.stop());
+      showTrWooReaction(TrWooState.correct);
 
       await Future<void>.delayed(const Duration(milliseconds: 900));
       if (!mounted) return;
@@ -263,7 +237,8 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
       }
     } else {
       _tapTracker.recordMistake();
-      unawaited(showTrWooReaction(TrWooState.wrong));
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTrWooReaction(TrWooState.wrong);
       setState(() => _wrongFlashSlot = targetIndex);
 
       await Future<void>.delayed(const Duration(milliseconds: 900));
@@ -309,8 +284,8 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
 
     if (!mounted) return;
 
-    await _playAndWait(_completePlayer, _completeAudio);
-
+    await playAssetAudio(_audioPlayer, _completeAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
@@ -336,9 +311,8 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
   }
 
   Future<void> _goBack() async {
-    await _narrationPlayer.stop();
-    await _completePlayer.stop();
-    await _drWooPlayer.stop();
+    await _audioPlayer.stop();
+    await _trWooPlayer.stop();
     if (!mounted) return;
     Navigator.of(context).pop();
   }

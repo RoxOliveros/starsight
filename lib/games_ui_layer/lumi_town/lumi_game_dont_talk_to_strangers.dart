@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../tryagain_prompt.dart';
 import 'lumi_game_safe_or_not.dart';
@@ -15,21 +17,16 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-
 import 'lumi_game_ui_layer.dart';
 
 const String _playgroundBg = 'assets/images/backgrounds/bg_playground.png';
-const String _bearPlayingImage =
-    'assets/images/objects/lumi/playground_bear_playing.png';
-const String _littleBearImage =
-    'assets/images/characters/little_bear_uniform.png';
-const String _littleBearSmileImage =
-    'assets/images/characters/little_bear_happy.png';
+const String _bearPlayingImage = 'assets/images/objects/lumi/playground_bear_playing.png';
+const String _littleBearImage = 'assets/images/characters/little_bear_uniform.png';
+const String _littleBearSmileImage = 'assets/images/characters/little_bear_happy.png';
 const String _roxieImage = 'assets/images/characters/roxie_the_rabbit.png';
 const String _roxieSmileImage = 'assets/images/characters/roxie_happy.png';
 const String _mamaBearImage = 'assets/images/characters/mom_bear.png';
-const String _mamaBearSmileImage =
-    'assets/images/characters/mom_bear_happy.png';
+const String _mamaBearSmileImage = 'assets/images/characters/mom_bear_happy.png';
 const String _jackImage = 'assets/images/characters/jack_the_fox.png';
 const String _jackSmileImage = 'assets/images/characters/jack_happy.png';
 const String _trWooImage = 'assets/images/characters/tr.woo_the_owl.png';
@@ -54,11 +51,9 @@ const String _jackTalkAudio = '${_audioBase}stranger_jack_talk.wav';
 const String _wolfEnterAudio = '${_audioBase}stranger_wolf_enter.wav';
 const String _wolfTalkAudio = '${_audioBase}stranger_wolf_talk.wav';
 const String _littleBearNoAudio = '${_audioBase}stranger_little_bear_no.wav';
-const String _teacherWooWarningAudio =
-    '${_audioBase}stranger_teacher_woo_warning.wav';
+const String _teacherWooWarningAudio = '${_audioBase}stranger_teacher_woo_warning.wav';
 const String _safetyLessonAudio = '${_audioBase}stranger_lesson.wav';
 const String _winAudio = '${_audioBase}stranger_win.wav';
-const String _bubblePopAudio = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
 
 // ============================================================================
 // MODEL
@@ -151,24 +146,20 @@ class DontTalkToStrangersGame extends StatefulWidget {
 class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
     with
         AiCameraMixin<DontTalkToStrangersGame>,
-        AppAudioLifecycleMixin<DontTalkToStrangersGame> {
+        AppAudioLifecycleMixin<DontTalkToStrangersGame>,
+        TrWooReactionMixin{
+
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
-  final AudioPlayer _narrationPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _wolfPlayer = AudioPlayer();
-  final AudioPlayer _teacherWooPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _trWooPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _narrationPlayer,
-    _completePlayer,
-    _wolfPlayer,
-    _teacherWooPlayer,
-    _sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
+
+  @override
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   // --- Game state -------------------------------------------------------
   late List<StrangerInteraction> _interactions;
@@ -292,11 +283,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
     _talkGlowTimer?.cancel();
     _cancelGlowTimer?.cancel();
     _cancelGlowOffTimer?.cancel();
-    _narrationPlayer.dispose();
-    _completePlayer.dispose();
-    _wolfPlayer.dispose();
-    _teacherWooPlayer.dispose();
-    _sfxPlayer.dispose();
+    _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     super.dispose();
   }
 
@@ -310,7 +298,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       _inputEnabled = false;
     });
 
-    await _playAndWait(_narrationPlayer, _introAudio);
+    await playAssetAudio(_audioPlayer, _introAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
@@ -337,7 +326,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       });
     });
 
-    await _playAndWait(_narrationPlayer, _instructionAudio);
+    await playAssetAudio(_audioPlayer, _instructionAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     _talkGlowTimer?.cancel();
@@ -376,15 +366,6 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
     }
   }
 
-  Future<void> _playBubblePop() async {
-    try {
-      await _sfxPlayer.stop();
-      await _sfxPlayer.play(
-        AssetSource(_bubblePopAudio.replaceFirst('assets/', '')),
-      );
-    } catch (_) {}
-  }
-
   // --- Character entrance ---------------------------------------------------
 
   Future<void> _enterCurrentCharacter() async {
@@ -406,7 +387,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       if (!mounted) return;
       setState(() => _wolfVisualState = WolfVisualState.talking);
 
-      await _playAndWait(_wolfPlayer, _current.enterAudio!);
+      await playAssetAudio(_audioPlayer, _current.enterAudio!);
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
 
       setState(() {
@@ -424,7 +406,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       if (!mounted) return;
       setState(() => _characterVisible = true);
 
-      await _playAndWait(_narrationPlayer, _current.enterAudio!);
+      await playAssetAudio(_audioPlayer, _current.enterAudio!);
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
 
       await Future<void>.delayed(const Duration(milliseconds: 600));
@@ -443,7 +426,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
     if (_onWolf || !_inputEnabled || _busy || !mounted) return;
 
     _tapTracker.recordCorrectTap();
-    _playBubblePop();
+    GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
 
     setState(() {
       _busy = true;
@@ -451,7 +434,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       _phase = _GamePhase.conversation;
     });
 
-    await _playAndWait(_narrationPlayer, _current.talkAudio!);
+    await playAssetAudio(_audioPlayer, _current.talkAudio!);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     await _leaveCurrentCharacterAndAdvance();
@@ -461,7 +445,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
     if (_onWolf || !_inputEnabled || _busy || !mounted) return;
 
     _tapTracker.recordMistake();
-    _playBubblePop();
+    GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
 
     setState(() {
       _busy = true;
@@ -506,7 +490,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       _wolfVisualState = WolfVisualState.shocked;
     });
 
-    await _playAndWait(_narrationPlayer, _littleBearNoAudio);
+    await playAssetAudio(_audioPlayer, _littleBearNoAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     await _finishWolfSequence();
@@ -525,7 +510,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       _wolfTalkBranch = true;
     });
 
-    await _playAndWait(_wolfPlayer, _wolfTalkAudio);
+    await playAssetAudio(_audioPlayer, _wolfTalkAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() => _phase = _GamePhase.wolfRetreatingHalfway);
@@ -546,7 +532,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       _wolfVisualState = WolfVisualState.shocked;
     });
 
-    await _playAndWait(_teacherWooPlayer, _teacherWooWarningAudio);
+    await playAssetAudio(_audioPlayer, _teacherWooWarningAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() => _wolfVisualState = WolfVisualState.shocked);
@@ -570,7 +557,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
         _phase = _GamePhase.safetyLesson;
       });
 
-      await _playAndWait(_narrationPlayer, _safetyLessonAudio);
+      await playAssetAudio(_audioPlayer, _safetyLessonAudio);
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
 
       setState(() {
@@ -614,7 +602,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
     });
 
     if (playWinAudio) {
-      await _playAndWait(_completePlayer, _winAudio);
+      await playAssetAudio(_audioPlayer, _winAudio);
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
     }
 
@@ -648,10 +637,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
   }
 
   Future<void> _goBack() async {
-    await _narrationPlayer.stop();
-    await _completePlayer.stop();
-    await _wolfPlayer.stop();
-    await _teacherWooPlayer.stop();
+    await _audioPlayer.stop();
+    await _trWooPlayer.stop();
     if (!mounted) return;
 
     setState(() {

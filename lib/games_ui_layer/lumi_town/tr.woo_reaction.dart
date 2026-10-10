@@ -17,7 +17,8 @@ import '../games_audio_helper.dart';
 // _trWooPlayer.dispose();
 //
 // right
-// unawaited(showTrWooReaction(TrWooState.correct));
+// unawaited(_trWooPlayer.stop());
+// showTrWooReaction(TrWooState.correct);
 //
 // wrong
 // showTrWooReaction(TrWooState.wrong);

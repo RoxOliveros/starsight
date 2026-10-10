@@ -259,7 +259,7 @@ class _LumiLevelScreenState extends State<LumiLevelScreen>
                           child: Opacity(
                             opacity: _page > 0 ? 1.0 : 0.3,
                             child: Image.asset(
-                              'assets/images/arrows/bttn_lumi_arrow_left.png', // swap for a lumi asset if you have one
+                              'assets/images/arrows/bttn_lumi_arrow_left.png',
                               width: 70,
                             ),
                           ),

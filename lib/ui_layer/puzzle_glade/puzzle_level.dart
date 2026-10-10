@@ -1,5 +1,6 @@
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/music_zones.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/puzzle_progress_service.dart';
 import '../../games_ui_layer/puzzle_glade/game_connect_the_dots_screen.dart';
@@ -36,7 +37,9 @@ class PuzzleLevelScreen extends StatefulWidget {
   State<PuzzleLevelScreen> createState() => _PuzzleLevelScreenState();
 }
 
-class _PuzzleLevelScreenState extends State<PuzzleLevelScreen> {
+class _PuzzleLevelScreenState extends State<PuzzleLevelScreen>
+  with MusicZoneMixin{
+
   int _page = 0;
   int _unlockedLevel = 1;
   bool _isLoadingProgress = true;
