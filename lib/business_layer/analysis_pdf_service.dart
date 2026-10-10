@@ -64,6 +64,11 @@ class AnalysisPdfService {
   /// Keep in sync with _maxStoredCycles in CategoryReportScreen.
   static const int _maxStoredCycles = 2;
 
+  /// Keep in sync with `cachedReportVersion` in CategoryReportScreen. Older
+  /// saved reports (written before emotions and bands were removed) are
+  /// skipped so they never end up in a PDF.
+  static const int _reportVersion = 3;
+
   static const _orange = PdfColor.fromInt(0xFFEC8A20);
   static const _teal = PdfColor.fromInt(0xFF54BDB8);
   static const _gold = PdfColor.fromInt(0xFFFACC58);
@@ -82,6 +87,9 @@ class AnalysisPdfService {
     required String childId,
     required String childName,
     required Map<String, String> subjects,
+    // false when the current nickname couldn't be read (e.g. offline): then
+    // saved reports are not rejected for having a different name.
+    bool nameVerified = true,
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) throw StateError('Not signed in');
@@ -93,6 +101,7 @@ class AnalysisPdfService {
           childId: childId,
           categoryId: e.key,
           name: e.value,
+          expectedChildName: nameVerified ? childName : null,
         ),
       ),
     );
@@ -149,6 +158,7 @@ class AnalysisPdfService {
     required String childId,
     required String categoryId,
     required String name,
+    String? expectedChildName,
   }) async {
     try {
       final categoryRef = FirebaseFirestore.instance
@@ -170,6 +180,12 @@ class AnalysisPdfService {
       for (var i = 0; i < slotDocs.length; i++) {
         final data = slotDocs[i].data();
         if (data == null || data['cachedReportData'] == null) continue;
+        if (data['cachedReportVersion'] != _reportVersion) continue;
+
+        if (expectedChildName != null &&
+            data['cachedReportChildName'] != expectedChildName) {
+          continue;
+        }
         final number = (data['playthroughNumber'] as num?)?.toInt() ?? (i + 1);
         if (number > bestNumber) {
           bestNumber = number;
@@ -344,7 +360,6 @@ class AnalysisPdfService {
     Map<String, dynamic> c,
     PdfColor color,
   ) {
-    final band = s.clean(c['band']);
     final short = s.clean(c['shortSummary']);
     final detail = s.clean(c['detailedDescription']);
 
@@ -365,26 +380,6 @@ class AnalysisPdfService {
                 title,
                 style: pw.TextStyle(font: s.bold, fontSize: 13, color: color),
               ),
-              pw.SizedBox(width: 8),
-              if (band.isNotEmpty)
-                pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: pw.BoxDecoration(
-                    color: color,
-                    borderRadius: pw.BorderRadius.circular(10),
-                  ),
-                  child: pw.Text(
-                    band.toUpperCase(),
-                    style: pw.TextStyle(
-                      font: s.bold,
-                      fontSize: 8,
-                      color: PdfColors.white,
-                    ),
-                  ),
-                ),
             ],
           ),
           if (short.isNotEmpty) ...[
