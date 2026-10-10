@@ -33,6 +33,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _reportData;
   String? _error;
+  bool _errorIsOffline = false;
+  bool _errorCanRetry = false;
 
   String _cycleDateText = "";
   int _latestCycle = 1;
@@ -241,6 +243,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _errorIsOffline = false;
+      _errorCanRetry = false;
       _cycleDateText = "";
       _scrolled = false; // the report is rebuilt at the top
     });
@@ -279,7 +283,9 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         return;
       }
 
-      List<String> allEmotions = [];
+      // Per-frame attention labels (the Firestore field is still named
+      // 'emotions' so previously saved sessions keep working).
+      List<String> allAttentionStates = [];
       int totalMistakes = 0;
       Set<String> distinctLevels = {}; // Changed from distinctGameIds
 
@@ -301,8 +307,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         }
 
         totalMistakes += (doc.data()['mistakes'] as num?)?.toInt() ?? 0;
-        var emotions = List<String>.from(doc.data()['emotions'] ?? []);
-        allEmotions.addAll(emotions);
+        var states = List<String>.from(doc.data()['emotions'] ?? []);
+        allAttentionStates.addAll(states);
       }
 
       int totalAttempts = snapshot.docs.length;
@@ -315,7 +321,10 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         int cachedCount = cycleDoc.data()!['cachedReportCount'];
 
         // If the game count hasn't changed, just use the saved report!
+        // cachedReportVersion 2 = attention-only reports (no emotion/bands).
+        // Older cached reports are regenerated once.
         if (cachedCount == totalAttempts &&
+            cycleDoc.data()!['cachedReportVersion'] == 2 &&
             cycleDoc.data()!.containsKey('cachedReportData')) {
           if (!mounted) return;
           setState(() {
@@ -357,13 +366,14 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
             childName: widget.childName,
             completedGameIds: playedGameIds,
             totalCategoryGames: totalCategoryGames,
-            aggregatedEmotions: allEmotions,
+            attentionStates: allAttentionStates,
             totalMistakes: totalMistakes,
           );
 
       // E. SAVE TO CACHE: Save this new report so it stays consistent next time
       await cycleRef.set({
         'cachedReportCount': totalAttempts,
+        'cachedReportVersion': 2,
         'cachedReportData': summaryMap,
       }, SetOptions(merge: true));
 
@@ -373,12 +383,86 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      print("Report load error: $e");
       if (!mounted) return;
+      final failure = e is ReportGenerationException
+          ? e
+          : ReportGenerationException(
+              CategorySummaryService.looksLikeNetworkError(e)
+                  ? ReportErrorType.noInternet
+                  : ReportErrorType.serviceError,
+            );
       setState(() {
-        _error = "Failed to load report. Please try again.";
+        _error = failure.message;
+        _errorIsOffline = failure.type == ReportErrorType.noInternet;
+        _errorCanRetry = true;
         _isLoading = false;
       });
     }
+  }
+
+  Widget _buildErrorBody() {
+    if (!_errorCanRetry) {
+      return Center(
+        child: Text(
+          _error!,
+          style: const TextStyle(
+            fontFamily: AppTextStyles.fredoka,
+            color: Colors.red,
+            fontSize: 16,
+          ),
+        ),
+      );
+    }
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _errorIsOffline
+                  ? Icons.wifi_off_rounded
+                  : Icons.error_outline_rounded,
+              size: 48,
+              color: ColorTheme.brown,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: AppTextStyles.fredoka,
+                color: ColorTheme.brown,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _loadSpecificCycle(_selectedCycle),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ColorTheme.orange,
+                elevation: 0,
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 10,
+                ),
+              ),
+              child: const Text(
+                'TRY AGAIN',
+                style: TextStyle(
+                  fontFamily: AppTextStyles.fredoka,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _showDataDisclaimerDialog() {
@@ -725,17 +809,13 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     String measurementExplanation = "";
     String quickMeaning = "";
 
-    if (title.toLowerCase() == "engagement") {
-      quickMeaning = "How interested and happy your child seems while playing.";
-      measurementExplanation =
-          "We look at your child's facial expressions while they play, such as "
-          "smiling or looking surprised, to understand how they feel about the "
-          "activity.";
-    } else if (title.toLowerCase() == "attention") {
+    if (title.toLowerCase() == "attention") {
       quickMeaning = "Whether your child's eyes stay on the activity.";
       measurementExplanation =
-          "We track where your child is looking to see if they keep their eyes "
-          "on the lesson or often look away from the screen.";
+          "We check whether your child's face and eyes stay turned toward the "
+          "screen, or whether they often look away, turn their head, move back "
+          "from the screen, or seem tired. These are automatic estimates from "
+          "the camera.";
     } else if (title.toLowerCase() == "focus") {
       quickMeaning =
           "How steadily your child keeps working without long breaks.";
@@ -1025,12 +1105,11 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Text(
-                  'These are the three things we look at while your child plays: '
-                  'Engagement (how interested and happy they seem), Attention '
-                  '(whether their eyes stay on the activity), and Focus (how '
-                  'steadily they keep working without long pauses). Together, '
-                  'they give you a simple picture of how your child experienced '
-                  'the game.',
+                  'These are the two things we look at while your child plays: '
+                  'Attention (whether their eyes stay on the activity) and '
+                  'Focus (how steadily they keep working without long pauses). '
+                  'Together, they give you a simple picture of how your child '
+                  'experienced the game.',
                   textAlign: TextAlign.justify,
                   style: TextStyle(
                     fontFamily: 'Nunito',
@@ -1501,16 +1580,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                       ),
                     )
                   : _error != null
-                  ? Center(
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(
-                          fontFamily: AppTextStyles.fredoka,
-                          color: Colors.red,
-                          fontSize: 16,
-                        ),
-                      ),
-                    )
+                  ? _buildErrorBody()
                   : SingleChildScrollView(
                       controller: _scrollController,
                       clipBehavior: Clip.hardEdge,
