@@ -9,7 +9,6 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/forest_game_mail_delivery.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -474,9 +473,13 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
       body: Stack(
         // <-- Main Stack added here
         children: [
-          // 1. Your original game UI
-          ForestBackground(
-            child: Stack(
+      Positioned.fill(
+      child: Image.asset(
+        'assets/images/backgrounds/bg_game_forest.png',
+        fit: BoxFit.cover,
+      ),
+    ),
+    Stack(
               children: [
                 const Positioned(top: 25, left: 25, child: ForestXButton()),
 
@@ -562,7 +565,6 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
                   ),
                 ),
               ],
-            ),
           ),
 
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)

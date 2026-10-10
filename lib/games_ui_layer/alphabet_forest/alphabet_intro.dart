@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_trace.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
-import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_background.dart';
 import 'package:flutter/material.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -207,77 +206,80 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       return Scaffold(body: LoadingScreen.alphabetForest());
     }
 
-    return Scaffold(
-      body: ForestBackground(
-        child: Stack(
-          children: [
-            const Positioned(top: 25, left: 25, child: ForestXButton()),
-
-            Positioned(
-              top: 25,
-              right: 20,
-              child: ForestLevelBadge(
-                level:
-                    ForestProgressService.levelNumberForLetter(widget.letter) ??
-                    1,
-              ),
-            ),
-
-            buildTofi(context),
-
-            Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // LEFT: Floating object
-                  const SizedBox(width: 50),
-
-                  if (_introPhase != IntroPhase.entering &&
-                      _introPhase != IntroPhase.playingIntro)
-                    AnimatedBuilder(
-                      animation: _float,
-                      builder: (context, child) => Transform.translate(
-                        offset: Offset(0, _float.value),
-                        child: child,
-                      ),
-                      child: Image.asset(
-                        _getObjectImage(widget.letter),
-                        height: MediaQuery.of(context).size.height * 0.40,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                      ),
-                    ),
-
-                  const SizedBox(width: 16),
-
-                  _buildAnimatedGif(),
-                ],
-              ),
-            ),
-
-            if (_introPhase == IntroPhase.done)
-              Positioned(
-                bottom: 25,
-                right: 25,
-                child: ForestNextButton(
-                  onTap: () {
-                    _audioPlayer.stop();
-                    Navigator.pushReplacement(
-                      context,
-                      PageRouteBuilder(
-                        transitionDuration: const Duration(milliseconds: 400),
-                        pageBuilder: (_, __, ___) => AlphabetTraceScreen(letter: widget.letter),
-                        transitionsBuilder: (_, animation, __, child) =>
-                            FadeTransition(opacity: animation, child: child),
-                      ),
-                    );
-                  },
-                ),
-              ),
-          ],
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/backgrounds/bg_game_forest.png',
+            fit: BoxFit.cover,
+          ),
         ),
-      ),
+
+        const Positioned(top: 25, left: 25, child: ForestXButton()),
+
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(
+            level:
+                ForestProgressService.levelNumberForLetter(widget.letter) ?? 1,
+          ),
+        ),
+
+        buildTofi(context),
+
+        Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // LEFT: Floating object
+              const SizedBox(width: 50),
+
+              if (_introPhase != IntroPhase.entering &&
+                  _introPhase != IntroPhase.playingIntro)
+                AnimatedBuilder(
+                  animation: _float,
+                  builder: (context, child) => Transform.translate(
+                    offset: Offset(0, _float.value),
+                    child: child,
+                  ),
+                  child: Image.asset(
+                    _getObjectImage(widget.letter),
+                    height: MediaQuery.of(context).size.height * 0.40,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+
+              const SizedBox(width: 16),
+
+              _buildAnimatedGif(),
+            ],
+          ),
+        ),
+
+        if (_introPhase == IntroPhase.done)
+          Positioned(
+            bottom: 25,
+            right: 25,
+            child: ForestNextButton(
+              onTap: () {
+                _audioPlayer.stop();
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    transitionDuration: const Duration(milliseconds: 400),
+                    pageBuilder: (_, __, ___) =>
+                        AlphabetTraceScreen(letter: widget.letter),
+                    transitionsBuilder: (_, animation, __, child) =>
+                        FadeTransition(opacity: animation, child: child),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 
