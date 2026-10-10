@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/music_zones.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_acorn_basket.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_apple_tree.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_berry_bush_harvest.dart';
@@ -33,7 +34,9 @@ class ForestLevelScreen extends StatefulWidget {
   State<ForestLevelScreen> createState() => _ForestLevelScreenState();
 }
 
-class _ForestLevelScreenState extends State<ForestLevelScreen> {
+class _ForestLevelScreenState extends State<ForestLevelScreen>
+    with MusicZoneMixin {
+
   int _currentPage = 0;
   int _unlockedLevel = 1;
   bool _isLoadingProgress = true;

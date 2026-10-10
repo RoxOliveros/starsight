@@ -19,6 +19,7 @@ import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_game.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/music_zones.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
 import '../../games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
@@ -38,7 +39,9 @@ class LagoonLevelScreen extends StatefulWidget {
   State<LagoonLevelScreen> createState() => _LagoonLevelScreenState();
 }
 
-class _LagoonLevelScreenState extends State<LagoonLevelScreen> {
+class _LagoonLevelScreenState extends State<LagoonLevelScreen>
+  with MusicZoneMixin{
+
   int _currentPage = 0;
   final int _maxPages = 2;
 

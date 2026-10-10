@@ -12,10 +12,12 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-
 import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';
+import '../../games_audio_helper.dart';
+import '../lumi_game_stoplight.dart';
 import '../lumi_game_ui_layer.dart';
+import '../tr.woo_reaction.dart';
 
 class FamilyTreeGame extends StatefulWidget {
   final int level;
@@ -31,15 +33,21 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
         SingleTickerProviderStateMixin,
         AiCameraMixin<FamilyTreeGame>,
         GameLoadingMixin,
-        AppAudioLifecycleMixin<FamilyTreeGame> {
+        AppAudioLifecycleMixin<FamilyTreeGame>,
+        TrWooReactionMixin {
   late final AnimationController _handAnimCtrl;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _trWooPlayer = AudioPlayer();
+
   final GameTapTracker _tapTracker = GameTapTracker();
   final Map<String, String> _slotFill = {};
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
+
+  @override
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   int _gamePhase = 0;
   int _currentStage = 1;
@@ -56,15 +64,17 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool _canDrag = false;
+  bool _overWrongSlot = false;
+  bool _pendingClear = false;
 
   final Map<String, String> _familyAudio = {
-    'grandpa': 'audio/lumi_town/level13/lolo.wav',
-    'grandma': 'audio/lumi_town/level13/lola.wav',
-    'father': 'audio/lumi_town/level13/papa.wav',
-    'mother': 'audio/lumi_town/level13/mama.wav',
-    'sister': 'audio/lumi_town/level13/ate.wav',
-    'brother': 'audio/lumi_town/level13/kuya.wav',
-    'little_bear': 'audio/lumi_town/level13/anak.wav',
+    'grandpa': 'assets/audio/lumi_town/level13/lolo.wav',
+    'grandma': 'assets/audio/lumi_town/level13/lola.wav',
+    'father': 'assets/audio/lumi_town/level13/papa.wav',
+    'mother': 'assets/audio/lumi_town/level13/mama.wav',
+    'sister': 'assets/audio/lumi_town/level13/ate.wav',
+    'brother': 'assets/audio/lumi_town/level13/kuya.wav',
+    'little_bear': 'assets/audio/lumi_town/level13/anak.wav',
   };
 
   static const Map<String, String> _groupOf = {
@@ -129,10 +139,15 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
       if (mounted && _gamePhase == 0) setState(() => _gamePhase = 1);
     });
 
-    await _playAudioAndWait(
-      'audio/lumi_town/level13/family_tree_game_intro.wav',
-    );
-
+    try {
+      await playAssetAudio(
+        _audioPlayer,
+        'assets/audio/lumi_town/level13/family_tree_game_intro.wav',
+      );
+      await waitForAudio(_audioPlayer);
+    } catch (e) {
+      debugPrint('Intro audio failed: $e');
+    }
     if (!mounted) return;
 
     setState(() {
@@ -148,43 +163,9 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     disposeAiCamera();
     _handAnimCtrl.dispose();
     _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
-  }
-
-  Future<void> _playShineSound() async {
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_shine.wav'));
-    } catch (e) {
-      debugPrint("Error playing audio: $e");
-    }
-  }
-
-  Future<void> _playAudio(String path) async {
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource(path));
-    } catch (e) {
-      debugPrint("Error playing audio ($path): $e");
-    }
-  }
-
-  Future<void> _playAudioAndWait(String path) async {
-    final done = Completer<void>();
-    final sub = _audioPlayer.onPlayerComplete.listen((_) {
-      if (!done.isCompleted) done.complete();
-    });
-
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource(path));
-      await done.future.timeout(const Duration(seconds: 30), onTimeout: () {});
-    } catch (e) {
-      debugPrint("Error playing audio ($path): $e");
-    } finally {
-      await sub.cancel();
-    }
   }
 
   Future<void> _playFamilyInstruction(String id) async {
@@ -192,7 +173,8 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     if (audioPath == null || !mounted) return;
 
     setState(() => _canDrag = false);
-    await _playAudioAndWait(audioPath);
+    await playAssetAudio(_audioPlayer, audioPath);
+    await waitForAudio(_audioPlayer);
     if (mounted) setState(() => _canDrag = true);
   }
 
@@ -271,10 +253,8 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
 
-    await _playAudioAndWait(
-      'audio/lumi_town/level13/family_tree_game_ending.wav',
-    );
-
+    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level13/family_tree_game_ending.wav');
+    await waitForAudio(_audioPlayer);
     if (mounted) {
       setState(() => _isGameWon = true);
     }
@@ -613,7 +593,13 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
                   child: GoodJobOverlay(
                     characterImage:
                         'assets/images/characters/tr.woo_smiling.png',
-                    onNext: () {},
+                    onNext: () {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => StoplightGameScreen(level: widget.level + 1),
+                        ),
+                      );
+                    },
                     onRestart: () {
                       setState(() {
                         _hasSavedResult = false;
@@ -667,8 +653,13 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
           fit: BoxFit.contain,
         );
       },
-      onWillAcceptWithDetails: (details) =>
-          filled == null && _groupOf[details.data] == group,
+      onWillAcceptWithDetails: (details) {
+        final ok = filled == null && _groupOf[details.data] == group;
+        _overWrongSlot = !ok;
+        _pendingClear = false;
+        return ok;
+      },
+      onLeave: (_) => _pendingClear = true,
       onAcceptWithDetails: (details) async {
         _tapTracker.recordCorrectTap();
 
@@ -679,8 +670,8 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
         });
 
         _checkWinCondition();
-
-        await _playShineSound();
+        unawaited(_trWooPlayer.stop());
+        await GamesSfxPlayer.instance.play(GameSfx.shine);
         if (!mounted || _isGameWon) return;
 
         await Future.delayed(const Duration(milliseconds: 500));
@@ -705,9 +696,25 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
 
     return Draggable<String>(
       data: id,
+      onDragStarted: () {
+        _overWrongSlot = false;
+        _pendingClear = false;
+      },
+      onDragUpdate: (_) {
+        if (_pendingClear) {
+          _overWrongSlot = false;
+          _pendingClear = false;
+        }
+      },
       onDragEnd: (details) {
-        if (!details.wasAccepted) {
+        final droppedOnWrong = _overWrongSlot;
+        _overWrongSlot = false;
+        _pendingClear = false;
+
+        if (!details.wasAccepted && droppedOnWrong) {
           _tapTracker.recordMistake();
+          GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+          showTrWooReaction(TrWooState.wrong);
         }
       },
       feedback: Material(

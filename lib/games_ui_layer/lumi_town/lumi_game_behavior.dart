@@ -8,6 +8,7 @@ import '../../business_layer/orientation_service.dart';
 import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_cleaning.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,10 +25,8 @@ const String _teacherWooImage = 'assets/images/characters/tr.woo_the_owl.png';
 
 const String _audioBase = 'assets/audio/lumi_town/';
 const String _introAudio = '${_audioBase}behavior_intro.wav';
-const String _instructionAudio = '${_audioBase}behavior_instructions.wav';
+const String _instructionAudio = '${_audioBase}behavior_instruction.wav';
 const String _winAudio = '${_audioBase}behavior_win.wav';
-const String _audioCorrect = 'assets/audio/sound_effects/sfx_shine.wav';
-const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
 
 const String _redButton = 'assets/images/buttons/red_button.png';
 const String _redButtonClicked = 'assets/images/buttons/red_clicked.png';
@@ -124,21 +123,14 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
-  final AudioPlayer _narrationPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _drWooPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _trWooPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _narrationPlayer,
-    _completePlayer,
-    _drWooPlayer,
-    _sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
 
   @override
-  AudioPlayer get trWooPlayer => _drWooPlayer;
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   // --- Game state -------------------------------------------------------
   late List<BehaviorSceneModel> _queue;
@@ -198,10 +190,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _narrationPlayer.dispose();
-    _completePlayer.dispose();
-    _drWooPlayer.dispose();
-    _sfxPlayer.dispose();
+    _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     super.dispose();
   }
 
@@ -225,8 +215,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
       _inputEnabled = false;
     });
 
-    await _playAndWait(_narrationPlayer, _introAudio);
-
+    await playAssetAudio(_audioPlayer, _introAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
@@ -234,8 +224,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
       _inputEnabled = false;
     });
 
-    await _playAndWait(_narrationPlayer, _instructionAudio);
-
+    await playAssetAudio(_audioPlayer, _instructionAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
@@ -248,30 +238,11 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
   Future<void> _playCurrentNarration() async {
     setState(() => _inputEnabled = false);
 
-    await _playAndWait(_narrationPlayer, _current.narrationAudio);
-
+    await playAssetAudio(_audioPlayer, _current.narrationAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() => _inputEnabled = true);
-  }
-
-  Future<void> _playAndWait(AudioPlayer player, String asset) async {
-    final completer = Completer<void>();
-    late final StreamSubscription<void> sub;
-
-    sub = player.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-
-    try {
-      await player.stop();
-      await player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-    } catch (_) {
-      if (!completer.isCompleted) completer.complete();
-    } finally {
-      await sub.cancel();
-    }
   }
 
   Future<void> _onAnswer(bool pickedGreen) async {
@@ -291,11 +262,13 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
 
     if (isCorrect) {
       _tapTracker.recordCorrectTap();
-
-      await _playAndWait(_sfxPlayer, _audioCorrect);
+      unawaited(_trWooPlayer.stop());
+      await GamesSfxPlayer.instance.play(GameSfx.shine);
       if (!mounted) return;
 
-      await _playAndWait(_narrationPlayer, _current.correctFeedbackAudio);
+      await playAssetAudio(_audioPlayer, _current.correctFeedbackAudio);
+      await waitForAudio(_audioPlayer);
+
       if (!mounted) return;
 
       if (_currentIndex == _queue.length - 1) {
@@ -309,10 +282,9 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
       }
     } else {
       _tapTracker.recordMistake();
-      await _playAndWait(_sfxPlayer, _audioWrong);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTrWooReaction(TrWooState.wrong);
       if (!mounted) return;
-
-      unawaited(showTrWooReaction(TrWooState.wrong));
 
       await Future<void>.delayed(const Duration(milliseconds: 900));
       if (!mounted) return;
@@ -353,8 +325,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
       debugPrint("Database Error marking level complete: $e");
     });
 
-    await _playAndWait(_completePlayer, _winAudio);
-
+    await playAssetAudio(_audioPlayer, _winAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
@@ -382,9 +354,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
   }
 
   Future<void> _goBack() async {
-    await _narrationPlayer.stop();
-    await _completePlayer.stop();
-    await _drWooPlayer.stop();
+    _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     if (!mounted) return;
     Navigator.of(context).pop();
   }

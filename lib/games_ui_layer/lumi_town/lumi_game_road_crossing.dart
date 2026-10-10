@@ -6,16 +6,15 @@ import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/loading_screen.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../tryagain_prompt.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
-
 import 'lumi_game_ui_layer.dart';
 
 // ============================================================
@@ -23,16 +22,11 @@ import 'lumi_game_ui_layer.dart';
 // ============================================================
 
 const String _bgRedLight = 'assets/images/backgrounds/bg_crossing_redlight.png';
-const String _bgGreenLight =
-    'assets/images/backgrounds/bg_crossing_greenlight.png';
-const String _carPassingBy =
-    'assets/animations/lumi_town/crossing_redlight_car_passingby.webp';
-const String _redBump =
-    'assets/animations/lumi_town/crossing_redlight_bump.webp';
-const String _redGoodJob =
-    'assets/animations/lumi_town/crossing_redlight_goodjob.webp';
-const String _greenRoxieWalk =
-    'assets/animations/lumi_town/crossing_greenlight_roxiewalk.webp';
+const String _bgGreenLight = 'assets/images/backgrounds/bg_crossing_greenlight.png';
+const String _carPassingBy = 'assets/animations/lumi_town/crossing_redlight_car_passingby.webp';
+const String _redBump = 'assets/animations/lumi_town/crossing_redlight_bump.webp';
+const String _redGoodJob = 'assets/animations/lumi_town/crossing_redlight_goodjob.webp';
+const String _greenRoxieWalk = 'assets/animations/lumi_town/crossing_greenlight_roxiewalk.webp';
 const String _thumbsUp = 'assets/images/buttons/thumbs_up.png';
 const String _thumbsDown = 'assets/images/buttons/thumbs_down.png';
 const String _trWooImage = 'assets/images/characters/tr.woo_the_owl.png';
@@ -42,20 +36,13 @@ const String _roxieSmileImage = 'assets/images/characters/roxie_happy.png';
 
 // Audio
 const String _audioIntro = 'assets/audio/lumi_town/crossing_game_intro.wav';
-const String _audioInstruction =
-    'assets/audio/lumi_town/crossing_game_instruction.wav';
-const String _audioRedLight =
-    'assets/audio/lumi_town/crossing_game_redlight.wav';
-const String _audioRedLightCorrect =
-    'assets/audio/lumi_town/crossing_game_redlight_correct.wav';
-const String _audioRedLightWrong =
-    'assets/audio/lumi_town/crossing_game_redlight_wrong.wav';
-const String _audioGreenLight =
-    'assets/audio/lumi_town/crossing_game_greenlight.wav';
-const String _audioGreenLightCorrect =
-    'assets/audio/lumi_town/crossing_game_greenlight_correct.wav';
-const String _audioGreenLightWrong =
-    'assets/audio/lumi_town/crossing_game_greenlight_wrong.wav';
+const String _audioInstruction = 'assets/audio/lumi_town/crossing_game_instruction.wav';
+const String _audioRedLight = 'assets/audio/lumi_town/crossing_game_redlight.wav';
+const String _audioRedLightCorrect = 'assets/audio/lumi_town/crossing_game_redlight_correct.wav';
+const String _audioRedLightWrong = 'assets/audio/lumi_town/crossing_game_redlight_wrong.wav';
+const String _audioGreenLight = 'assets/audio/lumi_town/crossing_game_greenlight.wav';
+const String _audioGreenLightCorrect = 'assets/audio/lumi_town/crossing_game_greenlight_correct.wav';
+const String _audioGreenLightWrong = 'assets/audio/lumi_town/crossing_game_greenlight_wrong.wav';
 const String _audioWin = 'assets/audio/lumi_town/crossing_game_win.wav';
 
 enum _Phase {
@@ -86,20 +73,15 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
         TrWooReactionMixin,
         AiCameraMixin<CrossingGameScreen>,
         AppAudioLifecycleMixin<CrossingGameScreen> {
-  // Audio players
-  final AudioPlayer _narrationPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _trWooAudioPlayer = AudioPlayer();
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _trWooPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _narrationPlayer,
-    _completePlayer,
-    _trWooAudioPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
 
   @override
-  AudioPlayer get trWooPlayer => _trWooAudioPlayer;
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   // Tracker State
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -162,31 +144,15 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
   }
 
   // ------------------------------------------------------------
-  // Audio helper
-  // ------------------------------------------------------------
-
-  Future<void> _playAndWait(AudioPlayer player, String assetPath) async {
-    try {
-      await player.stop();
-      final completer = Completer<void>();
-      late final StreamSubscription sub;
-      sub = player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-        sub.cancel();
-      });
-      await player.play(AssetSource(assetPath.replaceFirst('assets/', '')));
-      await completer.future;
-    } catch (_) {}
-  }
-
-  // ------------------------------------------------------------
   // Intro / Instruction
   // ------------------------------------------------------------
 
   Future<void> _startIntroFlow() async {
     if (!mounted) return;
     setState(() => _phase = _Phase.intro);
-    await _playAndWait(_narrationPlayer, _audioIntro);
+    GamesSfxPlayer.instance.play(GameSfx.carPassBy);
+    await playAssetAudio(_audioPlayer, _audioIntro);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
     await _startInstruction();
   }
@@ -195,7 +161,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     if (!mounted) return;
     setState(() => _phase = _Phase.instruction);
     _scheduleGlowTimers();
-    await _playAndWait(_narrationPlayer, _audioInstruction);
+    await playAssetAudio(_audioPlayer, _audioInstruction);
+    await waitForAudio(_audioPlayer);
     _cancelGlowTimers();
     if (!mounted) return;
     await _startRound1Narration();
@@ -242,7 +209,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       _inputEnabled = false;
       _showTryAgain = false;
     });
-    await _playAndWait(_narrationPlayer, _audioRedLight);
+    await playAssetAudio(_audioPlayer, _audioRedLight);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
     setState(() {
       _phase = _Phase.round1Answer;
@@ -266,19 +234,22 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       await _waitForWebp();
       if (!mounted) return;
 
-      await _playAndWait(_narrationPlayer, _audioRedLightCorrect);
-
+      unawaited(_trWooPlayer.stop());
+      showTrWooReaction(TrWooState.correct);
+      await playAssetAudio(_audioPlayer, _audioRedLightCorrect);
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
       await _startRound2Narration();
     } else {
       _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       setState(() => _phase = _Phase.round1Wrong);
-
+      GamesSfxPlayer.instance.play(GameSfx.carPassBy);
       await _waitForWebp();
       if (!mounted) return;
 
-      await _playAndWait(_narrationPlayer, _audioRedLightWrong);
-
+      await playAssetAudio(_audioPlayer, _audioRedLightWrong);
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
       setState(() => _showTryAgain = true);
     }
@@ -303,7 +274,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       _inputEnabled = false;
       _showTryAgain = false;
     });
-    await _playAndWait(_narrationPlayer, _audioGreenLight);
+    await playAssetAudio(_audioPlayer, _audioGreenLight);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
     setState(() {
       _phase = _Phase.round2Answer;
@@ -323,33 +295,33 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     if (choseCross) {
       _tapTracker.recordCorrectTap();
       setState(() => _phase = _Phase.round2Correct);
-
-      showTrWooReaction(TrWooState.correct);
-
+      GamesSfxPlayer.instance.play(GameSfx.walk);
       await _waitForWebp();
       if (!mounted) return;
-
-      await _playAndWait(_narrationPlayer, _audioGreenLightCorrect);
-
+      unawaited(_trWooPlayer.stop());
+      showTrWooReaction(TrWooState.correct);
+      await playAssetAudio(_audioPlayer, _audioGreenLightCorrect);
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
 
       setState(() => _playingWin = true);
 
-      await _playAndWait(_completePlayer, _audioWin);
-
+      await playAssetAudio(_audioPlayer, _audioWin);
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
 
       setState(() => _playingWin = false);
       await _saveDataAndComplete();
     } else {
       _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       setState(() => _phase = _Phase.round2Wrong);
-
+      GamesSfxPlayer.instance.play(GameSfx.carPassBy);
       await _waitForWebp();
       if (!mounted) return;
 
-      await _playAndWait(_narrationPlayer, _audioGreenLightWrong);
-
+      await playAssetAudio(_audioPlayer, _audioGreenLightWrong);
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
       setState(() => _showTryAgain = true);
     }
@@ -412,9 +384,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
   }
 
   Future<void> _goBack() async {
-    await _narrationPlayer.stop();
-    await _completePlayer.stop();
-    await _trWooAudioPlayer.stop();
+    await _audioPlayer.stop();
+    await _trWooPlayer.stop();
     if (!mounted) return;
     Navigator.of(context).pop();
   }
@@ -423,9 +394,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
   void dispose() {
     disposeAiCamera();
     _cancelGlowTimers();
-    _narrationPlayer.dispose();
-    _completePlayer.dispose();
-    _trWooAudioPlayer.dispose();
+    _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     super.dispose();
   }
 

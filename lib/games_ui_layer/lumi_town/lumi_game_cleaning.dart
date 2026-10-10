@@ -8,6 +8,7 @@ import '../../business_layer/orientation_service.dart';
 import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_dont_talk_to_strangers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,23 +16,19 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-
 import 'lumi_game_ui_layer.dart';
 
 const String _introBg = 'assets/images/backgrounds/mama_little_bear_scene.png';
 const String _gameBg = 'assets/images/backgrounds/bg_sky.png';
-const String _completeBg =
-    'assets/images/backgrounds/mama_little_bear_happy_cleaning.png';
+const String _completeBg = 'assets/images/backgrounds/mama_little_bear_happy_cleaning.png';
 const String _teacherWooImage = 'assets/images/characters/tr.woo_the_owl.png';
 
 const String _audioBase = 'assets/audio/lumi_town/';
 const String _introAudio = '${_audioBase}cleaning_intro.wav';
 const String _instructionAudio = '${_audioBase}cleaning_instruction.wav';
-const String _wrongAudio = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
 const String _winAudio = '${_audioBase}cleaning_win.wav';
 
 const String _sceneImageBase = 'assets/images/objects/lumi/';
-
 const String _spongeAsset = '${_sceneImageBase}sponge_diswashing.png';
 const String _dusterAsset = '${_sceneImageBase}duster.png';
 const String _mopBucketAsset = '${_sceneImageBase}mop_bucket.png';
@@ -198,22 +195,18 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
         TrWooReactionMixin<CleaningGameScreen>,
         AiCameraMixin<CleaningGameScreen>,
         AppAudioLifecycleMixin<CleaningGameScreen> {
-  @override
-  AudioPlayer get trWooPlayer => _drWooPlayer;
-  final DateTime _loadStart = DateTime.now();
-  final AudioPlayer _narrationPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _drWooPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
+
   final GameTapTracker _tapTracker = GameTapTracker();
+  final DateTime _loadStart = DateTime.now();
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _trWooPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _narrationPlayer,
-    _completePlayer,
-    _drWooPlayer,
-    _sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
+
+  @override
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   // --- Game state --------------------------------------------------------
   late List<CleaningScenarioModel> _queue;
@@ -249,10 +242,6 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     _queue = _shuffledScenarios();
     _currentChoiceOrder = _shuffledChoices(_queue[_currentIndex]);
 
-    _sfxPlayer.setAudioContext(
-      AudioContextConfig(focus: AudioContextConfigFocus.mixWithOthers).build(),
-    );
-
     _initializeGame();
   }
 
@@ -276,10 +265,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _narrationPlayer.dispose();
-    _completePlayer.dispose();
-    _drWooPlayer.dispose();
-    _sfxPlayer.dispose();
+    _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     super.dispose();
   }
 
@@ -336,7 +323,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       _inputEnabled = false;
     });
 
-    await _playAndWait(_narrationPlayer, _introAudio);
+    await playAssetAudio(_audioPlayer, _introAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
@@ -344,7 +332,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       _inputEnabled = false;
     });
 
-    await _playAndWait(_narrationPlayer, _instructionAudio);
+    await playAssetAudio(_audioPlayer, _instructionAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() => _phase = CleaningSequencePhase.game);
@@ -364,29 +353,11 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       _checkingAnswer = false;
     });
 
-    await _playAndWait(_narrationPlayer, _current.questionAudio);
+    await playAssetAudio(_audioPlayer, _current.questionAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() => _inputEnabled = true);
-  }
-
-  Future<void> _playAndWait(AudioPlayer player, String asset) async {
-    final completer = Completer<void>();
-    late final StreamSubscription<void> sub;
-
-    sub = player.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-
-    try {
-      await player.stop();
-      await player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-    } catch (_) {
-      if (!completer.isCompleted) completer.complete();
-    } finally {
-      await sub.cancel();
-    }
   }
 
   Future<void> _onAnswer(CleaningMaterial picked) async {
@@ -401,15 +372,15 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       });
       _tapTracker.recordCorrectTap();
 
-      await _drWooPlayer.stop();
-      await _sfxPlayer.stop();
       _wrongVoiceActive = false;
 
-      await showTrWooReaction(TrWooState.correct);
+      unawaited(_trWooPlayer.stop());
+      await GamesSfxPlayer.instance.play(GameSfx.shine);
       if (!mounted) return;
       setState(() => _showClean = true);
 
-      await _playAndWait(_narrationPlayer, _current.correctAudio);
+      await playAssetAudio(_audioPlayer, _current.correctAudio);
+      await waitForAudio(_audioPlayer);
       if (!mounted) return;
 
       if (_currentIndex == _queue.length - 1) {
@@ -419,10 +390,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       }
     } else {
       _tapTracker.recordMistake();
-
-      unawaited(
-        _sfxPlayer.play(AssetSource(_wrongAudio.replaceFirst('assets/', ''))),
-      );
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTrWooReaction(TrWooState.wrong);
 
       if (!_wrongVoiceActive) {
         _wrongVoiceActive = true;
@@ -467,7 +436,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     unawaited(showTrWooReaction(TrWooState.correct));
     if (!mounted) return;
 
-    await _playAndWait(_completePlayer, _winAudio);
+    await playAssetAudio(_audioPlayer, _winAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
@@ -496,9 +466,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
   }
 
   Future<void> _goBack() async {
-    await _narrationPlayer.stop();
-    await _completePlayer.stop();
-    await _drWooPlayer.stop();
+    _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     if (!mounted) return;
     Navigator.of(context).pop();
   }

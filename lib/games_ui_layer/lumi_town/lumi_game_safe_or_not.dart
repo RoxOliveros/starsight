@@ -11,6 +11,7 @@ import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../ui_layer/lumi_town/lumi_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_road_crossing.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -96,17 +97,18 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
         TrWooReactionMixin,
         AiCameraMixin<SafeOrNotGameScreen>,
         AppAudioLifecycleMixin<SafeOrNotGameScreen> {
-  @override
-  AudioPlayer get trWooPlayer => _narrationPlayer;
 
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
-  final AudioPlayer _narrationPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _trWooPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_narrationPlayer, _sfxPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
+
+  @override
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   // --- Tracker State --------------------------------------------------
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -174,8 +176,8 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
   void dispose() {
     disposeAiCamera();
     _countdownTimer?.cancel();
-    _narrationPlayer.dispose();
-    _sfxPlayer.dispose();
+    _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     super.dispose();
   }
 
@@ -185,33 +187,16 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
     if (!mounted) return;
 
     setState(() => _phase = _GamePhase.intro);
-    await _playAndWait(_narrationPlayer, _introAudio);
+    await playAssetAudio(_audioPlayer, _introAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() => _phase = _GamePhase.instruction);
-    await _playAndWait(_narrationPlayer, _instructionAudio);
+    await playAssetAudio(_audioPlayer, _instructionAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     _startRound();
-  }
-
-  Future<void> _playAndWait(AudioPlayer player, String asset) async {
-    final completer = Completer<void>();
-    late final StreamSubscription<void> sub;
-
-    sub = player.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-
-    try {
-      await player.stop();
-      await player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-    } catch (_) {
-      if (!completer.isCompleted) completer.complete();
-    } finally {
-      await sub.cancel();
-    }
   }
 
   // --- Round lifecycle -------------------------------------------------
@@ -284,10 +269,12 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
     });
 
     if (correct) {
-      unawaited(showTrWooReaction(TrWooState.correct));
+      unawaited(_trWooPlayer.stop());
+      showTrWooReaction(TrWooState.correct);
       await Future.delayed(const Duration(milliseconds: 1500));
     } else {
-      await showTrWooReaction(TrWooState.wrong);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTrWooReaction(TrWooState.wrong);
     }
     if (!mounted) return;
 
@@ -343,7 +330,8 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
       debugPrint("Database Error marking level complete: $e");
     });
 
-    await _playAndWait(_narrationPlayer, _winAudio);
+    await playAssetAudio(_audioPlayer, _winAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() => _gameComplete = true);
@@ -370,8 +358,8 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
 
   Future<void> _goBack() async {
     _countdownTimer?.cancel();
-    await _narrationPlayer.stop();
-    await _sfxPlayer.stop();
+    await _audioPlayer.stop();
+    await _trWooPlayer.stop();
     if (!mounted) return;
 
     Navigator.of(context).pop();

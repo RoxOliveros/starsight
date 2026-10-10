@@ -7,6 +7,7 @@ import '../../business_layer/orientation_service.dart';
 import '../../business_layer/town_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'lumi_game_diary.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -34,8 +35,7 @@ const String _completeAudio = '${_audioBase}stoplight_complete.wav';
 const String _sleepingScene = 'assets/animations/sleeping.webp';
 const String _bikingScene = 'assets/images/objects/lumi/biking_scene.png';
 const String _snacksScene = 'assets/images/objects/lumi/snacks_scene.png';
-const String _watchingTvScene =
-    'assets/images/objects/lumi/watching_tv_scene.png';
+const String _watchingTvScene = 'assets/images/objects/lumi/watching_tv_scene.png';
 const String _gamingScene = 'assets/images/objects/lumi/gaming_scene.png';
 
 // ============================================================================
@@ -122,19 +122,18 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
-  final AudioPlayer _narrationPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _drWooPlayer = AudioPlayer();
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _trWooPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [
-    _narrationPlayer,
-    _completePlayer,
-    _drWooPlayer,
+    _audioPlayer,
+    _trWooPlayer,
   ];
 
   @override
-  AudioPlayer get trWooPlayer => _drWooPlayer;
+  AudioPlayer get trWooPlayer => _trWooPlayer;
 
   // --- Game state -------------------------------------------------------
   int _currentRound = 0;
@@ -192,9 +191,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _narrationPlayer.dispose();
-    _completePlayer.dispose();
-    _drWooPlayer.dispose();
+    _audioPlayer.dispose();
+    _trWooPlayer.dispose();
     super.dispose();
   }
 
@@ -206,8 +204,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
       _buttonsEnabled = false;
     });
 
-    await _playAndWait(_narrationPlayer, _introAudio);
-
+    await playAssetAudio(_audioPlayer, _introAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
@@ -219,8 +217,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
 
     unawaited(_runInstructionFlashes());
 
-    await _playAndWait(_narrationPlayer, _instructionAudio);
-
+    await playAssetAudio(_audioPlayer, _instructionAudio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() {
@@ -286,29 +284,11 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
       _checkingAnswer = false;
     });
 
-    await _playAndWait(_narrationPlayer, _scenario.audio);
+    await playAssetAudio(_audioPlayer, _scenario.audio);
+    await waitForAudio(_audioPlayer);
     if (!mounted) return;
 
     setState(() => _buttonsEnabled = true);
-  }
-
-  Future<void> _playAndWait(AudioPlayer player, String asset) async {
-    final completer = Completer<void>();
-    late final StreamSubscription<void> sub;
-
-    sub = player.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-
-    try {
-      await player.stop();
-      await player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-    } catch (_) {
-      if (!completer.isCompleted) completer.complete();
-    } finally {
-      await sub.cancel();
-    }
   }
 
   Future<void> _onLightTapped(StoplightAnswer answer) async {
@@ -327,7 +307,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
 
     if (isCorrect) {
       _tapTracker.recordCorrectTap();
-      unawaited(showTrWooReaction(TrWooState.correct));
+      unawaited(_trWooPlayer.stop());
+      showTrWooReaction(TrWooState.correct);
 
       await Future<void>.delayed(const Duration(milliseconds: 1600));
       if (!mounted) return;
@@ -336,7 +317,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
       await _advanceRound();
     } else {
       _tapTracker.recordMistake();
-      unawaited(showTrWooReaction(TrWooState.wrong));
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTrWooReaction(TrWooState.wrong);
 
       await Future<void>.delayed(const Duration(milliseconds: 1600));
       if (!mounted) return;
@@ -391,7 +373,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
 
     if (!mounted) return;
 
-    await _playAndWait(_completePlayer, _completeAudio);
+    await playAssetAudio(_audioPlayer, _completeAudio);
+    await waitForAudio(_audioPlayer);
 
     if (!mounted) return;
 
@@ -420,9 +403,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
   }
 
   Future<void> _goBack() async {
-    await _narrationPlayer.stop();
-    await _completePlayer.stop();
-    await _drWooPlayer.stop();
+    await _audioPlayer.stop();
+    await _trWooPlayer.stop();
     if (!mounted) return;
     Navigator.of(context).pop();
   }
@@ -503,10 +485,6 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
                 );
               },
             ),
-
-            if (_phase == StoplightPhase.game &&
-                trWooState != TrWooState.normal)
-              buildTrWoo(context),
 
             Positioned(top: 25, left: 25, child: LumiXButton()),
             Positioned(
