@@ -155,4 +155,40 @@ class AuthService {
       return "Could not verify with Google. Please try again.";
     }
   }
+
+  // 7. SIGN OUT (used by Switch Account)
+  Future<void> signOut() async {
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (e) {
+      print("Error signing out of Google: $e");
+    }
+    await FirebaseAuth.instance.signOut();
+  }
+
+  // 8. DOES THIS ACCOUNT HAVE A PASSWORD?
+  // False for accounts that only sign in with Google.
+  bool get usesPassword => signInProviders.contains('password');
+
+  // 9. DELETE THE ACCOUNT
+  // Call only after re-verifying the parent and deleting their Firestore data.
+  // Returns null if deleted, or an error message if not.
+  Future<String?> deleteAccount() async {
+    try {
+      await FirebaseAuth.instance.currentUser?.delete();
+      try {
+        await GoogleSignIn.instance.signOut();
+      } catch (e) {
+        print("Error signing out of Google: $e");
+      }
+      return null; // Success!
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        return "Please verify your account again and try once more.";
+      }
+      return e.message ?? "Could not delete your account.";
+    } catch (e) {
+      return "An unknown error occurred.";
+    }
+  }
 }

@@ -37,7 +37,11 @@ abstract class AppTextStyles {
 }
 
 class SignInAccount extends StatefulWidget {
-  const SignInAccount({super.key});
+  /// True when opened from Account Settings > Switch account. The parent is
+  /// still signed in, and can't "switch" to the account they're already using.
+  final bool isSwitchingAccount;
+
+  const SignInAccount({super.key, this.isSwitchingAccount = false});
 
   @override
   State<SignInAccount> createState() => _SignInAccountState();
@@ -81,6 +85,17 @@ class _SignInAccountState extends State<SignInAccount>
       AppDialog.showError(
         context,
         message: "Please enter your email and password.",
+      );
+      return;
+    }
+
+    if (widget.isSwitchingAccount &&
+        email.toLowerCase() ==
+            (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase()) {
+      AppDialog.showError(
+        context,
+        message:
+            "You're already signed in with this account. Please use a different one.",
       );
       return;
     }
@@ -219,11 +234,26 @@ class _SignInAccountState extends State<SignInAccount>
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
+    final previousEmail = FirebaseAuth.instance.currentUser?.email;
     bool success = await AuthService().signInWithGoogle();
 
     if (success) {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
+        if (widget.isSwitchingAccount &&
+            previousEmail != null &&
+            (user.email ?? '').toLowerCase() == previousEmail.toLowerCase()) {
+          // Same account as before, so nothing changed: just tell them.
+          if (!mounted) return;
+          Navigator.pop(context); // dismiss the loading circle
+          AppDialog.showError(
+            context,
+            message:
+                "You're already signed in with this account. Please use a different one.",
+          );
+          return;
+        }
+
         bool emailExists = await DatabaseService().doesEmailExist(
           user.email ?? '',
         );
@@ -311,16 +341,32 @@ class _SignInAccountState extends State<SignInAccount>
       appBar: AppBar(
         backgroundColor: ColorTheme.cream,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: ColorTheme.deepNavyBlue,
-          ),
-          onPressed: () {
-            SfxHelper.instance.play(Sfx.keyTap);
-            Navigator.pop(context);
-          },
-        ),
+        automaticallyImplyLeading: false,
+        // No back arrow when this is the only screen (e.g. after Switch
+        // Account); popping the last route would leave a black screen.
+        leading: !Navigator.of(context).canPop()
+            ? null
+            : IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: ColorTheme.deepNavyBlue,
+                ),
+                onPressed: () {
+                  SfxHelper.instance.play(Sfx.keyTap);
+                  if (widget.isSwitchingAccount &&
+                      FirebaseAuth.instance.currentUser == null) {
+                    // A failed switch ended the old session; don't return to
+                    // the signed-in screens underneath.
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SignInAccount()),
+                      (route) => false,
+                    );
+                  } else {
+                    Navigator.pop(context);
+                  }
+                },
+              ),
       ),
       body: SafeArea(
         child: FadeTransition(
