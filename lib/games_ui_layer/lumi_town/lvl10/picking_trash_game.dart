@@ -261,6 +261,8 @@ class _PickingTrashGameState extends State<PickingTrashGame>
   Future<void> _handleTrashTap(TrashItemData item) async {
     if (_showDrWoo || item.isCollected || _isGameFinished) return;
 
+    GamesSfxPlayer.instance.play(GameSfx.shine);
+
     _tapTracker.recordCorrectTap();
 
     bool startedOnLeft = item.x < 0.5;
@@ -334,7 +336,6 @@ class _PickingTrashGameState extends State<PickingTrashGame>
                   width: screenSize.width * item.size,
                   child: GestureDetector(
                     onTap: () {
-                      GamesSfxPlayer.instance.play(GameSfx.shine);
                       _handleTrashTap(item);
                     },
                     child: Image.asset(item.image, fit: BoxFit.contain),

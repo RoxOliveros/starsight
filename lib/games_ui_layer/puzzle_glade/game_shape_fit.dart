@@ -63,17 +63,13 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/shape_fit_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/shape_fit_instruction.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/shape_fit_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/shape_fit_instruction.wav';
   static const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/shape_fit_complete.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/shape_fit_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -90,6 +86,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool inputEnabled = false;
 
   final Map<ShapeType, double> _pieceTilt = {};
 
@@ -199,32 +196,56 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
   }
 
   Future<void> _startIntroFlow() async {
+    inputEnabled = false;
+
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
     _roxieSlideCtrl.forward();
-
     _speechBubbleCtrl.forward(from: 0);
+
     await _playBgAudio(_audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
-
     _gameEnterCtrl.forward();
+
     _startRound();
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
+
+    setState(() {
+      _screenPhase = _ScreenPhase.game;
+      inputEnabled = false;
+    });
+
     await _playBgAudio(_audioInstructions);
+    if (!mounted) return;
+
+    setState(() {
+      inputEnabled = true;
+    });
   }
 
   Future<void> _playBgAudio(String asset) async {
-    StreamSubscription? sub;
+    StreamSubscription<void>? sub;
+
     try {
+      await _bgPlayer.stop();
+
       final completer = Completer<void>();
+
       sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
       });
-      await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 12));
+
+      await _bgPlayer.play(
+        AssetSource(asset.replaceFirst('assets/', '')),
+      );
+
+      await completer.future.timeout(
+        const Duration(seconds: 30),
+      );
     } catch (e) {
       debugPrint('Audio error ($asset): $e');
     } finally {
@@ -288,6 +309,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
   }
 
   Future<void> _onPieceDropped(ShapeType piece, ShapeType slot) async {
+    if (!inputEnabled || _placed.contains(slot)) return;
     if (_placed.contains(slot)) return;
 
     if (piece == slot) {
@@ -732,8 +754,10 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
 
     return Draggable<ShapeType>(
       data: shape,
+      maxSimultaneousDrags: inputEnabled ? 1 : 0,
       onDragEnd: (details) {
         if (!details.wasAccepted) {
+          _tapTracker.recordMistake();
           _tapTracker.recordMistake();
         }
       },

@@ -73,16 +73,12 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/pattern_match_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/pattern_match_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/pattern_match_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/pattern_match_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/pattern_match_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/pattern_match_complete.wav';
   static const String _audioSuccess = 'assets/audio/sound_effects/sfx_shine.wav';
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -98,6 +94,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   final AudioPlayer _bgPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -241,6 +238,8 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
       });
     }
     await _playBgAudio(_audioInstructions);
+    if (!mounted) return;
+    setState(() => _inputEnabled = true);
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -294,14 +293,14 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   }
 
   double _colorDistance(Color a, Color b) {
-    return sqrt(
-      pow(a.red - b.red, 2) +
-          pow(a.green - b.green, 2) +
-          pow(a.blue - b.blue, 2),
-    );
+    final dr = (a.r - b.r) * 255.0;
+    final dg = (a.g - b.g) * 255.0;
+    final db = (a.b - b.b) * 255.0;
+    return sqrt(dr * dr + dg * dg + db * db);
   }
 
   Future<void> _onChoiceTapped(_StarColor tapped) async {
+    if (!_inputEnabled) return;
     if (_roundComplete || _wrongFlash || _rightFlash) return;
 
     if (tapped == _answerColor) {
@@ -604,13 +603,20 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   }
 
   Widget _buildGameArea() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildSequenceRow(),
-        const SizedBox(height: 28),
-        _buildChoicesRow(),
-      ],
+    return IgnorePointer(
+      ignoring: !_inputEnabled,
+      child: AnimatedOpacity(
+        opacity: _inputEnabled ? 1.0 : 0.6,
+        duration: const Duration(milliseconds: 300),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildSequenceRow(),
+            const SizedBox(height: 28),
+            _buildChoicesRow(),
+          ],
+        ),
+      ),
     );
   }
 
