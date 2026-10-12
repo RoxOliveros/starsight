@@ -11,10 +11,11 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -38,8 +39,8 @@ class _AcornDragData {
 class _FallingLane {
   String letter;
   final AnimationController controller;
-  final double xFraction; // 0..1 horizontal position within the fall zone
-  bool isBusy = false; // true while its acorn is being dragged / resolved
+  final double xFraction;
+  bool isBusy = false;
 
   _FallingLane({
     required this.letter,
@@ -52,21 +53,18 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     with
         TickerProviderStateMixin,
         GameLoadingMixin,
-        ForestAudioMixin,
         TofiReactionMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<AcornBasketGame> {
-  @override
-  AudioPlayer get tofiPlayer => _player;
 
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _player,
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -81,15 +79,14 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   int _currentRound = 0;
   static const int _totalRounds = 5;
 
-  // Child must drop this many correct-letter acorns per round.
   static const int _catchesPerRound = 1;
   int _catchesThisRound = 0;
 
-  bool _roundLocked = false; // guards against overlap during round transition
+  bool _roundLocked = false;
   bool _wrongHoverFlash = false;
 
-  late AnimationController _basketPulseController; // correct-drop "gulp"
-  late AnimationController _wrongShakeController; // wrong-drop basket shake
+  late AnimationController _basketPulseController;
+  late AnimationController _wrongShakeController;
 
   bool _introPlaying = true;
   late AnimationController _tofiFloatCtrl;
@@ -107,12 +104,10 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     OrientationService.setLandscape();
     super.initState();
 
-    // child's calibration separate from everyone else's.
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-    startAiCamera(); // <-- Start the camera
-    _tapTracker.startSession(); // <-- Start the timer
+    startAiCamera();
+    _tapTracker.startSession();
 
-    // Lighting card can reappear later if the face is lost again mid-play.
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
@@ -157,8 +152,6 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     _basketAcorns.clear();
     _loadRound();
 
-    // Starts once loading is done (not behind the loading screen) and never
-    // waits for a face.
     finishLoading(_startIntroFlow);
   }
 
@@ -167,7 +160,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
       await Future.delayed(const Duration(milliseconds: 300));
 
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         'assets/audio/alphabet_forest/acorn_intro.wav',
       );
 
@@ -182,7 +175,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
       if (!mounted) return;
 
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         'assets/audio/alphabet_forest/acorn_instruction.wav',
       );
 
@@ -191,7 +184,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
       await Future.delayed(const Duration(milliseconds: 150));
 
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(_targetLetter),
       );
     } catch (e) {
@@ -201,11 +194,21 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     }
   }
 
-  String _pickLetterForLane() => _targetLetter;
+  String _pickLetterForLane(_FallingLane lane) {
+    final othersHaveTarget = _lanes.any(
+          (l) => l != lane && l.letter == _targetLetter,
+    );
+    if (!othersHaveTarget) return _targetLetter;
+
+    if (_rand.nextBool()) return _targetLetter;
+
+    final others = _letterPool.where((l) => l != _targetLetter).toList();
+    return others[_rand.nextInt(others.length)];
+  }
 
   void _spawnLane(_FallingLane lane) {
-    lane.letter = _pickLetterForLane();
-    final durationMs = 4500 + _rand.nextInt(2600); // ~4.5s – 7.1s fall
+    lane.letter = _pickLetterForLane(lane);
+    final durationMs = 4500 + _rand.nextInt(2600);
     lane.controller.duration = Duration(milliseconds: durationMs);
     lane.controller.forward(from: 0);
 
@@ -231,6 +234,11 @@ class _AcornBasketGameState extends State<AcornBasketGame>
       }
     }
 
+    if (!_lanes.any((l) => l.letter == _targetLetter)) {
+      final free = _lanes.firstWhere((l) => !l.isBusy, orElse: () => _lanes.first);
+      free.letter = _targetLetter;
+    }
+
     setState(() {});
   }
 
@@ -242,7 +250,8 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     for (final lane in _lanes) {
       lane.controller.dispose();
     }
-    _player.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     _tofiFloatCtrl.dispose();
     super.dispose();
   }
@@ -303,7 +312,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
             if (!mounted) return;
 
             await playVoiceRestartingOnFaceLoss(
-              audio.voicePlayer,
+              _audioPlayer,
               ForestAudioAssets.forLetter(_targetLetter),
             );
           } catch (e) {
@@ -322,6 +331,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
   void _handleWrong(_FallingLane lane) {
     _tapTracker.recordMistake();
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
     showTofiReaction(TofiState.wrong);
 
     setState(() {
@@ -330,9 +340,6 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
     _wrongShakeController.forward(from: 0);
 
-    // The dropped Draggable snaps back to its own start position
-    // automatically since the DragTarget rejects it. The lane's acorn
-    // simply resumes its fall from wherever it paused mid-drag.
     lane.isBusy = false;
     lane.controller.forward(from: lane.controller.value);
 

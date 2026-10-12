@@ -14,9 +14,10 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -39,18 +40,18 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     with
         TickerProviderStateMixin,
         GameLoadingMixin<ButterflyFlowerGardenGame>,
-        ForestAudioMixin<ButterflyFlowerGardenGame>,
         TofiReactionMixin<ButterflyFlowerGardenGame>,
         AiCameraMixin,
         AppAudioLifecycleMixin<ButterflyFlowerGardenGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -96,7 +97,6 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
   late Animation<Offset> _flyAnimation;
   late AnimationController _butterflyFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _bloomCtrl;
@@ -154,13 +154,6 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -196,7 +189,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _instructionCtrl.forward(from: 0);
@@ -208,12 +201,12 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     if (mounted) setState(() => _inputEnabled = false);
     try {
       if (_currentRound == 0) {
-        await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
         await Future.delayed(const Duration(milliseconds: 700));
         if (!mounted) return;
       }
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(_targets[_currentRound]),
       );
     } catch (e) {
@@ -275,9 +268,9 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
       setState(() => _bloomedLetter = flower.letter);
 
       _bloomCtrl.forward(from: 0);
-      await showTofiReaction(TofiState.correct);
+      showTofiReaction(TofiState.correct);
       if (!mounted) return;
-      await Future.delayed(const Duration(milliseconds: 200));
+      await Future.delayed(const Duration(milliseconds: 2000));
       if (!mounted) return;
       await _advanceRound();
     } else {
@@ -285,7 +278,8 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
       HapticFeedback.heavyImpact();
       setState(() => _wrongLetter = flower.letter);
       _shakeCtrl.forward(from: 0);
-      await showTofiReaction(TofiState.wrong);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTofiReaction(TofiState.wrong);
       if (!mounted) return;
       setState(() => _wrongLetter = null);
     }
@@ -298,7 +292,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -383,6 +377,8 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     _shakeCtrl.dispose();
     _flyCtrl.dispose();
     _tofiFloatCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 

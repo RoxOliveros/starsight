@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'dart:async';
 import '../../business_layer/orientation_service.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
@@ -42,13 +43,15 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
         TofiReactionMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<AlphabetFallScreen> {
-  @override
-  AudioPlayer get tofiPlayer => _player;
 
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player, _audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -62,12 +65,9 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   Timer? _spawnTimer;
   Timer? _gameTimer;
 
-  final AudioPlayer _audioPlayer = AudioPlayer();
-
   int _correctCount = 0;
-  final List<Map<String, double>> _wrongEffects = [];
 
-  static const String _fallInstructionWav = 'audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
+  static const String _fallInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -193,25 +193,11 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
       });
     } else {
       _tapTracker.recordMistake();
-      final double tapX = obj.xPos;
-      final double tapY = obj.yPos;
 
-      setState(() {
-        _activeObjects.remove(obj);
-        _wrongEffects.add({'x': tapX, 'y': tapY});
-      });
+      setState(() => _activeObjects.remove(obj));
 
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showTofiReaction(TofiState.wrong);
-
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          setState(() {
-            _wrongEffects.removeWhere(
-              (effect) => effect['x'] == tapX && effect['y'] == tapY,
-            );
-          });
-        }
-      });
     }
   }
 
@@ -253,14 +239,14 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   Future<void> _playInstructionThenLetter() async {
     try {
       await playVoiceRestartingOnFaceLoss(
-        _player,
+        _audioPlayer,
         _fallInstructionWav,
         timeout: const Duration(seconds: 30),
       );
       if (!mounted) return;
       await playVoiceRestartingOnFaceLoss(
-        _player,
-        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+        _audioPlayer,
+        'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
       );
     } finally {
       if (mounted) _startGameLoops();
@@ -450,13 +436,10 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     _spawnTimer?.cancel();
     _gameTimer?.cancel();
 
-    // Stop audio to release platform locks safely
-    _player.stop();
-    _audioPlayer.stop();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
 
     disposeAiCamera();
-    _audioPlayer.dispose();
-    _player.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -524,31 +507,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                                           ),
                                         ],
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                        ..._wrongEffects.map((effect) {
-                          return Positioned(
-                            left:
-                                effect['x']! * (constraints.maxWidth - objSize),
-                            top: effect['y']! * constraints.maxHeight,
-                            child: SizedBox(
-                              width: objSize,
-                              height: objSize,
-                              child: Center(
-                                child: Icon(
-                                  Icons.close_rounded,
-                                  color: Colors.redAccent,
-                                  size: objSize * 0.8,
-                                  shadows: const [
-                                    Shadow(
-                                      color: Colors.white,
-                                      blurRadius: 12,
-                                      offset: Offset(0, 0),
                                     ),
                                   ],
                                 ),

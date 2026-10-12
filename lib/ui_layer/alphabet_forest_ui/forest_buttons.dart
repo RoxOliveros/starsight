@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../games_ui_layer/games_audio_helper.dart';
 import 'forest_theme.dart';
 
 class ForestBackButton extends StatelessWidget {
@@ -7,7 +8,10 @@ class ForestBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pop(context),
+      onTap: () async {
+        await GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+        Navigator.pop(context);
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         decoration: BoxDecoration(
@@ -37,7 +41,14 @@ class ForestXButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-        onTap: onTap ?? () => Navigator.pop(context),
+        onTap: () {
+          GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+          if (onTap != null) {
+            onTap!();
+          } else {
+            Navigator.pop(context);
+          }
+        },
         child: Image.asset('assets/images/buttons/x_darkgreen.png', width: 50)
     );
   }
@@ -51,7 +62,10 @@ class ForestSkipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () async {
+        GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+        onTap();
+      },
       child: Image.asset(
         'assets/images/buttons/skip_forest.png',
         width: 90,
@@ -69,7 +83,10 @@ class ForestNextButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () async {
+        await GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+        onTap();
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         decoration: BoxDecoration(

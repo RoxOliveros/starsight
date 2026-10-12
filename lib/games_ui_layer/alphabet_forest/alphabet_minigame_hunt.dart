@@ -12,6 +12,7 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
@@ -36,12 +37,15 @@ class AlphabetHuntScreen extends StatefulWidget {
 
 class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetHuntScreen> {
-  @override
-  AudioPlayer get tofiPlayer => _audioPlayer;
+
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   late List<String> _letterPool;
   final List<HuntObject> _activeObjects = [];
@@ -49,12 +53,9 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   int _correctCount = 0;
   final int _winCondition = 4;
 
-  final List<Map<String, double>> _wrongEffects = [];
-  final List<Map<String, double>> _correctEffects = [];
-
   final GameTapTracker _tapTracker = GameTapTracker();
 
-  static const String _huntInstructionWav = 'audio/alphabet_forest/alphabet_minigame_hunt_instruction.wav';
+  static const String _huntInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_hunt_instruction.wav';
 
   bool _inputEnabled = false;
   bool _hideLightingCard = false;
@@ -159,12 +160,8 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     return 'assets/images/objects/forest/$name.png';
   }
 
-  void _onObjectTap(HuntObject obj, GlobalKey key) async {
+  void _onObjectTap(HuntObject obj, GlobalKey key) {
     if (!_inputEnabled || obj.found) return;
-
-    RenderBox? box = key.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    Offset position = box.localToGlobal(Offset.zero);
 
     if (obj.letter == widget.letter.toUpperCase()) {
       _tapTracker.recordCorrectTap();
@@ -173,41 +170,18 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
       final bool won = _correctCount + 1 >= _winCondition;
 
       setState(() {
-        obj.found = true; // hide it but keep its grid slot
+        obj.found = true;
         _correctCount++;
-        _correctEffects.add({'x': position.dx, 'y': position.dy});
         if (won) _inputEnabled = false;
-      });
-
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          setState(() {
-            _correctEffects.removeWhere(
-                  (e) => e['x'] == position.dx && e['y'] == position.dy,
-            );
-          });
-        }
       });
 
       if (won) _saveDataAndShowApplause();
     } else {
       _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showTofiReaction(TofiState.wrong);
 
-      setState(() {
-        _wrongEffects.add({'x': position.dx, 'y': position.dy});
-      });
-
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          setState(() {
-            _wrongEffects.removeWhere(
-              (effect) =>
-                  effect['x'] == position.dx && effect['y'] == position.dy,
-            );
-          });
-        }
-      });
+      setState(() => obj.found = true);
     }
   }
 
@@ -221,7 +195,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
       if (!mounted) return;
       await playVoiceRestartingOnFaceLoss(
         _audioPlayer,
-        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+        'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
       );
     } catch (e) {
       debugPrint('Instruction audio error: $e');
@@ -430,6 +404,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     disposeAiCamera();
     OrientationService.setLandscape();
     _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 
@@ -441,64 +416,64 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     return Scaffold(
       body: Stack(
         children: [
-      Positioned.fill(
-      child: Image.asset(
-        'assets/images/backgrounds/bg_game_forest.png',
-        fit: BoxFit.cover,
-      ),
-    ),
-    Stack(
-              children: [
-                buildTofi(context),
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/bg_game_forest.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Stack(
+            children: [
+              buildTofi(context),
 
-                // ── Back button ──
-                const Positioned(top: 25, left: 25, child: ForestXButton()),
+              // ── Back button ──
+              const Positioned(top: 25, left: 25, child: ForestXButton()),
 
-                // Level Badge
-                Positioned(
-                  top: 25,
-                  right: 25,
-                  child: ForestLevelBadge(
-                    level:
-                        ForestProgressService.levelNumberForLetter(
-                          widget.letter.toUpperCase(),
-                        ) ??
-                        1,
-                  ),
+              // Level Badge
+              Positioned(
+                top: 25,
+                right: 25,
+                child: ForestLevelBadge(
+                  level:
+                      ForestProgressService.levelNumberForLetter(
+                        widget.letter.toUpperCase(),
+                      ) ??
+                      1,
                 ),
+              ),
 
-                Positioned(
-                  top: 80,
-                  bottom: 20,
-                  left: 180,
-                  right: 20,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final double itemWidth =
-                          (constraints.maxWidth - (3 * 12)) / 4;
-                      final double itemHeight =
-                          (constraints.maxHeight - (2 * 12)) / 2;
-                      final double itemSize = itemWidth < itemHeight
-                          ? itemWidth
-                          : itemHeight;
-                      final double letterFontSize = itemSize * 0.45;
+              Positioned(
+                top: 80,
+                bottom: 20,
+                left: 180,
+                right: 20,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double itemWidth =
+                        (constraints.maxWidth - (3 * 12)) / 4;
+                    final double itemHeight =
+                        (constraints.maxHeight - (2 * 12)) / 2;
+                    final double itemSize = itemWidth < itemHeight
+                        ? itemWidth
+                        : itemHeight;
+                    final double letterFontSize = itemSize * 0.45;
 
-                      return GridView.count(
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 4,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: itemWidth / itemHeight,
-                        children: _activeObjects.map((obj) {
-                          if (obj.found) return const SizedBox.shrink();
+                    return GridView.count(
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 4,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: itemWidth / itemHeight,
+                      children: _activeObjects.map((obj) {
+                        if (obj.found) return const SizedBox.shrink();
 
-                          return Opacity(
-                            opacity: _inputEnabled ? 1.0 : 0.7,
-                            child: GestureDetector(
-                              key: obj.key,
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => _onObjectTap(obj, obj.key),
-                              child: Stack(
+                        return Opacity(
+                          opacity: _inputEnabled ? 1.0 : 0.7,
+                          child: GestureDetector(
+                            key: obj.key,
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _onObjectTap(obj, obj.key),
+                            child: Stack(
                               alignment: Alignment.center,
                               children: [
                                 Image.asset(obj.imagePath, fit: BoxFit.contain),
@@ -520,52 +495,15 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                                 ),
                               ],
                             ),
-                              ),
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
                 ),
-
-                ..._wrongEffects.map((effect) {
-                  return Positioned(
-                    left: effect['x']! - 20,
-                    top: effect['y']! - 20,
-                    child: Icon(
-                      Icons.close_rounded,
-                      color: Colors.redAccent,
-                      size: objSize * 0.8,
-                      shadows: const [
-                        Shadow(
-                          color: Colors.white,
-                          blurRadius: 12,
-                          offset: Offset(0, 0),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                ..._correctEffects.map((effect) {
-                  return Positioned(
-                    left: effect['x']! - 20,
-                    top: effect['y']! - 20,
-                    child: Icon(
-                      Icons.check_rounded,
-                      color: Colors.greenAccent.shade700,
-                      size: objSize * 0.8,
-                      shadows: const [
-                        Shadow(
-                          color: Colors.white,
-                          blurRadius: 12,
-                          offset: Offset(0, 0),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
+              ),
+            ],
+          ),
 
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(

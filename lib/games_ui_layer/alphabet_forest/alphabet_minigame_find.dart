@@ -14,6 +14,7 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
@@ -38,21 +39,22 @@ class AlphabetFindScreen extends StatefulWidget {
 
 class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     with TickerProviderStateMixin, TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetFindScreen> {
-  @override
-  AudioPlayer get tofiPlayer => _player;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player, _promptPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
 
-  final AudioPlayer _player = AudioPlayer();
-  final AudioPlayer _promptPlayer = AudioPlayer();
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
+
   final GameTapTracker _tapTracker = GameTapTracker();
   final Random _random = Random();
 
   static const String _vaseAsset = 'assets/images/objects/forest/vase.png';
   static const String _hammerAsset = 'assets/images/objects/forest/hammer.png';
-  static const String _findInstructionAudio = 'audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
-  static const String _breakVaseAudio = 'audio/sound_effects/sfx_break_vase.wav';
+  static const String _findInstructionAudio = 'assets/audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
 
   static const int _totalRounds = 3;
 
@@ -146,7 +148,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   Future<void> _playInstructionThenVaseSounds() async {
     try {
       await playVoiceRestartingOnFaceLoss(
-        _player,
+        _audioPlayer,
         _findInstructionAudio,
         timeout: const Duration(seconds: 30),
       );
@@ -193,38 +195,29 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   Future<void> _playLetterSound(String letter) async {
     final String lower = letter.toLowerCase();
     await playVoiceRestartingOnFaceLoss(
-      _promptPlayer,
+      _audioPlayer,
       'audio/alphabet_forest/sound_effects/sound_$lower.wav',
       timeout: const Duration(seconds: 5),
     );
-  }
-
-  Future<void> _playBreakSound() async {
-    await Future.delayed(const Duration(milliseconds: 250));
-    if (!mounted) return;
-    final done = _promptPlayer.onPlayerComplete.first
-        .then<void>((_) {})
-        .timeout(const Duration(seconds: 3), onTimeout: () {});
-    await _promptPlayer.play(AssetSource(_breakVaseAudio));
-    await done;
   }
 
   Future<void> _onVaseTapped(int index) async {
     if (!_inputEnabled || _choicesLocked) return;
 
     final token = ++_tapToken;
-    _player.stop();
-    _promptPlayer.stop();
+    _audioPlayer.stop();
 
     if (index == _correctIndex) {
       _tapTracker.recordCorrectTap();
       _choicesLocked = true;
       setState(() => _revealedIndex = index);
-      await _playBreakSound();
+      await GamesSfxPlayer.instance.play(GameSfx.breakVase);
       if (!mounted || token != _tapToken) return;
 
-      await showTofiReaction(TofiState.correct);
+      showTofiReaction(TofiState.correct);
+      await Future.delayed(const Duration(milliseconds: 2000));
       if (!mounted) return;
+
       setState(() => _completedRounds++);
 
       if (_completedRounds >= _totalRounds) {
@@ -244,7 +237,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
       });
 
       _wiggleCtrl.forward(from: 0);
-      await _playBreakSound();
+      await GamesSfxPlayer.instance.play(GameSfx.breakVase);
       if (!mounted || token != _tapToken) return;
 
       showTofiReaction(TofiState.wrong);
@@ -457,12 +450,10 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   @override
   void dispose() {
-    _player.stop();
-    _promptPlayer.stop();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     disposeAiCamera();
-    _wiggleCtrl.dispose(); // ADD
-    _promptPlayer.dispose();
-    _player.dispose();
+    _wiggleCtrl.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -471,100 +462,99 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
-        // <-- Main Stack added here
         children: [
-      Positioned.fill(
-      child: Image.asset(
-        'assets/images/backgrounds/bg_game_forest.png',
-        fit: BoxFit.cover,
-      ),
-    ),
-    Stack(
-              children: [
-                const Positioned(top: 25, left: 25, child: ForestXButton()),
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/bg_game_forest.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Stack(
+            children: [
+              const Positioned(top: 25, left: 25, child: ForestXButton()),
 
-                Positioned(
-                  top: 25,
-                  right: 20,
-                  child: ForestLevelBadge(
-                    level:
-                        ForestProgressService.levelNumberForLetter(
-                          widget.letter.toUpperCase(),
-                        ) ??
-                        1,
-                  ),
+              Positioned(
+                top: 25,
+                right: 20,
+                child: ForestLevelBadge(
+                  level:
+                  ForestProgressService.levelNumberForLetter(
+                    widget.letter.toUpperCase(),
+                  ) ??
+                      1,
                 ),
+              ),
 
-                buildTofi(context),
+              buildTofi(context),
 
-                Align(
-                  alignment: const Alignment(0, -0.45),
-                  child: Container(
-                    width: 110,
-                    height: 110,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: ForestColorTheme.darkseagreen,
-                        width: 5,
+              Align(
+                alignment: const Alignment(0, -0.45),
+                child: Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: ForestColorTheme.darkseagreen,
+                      width: 5,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
                       ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 8,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      widget.letter.toUpperCase(),
-                      style: TextStyle(
-                        fontFamily: ForestAppTextStyles.fredoka,
-                        fontSize: 64,
-                        height: 1,
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFF3C5729),
-                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    widget.letter.toUpperCase(),
+                    style: TextStyle(
+                      fontFamily: ForestAppTextStyles.fredoka,
+                      fontSize: 64,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF3C5729),
                     ),
                   ),
                 ),
+              ),
 
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 40),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(_vaseLetters.length, (i) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: _buildVase(i),
-                        );
-                      }),
-                    ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 40),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(_vaseLetters.length, (i) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildVase(i),
+                      );
+                    }),
                   ),
                 ),
+              ),
 
-                // --- REPLAY SOUND BUTTON ---
-                Positioned(
-                  bottom: 0,
-                  right: 20,
-                  child: GestureDetector(
-                    onTap: _inputEnabled ? _playVaseSounds : null,
-                    child: Opacity(
-                      opacity: _inputEnabled ? 1.0 : 0.5,
-                      child: Image.asset(
-                        'assets/images/icons/speaker.png',
-                        width: 90,
-                        height: 90,
-                        fit: BoxFit.contain,
-                      ),
+              // --- REPLAY SOUND BUTTON ---
+              Positioned(
+                bottom: 0,
+                right: 20,
+                child: GestureDetector(
+                  onTap: _inputEnabled ? _playVaseSounds : null,
+                  child: Opacity(
+                    opacity: _inputEnabled ? 1.0 : 0.5,
+                    child: Image.asset(
+                      'assets/images/icons/speaker.png',
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.contain,
                     ),
                   ),
                 ),
-              ],
+              ),
+            ],
           ),
 
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)

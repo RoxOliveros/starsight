@@ -14,8 +14,9 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'forest_game_train.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -101,18 +102,18 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     with
         TickerProviderStateMixin,
         GameLoadingMixin<AlphabetFishingGame>,
-        ForestAudioMixin<AlphabetFishingGame>,
         TofiReactionMixin<AlphabetFishingGame>,
         AiCameraMixin,
         AppAudioLifecycleMixin<AlphabetFishingGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -127,14 +128,10 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   static const String _rodFishImage = 'assets/images/objects/forest/rod_fish.png';
 
   static const String _audioBase = ForestAudioAssets.base;
-  static const String _sfxBase = ForestAudioAssets.sfxBase;
 
   static const String _audioIntro = '$_audioBase/alphabet_fishing_intro.wav';
   static const String _audioCatch = '$_audioBase/alphabet_fishing_catch.wav';
   static const String _audioWin = '$_audioBase/alphabet_fishing_win.wav';
-
-  static const String _sfxCatch = '$_sfxBase/fish_catch_splash.wav';
-  static const String _sfxRoundComplete = '$_sfxBase/fish_round_complete.wav';
 
   // ═════════════════════════════════════════════════════════════════════
   // GAME STRUCTURE
@@ -269,7 +266,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -282,10 +279,10 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   Future<void> _announceInstruction() async {
     _inputEnabled = false;
     try {
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioCatch);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioCatch);
       if (!mounted) return;
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(_targetLetter),
       );
     } catch (e) {
@@ -379,21 +376,19 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
   Future<void> _handleCorrectAnswer(_FishData fish, int index) async {
     _tapTracker.recordCorrectTap();
+
+    showTofiReaction(TofiState.correct);
+    if (!mounted) return;
+
     _interactionLocked = true;
     HapticFeedback.mediumImpact();
 
     _swimCtrls[index].stop();
     setState(() => fish.caught = true);
 
-    playSfx(_sfxCatch);
     await _catchCtrls[index].forward(from: 0);
     if (!mounted) return;
 
-    await showTofiReaction(TofiState.correct)
-        .timeout(const Duration(seconds: 3), onTimeout: () {});
-    if (!mounted) return;
-
-    playSfx(_sfxRoundComplete);
     _solvedRounds++;
 
     await _advanceRound();
@@ -405,6 +400,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     setState(() => fish.wrong = true);
     _shakeCtrls[index].forward(from: 0);
 
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
     showTofiReaction(TofiState.wrong);
 
     await Future.delayed(const Duration(milliseconds: 600));
@@ -417,7 +413,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     if (!mounted) return;
 
     if (_currentRound >= _totalRounds - 1) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -566,6 +562,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     _bobCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     for (final ctrl in _swimCtrls) {
       ctrl.dispose();
     }

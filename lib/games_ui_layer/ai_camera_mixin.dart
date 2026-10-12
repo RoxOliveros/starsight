@@ -6,6 +6,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../business_layer/audio_settings.dart';
+
 mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   CameraController? aiCameraController;
   Future<void>? _cameraInitFuture;
@@ -67,7 +69,10 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
         });
         _activeVoiceInterrupt = interrupt;
         _activeVoicePlayer = player;
-        await player.play(AssetSource(asset.replaceFirst('assets/', '')));
+        await player.play(
+          AssetSource(asset.replaceFirst('assets/', '')),
+          volume: AudioSettings.instance.gamesVolume,
+        );
         await Future.any([done.future.timeout(timeout), interrupt.future]);
         interrupted = interrupt.isCompleted;
       } catch (e) {

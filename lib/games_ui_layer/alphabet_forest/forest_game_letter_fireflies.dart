@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -14,8 +14,9 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'forest_game_fishing.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -94,15 +95,16 @@ class LetterFirefliesGame extends StatefulWidget {
 }
 
 class _LetterFirefliesGameState extends State<LetterFirefliesGame>
-    with TickerProviderStateMixin, GameLoadingMixin<LetterFirefliesGame>, ForestAudioMixin<LetterFirefliesGame>, TofiReactionMixin<LetterFirefliesGame>, AiCameraMixin, AppAudioLifecycleMixin<LetterFirefliesGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+    with TickerProviderStateMixin, GameLoadingMixin<LetterFirefliesGame>, TofiReactionMixin<LetterFirefliesGame>, AiCameraMixin, AppAudioLifecycleMixin<LetterFirefliesGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -240,7 +242,7 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -252,10 +254,10 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   Future<void> _announceTarget() async {
     _inputEnabled = false;
     try {
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioFindPrefix);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioFindPrefix);
       if (!mounted) return;
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(_targetLetter),
       );
     } finally {
@@ -392,7 +394,8 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     setState(() => _wrongFireflyIndex = index);
     _shakeCtrls[index].forward(from: 0);
 
-    await showTofiReaction(TofiState.wrong);
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+    showTofiReaction(TofiState.wrong);
     if (!mounted) return;
     setState(() => _wrongFireflyIndex = null);
   }
@@ -407,7 +410,7 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     if (!mounted) return;
 
     if (_currentRound >= _totalRounds - 1) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -497,6 +500,8 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
       ctrl.dispose();
     }
     _roundCompleteCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 

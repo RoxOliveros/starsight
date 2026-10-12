@@ -14,9 +14,10 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -53,18 +54,18 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     with
         TickerProviderStateMixin,
         GameLoadingMixin<ButterflyLetterMatchGame>,
-        ForestAudioMixin<ButterflyLetterMatchGame>,
         TofiReactionMixin<ButterflyLetterMatchGame>,
         AiCameraMixin,
         AppAudioLifecycleMixin<ButterflyLetterMatchGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -115,7 +116,6 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
   late AnimationController _tofiFloatCtrl;
   late AnimationController _butterflyFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late List<AnimationController> _bloomCtrls;
@@ -160,13 +160,6 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -201,7 +194,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -217,7 +210,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     }
     if (mounted) setState(() => _inputEnabled = false);
     try {
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
       await Future.delayed(const Duration(milliseconds: 700));
     } catch (e) {
       debugPrint('Instruction audio error: $e');
@@ -274,6 +267,9 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
 
     if (isMatch) {
       _tapTracker.recordCorrectTap();
+      showTofiReaction(TofiState.correct);
+      if (!mounted) return;
+
       HapticFeedback.mediumImpact();
       setState(() {
         butterfly.matched = true;
@@ -283,12 +279,11 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
 
       _bloomCtrls[_flowers.indexOf(flower)].forward(from: 0);
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(flower.letter),
       );
 
-      await showTofiReaction(TofiState.correct);
-      if (!mounted) return;
+
 
       if (_matchedCount >= _letters.length) {
         _roundCompleted = true;
@@ -299,7 +294,8 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
       HapticFeedback.heavyImpact();
       setState(() => _wrongButterfly = butterfly.letter);
       _shakeCtrl.forward(from: 0);
-      await showTofiReaction(TofiState.wrong);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTofiReaction(TofiState.wrong);
       if (!mounted) return;
       setState(() => _wrongButterfly = null);
     }
@@ -312,7 +308,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     _solvedRounds++;
 
     if (_solvedRounds >= _totalRounds) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -398,6 +394,8 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
       ctrl.dispose();
     }
     _shakeCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 

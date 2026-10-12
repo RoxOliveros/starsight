@@ -12,6 +12,7 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
@@ -42,13 +43,15 @@ class AlphabetPuzzleScreen extends StatefulWidget {
 
 class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetPuzzleScreen> {
-  @override
-  AudioPlayer get tofiPlayer => _player;
 
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -58,7 +61,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   late List<PuzzlePiece> _allPieces;
   late String _fullImagePath;
 
-  static const String _puzzleInstructionWav = 'audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
+  static const String _puzzleInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -87,7 +90,8 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   void dispose() {
     disposeAiCamera();
     OrientationService.setLandscape();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 
@@ -102,7 +106,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
 
   String _objectName(String letter) => _objectMap[letter.toUpperCase()] ?? 'apple';
   String _getObjectImage(String letter) => 'assets/images/objects/forest/${_objectName(letter)}.png';
-  String _getObjectAudio(String letter) => 'audio/alphabet_forest/${_objectName(letter)}.wav';
+  String _getObjectAudio(String letter) => 'assets/audio/alphabet_forest/${_objectName(letter)}.wav';
 
   void _resetGame() {
     setState(() {
@@ -114,13 +118,13 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   Future<void> _playInstructionThenLetter() async {
     try {
       await playVoiceRestartingOnFaceLoss(
-        _player,
+        _audioPlayer,
         _puzzleInstructionWav,
         timeout: const Duration(seconds: 30),
       );
       if (!mounted) return;
       await playVoiceRestartingOnFaceLoss(
-        _player,
+        _audioPlayer,
         'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
       );
     } catch (e) {
@@ -490,11 +494,11 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     PuzzlePiece? placedPiece = _placedPieces[slotIndex];
 
     return DragTarget<PuzzlePiece>(
-      // Accept any drop so a wrong drop counts as exactly ONE mistake; the piece
-      // simply returns to the tray because it is never removed from it.
       onWillAcceptWithDetails: (details) => true,
       onAcceptWithDetails: (details) async {
         if (isFilled || details.data.id != slotIndex) {
+          GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+          showTofiReaction(TofiState.wrong);
           _tapTracker.recordMistake();
           return;
         }
@@ -507,7 +511,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
         if (_placedPieces.length == 4) {
           try {
             await playVoiceRestartingOnFaceLoss(
-              _player,
+              _audioPlayer,
               _getObjectAudio(widget.letter),
             );
           } catch (e) {

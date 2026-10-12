@@ -14,9 +14,10 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import '../star_round_indicator.dart';
 import 'alphabet_game_ui.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -56,15 +57,16 @@ class AlphabetForestFinaleGame extends StatefulWidget {
 }
 
 class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
-    with TickerProviderStateMixin, GameLoadingMixin<AlphabetForestFinaleGame>, ForestAudioMixin<AlphabetForestFinaleGame>, TofiReactionMixin<AlphabetForestFinaleGame>, AiCameraMixin, AppAudioLifecycleMixin<AlphabetForestFinaleGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+    with TickerProviderStateMixin, GameLoadingMixin<AlphabetForestFinaleGame>, TofiReactionMixin<AlphabetForestFinaleGame>, AiCameraMixin, AppAudioLifecycleMixin<AlphabetForestFinaleGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -213,7 +215,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -222,7 +224,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     if (!mounted) return;
 
     await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
+      _audioPlayer,
       _audioMainInstruction,
     );
     if (!mounted) return;
@@ -242,7 +244,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
       AlphabetFinaleChallenge.soundSound => _audioSoundInstruction,
       AlphabetFinaleChallenge.alphabetOrder => _audioOrderInstruction,
     };
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, asset);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, asset);
   }
 
   Future<void> _playSoundLetter() async {
@@ -252,7 +254,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
 
     if (currentType == AlphabetFinaleChallenge.soundSound) {
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         _letterAudioAsset(_question.correctAnswer),
       );
     }
@@ -415,7 +417,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     HapticFeedback.mediumImpact();
     setState(() => _celebrating = true);
     _correctBounceCtrl.forward(from: 0);
-    playVoice(_audioCorrect);
+    await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioCorrect);
     showTofiReaction(TofiState.correct);
     if (!mounted) return;
 
@@ -427,8 +429,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     if (_currentRoundIndex >= _totalRounds - 1) {
       setState(() => _showFlyingStars = true);
       _flyingStarsCtrl.forward(from: 0);
-
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -443,7 +444,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
       return;
     }
 
-    await playVoice(_audioRoundComplete);
+    await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioRoundComplete);
     if (!mounted) return;
 
     _currentRoundIndex++;
@@ -463,7 +464,8 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     setState(() => _shakingChoice = letter);
     _choiceShakeCtrl.forward(from: 0);
 
-    await showTofiReaction(TofiState.wrong);
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+    showTofiReaction(TofiState.wrong);
     if (!mounted) return;
 
     setState(() => _shakingChoice = null);
@@ -546,6 +548,8 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     _choiceShakeCtrl.dispose();
     _starGlowCtrl.dispose();
     _flyingStarsCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 
@@ -716,7 +720,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
       onTap: (_roundLocked || !_inputEnabled)
           ? null
           : () => playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         _letterAudioAsset(_question.correctAnswer),
       ),
       child: Container(

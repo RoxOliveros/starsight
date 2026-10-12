@@ -138,6 +138,20 @@ class GamesSfxPlayer with WidgetsBindingObserver {
     }
   }
 
+  Future<void> playAndWait(
+      String asset, {
+        double volume = 1.0,
+        Duration timeout = const Duration(seconds: 5),
+      }) async {
+    if (!AudioSettings.instance.sfxOn) return;
+    await play(asset, volume: volume);
+
+    final p = _players[asset];
+    if (p == null) return;
+
+    await waitForAudio(p).timeout(timeout, onTimeout: () {});
+  }
+
   Future<void> stop(String asset) async {
     try {
       await _players[asset]?.stop();

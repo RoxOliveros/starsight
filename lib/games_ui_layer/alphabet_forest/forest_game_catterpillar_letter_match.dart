@@ -14,8 +14,9 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'forest_game_apple_tree.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -69,15 +70,16 @@ class CaterpillarLetterMatchGame extends StatefulWidget {
 }
 
 class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
-    with TickerProviderStateMixin, GameLoadingMixin<CaterpillarLetterMatchGame>, ForestAudioMixin<CaterpillarLetterMatchGame>, TofiReactionMixin<CaterpillarLetterMatchGame>, AiCameraMixin, AppAudioLifecycleMixin<CaterpillarLetterMatchGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+    with TickerProviderStateMixin, GameLoadingMixin<CaterpillarLetterMatchGame>, TofiReactionMixin<CaterpillarLetterMatchGame>, AiCameraMixin, AppAudioLifecycleMixin<CaterpillarLetterMatchGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -91,7 +93,6 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/caterpillar_intro.wav';
   static const String _audioInstruction = '$_audioBase/caterpillar_instruction.wav';
-  static const String _audioCorrect = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
   static const String _audioWin = '$_audioBase/caterpillar_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -216,7 +217,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     await _precacheFuture;
     if (!mounted) return;
     setState(() => _introPlaying = false);
@@ -226,7 +227,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     if (!mounted) return;
 
     try {
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
     } catch (e) {
       debugPrint('Instruction audio error: $e');
     }
@@ -257,7 +258,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
       Future.delayed(const Duration(milliseconds: 400), () async {
         if (!mounted) return;
         try {
-          await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+          await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
         } catch (e) {
           debugPrint('Instruction audio error: $e');
         }
@@ -276,7 +277,6 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     HapticFeedback.mediumImpact();
     setState(() => pair.matched = true);
 
-    await playSfx(_audioCorrect);
     showTofiReaction(TofiState.correct);
 
     if (_pairs.every((p) => p.matched)) {
@@ -291,6 +291,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
       setState(() => _wrongSlotIndex = _lastRejectedSlot);
       _shakeCtrl.forward(from: 0);
     }
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
     showTofiReaction(TofiState.wrong);
 
     Future.delayed(const Duration(milliseconds: 500), () {
@@ -310,7 +311,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
       await Future.delayed(const Duration(milliseconds: 200));
       if (!mounted) return;
 
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -393,6 +394,8 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     _blinkCtrl.dispose();
     _shakeCtrl.dispose();
     _ambientLeavesCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 

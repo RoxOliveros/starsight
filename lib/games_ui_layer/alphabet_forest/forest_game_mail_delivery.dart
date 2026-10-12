@@ -11,12 +11,13 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ForestMailDeliveryGame extends StatefulWidget {
@@ -32,21 +33,18 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
     with
         TickerProviderStateMixin,
         GameLoadingMixin,
-        ForestAudioMixin,
         TofiReactionMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<ForestMailDeliveryGame> {
-  @override
-  AudioPlayer get tofiPlayer => _player;
 
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _player,
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -56,11 +54,10 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
   String _displayLetter = 'A';
   String? _previousTarget;
 
-  int _currentRound = 0; // 0-indexed, 0..4
+  int _currentRound = 0;
   bool _canDrag = true;
   bool _parcelDelivered = false;
 
-  // Visual feedback state for mailboxes.
   String? _bouncingMailbox;
   String? _shakingMailbox;
 
@@ -132,7 +129,8 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
     _mailboxBounceController.dispose();
     _mailboxShakeController.dispose();
     _parcelDragScaleController.dispose();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 
@@ -142,7 +140,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
     try {
       await Future.delayed(const Duration(milliseconds: 300));
 
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
 
       if (!mounted) return;
 
@@ -154,7 +152,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
       if (!mounted) return;
 
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
     } catch (e) {
       debugPrint('Intro audio error: $e');
     } finally {
@@ -234,22 +232,19 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
     });
   }
 
-  void _handleWrong(String mailboxLetter) {
+  Future<void> _handleWrong(String mailboxLetter) async {
     _tapTracker.recordMistake();
 
     setState(() {
       _shakingMailbox = mailboxLetter;
     });
-
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
     showTofiReaction(TofiState.wrong);
 
     _mailboxShakeController.forward(from: 0).then((_) {
       if (!mounted) return;
       setState(() => _shakingMailbox = null);
     });
-
-    // Same target letter stays active; parcel returns to its spot
-    // automatically since it was never accepted/removed from the tree.
   }
 
   // ── COMPLETION ───────────────────────────────────────────────────────
@@ -260,11 +255,9 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
     ) {
       debugPrint("Database Error marking level complete: $e");
     });
-
     if (!mounted) return;
 
-    await playVoice(_audioWin);
-
+    await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
     if (!mounted) return;
 
     await _saveDataAndShowGoodJob();

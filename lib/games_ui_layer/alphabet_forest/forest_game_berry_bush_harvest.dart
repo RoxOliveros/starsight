@@ -14,9 +14,10 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -37,15 +38,16 @@ class BerryBushHarvestGame extends StatefulWidget {
 }
 
 class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
-    with TickerProviderStateMixin, GameLoadingMixin<BerryBushHarvestGame>, ForestAudioMixin<BerryBushHarvestGame>, TofiReactionMixin<BerryBushHarvestGame>, AiCameraMixin, AppAudioLifecycleMixin<BerryBushHarvestGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+    with TickerProviderStateMixin, GameLoadingMixin<BerryBushHarvestGame>, TofiReactionMixin<BerryBushHarvestGame>, AiCameraMixin, AppAudioLifecycleMixin<BerryBushHarvestGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -60,7 +62,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = 'assets/audio/alphabet_forest/berry_bush_intro.wav';
   static const String _audioInstruction = '$_audioBase/berry_bush_instruction.wav';
-  static const String _audioHarvestChime = '$_audioBase/berry_harvest_chime.wav';
   static const String _audioWin = '$_audioBase/berry_bush_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -217,7 +218,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -230,7 +231,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     _inputEnabled = false;
     try {
       if (_currentRoundIndex == 0) {
-        await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
         if (!mounted) return;
       }
 
@@ -238,7 +239,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
       if (!mounted) return;
 
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
       );
     } finally {
@@ -278,7 +279,6 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
       });
 
       _harvestShakeCtrls[index].forward(from: 0);
-      playVoice(_audioHarvestChime);
 
       _berryFallCtrl.forward(from: 0).whenComplete(() {
         if (!mounted) return;
@@ -288,13 +288,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
         });
       });
 
-      await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
-        ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
-      );
-      if (!mounted) return;
-
-      await showTofiReaction(TofiState.correct);
+      showTofiReaction(TofiState.correct);
       if (!mounted) return;
 
       await _advanceRound();
@@ -306,7 +300,8 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
       _wrongShakeCtrl.forward(from: 0);
       _flashCtrls[index].forward(from: 0);
 
-      await showTofiReaction(TofiState.wrong);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTofiReaction(TofiState.wrong);
       if (!mounted) return;
 
       setState(() => _shakingWrongIndex = null);
@@ -318,7 +313,9 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     if (!mounted) return;
 
     if (_currentRoundIndex >= _roundOrder.length - 1) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer, _audioWin
+      );
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -399,6 +396,8 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     _swayCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     for (final ctrl in _harvestShakeCtrls) {
       ctrl.dispose();
     }

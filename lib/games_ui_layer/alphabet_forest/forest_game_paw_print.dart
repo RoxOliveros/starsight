@@ -14,9 +14,10 @@
   import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
   import '../../ui_layer/game_loading_mixin.dart';
   import '../../ui_layer/loading_screen.dart';
-  import 'alphabet_game_ui.dart';
+  import '../games_audio_helper.dart';
+import 'alphabet_game_ui.dart';
   import 'alphabet_intro.dart';
-  import 'forest_audio_helper.dart';
+  import 'forest_audio_path.dart';
   import 'tofi_reaction.dart';
   import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -45,15 +46,16 @@
   }
 
   class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
-      with TickerProviderStateMixin, GameLoadingMixin<FollowThePawPrintsGame>, ForestAudioMixin<FollowThePawPrintsGame>, TofiReactionMixin<FollowThePawPrintsGame>, AiCameraMixin, AppAudioLifecycleMixin<FollowThePawPrintsGame> {
-    @override
-    AudioPlayer get tofiPlayer => audio.voicePlayer;
+      with TickerProviderStateMixin, GameLoadingMixin<FollowThePawPrintsGame>, TofiReactionMixin<FollowThePawPrintsGame>, AiCameraMixin, AppAudioLifecycleMixin<FollowThePawPrintsGame> {
+
+    final AudioPlayer _audioPlayer = AudioPlayer();
+    final AudioPlayer _tofiPlayer= AudioPlayer();
 
     @override
-    List<AudioPlayer> get lifecyclePlayers => [
-      audio.voicePlayer,
-      audio.sfxPlayer,
-    ];
+    List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+    @override
+    AudioPlayer get tofiPlayer => _tofiPlayer;
 
     final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -66,7 +68,6 @@
 
     static const String _audioBase = ForestAudioAssets.base;
     static const String _audioIntro = '$_audioBase/paw_prints_intro.wav';
-    static const String _audioTap = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
     static const String _audioWin = '$_audioBase/paw_prints_win.wav';
 
     static const Map<String, String> _instructionAudioForLetter = {
@@ -243,7 +244,7 @@
 
     Future<void> _startIntroFlow() async {
       await Future.delayed(const Duration(milliseconds: 300));
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
       if (!mounted) return;
       setState(() => _introPlaying = false);
       _sceneEnterCtrl.forward(from: 0);
@@ -252,7 +253,7 @@
       if (!mounted) return;
       try {
         await playVoiceRestartingOnFaceLoss(
-          audio.voicePlayer,
+          _audioPlayer,
           _instructionAudioForLetter[_targetLetter]!,
         );
       } finally {
@@ -282,7 +283,7 @@
           if (!mounted) return;
           try {
             await playVoiceRestartingOnFaceLoss(
-              audio.voicePlayer,
+              _audioPlayer,
               _instructionAudioForLetter[_targetLetter]!,
             );
           } finally {
@@ -303,12 +304,13 @@
       if (!isNextExpected) {
         _tapTracker.recordMistake();
         HapticFeedback.heavyImpact();
-        await showTofiReaction(TofiState.wrong);
+        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+        showTofiReaction(TofiState.wrong);
 
         final key = '${trail.letter}-$index';
         setState(() => _wrongPawKey = key);
         _shakeCtrl.forward(from: 0);
-        playSfx(_audioTap);
+        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
         await Future.delayed(const Duration(milliseconds: 450));
         if (!mounted) return;
         setState(() => _wrongPawKey = null);
@@ -317,13 +319,14 @@
 
       _tapTracker.recordCorrectTap();
       HapticFeedback.selectionClick();
-      audio.voicePlayer.stop();
+      _audioPlayer.stop();
       final key = '${trail.letter}-$index';
       setState(() {
         _targetProgress++;
         _sparkleKey = key;
       });
-      await playSfx(_audioTap);
+
+      showTofiReaction(TofiState.correct);
 
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted && _sparkleKey == key) setState(() => _sparkleKey = null);
@@ -359,12 +362,10 @@
       await Future.delayed(const Duration(milliseconds: 900));
       if (!mounted) return;
 
-      showTofiReaction(TofiState.correct);
-
       _animalWaveCtrl.repeat(reverse: true);
 
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         _letterAnimalAudio[trail.letter]!,
       );
       if (!mounted) return;
@@ -395,7 +396,7 @@
         if (!mounted) return;
         _animalWaveCtrl.stop();
 
-        await playVoice(_audioWin);
+        await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
         if (!mounted) return;
 
         ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -480,6 +481,8 @@
       _tofiWalkCtrl.dispose();
       _animalWaveCtrl.dispose();
       _ambientLeavesCtrl.dispose();
+      _audioPlayer.dispose();
+      _tofiPlayer.dispose();
       super.dispose();
     }
 

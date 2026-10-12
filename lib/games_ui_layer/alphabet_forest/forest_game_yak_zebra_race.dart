@@ -15,8 +15,9 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'forest_game_catterpillar_letter_match.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -73,15 +74,16 @@ class YakZebraRaceGame extends StatefulWidget {
 }
 
 class _YakZebraRaceGameState extends State<YakZebraRaceGame>
-    with TickerProviderStateMixin, GameLoadingMixin<YakZebraRaceGame>, ForestAudioMixin<YakZebraRaceGame>, TofiReactionMixin<YakZebraRaceGame>, AiCameraMixin, AppAudioLifecycleMixin<YakZebraRaceGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+    with TickerProviderStateMixin, GameLoadingMixin<YakZebraRaceGame>, TofiReactionMixin<YakZebraRaceGame>, AiCameraMixin, AppAudioLifecycleMixin<YakZebraRaceGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -101,7 +103,6 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   static const String _audioIntro = '$_audioBase/yak_zebra_race_intro.wav';
   static const String _audioTapY = '$_audioBase/sound_effects/sound_y.wav';
   static const String _audioTapZ = '$_audioBase/sound_effects/sound_z.wav';
-  static const String _audioCorrect = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
   static const String _audioYIsForYak = '$_audioBase/y_is_for_yak.wav';
   static const String _audioZIsForZebra = '$_audioBase/z_is_for_zebra.wav';
   static const String _audioWin = '$_audioBase/yak_zebra_race_win.wav';
@@ -266,14 +267,14 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
-    _storyPosSub = audio.voicePlayer.onPositionChanged.listen((pos) {
+    _storyPosSub = _audioPlayer.onPositionChanged.listen((pos) {
       if (!mounted || _introStage == 2) return;
       final stage = pos >= const Duration(seconds: 5) ? 1 : 0;
       if (stage != _introStage) setState(() => _introStage = stage);
     });
 
     try {
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioStory);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioStory);
     } catch (e) {
       debugPrint('Story audio error: $e');
     }
@@ -282,7 +283,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     if (!mounted) return;
 
     setState(() => _introStage = 2);
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     setState(() => _introPlaying = false);
@@ -293,7 +294,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
 
     try {
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         _targetLetter == 'Y' ? _audioTapY : _audioTapZ,
       );
     } catch (e) {
@@ -326,7 +327,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
         if (!mounted) return;
         try {
           await playVoiceRestartingOnFaceLoss(
-            audio.voicePlayer,
+            _audioPlayer,
             _targetLetter == 'Y' ? _audioTapY : _audioTapZ,
           );
         } catch (e) {
@@ -353,7 +354,6 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       setState(() => _correctSlotIndex = slotIndex);
       _pulseCtrl.forward(from: 0);
 
-      await playSfx(_audioCorrect);
       showTofiReaction(TofiState.correct);
 
       setState(() {
@@ -381,6 +381,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       HapticFeedback.heavyImpact();
       setState(() => _wrongSlotIndex = slotIndex);
       _shakeCtrl.forward(from: 0);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showTofiReaction(TofiState.wrong);
 
       await Future.delayed(const Duration(milliseconds: 500));
@@ -402,10 +403,10 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
       if (_yakWillWin) {
-        await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioYIsForYak);
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioYIsForYak);
       } else {
         await playVoiceRestartingOnFaceLoss(
-          audio.voicePlayer,
+          _audioPlayer,
           _audioZIsForZebra,
         );
       }
@@ -415,7 +416,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       if (!mounted) return;
       setState(() => _showBothCelebrating = true);
 
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -500,6 +501,8 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     _celebrateCtrl.dispose();
     _ambientLeavesCtrl.dispose();
     _storyPosSub?.cancel();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 

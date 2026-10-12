@@ -14,8 +14,9 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'forest_game_letter_treehouse.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -46,18 +47,18 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
     with
         TickerProviderStateMixin,
         GameLoadingMixin<AlphabetTrainGame>,
-        ForestAudioMixin<AlphabetTrainGame>,
         TofiReactionMixin<AlphabetTrainGame>,
         AiCameraMixin,
         AppAudioLifecycleMixin<AlphabetTrainGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -90,6 +91,7 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
   late _TrainRound _round;
   String? _shakingChoice;
   bool _missingShaking = false;
+  bool _inputEnabled = false;
 
   // ── ANIMATIONS ───────────────────────────────────────────────────────────
   late AnimationController _tofiFloatCtrl;
@@ -183,18 +185,21 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+    if (!mounted) return;
+    setState(() => _inputEnabled = true);
   }
 
   void _setupRound() {
     _roundLocked = false;
+    _inputEnabled = true;
     _slotFilled = false;
     _shakingChoice = null;
     _missingShaking = false;
@@ -276,11 +281,12 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
 
     _tapTracker.recordCorrectTap();
     _roundLocked = true;
+    _inputEnabled = false;
     HapticFeedback.mediumImpact();
 
     setState(() => _slotFilled = true);
     _carBounceCtrl.forward(from: 0);
-    playVoice(_audioCorrect);
+    await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioCorrect);
 
     showTofiReaction(TofiState.correct);
     if (!mounted) return;
@@ -306,7 +312,8 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
 
     _choiceShakeCtrl.forward(from: 0);
 
-    await showTofiReaction(TofiState.wrong);
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+    showTofiReaction(TofiState.wrong);
     if (!mounted) return;
 
     setState(() {
@@ -319,7 +326,7 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
     _solvedRounds++;
 
     if (_currentRoundIndex >= _totalRounds - 1) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -333,7 +340,7 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
       return;
     }
 
-    await playVoice(_audioRoundComplete);
+    await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioRoundComplete);
     if (!mounted) return;
 
     _currentRoundIndex++;
@@ -406,6 +413,8 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
     _carBounceCtrl.dispose();
     _choiceShakeCtrl.dispose();
     _trainNudgeCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 
@@ -826,6 +835,7 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
 
     return Draggable<String>(
       data: letter,
+      maxSimultaneousDrags: _inputEnabled ? 1 : 0,
       onDragStarted: () => HapticFeedback.selectionClick(),
       onDraggableCanceled: (_, __) {},
       feedback: Material(color: Colors.transparent, child: card(scale: 1.15)),

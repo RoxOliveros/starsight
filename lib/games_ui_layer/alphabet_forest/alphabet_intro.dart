@@ -9,6 +9,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../business_layer/forest_progress_service.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
 
 enum ScreenPhase { intro, tracing }
@@ -27,13 +28,14 @@ class AlphabetIntroScreen extends StatefulWidget {
 class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     with TickerProviderStateMixin, TofiReactionMixin, AppAudioLifecycleMixin<AlphabetIntroScreen> {
 
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  AudioPlayer get tofiPlayer => _player;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player, _audioPlayer];
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   late AnimationController _floatCtrl;
   late Animation<double> _float;
@@ -41,8 +43,6 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
 
   bool _isLoadingAssets = true;
   final DateTime _loadStart = DateTime.now();
-
-  final AudioPlayer _audioPlayer = AudioPlayer();
 
   // --- ANIMATION CONTROLLERS ---
   late AnimationController _charSlideCtrl;
@@ -130,8 +130,8 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
     _letterPopCtrl.dispose();
     _letterDanceCtrl.dispose();
     _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     _floatCtrl.dispose();
-
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -146,9 +146,8 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       if (!audioFinished.isCompleted) audioFinished.complete();
     });
 
-    String audioFile =
-        'audio/alphabet_forest/intro_${widget.letter.toLowerCase()}.wav';
-    await _audioPlayer.play(AssetSource(audioFile));
+    String audioFile = 'assets/audio/alphabet_forest/intro_${widget.letter.toLowerCase()}.wav';
+    await playAssetAudio(_audioPlayer, audioFile);
 
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
@@ -206,80 +205,83 @@ class _AlphabetIntroScreenState extends State<AlphabetIntroScreen>
       return Scaffold(body: LoadingScreen.alphabetForest());
     }
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Image.asset(
-            'assets/images/backgrounds/bg_game_forest.png',
-            fit: BoxFit.cover,
-          ),
-        ),
-
-        const Positioned(top: 25, left: 25, child: ForestXButton()),
-
-        Positioned(
-          top: 25,
-          right: 20,
-          child: ForestLevelBadge(
-            level:
-                ForestProgressService.levelNumberForLetter(widget.letter) ?? 1,
-          ),
-        ),
-
-        buildTofi(context),
-
-        Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // LEFT: Floating object
-              const SizedBox(width: 50),
-
-              if (_introPhase != IntroPhase.entering &&
-                  _introPhase != IntroPhase.playingIntro)
-                AnimatedBuilder(
-                  animation: _float,
-                  builder: (context, child) => Transform.translate(
-                    offset: Offset(0, _float.value),
-                    child: child,
-                  ),
-                  child: Image.asset(
-                    _getObjectImage(widget.letter),
-                    height: MediaQuery.of(context).size.height * 0.40,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
-                ),
-
-              const SizedBox(width: 16),
-
-              _buildAnimatedGif(),
-            ],
-          ),
-        ),
-
-        if (_introPhase == IntroPhase.done)
-          Positioned(
-            bottom: 25,
-            right: 25,
-            child: ForestNextButton(
-              onTap: () {
-                _audioPlayer.stop();
-                Navigator.pushReplacement(
-                  context,
-                  PageRouteBuilder(
-                    transitionDuration: const Duration(milliseconds: 400),
-                    pageBuilder: (_, __, ___) =>
-                        AlphabetTraceScreen(letter: widget.letter),
-                    transitionsBuilder: (_, animation, __, child) =>
-                        FadeTransition(opacity: animation, child: child),
-                  ),
-                );
-              },
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/bg_game_forest.png',
+              fit: BoxFit.cover,
             ),
           ),
-      ],
+
+          const Positioned(top: 25, left: 25, child: ForestXButton()),
+
+          Positioned(
+            top: 25,
+            right: 20,
+            child: ForestLevelBadge(
+              level:
+                  ForestProgressService.levelNumberForLetter(widget.letter) ??
+                  1,
+            ),
+          ),
+
+          buildTofi(context),
+
+          Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // LEFT: Floating object
+                const SizedBox(width: 50),
+
+                if (_introPhase != IntroPhase.entering &&
+                    _introPhase != IntroPhase.playingIntro)
+                  AnimatedBuilder(
+                    animation: _float,
+                    builder: (context, child) => Transform.translate(
+                      offset: Offset(0, _float.value),
+                      child: child,
+                    ),
+                    child: Image.asset(
+                      _getObjectImage(widget.letter),
+                      height: MediaQuery.of(context).size.height * 0.40,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+
+                const SizedBox(width: 16),
+
+                _buildAnimatedGif(),
+              ],
+            ),
+          ),
+
+          if (_introPhase == IntroPhase.done)
+            Positioned(
+              bottom: 25,
+              right: 25,
+              child: ForestNextButton(
+                onTap: () {
+                  _audioPlayer.stop();
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      transitionDuration: const Duration(milliseconds: 400),
+                      pageBuilder: (_, __, ___) =>
+                          AlphabetTraceScreen(letter: widget.letter),
+                      transitionsBuilder: (_, animation, __, child) =>
+                          FadeTransition(opacity: animation, child: child),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
     );
   }
 
