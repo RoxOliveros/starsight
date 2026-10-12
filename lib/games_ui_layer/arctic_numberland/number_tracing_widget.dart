@@ -480,7 +480,7 @@ class _NumberGuidePainter extends CustomPainter {
       Paint()..color = Colors.white.withValues(alpha: 0.2),
     );
     final bgPaint = Paint()
-      ..color = Colors.grey.shade400
+      ..color = Colors.grey.shade900
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..strokeWidth = size.width * 0.18
