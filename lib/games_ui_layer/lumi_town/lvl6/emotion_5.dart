@@ -180,6 +180,7 @@ class _Emotion5ScreenState extends State<Emotion5Screen>
                           });
                         }
                       } else if (!_isCorrectlyAnswered) {
+                        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
                         widget.tapTracker.recordMistake();
                       }
                     },

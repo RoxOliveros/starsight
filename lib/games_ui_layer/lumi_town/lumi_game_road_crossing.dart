@@ -345,8 +345,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     });
 
     TownProgressService.instance.markLevelComplete(widget.level).catchError((
-      e,
-    ) {
+        e,
+        ) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -396,6 +396,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     _cancelGlowTimers();
     _audioPlayer.dispose();
     _trWooPlayer.dispose();
+    GamesSfxPlayer.instance.stop(GameSfx.carPassBy);
+    GamesSfxPlayer.instance.stop(GameSfx.walk);
     super.dispose();
   }
 
@@ -405,13 +407,13 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
 
   bool get _buttonsVisible =>
       _phase == _Phase.instruction ||
-      _phase == _Phase.round1Answer ||
-      _phase == _Phase.round2Answer;
+          _phase == _Phase.round1Answer ||
+          _phase == _Phase.round2Answer;
 
   bool get _buttonsInteractive =>
       (_phase == _Phase.round1Answer || _phase == _Phase.round2Answer) &&
-      _inputEnabled &&
-      !_isProcessing;
+          _inputEnabled &&
+          !_isProcessing;
 
   String get _backgroundAsset {
     if (_playingWin || _gameComplete) return _bgGreenLight;
@@ -620,12 +622,12 @@ class _DecisionButton extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: glowing
                 ? [
-                    BoxShadow(
-                      color: Colors.yellowAccent.withValues(alpha: 0.85),
-                      blurRadius: 28,
-                      spreadRadius: 6,
-                    ),
-                  ]
+              BoxShadow(
+                color: Colors.yellowAccent.withValues(alpha: 0.85),
+                blurRadius: 28,
+                spreadRadius: 6,
+              ),
+            ]
                 : [],
           ),
           child: Opacity(
