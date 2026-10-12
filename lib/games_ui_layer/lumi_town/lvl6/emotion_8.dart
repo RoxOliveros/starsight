@@ -180,6 +180,7 @@ class _Emotion8ScreenState extends State<Emotion8Screen>
                           });
                         }
                       } else if (!_isCorrectlyAnswered) {
+                        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
                         widget.tapTracker.recordMistake();
                       }
                     },

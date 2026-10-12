@@ -182,6 +182,7 @@ class _Emotion4ScreenState extends State<Emotion4Screen>
                         }
                       } else if (!_isCorrectlyAnswered) {
                         widget.tapTracker.recordMistake();
+                        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
                       }
                     },
                     builder: (context, candidateData, rejectedData) {

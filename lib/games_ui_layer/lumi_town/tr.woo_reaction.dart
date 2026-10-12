@@ -40,6 +40,7 @@ mixin TrWooReactionMixin<T extends StatefulWidget> on State<T> {
     setState(() => trWooState = state);
 
     if (state == TrWooState.correct) {
+      unawaited(trWooPlayer.stop());
       GamesSfxPlayer.instance.play(GameSfx.shine);
     } else if (state == TrWooState.wrong) {
       await playAssetAudio(trWooPlayer, 'assets/audio/lumi_town/dr.woo_tryagain.wav');

@@ -9,6 +9,7 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
@@ -85,7 +86,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
   late double _sh;
 
   //Bear
-  late final double _bearHeight = _sh * 0.95;
+  double get _bearHeight => _sh * 0.95;
   late final double _bearPosition = 0;
 
   //Table
@@ -93,7 +94,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
   late final double _tablePosition = -_sh * 0.60;
 
   //Milk
-  late final double _milkLeftPosition = _sw * 0.20;
+  double get _milkLeftPosition => _sw * 0.20;
   late final double _milkBottomPosition = _sh * 0.05;
   late final double _milkSize = _sh * 0.40;
 
@@ -130,6 +131,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
 
   @override
   void initState() {
+    OrientationService.setLandscape();
     super.initState();
     _state = GameState();
 
@@ -163,8 +165,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
     _cookTimer?.cancel();
     _voice.dispose();
     for (final s in [
-      GameSfx.pour, GameSfx.eggCrack, GameSfx.whisk,
-      GameSfx.bubblePop, GameSfx.sizzle, GameSfx.flip,
+      GameSfx.pour, GameSfx.eggCrack, GameSfx.whisk, GameSfx.sizzle, GameSfx.flip,
     ]) {
       GamesSfxPlayer.instance.stop(s);
     }
@@ -545,6 +546,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
       _cookProgress = 0.0;
       _showCelebration = false;
       _outroDone = false;
+      _hasSavedResult = false;
     });
     _playIntro();
   }

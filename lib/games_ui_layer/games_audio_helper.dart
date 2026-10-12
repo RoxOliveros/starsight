@@ -125,6 +125,9 @@ class GamesSfxPlayer with WidgetsBindingObserver {
         _players[asset] = p;
         await p.setReleaseMode(loop ? ReleaseMode.loop : ReleaseMode.stop);
         await p.setAudioContext(_voiceContext);
+      } else {
+        await p.stop();
+        await p.seek(Duration.zero);
       }
       await p.play(
         DeviceFileSource(path),
@@ -138,6 +141,7 @@ class GamesSfxPlayer with WidgetsBindingObserver {
   Future<void> stop(String asset) async {
     try {
       await _players[asset]?.stop();
+      await _players[asset]?.seek(Duration.zero);
     } catch (_) {}
   }
 
@@ -145,6 +149,7 @@ class GamesSfxPlayer with WidgetsBindingObserver {
     for (final p in _players.values) {
       try {
         await p.stop();
+        await p.seek(Duration.zero);
       } catch (_) {}
     }
   }

@@ -154,8 +154,6 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
     _hintTimer?.cancel();
     _hintPulseCtrl.dispose();
     _player.dispose();
-    GamesSfxPlayer.instance.stop(GameSfx.shine);
-    GamesSfxPlayer.instance.stop(GameSfx.bubblePop);
     for (final c in _slotShakeCtrl) {
       c.dispose();
     }
