@@ -442,6 +442,25 @@ class DatabaseService {
     }
   }
 
+  /// Clears one child's progress (category_progress/{category}/cycles/
+  /// cycle_N/games_played), then deletes the child document itself.
+  Future<void> _eraseChild(
+    DocumentReference<Map<String, dynamic>> childRef,
+  ) async {
+    final progressRef = childRef.collection('category_progress');
+    for (final categoryId in _progressCategoryIds) {
+      final categoryRef = progressRef.doc(categoryId);
+      for (var slot = 1; slot <= _maxCyclesToClear; slot++) {
+        final cycleRef = categoryRef.collection('cycles').doc('cycle_$slot');
+        await _deleteCollection(cycleRef.collection('games_played'));
+        await cycleRef.delete();
+      }
+      await categoryRef.delete();
+    }
+    await _deleteCollection(progressRef); // anything else left at that level
+    await childRef.delete();
+  }
+
   /// Permanently deletes a child and everything stored under them.
   /// Firestore does NOT delete subcollections when a document is deleted,
   /// so they are cleared first and the child document goes last. If
@@ -465,23 +484,8 @@ class DatabaseService {
         return "You can't delete the only child profile. Add another child first.";
       }
 
-      final childRef = childrenRef.doc(childId);
-
-      // 1. Progress: category_progress/{category}/cycles/cycle_N/games_played
-      final progressRef = childRef.collection('category_progress');
-      for (final categoryId in _progressCategoryIds) {
-        final categoryRef = progressRef.doc(categoryId);
-        for (var slot = 1; slot <= _maxCyclesToClear; slot++) {
-          final cycleRef = categoryRef.collection('cycles').doc('cycle_$slot');
-          await _deleteCollection(cycleRef.collection('games_played'));
-          await cycleRef.delete();
-        }
-        await categoryRef.delete();
-      }
-      await _deleteCollection(progressRef); // anything else left at that level
-
-      // 2. The child document itself.
-      await childRef.delete();
+      // 1 + 2. Progress, then the child document itself.
+      await _eraseChild(childrenRef.doc(childId));
 
       // 3. If this was the active child, point to one that still exists.
       final userDoc = await userRef.get();
@@ -496,6 +500,26 @@ class DatabaseService {
     } catch (e) {
       print("Error deleting child: $e");
       return "Something went wrong while deleting. Please try again.";
+    }
+  }
+
+  Future<String?> deleteAllAccountData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        return "You're not signed in. Please sign in and try again.";
+      }
+
+      final userRef = _db.collection('users').doc(user.uid);
+      final children = await userRef.collection('children').get();
+      for (final child in children.docs) {
+        await _eraseChild(child.reference);
+      }
+      await userRef.delete();
+      return null;
+    } catch (e) {
+      print("Error deleting account data: $e");
+      return "Something went wrong while deleting your data. Please try again.";
     }
   }
 }
