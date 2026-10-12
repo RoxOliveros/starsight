@@ -14,8 +14,9 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'forest_game_finale.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -49,6 +50,7 @@ class LetterTreehouseGame extends StatefulWidget {
     required this.level,
     this.letterPool = const [
       'A',
+      'B',
       'B',
       'C',
       'D',
@@ -85,18 +87,18 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     with
         TickerProviderStateMixin,
         GameLoadingMixin<LetterTreehouseGame>,
-        ForestAudioMixin<LetterTreehouseGame>,
         TofiReactionMixin<LetterTreehouseGame>,
         AiCameraMixin,
         AppAudioLifecycleMixin<LetterTreehouseGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -104,21 +106,16 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   // ASSETS
   // ═════════════════════════════════════════════════════════════════════
 
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_forest_zoom_out.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_zoom_out.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _plankImage = 'assets/images/objects/forest/plank.png';
-  static const String _treeHouseImage =
-      'assets/images/objects/forest/treehouse.png';
-  static const String _treeHouseBrokenImage =
-      'assets/images/objects/forest/treehouse_broken.png';
+  static const String _treeHouseImage = 'assets/images/objects/forest/treehouse.png';
+  static const String _treeHouseBrokenImage = 'assets/images/objects/forest/treehouse_broken.png';
 
   static const String _audioBase = ForestAudioAssets.base;
-  static const String _sfxBase = ForestAudioAssets.sfxBase;
 
   static const String _audioIntro = '$_audioBase/letter_treehouse_intro.wav';
   static const String _audioWin = '$_audioBase/letter_treehouse_win.wav';
-  static const String _sfxBuild = '$_sfxBase/sfx_build.wav';
 
   // ═════════════════════════════════════════════════════════════════════
   // GAME STRUCTURE
@@ -250,7 +247,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -345,7 +342,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
 
   Future<void> _announceInstruction() async {
     await playVoiceRestartingOnFaceLoss(
-      audio.voicePlayer,
+      _audioPlayer,
       ForestAudioAssets.forLetter(_targetLetter),
     );
   }
@@ -367,6 +364,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   Future<void> _handleCorrectAnswer(_ForestLetterData piece) async {
     if (_interactionLocked) return;
     _tapTracker.recordCorrectTap();
+    _tofiPlayer.stop();
     _interactionLocked = true;
     HapticFeedback.mediumImpact();
 
@@ -374,7 +372,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
       piece.consumed = true;
     });
 
-    await playSfx(_sfxBuild);
+    await GamesSfxPlayer.instance.playAndWait(GameSfx.build);
     if (!mounted) return;
 
     setState(() {
@@ -404,7 +402,8 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     setState(() => piece.wrong = true);
     _shakeCtrls[index].forward(from: 0);
 
-    await showTofiReaction(TofiState.wrong);
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+    showTofiReaction(TofiState.wrong);
     if (!mounted) return;
     setState(() => piece.wrong = false);
   }
@@ -415,7 +414,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
 
   Future<void> _advanceRound() async {
     if (_currentRound >= _totalRounds - 1) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -506,6 +505,9 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     _sceneEnterCtrl.dispose();
     _piecesEntranceCtrl.dispose();
     _plankPulseCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
+    GamesSfxPlayer.instance.stop(GameSfx.build);
     for (final ctrl in _shakeCtrls) {
       ctrl.dispose();
     }

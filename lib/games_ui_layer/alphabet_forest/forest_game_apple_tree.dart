@@ -14,8 +14,9 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'forest_game_letter_fireflies.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -32,18 +33,18 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
     with
         TickerProviderStateMixin,
         GameLoadingMixin<AlphabetAppleTreeGame>,
-        ForestAudioMixin<AlphabetAppleTreeGame>,
         TofiReactionMixin<AlphabetAppleTreeGame>,
         AiCameraMixin,
         AppAudioLifecycleMixin<AlphabetAppleTreeGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -56,7 +57,6 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/apple_tree_intro.wav';
   static const String _audioInstruction = '$_audioBase/apple_tree_instruction.wav';
-  static const String _audioRoundComplete = '$_audioBase/apple_found_chime.wav';
   static const String _audioWin = '$_audioBase/apple_tree_win.wav';
 
   static const List<Offset> _baseAppleSlots = [
@@ -170,7 +170,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -179,10 +179,10 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
     if (!mounted) return;
 
     try {
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
       if (!mounted) return;
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(_targetLetter),
       );
     } catch (e) {
@@ -252,12 +252,6 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 
-      await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
-        _audioRoundComplete,
-      );
-      if (!mounted) return;
-
       await _advanceRound();
     } else {
       _tapTracker.recordMistake();
@@ -265,6 +259,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
       setState(() => _wrongIndex = index);
       _shakeCtrl.forward(from: 0);
 
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showTofiReaction(TofiState.wrong);
 
       await Future.delayed(const Duration(milliseconds: 500));
@@ -280,7 +275,9 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
 
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer, _audioWin
+      );
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -302,7 +299,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
       await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(_targetLetter),
       );
     } catch (e) {
@@ -378,6 +375,8 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
     _shakeCtrl.dispose();
     _fallCtrl.dispose();
     _ambientLeavesCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 

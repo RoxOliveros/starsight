@@ -1,13 +1,36 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../games_audio_helper.dart';
+
+// USAGE
+//
+// TofiReactionMixin
+//
+// final AudioPlayer _tofiPlayer = AudioPlayer();
+//
+// @override
+// AudioPlayer get tofiPlayer => _tofiPlayer;
+//
+// dispose
+// _tofiPlayer.dispose();
+//
+// right
+// showTofiReaction(TofiState.correct);
+//
+// wrong
+// showTofiReaction(TofiState.wrong);
+//
+// build
+// if (_screenPhase == introgame) buildTofi(context),
+// or
+// buildTofi in gamephase or after introphase
 
 enum TofiState { normal, correct, wrong }
 
 mixin TofiReactionMixin<T extends StatefulWidget> on State<T> {
   TofiState tofiState = TofiState.normal;
 
-  // Override this in your screen to provide the AudioPlayer
   AudioPlayer get tofiPlayer;
 
   Future<void> showTofiReaction(TofiState state) async {
@@ -15,29 +38,17 @@ mixin TofiReactionMixin<T extends StatefulWidget> on State<T> {
     setState(() => tofiState = state);
 
     if (state == TofiState.correct) {
-      await _playTofiAudio('assets/audio/sound_effects/shine.wav');
+      unawaited(tofiPlayer.stop());
+      GamesSfxPlayer.instance.play(GameSfx.shine);
     } else if (state == TofiState.wrong) {
-      await _playTofiAudio('assets/audio/alphabet_forest/tofi_tryagain.wav');
+      await playAssetAudio(
+        tofiPlayer,
+        'assets/audio/alphabet_forest/tofi_tryagain.wav',
+      );
     }
 
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => tofiState = TofiState.normal);
-  }
-
-  Future<void> _playTofiAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = tofiPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await tofiPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Dr. Woo audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
   }
 
   Widget buildTofi(BuildContext context) {

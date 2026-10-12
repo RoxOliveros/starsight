@@ -14,6 +14,7 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_level.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
@@ -39,18 +40,19 @@ class AlphabetPopScreen extends StatefulWidget {
 class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetPopScreen> {
 
-  @override
-  AudioPlayer get tofiPlayer => _audioPlayer;
-
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final Random _random = Random();
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
-  // Timer is safely nullable
   Timer? _gameTimer;
   final List<BouncingBall> _activeBalls = [];
 
@@ -62,7 +64,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
   late List<double> _availableLanes;
 
-  static const String _popInstructionWav = 'audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
+  static const String _popInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -173,10 +175,11 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
     if (ball.letter == widget.letter.toUpperCase()) {
       _tapTracker.recordCorrectTap();
-      // --- CORRECT MATCH ---
-      String audioFile =
-          'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav';
-      await _audioPlayer.play(AssetSource(audioFile));
+      String audioFile = 'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav';
+
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer, audioFile
+      );
 
       showTofiReaction(TofiState.correct);
 
@@ -198,6 +201,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
       });
     } else {
       _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showTofiReaction(TofiState.wrong);
 
       // --- WRONG MATCH ---
@@ -436,10 +440,10 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
   @override
   void dispose() {
-    _gameTimer?.cancel(); // Safe cancel
-    _audioPlayer.stop(); // Stop audio safely
-    disposeAiCamera();
+    _gameTimer?.cancel();
     _audioPlayer.dispose();
+    _tofiPlayer.dispose();
+    disposeAiCamera();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -535,36 +539,6 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                                           ),
                                       ],
                                     ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-
-                          // 2. Draw the Red X's using the EXACT same math as the balls
-                          ..._wrongEffects.map((effect) {
-                            return Positioned(
-                              left:
-                              effect['x']! *
-                                  (constraints.maxWidth - ballSize),
-                              top:
-                              effect['y']! *
-                                  (constraints.maxHeight - ballSize),
-                              child: SizedBox(
-                                width: ballSize,
-                                height: ballSize,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.close_rounded,
-                                    color: Colors.redAccent,
-                                    size: ballSize * 0.8,
-                                    shadows: const [
-                                      Shadow(
-                                        color: Colors.white,
-                                        blurRadius: 12,
-                                        offset: Offset(0, 0),
-                                      ),
-                                    ],
                                   ),
                                 ),
                               ),

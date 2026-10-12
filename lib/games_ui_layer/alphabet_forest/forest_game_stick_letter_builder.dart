@@ -15,9 +15,10 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -140,15 +141,16 @@ class FallenStickLetterBuilderGame extends StatefulWidget {
 
 class _FallenStickLetterBuilderGameState
     extends State<FallenStickLetterBuilderGame>
-    with TickerProviderStateMixin, GameLoadingMixin<FallenStickLetterBuilderGame>, ForestAudioMixin<FallenStickLetterBuilderGame>, TofiReactionMixin<FallenStickLetterBuilderGame>, AiCameraMixin, AppAudioLifecycleMixin<FallenStickLetterBuilderGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+    with TickerProviderStateMixin, GameLoadingMixin<FallenStickLetterBuilderGame>, TofiReactionMixin<FallenStickLetterBuilderGame>, AiCameraMixin, AppAudioLifecycleMixin<FallenStickLetterBuilderGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -167,6 +169,7 @@ class _FallenStickLetterBuilderGameState
   static const double _pileXFraction = 0.90;
   static const double _traceScale = 0.72;
   static const Offset _traceOffset = Offset(0.0, 0.2);
+  static const double _minDragDistance = 40.0;
 
   // ── Letters V, W, X ──────────────────────
   static const List<LetterRoundSpec> _rounds = [
@@ -212,7 +215,6 @@ class _FallenStickLetterBuilderGameState
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _tofiFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late List<AnimationController> _popCtrls;
@@ -252,13 +254,6 @@ class _FallenStickLetterBuilderGameState
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -334,7 +329,7 @@ class _FallenStickLetterBuilderGameState
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -347,13 +342,13 @@ class _FallenStickLetterBuilderGameState
     _inputEnabled = false;
     try {
       if (_currentRoundIndex == 0) {
-        await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
         if (!mounted) return;
       }
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(_rounds[_currentRoundIndex].letter),
       );
     } finally {
@@ -406,13 +401,24 @@ class _FallenStickLetterBuilderGameState
     if (_draggingIndex != stick.index) return;
     final letterH = h * _letterZoneFraction;
     final target = _targetCenterPx(stick, w, letterH);
-    final dropPos = stick.dragPixelPos ?? _pileCenterPx(stick, w, h);
+    final pile = _pileCenterPx(stick, w, h);
+    final dropPos = stick.dragPixelPos ?? pile;
+
+    if ((dropPos - pile).distance < _minDragDistance) {
+      setState(() {
+        stick.dragPixelPos = null;
+        _draggingIndex = null;
+      });
+      return;
+    }
+
     final length = _targetLength(stick, w, letterH);
     final threshold = max(55.0, length * 0.32);
     final dist = (dropPos - target).distance;
 
     if (dist <= threshold) {
       _tapTracker.recordCorrectTap();
+      showTofiReaction(TofiState.correct);
       HapticFeedback.mediumImpact();
       setState(() {
         stick.placed = true;
@@ -424,6 +430,8 @@ class _FallenStickLetterBuilderGameState
       _checkRoundComplete();
     } else {
       _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTofiReaction(TofiState.wrong);
       HapticFeedback.selectionClick();
       setState(() {
         stick.dragPixelPos = null;
@@ -439,7 +447,7 @@ class _FallenStickLetterBuilderGameState
       if (!mounted) return;
       final letter = _rounds[_currentRoundIndex].letter;
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(letter),
       );
       if (!mounted) return;
@@ -454,14 +462,13 @@ class _FallenStickLetterBuilderGameState
     _glowCtrl.forward(from: 0);
     _leafCtrl.forward(from: 0);
     _birdCtrl.forward(from: 0);
-    await showTofiReaction(TofiState.correct);
     await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
   }
 
   Future<void> _advanceRound() async {
     if (_currentRoundIndex >= _rounds.length - 1) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
       if (!mounted) return;
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
         (e) {
@@ -544,6 +551,8 @@ class _FallenStickLetterBuilderGameState
     _tofiFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     for (final ctrl in _popCtrls) {
       ctrl.dispose();
     }
@@ -810,6 +819,13 @@ class _FallenStickLetterBuilderGameState
           });
         },
         onPanEnd: (_) => _onStickDropped(stick, w, h),
+        onPanCancel: () {
+          if (_draggingIndex != stick.index) return;
+          setState(() {
+            stick.dragPixelPos = null;
+            _draggingIndex = null;
+          });
+        },
         child: Center(
           child: Transform.rotate(
             angle: angle,

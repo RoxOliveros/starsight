@@ -14,9 +14,10 @@ import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
-import 'forest_audio_helper.dart';
+import 'forest_audio_path.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -47,36 +48,31 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     with
         TickerProviderStateMixin,
         GameLoadingMixin<MushroomHideAndSeekGame>,
-        ForestAudioMixin<MushroomHideAndSeekGame>,
         TofiReactionMixin<MushroomHideAndSeekGame>,
         AiCameraMixin,
         AppAudioLifecycleMixin<MushroomHideAndSeekGame> {
-  @override
-  AudioPlayer get tofiPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
-  static const String _mushroomAsset =
-      'assets/images/objects/forest/mushroom.png';
+  static const String _mushroomAsset = 'assets/images/objects/forest/mushroom.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
 
-  static const List<String> _animalAssets = [
-    'assets/images/objects/forest/ladybug.png',
-  ];
+  static const List<String> _animalAssets = ['assets/images/objects/forest/ladybug.png',];
 
   static const String _audioBase = ForestAudioAssets.base;
-  static const String _audioIntro =
-      '$_audioBase/mushroom_hide_n_seek_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/mushroom_hide_n_seek_intructions.wav';
+  static const String _audioIntro = '$_audioBase/mushroom_hide_n_seek_intro.wav';
+  static const String _audioInstruction = '$_audioBase/mushroom_hide_n_seek_intructions.wav';
   static const String _audioWin = '$_audioBase/mushroom_hide_n_seek_win.wav';
   static const String _audioBig = '$_audioBase/big.wav';
   static const String _audioSmall = '$_audioBase/small.wav';
@@ -84,7 +80,6 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
   // ── Game structure ───────────────────────────────────────────────────────
   static const List<String> _letters = ['M', 'm', 'N', 'n', 'O', 'o'];
   static const int _totalRounds = 5;
-  static const List<String> _promptVerbs = ['Tap', 'Find'];
 
   static const List<Offset> _mushroomSlots = [
     Offset(0.24, 0.30),
@@ -107,13 +102,11 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
   late final List<MushroomSpot> _mushrooms;
   late String _targetLetter;
-  late String _promptVerb;
   int? _shakingIndex;
 
   late AnimationController _tofiFloatCtrl;
   late AnimationController _mushroomBounceCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late List<AnimationController> _bloomCtrls;
@@ -168,13 +161,6 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -237,7 +223,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -250,7 +236,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     if (mounted) setState(() => _inputEnabled = false);
     try {
       if (_currentRound == 0) {
-        await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
         if (!mounted) return;
       }
 
@@ -258,11 +244,11 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
       if (!mounted) return;
 
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         _targetIsUpper ? _audioBig : _audioSmall,
       );
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
       );
     } catch (e) {
@@ -286,7 +272,6 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     _shakeCtrl.reset();
 
     _targetLetter = _roundLetters[_currentRound];
-    _promptVerb = _promptVerbs[rng.nextInt(_promptVerbs.length)];
 
     _instructionCtrl.forward(from: 0);
 
@@ -308,6 +293,8 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
     if (isMatch) {
       _tapTracker.recordCorrectTap();
+      showTofiReaction(TofiState.correct);
+
       _roundLocked = true;
       HapticFeedback.mediumImpact();
       setState(() => mushroom.revealed = true);
@@ -315,12 +302,9 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
       _bloomCtrls[index].forward(from: 0);
       await _bugWalkCtrls[index].forward(from: 0);
       await playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
+        _audioPlayer,
         ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
       );
-      if (!mounted) return;
-
-      await showTofiReaction(TofiState.correct);
       if (!mounted) return;
 
       await _advanceRound();
@@ -332,7 +316,8 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
       _shakeCtrl.forward(from: 0);
       _flashCtrls[index].forward(from: 0);
 
-      await showTofiReaction(TofiState.wrong);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTofiReaction(TofiState.wrong);
       if (!mounted) return;
 
       setState(() => _shakingIndex = null);
@@ -346,7 +331,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     _solvedRounds++;
 
     if (_currentRound >= _totalRounds - 1) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -426,6 +411,8 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     _mushroomBounceCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
 
     for (final ctrl in _bloomCtrls) {
       ctrl.dispose();

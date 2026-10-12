@@ -43,15 +43,17 @@ class AlphabetTraceScreen extends StatefulWidget {
 class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetTraceScreen> {
 
-  final AudioPlayer _player = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
   final GlobalKey _canvasKey = GlobalKey();
 
-  @override
-  AudioPlayer get tofiPlayer => _player;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
 
   int _currentLevelIndex = 0;
   int _currentStrokeIndex = 0;
@@ -72,7 +74,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   static final Random _random = Random();
   static List<int> _miniGameQueue = [];
   static int _miniGameIndex = 0;
-  static const String _traceInstructionWav = 'audio/alphabet_forest/trace_letter_instruction.wav';
+  static const String _traceInstructionWav = 'assets/audio/alphabet_forest/trace_letter_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -109,14 +111,14 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   Future<void> _playInstructionThenLetter() async {
     try {
       await playVoiceRestartingOnFaceLoss(
-        _player,
+        _audioPlayer,
         _traceInstructionWav,
         timeout: const Duration(seconds: 30),
       );
       if (!mounted) return;
       await playVoiceRestartingOnFaceLoss(
-        _player,
-        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+        _audioPlayer,
+        'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
       );
     } finally {
       if (mounted) setState(() => _audioFinished = true);
@@ -127,7 +129,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   void dispose() {
     disposeAiCamera();
     OrientationService.setLandscape();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
     super.dispose();
   }
 
