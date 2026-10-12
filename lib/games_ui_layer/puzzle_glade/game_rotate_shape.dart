@@ -150,6 +150,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool inputEnabled = false;
 
   // ── Drag tracking ──────────────────────────────────────────────────────────
   double _dragStartRotation = 0;
@@ -317,6 +318,8 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
     await _playBgAudio(_audioInstructions);
+    if (!mounted) return;
+    setState(() => inputEnabled = true);
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -367,7 +370,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   double get _snapRad => _snapDeg * pi / 180;
 
   void _onPanStart(DragStartDetails details) {
-    if (_isRotating || _isCompleting) return;
+    if (_isRotating || _isCompleting || !inputEnabled) return;
     final box = _objectKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
     final center = box.size.center(Offset.zero);
@@ -377,7 +380,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
-    if (_isRotating || _isCompleting) return;
+    if (_isRotating || _isCompleting || !inputEnabled) return;
     final box = _objectKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return;
     final center = box.size.center(Offset.zero);
@@ -389,7 +392,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   }
 
   void _onPanEnd(DragEndDetails details) {
-    if (_isRotating || _isCompleting) return;
+    if (_isRotating || _isCompleting || !inputEnabled) return;
     final nearest = (_currentRotation / _snapRad).round() * _snapRad;
     _animateSnapTo(nearest);
   }
@@ -792,7 +795,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   }
 
   void _onCheckTap() {
-    if (_isRotating || _isCompleting) return;
+    if (_isRotating || _isCompleting || !inputEnabled) return;
     _checkMatch();
   }
 
@@ -813,7 +816,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   }
 
   void _onRotateButtonTap(int direction) {
-    if (_isRotating || _isCompleting) return;
+    if (_isRotating || _isCompleting || !inputEnabled) return;
     final next =
         ((_currentRotation / _snapRad).round() + direction) * _snapRad;
     _animateSnapTo(next);

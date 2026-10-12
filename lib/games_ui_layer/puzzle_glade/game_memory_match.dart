@@ -71,17 +71,13 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/memory_match_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/memory_match_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/memory_match_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/memory_match_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/memory_match_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/memory_match_complete.wav';
 
   // ── Phase state ────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -97,6 +93,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -230,6 +227,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     _buildRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
     await _playAudio(_audioInstructions);
+    if (!mounted) return;
+    setState(() => _inputEnabled = true);
   }
 
   Future<void> _playAudio(String asset) async {
@@ -296,6 +295,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   }
 
   Future<void> _onCardTap(int cardIndex) async {
+    if (!_inputEnabled) return;
     if (_locked || _roundComplete) return;
 
     final card = _cards[cardIndex];

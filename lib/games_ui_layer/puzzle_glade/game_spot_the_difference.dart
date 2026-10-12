@@ -89,6 +89,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
   bool _showWinDialog = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _sfxPlayer = AudioPlayer();
@@ -216,6 +217,8 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     setState(() => _phase = _ScreenPhase.playing);
     _roundEnterCtrl.forward(from: 0);
     await _playAudio(_audioInstructions);
+    if (!mounted) return;
+    setState(() => _inputEnabled = true);
   }
 
   Future<void> _playAudio(String asset) async {
@@ -272,6 +275,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
   }
 
   void _onCellTapped(int panel, int cellIndex) async {
+    if (!_inputEnabled) return;
     if (_phase != _ScreenPhase.playing) return;
     if (_highlightedCorrectIndex != null) return;
 
@@ -561,7 +565,11 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
             ),
           ),
           Expanded(
-            child: Row(children: [Expanded(child: _buildMainArea())]),
+            child: AnimatedOpacity(
+              opacity: _inputEnabled ? 1.0 : 0.6,
+              duration: const Duration(milliseconds: 300),
+              child: Row(children: [Expanded(child: _buildMainArea())]),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.only(bottom: 15),

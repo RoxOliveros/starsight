@@ -58,19 +58,15 @@ class _MazePathScreenState extends State<MazePathScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _chickenImage = 'assets/images/characters/chicken.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _flagImage = 'assets/images/objects/puzzle/flag.png';
   static const String _starImage = 'assets/images/objects/puzzle/star.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/maze_path_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/maze_path_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/maze_path_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/maze_path_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/maze_path_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/maze_path_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -91,6 +87,7 @@ class _MazePathScreenState extends State<MazePathScreen>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool inputEnabled = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -209,6 +206,8 @@ class _MazePathScreenState extends State<MazePathScreen>
     _startRound();
     setState(() => _screenPhase = _ScreenPhase.game);
     await _playBgAudio(_audioInstructions);
+    if (!mounted) return;
+    setState(() => inputEnabled = true);
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -274,7 +273,7 @@ class _MazePathScreenState extends State<MazePathScreen>
   }
 
   void _move(int dRow, int dCol) {
-    if (_isCompleting) return;
+    if (_isCompleting || !inputEnabled) return;
 
     final target = (_currentCell.$1 + dRow, _currentCell.$2 + dCol);
 

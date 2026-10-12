@@ -209,18 +209,14 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
   static const String _symbolAssetPath = 'assets/images/buttons';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/same_or_different_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/same_or_different_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/same_or_different_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/same_or_different_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/same_or_different_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/same_or_different_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -238,6 +234,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool inputEnabled = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -397,6 +394,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
 
     await _playBgAudio(_audioInstructions);
     if (!mounted) return;
+    setState(() => inputEnabled = true);
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -440,7 +438,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   }
 
   Future<void> _onAnswerSelected(bool answeredSame) async {
-    if (_buttonsDisabled || _roundComplete) return;
+    if (_buttonsDisabled || _roundComplete || !inputEnabled) return;
 
     final isCorrect = answeredSame == _question.isSame;
 

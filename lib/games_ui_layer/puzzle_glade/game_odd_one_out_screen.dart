@@ -75,17 +75,13 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/odd_one_out_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/odd_one_out_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/odd_one_out_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/odd_one_out_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/odd_one_out_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/odd_one_out_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -96,12 +92,12 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   late List<String> _choices;
   bool _wrongFlash = false;
   bool _roundComplete = false;
-  int? _tappedIndex;
   int? _wrongIndex;
   bool _showWinDialog = false;
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool inputEnabled = false;
 
   // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _bgPlayer = AudioPlayer();
@@ -136,7 +132,6 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   late AnimationController _shakeCtrl;
   late Animation<double> _shakeAnim;
   late AnimationController _revealCtrl;
-  late Animation<double> _revealAnim;
 
   @override
   void initState() {
@@ -243,7 +238,6 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _revealAnim = CurvedAnimation(parent: _revealCtrl, curve: Curves.easeIn);
   }
 
   Future<void> _startIntroFlow() async {
@@ -261,6 +255,8 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
     await _playBgAudio(_audioInstructions);
+    if (!mounted) return;
+    setState(() => inputEnabled = true);
   }
 
   Future<void> _playBgAudio(String asset) async {
@@ -288,7 +284,6 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
 
     _wrongFlash = false;
     _roundComplete = false;
-    _tappedIndex = null;
     _wrongIndex = null;
 
     _bounceCtrl.reset();
@@ -298,12 +293,11 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   }
 
   Future<void> _onObjectTapped(String tapped, int index) async {
-    if (_roundComplete || _wrongFlash) return;
+    if (_roundComplete || _wrongFlash || !inputEnabled) return;
 
     if (tapped == _oddObject) {
       _tapTracker.recordCorrectTap();
       setState(() {
-        _tappedIndex = index;
         _roundComplete = true;
       });
       _bounceCtrl.forward(from: 0);
