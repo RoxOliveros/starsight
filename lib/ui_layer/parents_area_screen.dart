@@ -401,7 +401,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
 
     await FirebaseAuth.instance.signOut();
 
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     _isLoggingOut = true;
 
@@ -410,7 +410,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const SignUpSignInScreen()),
-      (route) => false,
+          (route) => false,
     );
   }
 
@@ -543,13 +543,18 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     }
   }
 
+  void _handleBack() {
+    OrientationService.setLandscape();
+    Navigator.pop(context, _selectedChild?.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        Navigator.pop(context, _selectedChild?.id);
+        _handleBack();
       },
       child: Scaffold(
         backgroundColor: ColorTheme.cream,
@@ -745,8 +750,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
             color: ColorTheme.deepNavyBlue,
           ),
 
-          onPressed: () =>
-              Navigator.pop(context, _selectedChild?.id), // was .name
+          onPressed: _handleBack,
         ),
       ),
     );
@@ -1205,48 +1209,6 @@ class _ScreenTimeDropdownRow extends StatelessWidget {
                 },
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AutoBackupRow extends StatelessWidget {
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _AutoBackupRow({required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = value ? ColorTheme.teal : ColorTheme.mutedGrey;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(Icons.cloud_upload_rounded, size: 20, color: ColorTheme.teal),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              'Automatic Backup',
-              style: TextStyle(
-                fontFamily: AppTextStyles.fredoka,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: ColorTheme.deepNavyBlue,
-              ),
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: Colors.white,
-            activeTrackColor: accent,
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: ColorTheme.mutedGrey,
-            trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
           ),
         ],
       ),
