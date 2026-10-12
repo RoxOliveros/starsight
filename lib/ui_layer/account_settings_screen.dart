@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:StarSight/ui_layer/signup_signin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -46,19 +47,23 @@ class AccountSettingsScreen extends StatelessWidget {
     );
   }
 
-  // Used after the account is deleted: clears the whole stack.
-  Future<void> _goToSignIn(BuildContext context) async {
+  Future<void> _goToSignUpSignIn(BuildContext context) async {
     await OrientationService.setPortrait();
     if (!context.mounted) return;
 
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!context.mounted) return;
+
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const SignInAccount()),
+      PageRouteBuilder(
+        pageBuilder: (context, animation1, animation2) =>
+            const SignUpSignInScreen(),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
       (route) => false,
     );
 
-    // Some of the screens being closed switch the app back to landscape at
-    // moments we can't predict, so keep re-applying portrait for a short
-    // window. This keeps any landscape flash down to a split second.
     var ticks = 0;
     Timer.periodic(const Duration(milliseconds: 100), (timer) {
       OrientationService.setPortrait();
@@ -120,11 +125,21 @@ class AccountSettingsScreen extends StatelessWidget {
   }
 
   Future<void> _deleteAccount(BuildContext context) async {
+    // 1. Show the new custom warning card first
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => const _DeleteConfirmationDialog(),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    // 2. If they tapped OK, proceed to the PIN/Password verification dialog
     final deleted = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _DeleteAccountDialog(auth: AuthService()),
     );
+
     if (deleted != true || !context.mounted) return;
 
     AppDialog.showSuccessAction(
@@ -133,7 +148,7 @@ class AccountSettingsScreen extends StatelessWidget {
       message:
           'Your account and all of its data have been permanently deleted.',
       actionLabel: 'OK',
-      onAction: () => _goToSignIn(context),
+      onAction: () => _goToSignUpSignIn(context),
     );
   }
 
@@ -325,6 +340,101 @@ class AccountSettingsScreen extends StatelessWidget {
         border: Border.all(color: borderColor, width: 1.6),
       ),
       child: Column(children: children),
+    );
+  }
+}
+
+class _DeleteConfirmationDialog extends StatelessWidget {
+  const _DeleteConfirmationDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: _AccPalette.cream,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Replace with your actual cloud asset path
+            Image.asset(
+              'assets/images/icons/night_cloud_fluffy.png',
+              height: 120,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "This will permanently delete your account. Are you sure?\nTap OK to confirm.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: _AccFonts.fredoka,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: _AccPalette.brown,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      SfxHelper.instance.play(Sfx.keyTap);
+                      Navigator.pop(context, false);
+                    },
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: _AccPalette.deepNavyBlue.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontFamily: _AccFonts.fredoka,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: _AccPalette.deepNavyBlue,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      SfxHelper.instance.play(Sfx.keyTap);
+                      Navigator.pop(context, true);
+                    },
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: _AccPalette.orange,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'OK',
+                        style: TextStyle(
+                          fontFamily: _AccFonts.fredoka,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: _AccPalette.cream,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
