@@ -44,6 +44,16 @@ class _Sharing2State extends State<Sharing2>
   final AudioPlayer _voice = AudioPlayer();
   static const String _voiceBase = 'assets/audio/lumi_town/level5/';
   bool _disposed = false;
+  final GlobalKey _characterKey = GlobalKey();
+
+  bool _isOverCharacter(Offset feedbackTopLeft, double feedbackWidth) {
+    final box = _characterKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached || !box.hasSize) return true; // fail open
+    final rect = box.localToGlobal(Offset.zero) & box.size;
+    final center =
+        feedbackTopLeft + Offset(feedbackWidth / 2, feedbackWidth / 2);
+    return rect.contains(center);
+  }
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_voice];
@@ -420,6 +430,15 @@ class _Sharing2State extends State<Sharing2>
                   return false;
                 },
                 onAcceptWithDetails: (details) {
+                  final double feedbackW =
+                  details.data == 'pancake' ? pancakeWidth : glassWidth;
+
+                  if (!_isOverCharacter(details.offset, feedbackW)) {
+                    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+                    widget.tapTracker.recordMistake();
+                    return;
+                  }
+
                   GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
                   widget.tapTracker.recordCorrectTap();
                   if (details.data == 'pancake') {
@@ -443,9 +462,8 @@ class _Sharing2State extends State<Sharing2>
                       children: [
                         if (_readyForEntrance)
                           CharacterEntrance(
-                            key: ValueKey(
-                              '$_charIndex-$_retryCount-$_bearPhase',
-                            ),
+                            key: ValueKey('$_charIndex-$_retryCount-$_bearPhase'),
+                            characterKey: _characterKey,
                             characterImagePath: currentCharacterImage,
                             characterHeightFraction: 0.95,
                             plateWidthFraction: 0.18,

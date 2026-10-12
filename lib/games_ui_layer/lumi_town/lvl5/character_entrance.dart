@@ -20,6 +20,7 @@ class CharacterEntrance extends StatefulWidget {
   final Duration stepDuration;
   final double bounceHeightFraction;
   final VoidCallback? onArrived;
+  final Key? characterKey;
 
   const CharacterEntrance({
     super.key,
@@ -40,6 +41,7 @@ class CharacterEntrance extends StatefulWidget {
     this.stepDuration = const Duration(milliseconds: 260),
     this.bounceHeightFraction = 0.045,
     this.onArrived,
+    this.characterKey,
   });
 
   @override
@@ -113,6 +115,7 @@ class CharacterEntranceState extends State<CharacterEntrance>
               offset: Offset(dx, -bounce),
               child: Image.asset(
                 widget.characterImagePath,
+                key: widget.characterKey,
                 height: characterHeightPx,
                 fit: BoxFit.contain,
                 errorBuilder: (ctx, err, st) => Container(
