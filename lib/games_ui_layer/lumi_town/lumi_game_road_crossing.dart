@@ -168,6 +168,12 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     await _startRound1Narration();
   }
 
+  Future<void> _restartAnimations() async {
+    for (final asset in [_carPassingBy, _redBump, _redGoodJob, _greenRoxieWalk]) {
+      await AssetImage(asset).evict();
+    }
+  }
+
   void _scheduleGlowTimers() {
     _glowUpTimer = Timer(const Duration(seconds: 3), () {
       if (!mounted) return;
@@ -212,6 +218,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     await playAssetAudio(_audioPlayer, _audioRedLight);
     await waitForAudio(_audioPlayer);
     if (!mounted) return;
+    await _restartAnimations();
+    if (!mounted) return;
     setState(() {
       _phase = _Phase.round1Answer;
       _inputEnabled = true;
@@ -231,7 +239,7 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       _tapTracker.recordCorrectTap();
       setState(() => _phase = _Phase.round1Correct);
 
-      await _waitForWebp();
+      await Future.delayed(const Duration(milliseconds: 1500));
       if (!mounted) return;
 
       unawaited(_trWooPlayer.stop());
@@ -276,6 +284,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     });
     await playAssetAudio(_audioPlayer, _audioGreenLight);
     await waitForAudio(_audioPlayer);
+    if (!mounted) return;
+    await _restartAnimations();
     if (!mounted) return;
     setState(() {
       _phase = _Phase.round2Answer;
