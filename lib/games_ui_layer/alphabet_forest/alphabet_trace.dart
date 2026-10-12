@@ -1323,7 +1323,7 @@ class GuidedTracePainter extends CustomPainter {
     );
 
     final bgPaint = Paint()
-      ..color = Colors.grey.shade300
+      ..color = Colors.grey.shade900
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..strokeWidth = 35.0
