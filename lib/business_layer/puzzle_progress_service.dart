@@ -8,7 +8,7 @@ class PuzzleProgressService {
 
   // Puzzle Glade has 20 levels
   static const int totalLevels = 20;
-  static const int _defaultUnlockedLevel = 1;
+  static const int _defaultUnlockedLevel = 5;
 
   DocumentReference<Map<String, dynamic>>? get _docRef {
     final uid = FirebaseAuth.instance.currentUser?.uid;

@@ -24,8 +24,6 @@ import '../../games_ui_layer/puzzle_glade/game_what_goes_together_screen.dart';
 import '../../games_ui_layer/puzzle_glade/game_whats_missing.dart';
 import '../../games_ui_layer/puzzle_glade/game_which_belongs_here.dart';
 import '../loading_screen.dart';
-import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'puzzle_buttons.dart';
 import 'puzzle_theme.dart';
 import '../starsight_setup_dialog.dart';
@@ -38,10 +36,9 @@ class PuzzleLevelScreen extends StatefulWidget {
 }
 
 class _PuzzleLevelScreenState extends State<PuzzleLevelScreen>
-  with MusicZoneMixin{
-
+    with MusicZoneMixin {
   int _page = 0;
-  int _unlockedLevel = 1;
+  int _unlockedLevel = 5;
   bool _isLoadingProgress = true;
   final DateTime _loadStart = DateTime.now();
 

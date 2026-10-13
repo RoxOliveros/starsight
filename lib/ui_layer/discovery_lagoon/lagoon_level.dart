@@ -27,8 +27,6 @@ import '../../games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart'
 import '../../games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
 import '../../ui_layer/app_dialog.dart';
 import '../loading_screen.dart';
-import 'package:StarSight/games_ui_layer/calibration_prompt.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../starsight_setup_dialog.dart';
 import 'lagoon_theme.dart';
 
@@ -40,12 +38,11 @@ class LagoonLevelScreen extends StatefulWidget {
 }
 
 class _LagoonLevelScreenState extends State<LagoonLevelScreen>
-  with MusicZoneMixin{
-
+    with MusicZoneMixin {
   int _currentPage = 0;
   final int _maxPages = 2;
 
-  int _unlockedLevel = 1;
+  int _unlockedLevel = 5;
   bool _isLoading = true;
   StreamSubscription<int>? _progressSub;
   final DateTime _loadStart = DateTime.now();
@@ -61,8 +58,8 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen>
 
   void _listenToProgress() {
     _progressSub = LagoonProgressService.instance.streamUnlockedLevel().listen((
-        level,
-        ) async {
+      level,
+    ) async {
       if (!mounted) return;
 
       if (_isLoading) {
@@ -502,7 +499,10 @@ class _LevelTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: LagoonColorTheme.sagegreen,
               borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: LagoonColorTheme.gunmetalgreen, width: 5),
+              border: Border.all(
+                color: LagoonColorTheme.gunmetalgreen,
+                width: 5,
+              ),
             ),
             alignment: Alignment.center,
             child: Text(

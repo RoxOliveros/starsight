@@ -6,8 +6,8 @@ class LagoonProgressService {
   LagoonProgressService._();
   static final LagoonProgressService instance = LagoonProgressService._();
 
-  static const int totalLevels = 24;
-  static const int _defaultUnlockedLevel = 1;
+  static const int totalLevels = 20;
+  static const int _defaultUnlockedLevel = 5;
 
   DocumentReference<Map<String, dynamic>>? get _docRef {
     final uid = FirebaseAuth.instance.currentUser?.uid;
