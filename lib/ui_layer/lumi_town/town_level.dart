@@ -37,10 +37,8 @@ class LumiLevelScreen extends StatefulWidget {
   State<LumiLevelScreen> createState() => _LumiLevelScreenState();
 }
 
-class _LumiLevelScreenState extends State<LumiLevelScreen>
-  with MusicZoneMixin{
-
-  int _unlockedLevel = 1;
+class _LumiLevelScreenState extends State<LumiLevelScreen> with MusicZoneMixin {
+  int _unlockedLevel = 5;
   int _page = 0;
   bool _isLoadingProgress = true;
   StreamSubscription<int>? _progressSub;

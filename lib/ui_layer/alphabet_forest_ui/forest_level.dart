@@ -35,9 +35,8 @@ class ForestLevelScreen extends StatefulWidget {
 
 class _ForestLevelScreenState extends State<ForestLevelScreen>
     with MusicZoneMixin {
-
   int _currentPage = 0;
-  int _unlockedLevel = 1;
+  int _unlockedLevel = 5;
   bool _isLoadingProgress = true;
   StreamSubscription<int>? _progressSub;
   final DateTime _loadStart = DateTime.now();

@@ -43,10 +43,9 @@ class ArcticLevelScreen extends StatefulWidget {
 }
 
 class _ArcticLevelScreenState extends State<ArcticLevelScreen>
-  with MusicZoneMixin{
-
+    with MusicZoneMixin {
   int _page = 0;
-  int _unlockedLevel = 1;
+  int _unlockedLevel = 5;
   bool _isLoading = true;
   final DateTime _loadStart = DateTime.now();
 
