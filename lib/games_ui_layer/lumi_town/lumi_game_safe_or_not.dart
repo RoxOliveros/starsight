@@ -187,13 +187,13 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
     if (!mounted) return;
 
     setState(() => _phase = _GamePhase.intro);
-    await playAssetAudio(_audioPlayer, _introAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
+    
     if (!mounted) return;
 
     setState(() => _phase = _GamePhase.instruction);
-    await playAssetAudio(_audioPlayer, _instructionAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _instructionAudio);
+    
     if (!mounted) return;
 
     _startRound();
@@ -330,8 +330,8 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
       debugPrint("Database Error marking level complete: $e");
     });
 
-    await playAssetAudio(_audioPlayer, _winAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _winAudio);
+    
     if (!mounted) return;
 
     setState(() => _gameComplete = true);

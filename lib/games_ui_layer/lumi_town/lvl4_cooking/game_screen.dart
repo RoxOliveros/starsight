@@ -189,7 +189,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
 
     try {
       await _voice.stop();
-      await playAssetAudio(_voice, '$_voiceBase${dialog.audioFile}');
+      await playVoiceRestartingOnFaceLoss(_voice, '$_voiceBase${dialog.audioFile}');
       await waitForAudio(_voice);
     } catch (_) {}
     if (_disposed || !mounted || token != _dialogToken) return;

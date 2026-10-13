@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
 
+import '../../games_audio_helper.dart';
+
 class TutorialPromptCard extends StatefulWidget {
   final String title;
   final String instructionText;
@@ -52,7 +54,7 @@ class _TutorialPromptCardState extends State<TutorialPromptCard> {
 
     final audioPath = widget.audioAssetPath;
     if (audioPath != null) {
-      _audioPlayer.play(AssetSource(audioPath));
+      playAssetAudio(_audioPlayer, audioPath);
 
       if (widget.autoCloseOnAudioComplete && widget.onClose != null) {
         _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {

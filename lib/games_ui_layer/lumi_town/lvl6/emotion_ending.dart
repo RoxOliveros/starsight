@@ -87,7 +87,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
         });
       }
     });
-    await playAssetAudio(_audioPlayer, _audioEnding);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioEnding);
   }
 
   @override

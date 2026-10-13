@@ -74,7 +74,7 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
   }
 
   Future<void> _playQuestionAudio() async {
-    await playAssetAudio(
+    await playVoiceRestartingOnFaceLoss(
       _player,
       _step2QuestionAudio,
     );
@@ -85,7 +85,7 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
   Future<void> _onCorrect() async {
     widget.tapTracker.recordCorrectTap();
     GamesSfxPlayer.instance.play(GameSfx.shine);
-    await playAssetAudio(
+    await playVoiceRestartingOnFaceLoss(
       _player,
       _washStartAudio,
     );
@@ -107,7 +107,7 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
     widget.tapTracker.recordMistake();
     key.currentState?.shake();
     GamesSfxPlayer.instance.play(GameSfx.bubblePop);
-    await playAssetAudio(
+    await playVoiceRestartingOnFaceLoss(
       _player,
       _step2WrongAudio,
     );

@@ -66,8 +66,8 @@ class _Sorry2ScreenState extends State<Sorry2Screen>
 
   Future<void> _startSceneSequence() async {
     try {
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_narration_2.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_narration_2.wav');
+          
       if (!mounted) return;
 
       await _walkController.forward(from: 0);
@@ -77,8 +77,8 @@ class _Sorry2ScreenState extends State<Sorry2Screen>
         _isBearSadWithTears = true;
       });
 
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_1.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_1.wav');
+          
       if (!mounted) return;
 
       final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];

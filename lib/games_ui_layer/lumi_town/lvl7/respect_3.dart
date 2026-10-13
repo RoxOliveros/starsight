@@ -91,8 +91,8 @@ class _Respect3ScreenState extends State<Respect3Screen>
 
   Future<void> _playSceneAudio() async {
     try {
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_bear1.wav');
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level7/respect_bear1.wav');
+      
       if (!mounted) return;
 
       setState(() {
@@ -192,8 +192,8 @@ class _Respect3ScreenState extends State<Respect3Screen>
                     setState(() => _answered = true);
                     widget.tapTracker.recordCorrectTap();
                     showTrWooReaction(TrWooState.correct);
-                    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_bear1_rc.wav');
-                    await waitForAudio(_audioPlayer);
+                    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level7/respect_bear1_rc.wav');
+                    
                     if (!mounted) return;
 
                     final emotionsSoFar = [

@@ -76,7 +76,7 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
     GamesSfxPlayer.instance.stop(GameSfx.comb);
     widget.tapTracker.recordCorrectTap();
     _wobbleCtrl.stop();
-    await playAssetAudio(
+    await playVoiceRestartingOnFaceLoss(
       _player,
       _combDoneAudio,
     );

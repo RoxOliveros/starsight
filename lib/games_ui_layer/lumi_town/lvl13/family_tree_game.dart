@@ -140,11 +140,11 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     });
 
     try {
-      await playAssetAudio(
+      await playVoiceRestartingOnFaceLoss(
         _audioPlayer,
         'assets/audio/lumi_town/level13/family_tree_game_intro.wav',
       );
-      await waitForAudio(_audioPlayer);
+      
     } catch (e) {
       debugPrint('Intro audio failed: $e');
     }
@@ -173,8 +173,8 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     if (audioPath == null || !mounted) return;
 
     setState(() => _canDrag = false);
-    await playAssetAudio(_audioPlayer, audioPath);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, audioPath);
+    
     if (mounted) setState(() => _canDrag = true);
   }
 
@@ -253,8 +253,8 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
 
-    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level13/family_tree_game_ending.wav');
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level13/family_tree_game_ending.wav');
+    
     if (mounted) {
       setState(() => _isGameWon = true);
     }

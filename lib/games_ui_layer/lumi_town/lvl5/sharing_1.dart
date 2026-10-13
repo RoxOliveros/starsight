@@ -78,7 +78,7 @@ class _Sharing1State extends State<Sharing1>
   Future<void> _speak(String file) async {
     try {
       await _voice.stop();
-      await playAssetAudio(_voice, '$_voiceBase$file');
+      await playVoiceRestartingOnFaceLoss(_voice, '$_voiceBase$file');
       await waitForAudio(_voice);
     } catch (e) {
       debugPrint('[Sharing1] Voice error ($file): $e');

@@ -182,7 +182,7 @@ class _Sharing2State extends State<Sharing2>
     if (_disposed || !mounted) return;
     try {
       await _voice.stop();
-      await playAssetAudio(_voice, '$_voiceBase$file');
+      await playVoiceRestartingOnFaceLoss(_voice, '$_voiceBase$file');
       await waitForAudio(_voice);
     } catch (e) {
       debugPrint('[Sharing2] Voice error ($file): $e');

@@ -16,7 +16,6 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-
 import 'lumi_game_ui_layer.dart';
 
 const String _classroomBg = 'assets/images/backgrounds/bg_lumi_classroom.png';
@@ -215,8 +214,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
       _inputEnabled = false;
     });
 
-    await playAssetAudio(_audioPlayer, _introAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
+    
     if (!mounted) return;
 
     setState(() {
@@ -224,8 +223,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
       _inputEnabled = false;
     });
 
-    await playAssetAudio(_audioPlayer, _instructionAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _instructionAudio);
+    
     if (!mounted) return;
 
     setState(() {
@@ -238,8 +237,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
   Future<void> _playCurrentNarration() async {
     setState(() => _inputEnabled = false);
 
-    await playAssetAudio(_audioPlayer, _current.narrationAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _current.narrationAudio);
+    
     if (!mounted) return;
 
     setState(() => _inputEnabled = true);
@@ -266,8 +265,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
       await GamesSfxPlayer.instance.play(GameSfx.shine);
       if (!mounted) return;
 
-      await playAssetAudio(_audioPlayer, _current.correctFeedbackAudio);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _current.correctFeedbackAudio);
+      
 
       if (!mounted) return;
 
@@ -325,8 +324,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
       debugPrint("Database Error marking level complete: $e");
     });
 
-    await playAssetAudio(_audioPlayer, _winAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _winAudio);
+    
     if (!mounted) return;
 
     setState(() {

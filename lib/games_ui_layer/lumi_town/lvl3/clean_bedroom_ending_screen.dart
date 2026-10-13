@@ -80,7 +80,7 @@ class _CleanBedroomEndingScreenState extends State<CleanBedroomEndingScreen>
   }
 
   Future<void> _playEndingThenShow() async {
-    await playAssetAudio(
+    await playVoiceRestartingOnFaceLoss(
       _player,
       _endingAudio,
     );

@@ -88,8 +88,8 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
 
   Future<void> _playStorySequence() async {
     try {
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_9.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_9.wav');
+          
       if (!mounted) return;
 
       await _walkController.forward(from: 0);
@@ -107,8 +107,8 @@ class _Sorry8ScreenState extends State<Sorry8Screen>
       await _jumpController.forward(from: 0);
       if (!mounted) return;
 
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_ending.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_ending.wav');
+          
       if (!mounted) return;
 
       await _saveDataAndShowGoodJob();

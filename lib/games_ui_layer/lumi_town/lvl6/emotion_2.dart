@@ -79,7 +79,7 @@ class _Emotion2State extends State<Emotion2>
       if (isTutorialPlaying) {
         isTutorialPlaying = false;
         if (!mounted) return;
-        await playAssetAudio(_audioPlayer, _audioStart);
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioStart);
       } else {
         if (mounted) {
           final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
@@ -96,7 +96,7 @@ class _Emotion2State extends State<Emotion2>
       }
     });
 
-    await playAssetAudio(_audioPlayer, _audioTutorial);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioTutorial);
 
     _carouselAppearanceTimer = Timer(const Duration(seconds: 6), () {
       if (mounted) {

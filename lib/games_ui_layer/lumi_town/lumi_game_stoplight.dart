@@ -204,8 +204,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
       _buttonsEnabled = false;
     });
 
-    await playAssetAudio(_audioPlayer, _introAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
+    
     if (!mounted) return;
 
     setState(() {
@@ -217,8 +217,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
 
     unawaited(_runInstructionFlashes());
 
-    await playAssetAudio(_audioPlayer, _instructionAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _instructionAudio);
+    
     if (!mounted) return;
 
     setState(() {
@@ -284,8 +284,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
       _checkingAnswer = false;
     });
 
-    await playAssetAudio(_audioPlayer, _scenario.audio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _scenario.audio);
+    
     if (!mounted) return;
 
     setState(() => _buttonsEnabled = true);
@@ -373,8 +373,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
 
     if (!mounted) return;
 
-    await playAssetAudio(_audioPlayer, _completeAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _completeAudio);
+    
 
     if (!mounted) return;
 

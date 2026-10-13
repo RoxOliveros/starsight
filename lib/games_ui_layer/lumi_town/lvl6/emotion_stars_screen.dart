@@ -143,7 +143,7 @@ class _EmotionStarsScreenState extends State<EmotionStarsScreen>
       }
     });
     GamesSfxPlayer.instance.stop(GameSfx.glowBlink);
-    await playAssetAudio(_audioPlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
   }
 
   @override

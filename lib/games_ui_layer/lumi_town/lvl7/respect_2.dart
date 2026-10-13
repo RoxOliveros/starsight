@@ -90,8 +90,8 @@ class _Respect2ScreenState extends State<Respect2Screen>
 
   Future<void> _playSceneAudio() async {
     try {
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_jack1.wav');
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level7/respect_jack1.wav');
+      
       if (!mounted) return;
 
       setState(() {
@@ -210,8 +210,8 @@ class _Respect2ScreenState extends State<Respect2Screen>
                     setState(() => _answered = true);
                     widget.tapTracker.recordCorrectTap();
                     showTrWooReaction(TrWooState.correct);
-                    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_jack1_rc.wav');
-                    await waitForAudio(_audioPlayer);
+                    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level7/respect_jack1_rc.wav');
+                    
                     if (!mounted) return;
 
                     final emotionsSoFar = [

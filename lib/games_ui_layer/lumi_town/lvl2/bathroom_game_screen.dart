@@ -68,11 +68,11 @@ class _Lvl2BathroomGameScreenState extends State<Lvl2BathroomGameScreen>
     _fadeCtrl.forward();
 
     try {
-      await playAssetAudio(
+      await playVoiceRestartingOnFaceLoss(
         _audioPlayer,
         _introAudio,
       );
-      await waitForAudio(_audioPlayer);
+      
     } catch (_) {}
 
     if (!mounted) return;

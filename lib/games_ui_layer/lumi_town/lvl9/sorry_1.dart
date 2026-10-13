@@ -50,8 +50,8 @@ class _Sorry1ScreenState extends State<Sorry1Screen>
 
   Future<void> _initAndPlayAudio() async {
     try {
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_narration_1.wav');
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_narration_1.wav');
+      
       if (!mounted) return;
 
       final emotionsSoFar = stopAiCamera();

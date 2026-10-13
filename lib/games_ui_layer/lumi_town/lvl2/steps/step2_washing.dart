@@ -93,7 +93,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
       _isWashing = false;
     });
     _wobbleCtrl.stop();
-    await playAssetAudio(_player, _washDoneAudio);
+    await playVoiceRestartingOnFaceLoss(_player, _washDoneAudio);
   }
 
   Future<void> _onTowelComplete() async {
@@ -105,7 +105,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
       _starState = StarState.none;
       _isWiping = false;
     });
-    await playAssetAudio(
+    await playVoiceRestartingOnFaceLoss(
       _player,
       _dryDoneAudio,
     );
