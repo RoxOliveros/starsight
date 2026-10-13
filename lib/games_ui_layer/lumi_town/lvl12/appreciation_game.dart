@@ -208,7 +208,7 @@ class _AppreciationGameState extends State<AppreciationGame>
 
       if (_introStep == 0) {
         setState(() => _introStep = 1);
-        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_tutorial.wav');
+        playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_tutorial.wav');
       } else if (_introStep == 1) {
         setState(() => _introStep = 2);
       } else if (_introStep == 3) {
@@ -222,7 +222,7 @@ class _AppreciationGameState extends State<AppreciationGame>
         });
         _jumpCtrl.repeat(reverse: true);
 
-        await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_yey.wav'));
+        await playVoiceRestartingOnFaceLoss(_audioPlayer,'assets/audio/sound_effects/sfx_yey.wav');
 
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
@@ -231,7 +231,7 @@ class _AppreciationGameState extends State<AppreciationGame>
               _isJumping = false;
               _introStep = 5;
             });
-            playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_ending.wav');
+            playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_ending.wav');
           }
         });
       } else if (_introStep == 5) {
@@ -245,7 +245,7 @@ class _AppreciationGameState extends State<AppreciationGame>
   void _startIntroFlow() {
     if (!mounted) return;
     _walkCtrl.forward();
-    playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_intro.wav');
+    playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_intro.wav');
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
@@ -296,7 +296,7 @@ class _AppreciationGameState extends State<AppreciationGame>
           setState(() {
             _introStep = 3;
           });
-          playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_part1.wav');
+          playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_part1.wav');
         }
       });
     } else if (_currentPuzzle == 3 &&
@@ -308,7 +308,7 @@ class _AppreciationGameState extends State<AppreciationGame>
           setState(() {
             _introStep = 4;
           });
-          playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_part2.wav');
+          playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_part2.wav');
         }
       });
     }
@@ -801,7 +801,7 @@ class _AppreciationGameState extends State<AppreciationGame>
                         _walkCtrl.reset();
                         _jumpCtrl.stop();
                         _walkCtrl.forward();
-                        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_intro.wav',);
+                        playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level12/appreciation_game_intro.wav',);
                       });
                     },
                     onBack: () => Navigator.of(context).pop(),

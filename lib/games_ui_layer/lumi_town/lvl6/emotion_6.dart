@@ -85,7 +85,7 @@ class _Emotion6ScreenState extends State<Emotion6Screen>
         }
       }
     });
-    await playAssetAudio(_audioPlayer, _audioP4);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioP4);
   }
 
   @override
@@ -169,7 +169,7 @@ class _Emotion6ScreenState extends State<Emotion6Screen>
                         setState(() => _showStars = false);
 
                         await Future.delayed(const Duration(milliseconds: 500));
-                        await playAssetAudio(_audioPlayer, _audioP4Rc);
+                        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioP4Rc);
 
                         setState(() => _showSparkles = true);
                         await Future.delayed(const Duration(seconds: 1));

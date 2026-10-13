@@ -88,7 +88,7 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
       await _audioPlayer.stop();
 
       await GamesSfxPlayer.instance.play(GameSfx.shine);
-      await waitForAudio(_audioPlayer);    
+          
       if (!mounted) return;
 
       setState(() {
@@ -112,11 +112,11 @@ class _Sorry7ScreenState extends State<Sorry7Screen>
       await _audioPlayer.stop();
 
       await GamesSfxPlayer.instance.play(GameSfx.shine);
-      await waitForAudio(_audioPlayer);    
+          
       if (!mounted) return;
 
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_8.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_8.wav');
+          
       if (!mounted) return;
 
       final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];

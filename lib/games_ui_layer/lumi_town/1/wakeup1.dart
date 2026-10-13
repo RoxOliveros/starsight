@@ -121,8 +121,8 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
 
   Future<void> _initAudio() async {
     try {
-      await playAssetAudio(_audioPlayer, widget.audioBinPath2);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, widget.audioBinPath2);
+      
       if (!mounted) return;
       debugPrint('[Speech] Audio done, now listening...');
       setState(() => _audioFinished = true);

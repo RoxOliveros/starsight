@@ -298,8 +298,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       _inputEnabled = false;
     });
 
-    await playAssetAudio(_audioPlayer, _introAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
+    
     if (!mounted) return;
 
     setState(() {
@@ -326,8 +326,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       });
     });
 
-    await playAssetAudio(_audioPlayer, _instructionAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _instructionAudio);
+    
     if (!mounted) return;
 
     _talkGlowTimer?.cancel();
@@ -387,8 +387,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       if (!mounted) return;
       setState(() => _wolfVisualState = WolfVisualState.talking);
 
-      await playAssetAudio(_audioPlayer, _current.enterAudio!);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _current.enterAudio!);
+      
       if (!mounted) return;
 
       setState(() {
@@ -406,8 +406,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       if (!mounted) return;
       setState(() => _characterVisible = true);
 
-      await playAssetAudio(_audioPlayer, _current.enterAudio!);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _current.enterAudio!);
+      
       if (!mounted) return;
 
       await Future<void>.delayed(const Duration(milliseconds: 600));
@@ -434,8 +434,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       _phase = _GamePhase.conversation;
     });
 
-    await playAssetAudio(_audioPlayer, _current.talkAudio!);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _current.talkAudio!);
+    
     if (!mounted) return;
 
     await _leaveCurrentCharacterAndAdvance();
@@ -490,8 +490,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       _wolfVisualState = WolfVisualState.shocked;
     });
 
-    await playAssetAudio(_audioPlayer, _littleBearNoAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _littleBearNoAudio);
+    
     if (!mounted) return;
 
     await _finishWolfSequence();
@@ -510,8 +510,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       _wolfTalkBranch = true;
     });
 
-    await playAssetAudio(_audioPlayer, _wolfTalkAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _wolfTalkAudio);
+    
     if (!mounted) return;
 
     setState(() => _phase = _GamePhase.wolfRetreatingHalfway);
@@ -532,8 +532,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       _wolfVisualState = WolfVisualState.shocked;
     });
 
-    await playAssetAudio(_audioPlayer, _teacherWooWarningAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _teacherWooWarningAudio);
+    
     if (!mounted) return;
 
     setState(() => _wolfVisualState = WolfVisualState.shocked);
@@ -557,8 +557,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
         _phase = _GamePhase.safetyLesson;
       });
 
-      await playAssetAudio(_audioPlayer, _safetyLessonAudio);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _safetyLessonAudio);
+      
       if (!mounted) return;
 
       setState(() {
@@ -602,8 +602,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
     });
 
     if (playWinAudio) {
-      await playAssetAudio(_audioPlayer, _winAudio);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _winAudio);
+      
       if (!mounted) return;
     }
 

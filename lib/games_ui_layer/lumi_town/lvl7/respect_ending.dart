@@ -72,7 +72,7 @@ class _RespectEndingState extends State<RespectEnding>
   }
 
   void _startEndingSequence() {
-    playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_success.wav');
+    playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level7/respect_success.wav');
     Future.delayed(const Duration(seconds: 20), () async {
       if (!mounted) return;
       await _saveDataAndMarkComplete();

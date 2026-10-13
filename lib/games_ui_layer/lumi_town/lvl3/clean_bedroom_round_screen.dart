@@ -172,7 +172,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
       await waitForAudio(_player);
     }
     final toy = toyById(toyId);
-    await playAssetAudio(_player, toy.audioPath);
+    await playVoiceRestartingOnFaceLoss(_player, toy.audioPath);
   }
 
   Future<void> _onDropOnSlot(int slotIndex, String droppedToyId) async {
@@ -196,7 +196,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
       if (_filledSlots.length == 3 && !_roundComplete) {
         _roundComplete = true;
         await Future.delayed(const Duration(milliseconds: 300));
-        await playAssetAudio(
+        await playVoiceRestartingOnFaceLoss(
           _player,
           _roundDoneAudio,
         );
@@ -209,7 +209,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
       widget.tapTracker.recordMistake();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       _slotShakeCtrl[slotIndex].forward(from: 0);
-      await playAssetAudio(
+      await playVoiceRestartingOnFaceLoss(
         _player,
         _wrongAudio,
       );

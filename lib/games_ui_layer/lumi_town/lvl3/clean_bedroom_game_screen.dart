@@ -71,7 +71,7 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
   Future<void> _playIntroThenProceed() async {
     _fadeCtrl.forward();
     try {
-      await playAssetAudio(_player, _introAudio);
+      await playVoiceRestartingOnFaceLoss(_player, _introAudio);
       await waitForAudio(_player);
     } catch (_) {}
 

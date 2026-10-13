@@ -69,8 +69,8 @@ class _Sorry5ScreenState extends State<Sorry5Screen>
 
   Future<void> _startIntroAudio() async {
     try {
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_5.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_5.wav');
+          
       if (!mounted) return;
 
       setState(() {
@@ -94,11 +94,11 @@ class _Sorry5ScreenState extends State<Sorry5Screen>
       await _audioPlayer.stop();
 
       await GamesSfxPlayer.instance.play(GameSfx.shine);
-      await waitForAudio(_audioPlayer);    
+          
       if (!mounted) return;
 
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_6.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_6.wav');
+          
       if (!mounted) return;
 
       final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];

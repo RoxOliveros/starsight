@@ -93,8 +93,8 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
         }
       });
 
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_2.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_2.wav');
+          
       _positionSub?.cancel();
       if (!mounted) return;
 
@@ -104,8 +104,8 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
         });
       }
 
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_3.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_3.wav');
+          
       if (!mounted) return;
 
       setState(() {
@@ -122,7 +122,7 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
   Future<void> _playThumbsPrompt() async {
     try {
       final done = _audioPlayer.onPlayerComplete.first;
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/thumbsup_thumbsdown.wav');
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/thumbsup_thumbsdown.wav');
       await done;
     } catch (e) {
       debugPrint('Error playing thumbsup_thumbsdown.wav: $e');
@@ -163,8 +163,8 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
 
     try {
       await _audioPlayer.stop();
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_4.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_4.wav');
+          
     } catch (e) {
       debugPrint('Error playing sorry_4.wav: $e');
     }
@@ -198,8 +198,8 @@ class _Sorry3ScreenState extends State<Sorry3Screen>
 
     try {
       await _audioPlayer.stop();
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/dr.woo_tryagain.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/dr.woo_tryagain.wav');
+          
     } catch (e) {
       debugPrint('Error playing dr.woo_tryagain.wav: $e');
     }

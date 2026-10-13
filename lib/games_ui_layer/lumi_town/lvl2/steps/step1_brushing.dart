@@ -105,7 +105,7 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
     setState(() => _starState = StarState.lot);
     _wobbleCtrl.stop();
     _wobbleCtrl.stop();
-    await playAssetAudio(
+    await playVoiceRestartingOnFaceLoss(
       _player,
       _brushDoneAudio,
     );
@@ -201,7 +201,7 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
                                 });
                                 if (!_audioFired && _brushProgress >= 0.15) {
                                   _audioFired = true;
-                                  playAssetAudio(
+                                  playVoiceRestartingOnFaceLoss(
                                     _player,
                                     _brushMidAudio,
                                   );

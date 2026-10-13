@@ -85,7 +85,7 @@ class _Prayer1State extends State<Prayer1>
       });
     }
 
-    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level8/pray_1.wav');
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level8/pray_1.wav');
 
     _scene2Timer = Timer(const Duration(seconds: 4), () {
       if (!mounted || _gestureDetected) return;
@@ -102,7 +102,7 @@ class _Prayer1State extends State<Prayer1>
       });
     });
 
-    await waitForAudio(_audioPlayer);
+    
     if (!mounted || _gestureDetected) return;
 
     if (_hasCameraPermission) {
@@ -144,16 +144,16 @@ class _Prayer1State extends State<Prayer1>
     });
 
     await _audioPlayer.stop();
-    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level8/pray_2.wav');
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level8/pray_2.wav');
+    
     if (!mounted) return;
 
     setState(() {
       _currentScene = 'assets/images/objects/lumi/lvl8_scene2.png';
     });
 
-    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level8/pray_3.wav');
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level8/pray_3.wav');
+    
     if (!mounted) return;
 
     await _saveDataAndShowGoodJob();

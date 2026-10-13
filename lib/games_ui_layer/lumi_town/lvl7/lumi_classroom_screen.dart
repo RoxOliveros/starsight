@@ -73,18 +73,18 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
 
   Future<void> _playIntroAudio() async {
     try {
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_intro.wav');
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level7/respect_intro.wav');
+      
       if (!mounted) return;
 
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level7/respect_tutorial.wav');
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level7/respect_tutorial.wav');
       Future.delayed(const Duration(seconds: 6), () {
         if (mounted) {
           showDrWooReactionQuietly(TrWooState.correct);
         }
       });
 
-      await waitForAudio(_audioPlayer);
+      
       if (!mounted) return;
 
       final emotionsSoFar = stopAiCamera();

@@ -62,7 +62,7 @@ class _StepEndingScreenState extends State<StepEndingScreen>
   }
 
   Future<void> _playEndingThenShow() async {
-    await playAssetAudio(
+    await playVoiceRestartingOnFaceLoss(
       _player,
       _endingAudio,
     );

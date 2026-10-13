@@ -151,8 +151,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     if (!mounted) return;
     setState(() => _phase = _Phase.intro);
     GamesSfxPlayer.instance.play(GameSfx.carPassBy);
-    await playAssetAudio(_audioPlayer, _audioIntro);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
+    
     if (!mounted) return;
     await _startInstruction();
   }
@@ -161,8 +161,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     if (!mounted) return;
     setState(() => _phase = _Phase.instruction);
     _scheduleGlowTimers();
-    await playAssetAudio(_audioPlayer, _audioInstruction);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+    
     _cancelGlowTimers();
     if (!mounted) return;
     await _startRound1Narration();
@@ -215,8 +215,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       _inputEnabled = false;
       _showTryAgain = false;
     });
-    await playAssetAudio(_audioPlayer, _audioRedLight);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioRedLight);
+    
     if (!mounted) return;
     await _restartAnimations();
     if (!mounted) return;
@@ -244,8 +244,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
 
       unawaited(_trWooPlayer.stop());
       showTrWooReaction(TrWooState.correct);
-      await playAssetAudio(_audioPlayer, _audioRedLightCorrect);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioRedLightCorrect);
+      
       if (!mounted) return;
       await _startRound2Narration();
     } else {
@@ -256,8 +256,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       await _waitForWebp();
       if (!mounted) return;
 
-      await playAssetAudio(_audioPlayer, _audioRedLightWrong);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioRedLightWrong);
+      
       if (!mounted) return;
       setState(() => _showTryAgain = true);
     }
@@ -282,8 +282,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       _inputEnabled = false;
       _showTryAgain = false;
     });
-    await playAssetAudio(_audioPlayer, _audioGreenLight);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioGreenLight);
+    
     if (!mounted) return;
     await _restartAnimations();
     if (!mounted) return;
@@ -310,14 +310,14 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       if (!mounted) return;
       unawaited(_trWooPlayer.stop());
       showTrWooReaction(TrWooState.correct);
-      await playAssetAudio(_audioPlayer, _audioGreenLightCorrect);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioGreenLightCorrect);
+      
       if (!mounted) return;
 
       setState(() => _playingWin = true);
 
-      await playAssetAudio(_audioPlayer, _audioWin);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
+      
       if (!mounted) return;
 
       setState(() => _playingWin = false);
@@ -330,8 +330,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       await _waitForWebp();
       if (!mounted) return;
 
-      await playAssetAudio(_audioPlayer, _audioGreenLightWrong);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioGreenLightWrong);
+      
       if (!mounted) return;
       setState(() => _showTryAgain = true);
     }

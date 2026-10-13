@@ -55,8 +55,8 @@ class _Sorry6ScreenState extends State<Sorry6Screen>
 
   Future<void> _playSceneAudio() async {
     try {
-      await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_7.wav');
-      await waitForAudio(_audioPlayer);    
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level9/sorry_7.wav');
+          
       if (!mounted) return;
 
       final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];

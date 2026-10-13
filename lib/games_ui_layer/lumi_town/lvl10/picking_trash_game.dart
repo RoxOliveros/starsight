@@ -197,7 +197,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
   }
 
   Future<void> _playIntroSequence() async {
-    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level10/picking_trash_game_intro.wav');
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level10/picking_trash_game_intro.wav');
 
     _playerCompleteSubscription?.cancel();
 
@@ -215,7 +215,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
       _showDrWoo = true;
     });
 
-    await playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level10/picking_trash_game_ending.wav');
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level10/picking_trash_game_ending.wav');
 
     _playerCompleteSubscription?.cancel();
 

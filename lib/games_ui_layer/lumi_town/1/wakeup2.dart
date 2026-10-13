@@ -75,11 +75,11 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
 
   Future<void> _playNext() async {
     try {
-      await playAssetAudio(
+      await playVoiceRestartingOnFaceLoss(
         _audioPlayer,
         _salamatAudio,
       );
-      await waitForAudio(_audioPlayer);
+      
     } catch (e) {
       debugPrint('[Audio] Error: $e');
     }

@@ -323,8 +323,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       _inputEnabled = false;
     });
 
-    await playAssetAudio(_audioPlayer, _introAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
+    
     if (!mounted) return;
 
     setState(() {
@@ -332,8 +332,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       _inputEnabled = false;
     });
 
-    await playAssetAudio(_audioPlayer, _instructionAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _instructionAudio);
+    
     if (!mounted) return;
 
     setState(() => _phase = CleaningSequencePhase.game);
@@ -353,8 +353,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       _checkingAnswer = false;
     });
 
-    await playAssetAudio(_audioPlayer, _current.questionAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _current.questionAudio);
+    
     if (!mounted) return;
 
     setState(() => _inputEnabled = true);
@@ -379,8 +379,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       if (!mounted) return;
       setState(() => _showClean = true);
 
-      await playAssetAudio(_audioPlayer, _current.correctAudio);
-      await waitForAudio(_audioPlayer);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _current.correctAudio);
+      
       if (!mounted) return;
 
       if (_currentIndex == _queue.length - 1) {
@@ -436,8 +436,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     unawaited(showTrWooReaction(TrWooState.correct));
     if (!mounted) return;
 
-    await playAssetAudio(_audioPlayer, _winAudio);
-    await waitForAudio(_audioPlayer);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _winAudio);
+    
     if (!mounted) return;
 
     setState(() {

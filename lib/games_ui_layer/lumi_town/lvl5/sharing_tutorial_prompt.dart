@@ -17,7 +17,7 @@ class SharingTutorialPrompt extends StatelessWidget {
       hintText: '',
       hintImagePath: 'assets/images/objects/lumi/cancel_btn.png',
       hintDelay: const Duration(seconds: 3),
-      audioAssetPath: 'audio/lumi_town/level5/sharing.wav',
+      audioAssetPath: 'assets/audio/lumi_town/level5/sharing.wav',
       onClose: onClose,
       autoCloseOnAudioComplete: true,
     );

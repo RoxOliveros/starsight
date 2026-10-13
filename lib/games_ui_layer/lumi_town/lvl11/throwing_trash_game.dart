@@ -116,21 +116,21 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
         if (!mounted) return;
 
         setState(() => _introStep = 2);
-        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan1.wav');
+        playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan1.wav');
       } else if (_introStep == 2) {
         setState(() => _introStep = -1);
         await Future.delayed(Duration(milliseconds: audioIntervalMilliseconds));
         if (!mounted) return;
 
         setState(() => _introStep = 3);
-        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan2.wav');
+        playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan2.wav');
       } else if (_introStep == 3) {
         setState(() => _introStep = -1);
         await Future.delayed(Duration(milliseconds: audioIntervalMilliseconds));
         if (!mounted) return;
 
         setState(() => _introStep = 4);
-        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan3.wav');
+        playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan3.wav');
       } else if (_introStep == 4) {
         setState(() {
           _introStep = 5;
@@ -146,7 +146,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
     _walkCtrl.forward().then((_) {
       if (mounted) {
         setState(() => _introStep = 1);
-        playAssetAudio(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_intro.wav');
+        playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_intro.wav');
       }
     });
   }
