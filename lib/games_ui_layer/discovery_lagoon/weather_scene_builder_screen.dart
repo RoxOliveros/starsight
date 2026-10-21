@@ -307,15 +307,13 @@ import 'lagoon_game_ui.dart';
             characterImage: _kikiFishboneImage,
             characterSizeFactor: 0.9,
             onNext: () {
-              if (context.mounted) {
+              Navigator.pop(context);
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        AnimalLifecycleGame(level: widget.level + 1),
+                    builder: (_) => AnimalLifecycleGame(level: widget.level + 1),
                   ),
                 );
-              }
             },
             onRestart: () {
               Navigator.pop(context);
