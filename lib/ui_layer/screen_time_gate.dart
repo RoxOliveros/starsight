@@ -89,8 +89,11 @@ class _LockContentState extends State<_LockContent> {
     if (!mounted) return;
 
     if (pin != null && pin == _pinController.text.trim()) {
-      // Lifts the lock for a few minutes so the parent can open the
-      // Parent's Area and raise the limit. The overlay removes itself.
+      await OrientationService.setLandscape();
+      if (!mounted) return;
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+
       ScreenTimeService.instance.grantParentGrace();
       return;
     }
