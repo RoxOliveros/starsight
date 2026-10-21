@@ -12,7 +12,9 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
 enum GamePhase {
@@ -36,12 +38,16 @@ class ListeningGame extends StatefulWidget {
 }
 
 class _ListeningGameState extends State<ListeningGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<ListeningGame> {
+    with AiCameraMixin, AppAudioLifecycleMixin<ListeningGame>, KikiReactionMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -105,147 +111,79 @@ class _ListeningGameState extends State<ListeningGame>
     });
   }
 
-  void _afterAudio(VoidCallback next) {
-    _audioPlayer.onPlayerComplete.first.then((_) {
-      if (mounted) next();
-    }).catchError((_) {});
-  }
-
   Future<void> _playIntroAudio() async {
-    try {
-      await _audioPlayer.play(
-        AssetSource('audio/discovery_lagoon/listening_intro.wav'),
-      );
-
-      _afterAudio(_startListeningPhase);
-    } catch (e) {
-      debugPrint("Error playing intro audio: $e");
-    }
+    await playVoiceRestartingOnFaceLoss(
+        _audioPlayer, 'audio/discovery_lagoon/listening_intro.wav');
+    if (!mounted) return;
+    await _startListeningPhase();
   }
 
   Future<void> _startListeningPhase() async {
     _generateChoices();
+    setState(() => _currentPhase = GamePhase.listening);
 
-    setState(() {
-      _currentPhase = GamePhase.listening;
-    });
+    await playVoiceRestartingOnFaceLoss(
+        _audioPlayer, 'audio/discovery_lagoon/listening_$_targetAnimal.wav');
+    if (!mounted) return;
 
-    try {
-      String audioPath;
-      if (_targetAnimal == 'chicken') {
-        audioPath = 'audio/discovery_lagoon/listening_chicken.wav';
-      } else if (_targetAnimal == 'frog') {
-        audioPath = 'audio/discovery_lagoon/listening_frog.wav';
-      } else if (_targetAnimal == 'snake') {
-        audioPath = 'audio/discovery_lagoon/listening_snake.wav';
-      } else if (_targetAnimal == 'pig') {
-        audioPath = 'audio/discovery_lagoon/listening_pig.wav';
-      } else {
-        audioPath = 'audio/discovery_lagoon/listening_cow.wav';
-      }
+    await playVoiceRestartingOnFaceLoss(
+        _audioPlayer, 'audio/discovery_lagoon/listening_whatanimal.wav');
+    if (!mounted) return;
 
-      await _audioPlayer.play(AssetSource(audioPath));
-
-      _afterAudio(() async {
-        if (mounted) {
-          try {
-            await _audioPlayer.play(
-              AssetSource('audio/discovery_lagoon/listening_whatanimal.wav'),
-            );
-
-            _afterAudio(() {
-              if (mounted) {
-                setState(() {
-                  _currentPhase = GamePhase.choosing;
-                });
-              }
-            });
-          } catch (e) {
-            debugPrint("Error playing whatanimal audio: $e");
-          }
-        }
-      });
-    } catch (e) {
-      debugPrint("Error playing target animal audio: $e");
-    }
+    setState(() => _currentPhase = GamePhase.choosing);
   }
 
-  Future<void> _playKikiAudio(String assetPath) async {
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource(assetPath));
-    } catch (e) {
-      debugPrint("Error playing audio ($assetPath): $e");
-    }
-  }
-
-  void _onAnimalTapped(String animalName) {
+  Future<void> _onAnimalTapped(String animalName) async {
     if (_currentPhase != GamePhase.choosing) return;
 
     if (animalName == _targetAnimal) {
       _tapTracker.recordCorrectTap();
-      setState(() {
-        _currentPhase = GamePhase.answered;
-      });
+      setState(() => _currentPhase = GamePhase.answered);
+      showKikiReaction(KikiState.correct);
 
-      _playKikiAudio('audio/sound_effects/sfx_shine.wav');
-      _afterAudio(() {
-        _playKikiAudio('audio/discovery_lagoon/listening_rc.wav');
+      await playVoiceRestartingOnFaceLoss(
+          _audioPlayer, 'audio/discovery_lagoon/listening_rc.wav');
+      if (!mounted) return;
 
-        _afterAudio(() {
-            if (mounted) {
-              if (_targetAnimal == 'chicken') {
-                setState(() => _targetAnimal = 'frog');
-                _startListeningPhase();
-              } else if (_targetAnimal == 'frog') {
-                setState(() => _targetAnimal = 'snake');
-                _startListeningPhase();
-              } else if (_targetAnimal == 'snake') {
-                setState(() => _targetAnimal = 'pig');
-                _startListeningPhase();
-              } else if (_targetAnimal == 'pig') {
-                setState(() => _targetAnimal = 'cow');
-                _startListeningPhase();
-              } else {
-                setState(() {
-                  _currentPhase = GamePhase.completed;
-                });
-                _playKikiAudio('audio/discovery_lagoon/listening_ending1.wav');
+      const order = ['chicken', 'frog', 'snake', 'pig', 'cow'];
+      final i = order.indexOf(_targetAnimal);
 
-                _afterAudio(() {
-                  if (mounted) {
-                    setState(() {
-                      _currentPhase = GamePhase.bodyParts;
-                    });
-                    _playKikiAudio(
-                      'audio/discovery_lagoon/listening_whatpart.wav',
-                    );
-                  }
-                });
-              }
-            }
-          });
-      });
+      if (i < order.length - 1) {
+        setState(() => _targetAnimal = order[i + 1]);
+        await _startListeningPhase();
+      } else {
+        setState(() => _currentPhase = GamePhase.completed);
+        await playVoiceRestartingOnFaceLoss(
+            _audioPlayer, 'audio/discovery_lagoon/listening_ending1.wav');
+        if (!mounted) return;
+
+        setState(() => _currentPhase = GamePhase.bodyParts);
+        await playVoiceRestartingOnFaceLoss(
+            _audioPlayer, 'audio/discovery_lagoon/listening_whatpart.wav');
+      }
     } else {
       _tapTracker.recordMistake();
-      _playKikiAudio('audio/discovery_lagoon/kiki_tryagain.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      if (kikiState != KikiState.wrong) showKikiReaction(KikiState.wrong);
     }
   }
 
-  void _onBodyPartTapped(String partId) {
+  Future<void> _onBodyPartTapped(String partId) async {
     if (_currentPhase != GamePhase.bodyParts) return;
 
     if (partId == 'ear') {
       _tapTracker.recordCorrectTap();
       setState(() => _currentPhase = GamePhase.bodyPartsAnswered);
-      _playKikiAudio('audio/sound_effects/sfx_shine.wav');
-      _afterAudio(() {
-        _playKikiAudio('audio/discovery_lagoon/listening_whatpart_rc.wav');
-        _afterAudio(_saveDataAndShowGoodJob);
-      });
+      showKikiReaction(KikiState.correct);
+
+      await playVoiceRestartingOnFaceLoss(
+          _audioPlayer, 'audio/discovery_lagoon/listening_whatpart_rc.wav');
+      if (!mounted) return;
+      await _saveDataAndShowGoodJob();
     } else {
       _tapTracker.recordMistake();
-      _playKikiAudio('audio/discovery_lagoon/kiki_tryagain.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      if (kikiState != KikiState.wrong) showKikiReaction(KikiState.wrong);
     }
   }
 
@@ -291,6 +229,7 @@ class _ListeningGameState extends State<ListeningGame>
   void dispose() {
     disposeAiCamera();
     _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();

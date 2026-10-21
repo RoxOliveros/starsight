@@ -11,6 +11,7 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
@@ -26,28 +27,25 @@ class PerfumeGame extends StatefulWidget {
 
 class _PerfumeGameState extends State<PerfumeGame>
     with AiCameraMixin, KikiReactionMixin, AppAudioLifecycleMixin<PerfumeGame> {
-  @override
-  AudioPlayer get kikiPlayer => _kikiPlayer;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final GameTapTracker _tapTracker = GameTapTracker();
-  final AudioPlayer _kikiPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
 
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
+
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   static const String _introAudio = 'audio/discovery_lagoon/perfume_intro.wav';
-  static const String _tutorialAudio =
-      'audio/discovery_lagoon/perfume_tutorial.wav';
+  static const String _tutorialAudio = 'audio/discovery_lagoon/perfume_tutorial.wav';
   static const String _rcAudio = 'audio/discovery_lagoon/perfume_rc.wav';
-  static const String _recipeAudio =
-      'audio/discovery_lagoon/perfume_complete_recipe.wav';
-  static const String _whatPartAudio =
-      'audio/discovery_lagoon/perfume_whatpart.wav';
-  static const String _completeAudio =
-      'audio/discovery_lagoon/perfume_completed.wav';
-  static const String _endingAudio =
-      'audio/discovery_lagoon/perfume_ending.wav';
+  static const String _recipeAudio = 'audio/discovery_lagoon/perfume_complete_recipe.wav';
+  static const String _whatPartAudio = 'audio/discovery_lagoon/perfume_whatpart.wav';
+  static const String _completeAudio = 'audio/discovery_lagoon/perfume_completed.wav';
+  static const String _endingAudio = 'audio/discovery_lagoon/perfume_ending.wav';
 
   int _currentStage = 1;
   bool _showOptions = false;
@@ -95,38 +93,19 @@ class _PerfumeGameState extends State<PerfumeGame>
     _startAudioSequence();
   }
 
-  Future<void> _waitForAudioComplete() async {
-    try {
-      await _audioPlayer.onPlayerComplete.first;
-    } catch (_) {}
-  }
-
   Future<void> _startAudioSequence() async {
-    await _audioPlayer.play(AssetSource(_introAudio));
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
+    if (!mounted || _disposed) return;
 
-    _waitForAudioComplete().then((_) async {
-      if (!mounted || _disposed) return;
-
-      setState(() {
-        _showOptions = true;
-        _canTap = false;
-      });
-
-      await _audioPlayer.play(AssetSource(_tutorialAudio));
-
-      _waitForAudioComplete().then((_) {
-        if (!mounted || _disposed) return;
-        setState(() {
-          _canTap = true;
-        });
-      });
+    setState(() {
+      _showOptions = true;
+      _canTap = false;
     });
-  }
 
-  Future<void> _playKikiAudio(String assetPath) async {
-    if (_disposed) return;
-    await _audioPlayer.stop();
-    await _audioPlayer.play(AssetSource(assetPath));
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _tutorialAudio);
+    if (!mounted || _disposed) return;
+
+    setState(() => _canTap = true);
   }
 
   Future<void> _handleCorrectPick() async {
@@ -150,12 +129,10 @@ class _PerfumeGameState extends State<PerfumeGame>
       }
     });
 
-    await showKikiReaction(KikiState.correct);
-    if (!mounted || _disposed) return;
+    showKikiReaction(KikiState.correct);
 
-    await _playKikiAudio(_rcAudio);
-    await _waitForAudioComplete();
-    if (_disposed) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _rcAudio);
+    if (!mounted || _disposed) return;
 
     if (_currentStage == 1 && mounted) {
       _transitionToStage2();
@@ -206,9 +183,8 @@ class _PerfumeGameState extends State<PerfumeGame>
       _canTap = false;
     });
 
-    await _playKikiAudio(_recipeAudio);
-    await _waitForAudioComplete();
-    if (_disposed) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _recipeAudio);
+    if (!mounted || _disposed) return;
 
     if (mounted) {
       setState(() {
@@ -257,8 +233,7 @@ class _PerfumeGameState extends State<PerfumeGame>
       _showMixStar = true;
     });
 
-    await showKikiReaction(KikiState.correct);
-    if (!mounted || _disposed) return;
+    showKikiReaction(KikiState.correct);
 
     setState(() {
       _currentStage = 7;
@@ -269,9 +244,8 @@ class _PerfumeGameState extends State<PerfumeGame>
       _isKikiSmiling = true;
     });
 
-    await _playKikiAudio(_completeAudio);
-    await _waitForAudioComplete();
-    if (_disposed) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _completeAudio);
+    if (!mounted || _disposed) return;
 
     if (mounted) {
       _transitionToStage8();
@@ -289,9 +263,8 @@ class _PerfumeGameState extends State<PerfumeGame>
       _canTap = false;
     });
 
-    await _playKikiAudio(_whatPartAudio);
-    await _waitForAudioComplete();
-    if (_disposed) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _whatPartAudio);
+    if (!mounted || _disposed) return;
 
     if (mounted) {
       setState(() {
@@ -311,12 +284,10 @@ class _PerfumeGameState extends State<PerfumeGame>
       _showKikiCheering = true;
     });
 
-    await showKikiReaction(KikiState.correct);
-    if (!mounted || _disposed) return;
+    showKikiReaction(KikiState.correct);
 
-    await _playKikiAudio(_endingAudio);
-    await _waitForAudioComplete();
-    if (_disposed) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _endingAudio);
+    if (!mounted || _disposed) return;
 
     if (mounted) {
       await _saveDataAndShowGoodJob();
@@ -332,7 +303,8 @@ class _PerfumeGameState extends State<PerfumeGame>
       _canTap = false;
     });
 
-    await showKikiReaction(KikiState.wrong);
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+    showKikiReaction(KikiState.wrong);
 
     if (!mounted || _disposed || _actionTaken) return;
 
