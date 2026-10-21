@@ -492,8 +492,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
               if (_isGameWon)
                 Positioned.fill(
                   child: GoodJobOverlay(
-                    characterImage:
-                        'assets/images/characters/tr.woo_the_owl.png',
+                    characterImage: 'assets/images/characters/tr.woo_the_owl.png',
                     onNext: () {
                       if (mounted) {
                         Navigator.of(context).pushAndRemoveUntil(
@@ -506,12 +505,12 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
                       }
                     },
                     onRestart: () {
-                      setState(() {
-                        _hasSavedResult = false;
-                        _tapTracker.startSession();
-                        _isGameWon = false;
-                        _initTrashItems();
-                      });
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ThrowingTrashGame(level: widget.level),
+                        ),
+                      );
                     },
                     onBack: () => Navigator.of(context).pop(),
                   ),
