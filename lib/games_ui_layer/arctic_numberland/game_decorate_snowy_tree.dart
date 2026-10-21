@@ -9,7 +9,8 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
-import 'arctic_audio_helper.dart';
+import '../games_audio_helper.dart';
+import 'arctic_audio_path.dart';
 import 'arctic_game_ui.dart';
 import 'game_aurora_catcher.dart';
 import 'doma_reaction.dart';
@@ -53,22 +54,7 @@ extension on _OrnamentColor {
         return '$base/ornament_purple.png';
     }
   }
-
-  String get audioAsset {
-    const base = 'assets/audio/arctic_numberland';
-    switch (this) {
-      case _OrnamentColor.red:
-        return '$base/red.wav';
-      case _OrnamentColor.blue:
-        return '$base/blue.wav';
-      case _OrnamentColor.green:
-        return '$base/green.wav';
-      case _OrnamentColor.yellow:
-        return '$base/yellow.wav';
-      case _OrnamentColor.purple:
-        return '$base/purple.wav';
-    }
-  }
+  String get audioAsset => ArcticAudioPath.forColor(name);
 }
 
 class _OrnamentSpot {
@@ -106,28 +92,26 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
         TickerProviderStateMixin,
         DomaReactionMixin<DecorateSnowyTreeGame>,
         GameLoadingMixin<DecorateSnowyTreeGame>,
-        ArcticAudioMixin<DecorateSnowyTreeGame>,
         AiCameraMixin<DecorateSnowyTreeGame>,
         AppAudioLifecycleMixin<DecorateSnowyTreeGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
+
   @override
-  AudioPlayer get domaPlayer => audio.voicePlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _treeAsset =
-      'assets/images/objects/arctic/snowy_tree.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _treeAsset = 'assets/images/objects/arctic/snowy_tree.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/decorate_tree_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/decorate_tree_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/decorate_tree_instruction.wav';
   static const String _audioWin = '$_audioBase/decorate_tree_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -253,22 +237,22 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
 
   static final int _totalRounds = _rounds.length;
 
-  // ── State ────────────────────────────────────────────────────────────────
-  bool _introPlaying = true;
   int _currentRound = 0;
   int _solvedRounds = 0;
-  bool _showWinDialog = false;
 
-  late _RoundSpec _round;
+
   Set<String> _filledSpotIds = {};
 
   List<_OrnamentColor> _trayOptions = [];
-  bool _trayWrong = false;
-  bool _treeWiggling = false;
 
+  bool _introPlaying = true;
+  bool _showWinDialog = false;
+  bool _treeWiggling = false;
+  bool _inputEnabled = false;
+
+  late _RoundSpec _round;
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _spotPulseCtrl;
@@ -296,7 +280,6 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  /// Stops the camera and saves mistakes + emotions once per playthrough.
   Future<void> _saveGameResult() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
@@ -339,13 +322,6 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -376,30 +352,30 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
     ]).animate(CurvedAnimation(parent: _wiggleCtrl, curve: Curves.easeInOut));
   }
 
-  // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted)
-      playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+    if (!mounted) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+    if (mounted) setState(() => _inputEnabled = true);
   }
 
   void _setupRound({bool playInstruction = true}) {
     _round = _rounds[_currentRound];
     _filledSpotIds = {};
     _trayOptions = _buildTrayForRound(_round);
-    _trayWrong = false;
 
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted)
-          playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        if (mounted) {
+          playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+        }
       });
     }
 
@@ -407,34 +383,37 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   }
 
   Future<void> _onColorDropped(
-    _OrnamentSpot spot,
-    _OrnamentColor dropped,
-  ) async {
-    if (_filledSpotIds.contains(spot.id)) return;
+      _OrnamentSpot spot,
+      _OrnamentColor dropped,
+      ) async {
+    if (!_inputEnabled || _filledSpotIds.contains(spot.id)) return;
 
     if (dropped == spot.correctColor) {
       _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       setState(() {
+        _inputEnabled = false;
         _filledSpotIds.add(spot.id);
         _trayOptions.remove(dropped);
       });
-      await playSfx(dropped.audioAsset);
       showDomaReaction(DomaState.correct);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, dropped.audioAsset);
+      if (!mounted) return;
 
       if (_round.spots.every((s) => _filledSpotIds.contains(s.id))) {
         await Future.delayed(const Duration(milliseconds: 800));
+        if (!mounted) return;
         await _onRoundComplete();
+      } else {
+        setState(() => _inputEnabled = true);
       }
     } else {
       _tapTracker.recordMistake();
-      await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
       HapticFeedback.heavyImpact();
-      setState(() => _trayWrong = true);
       await Future.delayed(const Duration(milliseconds: 350));
       if (!mounted) return;
-      setState(() => _trayWrong = false);
     }
   }
 
@@ -448,7 +427,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
     });
 
     if (_currentRound + 1 >= _totalRounds) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       await _saveGameResult();
       ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
         (e) {
@@ -458,7 +437,10 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
       if (!mounted) return;
       setState(() => _showWinDialog = true);
     } else {
-      setState(() => _currentRound++);
+      setState(() {
+        _currentRound++;
+        _inputEnabled = true;
+      });
       _setupRound(playInstruction: false);
     }
   }
@@ -466,6 +448,8 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   @override
   void dispose() {
     disposeAiCamera();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -477,8 +461,6 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // Only reacts to a *confirmed* camera result, so it never flashes just
-    // because the screen mounted. Reappears if the face is lost again.
     final needsLightingPrompt =
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
@@ -698,7 +680,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
       width: size,
       height: size,
       child: DragTarget<_OrnamentColor>(
-        onWillAcceptWithDetails: (details) => !filled,
+        onWillAcceptWithDetails: (details) => !filled && _inputEnabled,
         onAcceptWithDetails: (details) => _onColorDropped(spot, details.data),
         builder: (context, candidateData, rejectedData) {
           final highlight = candidateData.isNotEmpty;
@@ -772,13 +754,10 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
               runSpacing: 10,
               alignment: WrapAlignment.center,
               children: _trayOptions.map((color) {
-                final tile = _ornamentVisual(
-                  color,
-                  tileSize,
-                  wrong: _trayWrong,
-                );
+                final tile = _ornamentVisual(color, tileSize);
                 return Draggable<_OrnamentColor>(
                   data: color,
+                  maxSimultaneousDrags: _inputEnabled ? 1 : 0,
                   feedback: Material(color: Colors.transparent, child: tile),
                   childWhenDragging: Opacity(opacity: 0.3, child: tile),
                   child: tile,
@@ -789,27 +768,21 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
   }
 
   Widget _ornamentVisual(
-    _OrnamentColor color,
-    double size, {
-    bool wrong = false,
-  }) {
+      _OrnamentColor color,
+      double size,
+      ) {
     return SizedBox(
       width: size,
       height: size * 1.15,
-      child: ColorFiltered(
-        colorFilter: wrong
-            ? const ColorFilter.mode(Colors.red, BlendMode.modulate)
-            : const ColorFilter.mode(Colors.white, BlendMode.dst),
-        child: Image.asset(
-          color.imageAsset,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: color.swatch,
-              shape: BoxShape.circle,
-            ),
+      child: Image.asset(
+        color.imageAsset,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: color.swatch,
+            shape: BoxShape.circle,
           ),
         ),
       ),

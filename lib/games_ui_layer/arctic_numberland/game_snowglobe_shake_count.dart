@@ -10,8 +10,8 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'game_addition_rescue_bridge.dart';
-import 'arctic_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -46,32 +46,28 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
         TickerProviderStateMixin,
         DomaReactionMixin<SnowglobeShakeGame>,
         GameLoadingMixin<SnowglobeShakeGame>,
-        ArcticAudioMixin<SnowglobeShakeGame>,
         AiCameraMixin<SnowglobeShakeGame>,
         AppAudioLifecycleMixin<SnowglobeShakeGame> {
-  @override
-  AudioPlayer get domaPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _snowglobeEmptyAsset =
-      'assets/images/objects/arctic/empty_snowglobe.png';
-  static const String _snowballAsset =
-      'assets/images/objects/arctic/snowball.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _snowglobeEmptyAsset = 'assets/images/objects/arctic/empty_snowglobe.png';
+  static const String _snowballAsset = 'assets/images/objects/arctic/snowball.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/snowglobe_shake_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/snowglobe_shake_instuction.wav';
+  static const String _audioInstruction = '$_audioBase/snowglobe_shake_instuction.wav';
 
   static const List<Alignment> _ballPositions = [
     Alignment(-0.28, -0.55),
@@ -106,6 +102,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   bool _resolving = false;
   _TagOption? _attachedTag;
   bool _showWinDialog = false;
+  bool _inputEnabled = false;
 
   double _strokeDelta = 0;
   int _strokeSign = 0;
@@ -215,22 +212,19 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) playVoice(_audioInstruction);
+    if (!mounted) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+    if (mounted) setState(() => _inputEnabled = true);
   }
 
-  // ── Shake detection ──────────────────────────────────────────────────────
-  // Tracks alternating drag direction. Each time the drag reverses after
-  // travelling far enough in one direction, it counts as one "shake" and
-  // adds a snowball — mimicking a real back-and-forth shake motion rather
-  // than a simple tap.
   void _onShakePanUpdate(DragUpdateDetails details) {
-    if (_globeFull || _resolving) return;
+    if (!_inputEnabled || _globeFull || _resolving) return;
     final dx = details.delta.dx;
     if (dx.abs() < 0.5) return;
     final sign = dx > 0 ? 1 : -1;
@@ -250,6 +244,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   }
 
   void _onShakePanEnd(DragEndDetails details) {
+    if (!_inputEnabled) return;
     if (!_globeFull && _strokeDelta >= _shakeDistanceThreshold) {
       _registerShake();
     }
@@ -319,8 +314,8 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
 
     HapticFeedback.mediumImpact();
     setState(() => _attachedTag = tag);
-    await playSfx('$_audioBase/${_rounds[_currentRound].targetNumber}.wav');
     showDomaReaction(DomaState.correct);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, '$_audioBase/${_rounds[_currentRound].targetNumber}.wav');
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     await _advanceRound();
@@ -329,6 +324,8 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   @override
   void dispose() {
     disposeAiCamera();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _minLoadTimer?.cancel();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -391,7 +388,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
+      
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(
@@ -629,6 +626,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   Widget _buildTag(_TagOption tag, double size) {
     return Draggable<_TagOption>(
       data: tag,
+      maxSimultaneousDrags: _inputEnabled ? 1 : 0,
       feedback: Material(
         color: Colors.transparent,
         child: Transform.scale(scale: 1.1, child: _tagVisual(tag, size)),
@@ -641,7 +639,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
         _tapTracker.recordMistake();
 
         HapticFeedback.heavyImpact();
-        await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
+        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
         showDomaReaction(DomaState.wrong);
       },
       child: _tagVisual(tag, size),

@@ -1,5 +1,6 @@
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/audio_helper.dart';
 import '../../business_layer/music_zones.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../business_layer/puzzle_progress_service.dart';
@@ -255,6 +256,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen>
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
+                            SfxHelper.instance.play(Sfx.keyTap);
                             if (_page > 0) {
                               setState(() => _page--);
                             }
@@ -275,6 +277,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen>
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
+                            SfxHelper.instance.play(Sfx.keyTap);
                             if (_page < 2) {
                               setState(() => _page++);
                             }
@@ -372,6 +375,7 @@ class _LevelTile extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
+        SfxHelper.instance.play(Sfx.keyTap);
         final screen = _screenForLevel();
         if (screen == null) {
           ScaffoldMessenger.of(

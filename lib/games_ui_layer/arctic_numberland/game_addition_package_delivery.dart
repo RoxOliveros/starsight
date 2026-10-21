@@ -11,6 +11,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -38,26 +39,25 @@ class _AdditionPackageDeliveryGameState
         GameLoadingMixin<AdditionPackageDeliveryGame>,
         AiCameraMixin<AdditionPackageDeliveryGame>,
         AppAudioLifecycleMixin<AdditionPackageDeliveryGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
+
   @override
-  AudioPlayer get domaPlayer => _voicePlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_voicePlayer, _sfxPlayer];
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _packageAssetBase =
-      'assets/images/objects/arctic/package_';
-  static const String _miniPackageAsset =
-      'assets/images/objects/arctic/package_1.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _miniPackageAsset = 'assets/images/objects/arctic/package.png';
   static const String _sledAsset = 'assets/images/objects/arctic/sled.png';
   static const String _houseAsset = 'assets/images/objects/arctic/house.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/package_delivery_intro.wav';
-  static const String _audioPackageAddRemove =
-      'assets/audio/sound_effects/sfx_thump.wav';
   static const String _audioWin = '$_audioBase/package_delivery_win.wav';
 
   static final Animation<double> _kZeroAnim = AlwaysStoppedAnimation<double>(
@@ -68,18 +68,16 @@ class _AdditionPackageDeliveryGameState
   static const int _totalRounds = 5;
   static const double _maxTiltRadians = 0.26;
 
-  /// Addition facts kept to sums of 5 or less, matching the visual/counting
-  /// range of the rest of Arctic Numberland.
   static const List<List<int>> _factPool = [
-    [1, 1], // 1+1=2
-    [1, 2], // 1+2=3
-    [2, 1], // 2+1=3
-    [1, 3], // 1+3=4
-    [2, 2], // 2+2=4
-    [1, 4], // 1+4=5
-    [2, 3], // 2+3=5
-    [3, 2], // 3+2=5
-    [3, 1], // 3+1=4
+    [1, 1],
+    [1, 2],
+    [2, 1],
+    [1, 3],
+    [2, 2],
+    [1, 4],
+    [2, 3],
+    [3, 2],
+    [3, 1],
   ];
 
   // ── State ────────────────────────────────────────────────────────────────
@@ -95,24 +93,17 @@ class _AdditionPackageDeliveryGameState
   late int _addendB;
   late int _target;
 
-  /// Package chips available in the tray this round.
   late List<int> _packagePool;
-
-  /// Parallel to _packagePool — true once that chip has been loaded on the sled.
   late List<bool> _packageUsed;
-
-  /// Indices (into _packagePool) currently sitting on the sled, in drop order.
   late List<int> _sledLoad;
 
-  bool _resolvingRound =
-      false; // locks input while delivered/overloaded plays out
+  bool _resolvingRound = false;
 
   // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  /// Stops the camera and saves mistakes + emotions once per playthrough.
   Future<void> _saveGameResult() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
@@ -126,10 +117,6 @@ class _AdditionPackageDeliveryGameState
       debugPrint("Database Error saving metrics: $e");
     });
   }
-
-  // ── Audio ────────────────────────────────────────────────────────────────
-  final AudioPlayer _voicePlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
 
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
@@ -228,7 +215,7 @@ class _AdditionPackageDeliveryGameState
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(_voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -258,9 +245,6 @@ class _AdditionPackageDeliveryGameState
   List<int> _buildPackagePool(int addendA, int addendB, int target) {
     final rng = Random();
     final pool = <int>[addendA, addendB, target];
-    while (pool.length < 6) {
-      pool.add(rng.nextInt(5) + 1);
-    }
     pool.shuffle(rng);
     return pool;
   }
@@ -284,7 +268,7 @@ class _AdditionPackageDeliveryGameState
     });
 
     HapticFeedback.selectionClick();
-    await _playSfxAndWait(_audioPackageAddRemove);
+    await GamesSfxPlayer.instance.play(GameSfx.thump);
 
     final total = _currentTotal;
     if (total == _target) {
@@ -300,7 +284,7 @@ class _AdditionPackageDeliveryGameState
       _packageUsed[poolIndex] = false;
       _sledLoad.remove(poolIndex);
     });
-    _playVoice(_audioPackageAddRemove);
+    GamesSfxPlayer.instance.play(GameSfx.thump);
   }
 
   Future<void> _onDelivered() async {
@@ -310,7 +294,7 @@ class _AdditionPackageDeliveryGameState
     _deliveredPulseCtrl.forward(from: 0);
 
     HapticFeedback.selectionClick();
-    _playSfx(_audioPackageAddRemove);
+    GamesSfxPlayer.instance.play(GameSfx.thump);
 
     showDomaReaction(DomaState.correct);
     if (!mounted) return;
@@ -331,7 +315,7 @@ class _AdditionPackageDeliveryGameState
         _sledLoad = [];
         _showEquation = false;
       });
-      await _playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       await _saveGameResult();
       ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
         (e) {
@@ -354,7 +338,9 @@ class _AdditionPackageDeliveryGameState
     });
     HapticFeedback.heavyImpact();
     _tipCtrl.forward(from: 0);
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
     showDomaReaction(DomaState.wrong);
+    await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     setState(() {
       _packageUsed = List.filled(_packagePool.length, false);
@@ -364,52 +350,11 @@ class _AdditionPackageDeliveryGameState
     });
   }
 
-  // ── Audio ────────────────────────────────────────────────────────────────
-  Future<void> _playVoice(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _voicePlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _voicePlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 18));
-    } catch (e) {
-      debugPrint('Voice audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
-  void _playSfx(String asset) {
-    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
-      e,
-    ) {
-      debugPrint('SFX audio error ($asset): $e');
-    });
-  }
-
-  Future<void> _playSfxAndWait(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _sfxPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 3));
-    } catch (e) {
-      debugPrint('SFX audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
   @override
   void dispose() {
     disposeAiCamera();
-    _voicePlayer.dispose();
-    _sfxPlayer.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -423,10 +368,7 @@ class _AdditionPackageDeliveryGameState
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // Only reacts to a *confirmed* camera result, so it never flashes just
-    // because the screen mounted. Reappears if the face is lost again.
-    final needsLightingPrompt =
-        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+    final needsLightingPrompt = hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
     return Listener(
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
@@ -450,7 +392,6 @@ class _AdditionPackageDeliveryGameState
                       ? _buildIntroLayer()
                       : _buildGameContent(),
                 ),
-                if (!_introPlaying) buildDoma(context),
                 if (_showWinDialog)
                   Positioned.fill(child: _buildGoodJobOverlay()),
               ],
@@ -463,7 +404,7 @@ class _AdditionPackageDeliveryGameState
                         child: LightingPromptCard(
                           onClose: () {
                             setState(() => _hideLightingCard = true);
-                            releaseFaceGate(); // don't leave audio stuck
+                            releaseFaceGate();
                           },
                         ),
                       ),
@@ -572,7 +513,6 @@ class _AdditionPackageDeliveryGameState
                       Expanded(
                         flex: 3,
                         child: Align(
-                          alignment: Alignment.topLeft,
                           child: _buildPackageTray(h),
                         ),
                       ),
@@ -674,7 +614,7 @@ class _AdditionPackageDeliveryGameState
                     ),
                   ),
                   Positioned(
-                    bottom: sledHeight * 0.24,
+                    bottom: sledHeight * 0.35,
                     left: sledHeight * 0.16,
                     right: 0,
                     child: _buildSledCargo(equationSize),
@@ -688,7 +628,6 @@ class _AdditionPackageDeliveryGameState
     );
   }
 
-  /// Signboard showing the addition problem for this house's order.
   Widget _buildEquationDisplay(double size) {
     return Container(
       padding: EdgeInsets.symmetric(
@@ -757,38 +696,37 @@ class _AdditionPackageDeliveryGameState
     );
   }
 
-  /// Drop target area on the sled where the player loads packages.
   Widget _buildSledCargo(double size) {
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) =>
-          !_resolvingRound && !_packageUsed[details.data],
+      !_resolvingRound && !_packageUsed[details.data],
       onAcceptWithDetails: (details) => _onPackageDropped(details.data),
       builder: (context, candidateData, rejectedData) {
         return SizedBox(
           width: size * 1.4,
           height: size * 0.8,
           child: _sledLoad.isEmpty
-              ? SizedBox(width: size * 1.4, height: size * 0.8)
-              : Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  alignment: WrapAlignment.center,
-                  children: _sledLoad.map((idx) {
-                    return GestureDetector(
-                      onTap: () => _onPackageRemoved(idx),
-                      child: _packageChipVisual(_packagePool[idx], size * 0.44),
-                    );
-                  }).toList(),
-                ),
+              ? const SizedBox.shrink()
+              : FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.bottomCenter,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: _sledLoad.map((idx) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: GestureDetector(
+                    onTap: () => _onPackageRemoved(idx),
+                    child: _packageChipVisual(_packagePool[idx], size * 0.70),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
         );
       },
     );
-  }
-
-  /// Maps a chip's numeric value (1-5) to its package_N.png artwork.
-  String _packageAssetForValue(int value) {
-    final clamped = value.clamp(1, 5);
-    return '$_packageAssetBase$clamped.png';
   }
 
   Widget _miniPackage(double size) {
@@ -801,64 +739,38 @@ class _AdditionPackageDeliveryGameState
     );
   }
 
-  /// The draggable/loadable package chip — uses the matching package_N.png
-  /// artwork (which already visually encodes the value) plus a small number
-  /// badge so the count stays easy to read at a glance.
   Widget _packageChipVisual(int value, double size) {
-    return SizedBox(
-      width: size,
-      height: size,
+    final iconSize = value <= 2 ? size * 0.48 : size * 0.38;
+
+    return Container(
+      constraints: BoxConstraints(
+        minWidth: size,
+        maxWidth: size * 1.45,
+        minHeight: size * 0.80,
+      ),
+      padding: EdgeInsets.all(size * 0.06),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Positioned.fill(
-            child: Image.asset(
-              _packageAssetForValue(value),
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFFFFF4F4),
-                      Color(0xFFFFC2C2),
-                      Color(0xFFE84855),
-                    ],
-                    stops: [0.0, 0.55, 1.0],
-                  ),
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '$value',
-                  style: TextStyle(
-                    fontFamily: ArcticAppTextStyles.fredoka,
-                    color: ArcticColorTheme.cadetblue,
-                    fontWeight: FontWeight.bold,
-                    fontSize: size * 0.5,
-                  ),
-                ),
-              ),
+          Center(
+            child: Wrap(
+              spacing: size * 0.03,
+              runSpacing: size * 0.03,
+              alignment: WrapAlignment.center,
+              runAlignment: WrapAlignment.center,
+              children: List.generate(value, (_) => _miniPackage(iconSize)),
             ),
           ),
           Positioned(
             right: -4,
             top: -4,
             child: Container(
-              width: size * 0.36,
-              height: size * 0.36,
+              width: size * 0.34,
+              height: size * 0.34,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: ArcticColorTheme.pictonblue,
                 border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: ArcticColorTheme.pictonblue.withValues(alpha: 0.4),
-                    blurRadius: 4,
-                  ),
-                ],
               ),
               alignment: Alignment.center,
               child: Text(
@@ -867,7 +779,7 @@ class _AdditionPackageDeliveryGameState
                   fontFamily: ArcticAppTextStyles.fredoka,
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: size * 0.22,
+                  fontSize: size * 0.20,
                 ),
               ),
             ),
@@ -879,24 +791,21 @@ class _AdditionPackageDeliveryGameState
 
   // ── Package tray ─────────────────────────────────────────────────────────
   Widget _buildPackageTray(double h) {
-    final chipSize = (h * 0.15);
+    final chipSize = (h * 0.23);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       margin: const EdgeInsets.symmetric(horizontal: 8),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        alignment: WrapAlignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: List.generate(_packagePool.length, (i) {
           final used = _packageUsed[i];
           final chip = _packageChipVisual(_packagePool[i], chipSize);
 
-          if (used) {
-            return Opacity(opacity: 0.25, child: chip);
-          }
-
-          return Draggable<int>(
+          final Widget choice = used
+              ? Opacity(opacity: 0.25, child: chip)
+              : Draggable<int>(
             data: i,
             feedback: Material(
               color: Colors.transparent,
@@ -904,6 +813,13 @@ class _AdditionPackageDeliveryGameState
             ),
             childWhenDragging: Opacity(opacity: 0.3, child: chip),
             child: chip,
+          );
+
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: i < _packagePool.length - 1 ? 10 : 0,
+            ),
+            child: choice,
           );
         }),
       ),

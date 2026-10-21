@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../business_layer/audio_helper.dart';
 import '../../games_ui_layer/games_audio_helper.dart';
 import 'forest_theme.dart';
 
@@ -9,7 +10,7 @@ class ForestBackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        await GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+        SfxHelper.instance.play(Sfx.keyTap);
         Navigator.pop(context);
       },
       child: Container(
@@ -84,7 +85,7 @@ class ForestNextButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        await GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+        GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
         onTap();
       },
       child: Container(

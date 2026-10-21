@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../business_layer/audio_helper.dart';
+import '../../games_ui_layer/games_audio_helper.dart';
 import 'lumi_theme.dart';
 
 class LumiBackButton extends StatelessWidget {
@@ -45,7 +46,7 @@ class LumiXButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap ?? () {
-        SfxHelper.instance.play(Sfx.keyTap);
+        GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
         Navigator.pop(context);
       },
       child: Image.asset('assets/images/buttons/x_rust.png', width: 50)
@@ -62,7 +63,7 @@ class LumiSkipButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: (){
-        SfxHelper.instance.play(Sfx.keyTap);
+        GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
         onTap();
       },
       child: Image.asset(

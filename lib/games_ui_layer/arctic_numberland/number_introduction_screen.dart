@@ -34,11 +34,9 @@ typedef NumberMiniGameBuilder =
       required VoidCallback onComplete,
       required int level,
       required GameTapTracker
-      tapTracker, // <-- ADDED: Passes tracker to minigames
+      tapTracker,
     });
 
-/// Cycles through mini-games in shuffled order, no repeats until the set
-/// is exhausted — same trick AlphabetTraceScreen uses with _miniGameQueue.
 class _MiniGameRotator {
   final int count;
   final Random _random = Random();
@@ -507,37 +505,33 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
         GameLoadingMixin<NumberIntroductionScreen>,
         AiCameraMixin<NumberIntroductionScreen>,
         AppAudioLifecycleMixin<NumberIntroductionScreen> {
-  // <-- ADDED MIXIN
+
   int _configIndex = 0;
   NumberLevelConfig get _config => widget.configs[_configIndex];
   bool get _isLastInSequence => _configIndex == widget.configs.length - 1;
 
   static const List<int> _loadingScreenNumbers = [0, 3, 6, 9];
-  bool get _shouldShowLoading =>
-      _loadingScreenNumbers.contains(widget.configs.first.number);
+  bool get _shouldShowLoading => _loadingScreenNumbers.contains(widget.configs.first.number);
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   _IntroPhase _introPhase = _IntroPhase.domaEntering;
   _MiniGamePhase _miniGamePhase = _MiniGamePhase.tracing;
 
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
-  // --- ADDED TRACKING VARIABLES ---
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
   bool _loadingScreenElapsed = false;
   Timer? _minLoadTimer;
 
-  // Rotates through kNumberMiniGames so consecutive numbers don't repeat
-  // the same mini-game, same pattern as AlphabetTraceScreen's queue.
   static final _miniGameRotator = _MiniGameRotator(kNumberMiniGames.length);
 
-  // Tap mini-game state
   bool _showWinDialog = false;
   bool _isCompletingLevel = false;
+  bool _tracingEnabled = false;
 
   int? _miniGameIndex;
 
@@ -560,7 +554,6 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
     OrientationService.setLandscape();
     _initAnimations();
 
-    // --- START AI AND TRACKERS ---
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
@@ -571,7 +564,6 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       });
     }
 
-    // Setup logic to pause at Level 1 if no face is detected
     if (widget.level == 1) {
       onFirstFaceDetected = () {
         if (_shouldShowLoading) {
@@ -592,9 +584,6 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       }
     }
 
-    // A dismissed lighting card should only stay dismissed until the face
-    // is actually lost again — not forever — so it can reappear later on
-    // this same screen if the kid moves out of frame mid-play.
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) {
         setState(() => _hideLightingCard = false);
@@ -667,7 +656,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
 
     if (hasRevealAudio) {
       _setIntroPhase(_IntroPhase.playingIntro);
-      await _playAudio(_config.introAudio);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _config.introAudio);
       if (!mounted) return;
 
       _setIntroPhase(_IntroPhase.playingReveal);
@@ -675,7 +664,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       _numberDanceCtrl.repeat(reverse: true);
       await Future.delayed(const Duration(milliseconds: 1500));
       if (!mounted) return;
-      await _playAudio(_config.numberRevealAudio);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _config.numberRevealAudio);
       if (!mounted) return;
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
@@ -683,7 +672,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       _setIntroPhase(_IntroPhase.playingReveal);
       _numberPopCtrl.forward(from: 0);
       _numberDanceCtrl.repeat(reverse: true);
-      await _playAudio(_config.introAudio);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _config.introAudio);
       if (!mounted) return;
     }
 
@@ -696,7 +685,15 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
 
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
-    await _playAudio(_config.writeAudio);
+
+    try {
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _config.writeAudio);
+    } catch (e) {
+      debugPrint('Write audio error: $e');
+    }
+    if (!mounted) return;
+
+    setState(() => _tracingEnabled = true);
   }
 
   Future<void> _completeLevel() async {
@@ -738,25 +735,9 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       _miniGamePhase = _MiniGamePhase.tracing;
       _isCompletingLevel = false;
       _miniGameIndex = null;
+      _tracingEnabled = false;
     });
     _startIntroFlow();
-  }
-
-  Future<void> _playAudio(String asset) async {
-    if (asset.isEmpty) return;
-    if (!mounted) return;
-    try {
-      final completer = Completer<void>();
-      final sub = _player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-      await sub.cancel();
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-      await Future.delayed(const Duration(seconds: 2));
-    }
   }
 
   void _setIntroPhase(_IntroPhase p) {
@@ -772,9 +753,9 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
 
   @override
   void dispose() {
-    disposeAiCamera(); // <-- ADDED
+    disposeAiCamera();
+    _audioPlayer.dispose();
     _minLoadTimer?.cancel();
-    _player.dispose();
     for (final c in [
       _domaFloatCtrl,
       _domaSlideCtrl,
@@ -920,8 +901,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
           CurvedAnimation(parent: _domaFloatCtrl, curve: Curves.easeInOut),
         );
 
-        return ClipRect(
-          child: Align(
+        return Align(
             alignment: Alignment.bottomLeft,
             child: SlideTransition(
               position: _domaSlide,
@@ -951,7 +931,6 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                 ),
               ),
             ),
-          ),
         );
       },
     );
@@ -999,7 +978,8 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
             if (_miniGamePhase == _MiniGamePhase.tracing)
               NumberTracingWidget(
                 number: _config.number,
-                player: _player,
+                player: _audioPlayer,
+                enabled: _tracingEnabled,
                 onComplete: () {
                   if (_config.objects != null) {
                     setState(() {
@@ -1029,7 +1009,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                 number: _config.number,
                 numberWord: _config.numberWord,
                 objects: _config.objects!,
-                player: _player,
+                player: _audioPlayer,
                 onComplete: _completeLevel,
                 level: widget.level,
                 tapTracker: _tapTracker,

@@ -2,6 +2,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import '../games_audio_helper.dart';
 
 class DomaGoodJobOverlay extends StatefulWidget {
   final String characterImage;
@@ -41,7 +42,7 @@ class _DomaGoodJobOverlayState extends State<DomaGoodJobOverlay>
     super.initState();
 
     _initAudio();
-    _playYeySound();
+    GamesSfxPlayer.instance.play(GameSfx.yey);
 
     _entranceCtrl = AnimationController(
       vsync: this,
@@ -89,10 +90,6 @@ class _DomaGoodJobOverlayState extends State<DomaGoodJobOverlay>
 
   Future<void> _initAudio() async {
     await _audioPlayer.setReleaseMode(ReleaseMode.stop);
-  }
-
-  Future<void> _playYeySound() async {
-    await _audioPlayer.play(AssetSource('audio/sound_effects/sfx_yey.wav'));
   }
 
   @override

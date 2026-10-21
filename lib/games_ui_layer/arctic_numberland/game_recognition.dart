@@ -9,6 +9,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -37,24 +38,22 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
         DomaReactionMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<Number012RecognitionScreen> {
-  @override
-  AudioPlayer get domaPlayer => _player;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _domaImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _speakerImage = 'assets/images/icons/speaker.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/012_recog_intro.wav';
-  static const String _audioInstruction =
-      'assets/audio/arctic_numberland/012_recog_instruction.wav';
-
-  static const String _audioBubblePop =
-      'assets/audio/sound_effects/sfx_bubble_pop.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/012_recog_intro.wav';
+  static const String _audioInstruction = 'assets/audio/arctic_numberland/012_recog_instruction.wav';
 
   late int _correctNumber;
   late List<int> _choices;
@@ -65,7 +64,6 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   bool _isInputLocked = true;
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
-  final AudioPlayer _player = AudioPlayer();
 
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
@@ -112,7 +110,8 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   void dispose() {
     disposeAiCamera();
     _numberDanceCtrl.dispose();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -176,8 +175,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
       setState(() => _tappedIndex = index);
 
-      await _playAudio(_audioBubblePop);
-
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
 
       await Future.delayed(const Duration(milliseconds: 600));
@@ -192,7 +190,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   }
 
   Future<void> _playCurrentNumber() async {
-    await _playAudio('assets/audio/arctic_numberland/$_correctNumber.wav');
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/arctic_numberland/$_correctNumber.wav');
   }
 
   Future<void> _onSpeakerTap() async {
@@ -216,7 +214,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
       setState(() => _isInputLocked = true);
     }
 
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
 
     await Future.delayed(const Duration(milliseconds: 400));
 
@@ -226,7 +224,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
     await Future.delayed(const Duration(milliseconds: 500));
 
-    await _playAudio(_audioInstruction);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
 
     await Future.delayed(const Duration(milliseconds: 300));
 
@@ -234,21 +232,6 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
     if (mounted) {
       setState(() => _isInputLocked = false);
-    }
-  }
-
-  Future<void> _playAudio(String asset) async {
-    try {
-      final completer = Completer<void>();
-      final sub = _player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-      await sub.cancel();
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-      await Future.delayed(const Duration(seconds: 2));
     }
   }
 

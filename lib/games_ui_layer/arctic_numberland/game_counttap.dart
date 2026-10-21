@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -39,31 +40,33 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<Number012TapCountScreen> {
-  @override
-  AudioPlayer get domaPlayer => _player;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
+
   // ── Constants ──────────────────────────────────────────────────────────────
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _domaImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level8/012_countandtap.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level8/012_countandtap.wav';
 
   static const int _totalRounds = 5;
   static const int _poolSize = 5;
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   bool _showWinDialog = false;
-  final AudioPlayer _player = AudioPlayer();
+  bool _countAudioPlaying = false;
 
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
 
-  // --- ADDED TRACKING VARIABLES ---
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
   bool _loadingScreenElapsed = false;
@@ -227,6 +230,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       _round = 0;
       _showWinDialog = false;
       _locked = false;
+      _countAudioPlaying = false;
       _selected = List.filled(_poolSize, false);
       _screenPhase = _ScreenPhase.miniGame;
     });
@@ -254,7 +258,8 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     disposeAiCamera();
     _minLoadTimer?.cancel();
     _numberDanceCtrl.dispose();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     OrientationService.setLandscape();
     _numberBounce.dispose();
     _enterCtrl.dispose();
@@ -271,6 +276,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   void _startRound() {
     _selected = List.filled(_poolSize, false);
     _locked = false;
+    _countAudioPlaying = false;
     _celebrationCtrl.reset();
     _enterCtrl.forward(from: 0);
     _numberBounce.forward(from: 0);
@@ -278,39 +284,34 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   int get _selectedCount => _selected.where((s) => s).length;
 
-  void _onObjectTap(int index) {
-    if (_locked) return;
+  Future<void> _onObjectTap(int index) async {
+    if (_locked || _countAudioPlaying) return;
+
     setState(() {
       _selected[index] = !_selected[index];
     });
     _objScaleCtrls[index].forward(from: 0);
 
-    final count = _selected.where((s) => s).length;
     if (_selected[index]) {
-      _playAudio('assets/audio/arctic_numberland/$count.wav');
+      final count = _selectedCount;
+      _countAudioPlaying = true;
+      try {
+        await playVoiceRestartingOnFaceLoss(
+          _audioPlayer,
+          'assets/audio/arctic_numberland/$count.wav',
+        );
+      } catch (_) {
+      } finally {
+        _countAudioPlaying = false;
+      }
     }
   }
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
-  }
-
-  Future<void> _playAudio(String asset) async {
-    try {
-      final completer = Completer<void>();
-      final sub = _player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-      await sub.cancel();
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-      await Future.delayed(const Duration(seconds: 2));
-    }
   }
 
   Future<void> _onSubmit() async {
@@ -354,7 +355,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     } else {
       _tapTracker.recordMistake();
 
-      await _playAudio('assets/audio/sound_effects/sfx_bubble_pop.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
       _wrongShakeCtrl.forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 2000));

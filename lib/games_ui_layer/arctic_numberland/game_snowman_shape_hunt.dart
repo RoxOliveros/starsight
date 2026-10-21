@@ -12,7 +12,8 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
-import 'arctic_audio_helper.dart';
+import '../games_audio_helper.dart';
+import 'arctic_audio_path.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -27,7 +28,7 @@ enum _ShapeType { circle, square, triangle, star }
 class _ShapeSpot {
   final String id;
   final _ShapeType correctShape;
-  final double anchorX; // fractional position within the snowman bounding box
+  final double anchorX;
   final double anchorY;
   final int trayChoices;
 
@@ -64,35 +65,30 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
         TickerProviderStateMixin,
         DomaReactionMixin<SnowmanShapeHuntGame>,
         GameLoadingMixin<SnowmanShapeHuntGame>,
-        ArcticAudioMixin<SnowmanShapeHuntGame>,
         AiCameraMixin<SnowmanShapeHuntGame>,
         AppAudioLifecycleMixin<SnowmanShapeHuntGame> {
-  @override
-  AudioPlayer get domaPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
+
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _snowmanAsset =
-      'assets/images/objects/arctic/snowman_shape_outline.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _snowmanAsset = 'assets/images/objects/arctic/snowman_shape_outline.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/snowman_shape_hunt_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/snowman_shape_hunt_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/snowman_shape_hunt_instruction.wav';
   static const String _audioWin = '$_audioBase/snowman_shape_hunt_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
-  // Difficulty ramps: 2 spots/2 tray choices -> 3 spots -> discrimination
-  // spot (hat/star) -> two snowmen at once -> full 5-spot build using every
-  // shape type.
   static final List<_RoundSpec> _rounds = [
     const _RoundSpec([
       _SnowmanSpec([
@@ -225,10 +221,10 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
 
   bool _trayWrong = false;
   bool _snowmanWiggling = false;
+  bool _inputEnabled = false;
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
   late AnimationController _spotPulseCtrl;
@@ -315,13 +311,6 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -355,15 +344,13 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted)
-      playVoiceRestartingOnFaceLoss(
-        audio.voicePlayer,
-        _audioInstruction,
-      ); // only fires here, once, for round 1
+    if (!mounted) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+    if (mounted) setState(() => _inputEnabled = true);
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -376,8 +363,9 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
 
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted)
-          playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        if (mounted) {
+          playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+        }
       });
     }
 
@@ -392,7 +380,7 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
   }
 
   Future<void> _onShapeDropped(_ShapeSpot spot, _ShapeType dropped) async {
-    if (_filledSpotIds.contains(spot.id)) return;
+    if (!_inputEnabled || _filledSpotIds.contains(spot.id)) return;
 
     if (dropped == spot.correctShape) {
       _tapTracker.recordCorrectTap();
@@ -401,8 +389,8 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
         _filledSpotIds.add(spot.id);
         _trayOptions.remove(dropped);
       });
-      await playSfx(ArcticAudioAssets.forShape(dropped.name));
       showDomaReaction(DomaState.correct);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, ArcticAudioPath.forShape(dropped.name));
 
       if (_snowman.spots.every((s) => _filledSpotIds.contains(s.id))) {
         await Future.delayed(const Duration(milliseconds: 1000));
@@ -410,7 +398,7 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
       }
     } else {
       _tapTracker.recordMistake();
-      await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
       HapticFeedback.heavyImpact();
       setState(() => _trayWrong = true);
@@ -438,7 +426,7 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
     setState(() => _solvedRounds++);
 
     if (_currentRound + 1 >= _totalRounds) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       await _saveGameResult();
       ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
         (e) {
@@ -456,6 +444,8 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
   @override
   void dispose() {
     disposeAiCamera();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -467,8 +457,6 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // Only reacts to a *confirmed* camera result, so it never flashes just
-    // because the screen mounted. Reappears if the face is lost again.
     final needsLightingPrompt =
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
@@ -665,6 +653,7 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
                 final tile = _shapeTile(shape, tileSize, wrong: _trayWrong);
                 return Draggable<_ShapeType>(
                   data: shape,
+                  maxSimultaneousDrags: _inputEnabled ? 1 : 0,
                   feedback: Material(color: Colors.transparent, child: tile),
                   childWhenDragging: Opacity(opacity: 0.3, child: tile),
                   child: tile,

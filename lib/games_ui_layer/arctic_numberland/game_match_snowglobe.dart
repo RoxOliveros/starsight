@@ -10,6 +10,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -37,20 +38,23 @@ class _Number1to5MatchSnowglobesScreenState
         GameLoadingMixin,
         AiCameraMixin<Number1to5MatchSnowglobesScreen>,
         AppAudioLifecycleMixin<Number1to5MatchSnowglobesScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
+
   @override
-  AudioPlayer get domaPlayer => _player;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const int _globeCount = 3;
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _snowglobeAsset =
-      'assets/images/objects/arctic/empty_snowglobe.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _snowglobeAsset = 'assets/images/objects/arctic/empty_snowglobe.png';
 
   // Objects that can appear inside snowglobes
   static const List<String> _insideObjects = [
@@ -61,8 +65,7 @@ class _Number1to5MatchSnowglobesScreenState
     'assets/images/objects/arctic/ice_skates.png',
   ];
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level20/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level20/intro.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -84,29 +87,18 @@ class _Number1to5MatchSnowglobesScreenState
   // Shake state for wrong answer
   int? _shakingIndex;
 
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _player = AudioPlayer();
-
   // ── Animations ─────────────────────────────────────────────────────────────
+
   late AnimationController _domaFloatCtrl;
-
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
-
   late AnimationController _globesEnterCtrl;
   late Animation<double> _globesEnter;
-
   late AnimationController _targetEnterCtrl;
   late Animation<double> _targetEnter;
-
   late AnimationController _correctPulseCtrl;
   late Animation<double> _correctPulse;
-
-  // Per-globe shake controllers
   late List<AnimationController> _shakeCtrl;
   late List<Animation<double>> _shakeAnim;
-
-  // Intro dance
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
 
@@ -155,13 +147,6 @@ class _Number1to5MatchSnowglobesScreenState
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _globesEnterCtrl = AnimationController(
       vsync: this,
@@ -223,7 +208,7 @@ class _Number1to5MatchSnowglobesScreenState
   // ── Flow ───────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -275,8 +260,8 @@ class _Number1to5MatchSnowglobesScreenState
 
       setState(() => _tappedIndex = index);
       _correctPulseCtrl.forward(from: 0);
-      await _playAudio('assets/audio/arctic_numberland/$_targetNumber.wav');
       showDomaReaction(DomaState.correct);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/arctic_numberland/$_targetNumber.wav');
 
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
@@ -306,9 +291,8 @@ class _Number1to5MatchSnowglobesScreenState
     } else {
       _tapTracker.recordMistake();
 
-      // Shake the wrong globe
       setState(() => _shakingIndex = index);
-      await _playAudio('assets/audio/sound_effects/sfx_bubble_pop.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
 
       _shakeCtrl[index].forward(from: 0);
@@ -318,28 +302,12 @@ class _Number1to5MatchSnowglobesScreenState
     }
   }
 
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  Future<void> _playAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
   @override
   void dispose() {
     disposeAiCamera();
     _minLoadTimer?.cancel();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _globesEnterCtrl.dispose();
@@ -396,7 +364,7 @@ class _Number1to5MatchSnowglobesScreenState
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
+      
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(

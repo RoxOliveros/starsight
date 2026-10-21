@@ -3,6 +3,7 @@ import 'package:StarSight/games_ui_layer/arctic_numberland/game_addition_package
 import 'package:StarSight/ui_layer/arctic_numberland/arctic_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/audio_helper.dart';
 import '../../business_layer/music_zones.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/arctic_numberland/game_addition_rescue_bridge.dart';
@@ -57,7 +58,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen>
   }
 
   Future<void> _loadProgress() async {
-    final wasLoading = _isLoading; // Capture this before setting it to false
+    final wasLoading = _isLoading;
 
     final unlocked = await ArcticProgressService.instance.getUnlockedLevel();
 
@@ -260,6 +261,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen>
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
+                            SfxHelper.instance.play(Sfx.keyTap);
                             if (_page > 0) setState(() => _page--);
                           },
                           child: Opacity(
@@ -278,6 +280,7 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen>
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
+                            SfxHelper.instance.play(Sfx.keyTap);
                             if (_page < 3) setState(() => _page++);
                           },
                           child: Opacity(
@@ -421,6 +424,7 @@ class _LevelTile extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
+        SfxHelper.instance.play(Sfx.keyTap);
         final screen = _screenForLevel();
         if (screen == null) {
           ScaffoldMessenger.of(

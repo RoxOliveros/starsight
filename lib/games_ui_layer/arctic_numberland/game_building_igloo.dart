@@ -10,6 +10,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -35,24 +36,25 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<BuildIglooScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
+
   @override
-  AudioPlayer get domaPlayer => _player;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const int _maxNumber = 5;
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/building_igloo_intro.wav';
-  static const String _audioInstruction =
-      'assets/audio/arctic_numberland/building_igloo_instruction.wav';
-  static const String _audioBuild = 'assets/audio/sound_effects/sfx_build.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/building_igloo_intro.wav';
+  static const String _audioInstruction = 'assets/audio/arctic_numberland/building_igloo_instruction.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -82,8 +84,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
   int? _draggingBlockIndex;
   Offset _dragPosition = Offset.zero;
 
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _player = AudioPlayer();
+  
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
@@ -229,7 +230,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
 
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
 
     if (!mounted) return;
 
@@ -243,7 +244,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
     await Future.delayed(const Duration(milliseconds: 400));
 
     if (!_instructionPlayed) {
-      await _playAudio(_audioInstruction);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
 
       if (!mounted) return;
 
@@ -365,7 +366,8 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
 
       _slotFillCtrls[hitSlot].forward(from: 0);
 
-      await _playAudio('assets/audio/arctic_numberland/$_placedCount.wav');
+      await GamesSfxPlayer.instance.playAndWait(GameSfx.clack);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/arctic_numberland/$_placedCount.wav');
       if (!mounted) return;
 
       if (_placedCount == _targetCount) {
@@ -374,7 +376,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
         await Future.delayed(const Duration(milliseconds: 300));
         if (!mounted) return;
 
-        await _playAudio(_audioBuild);
+        await GamesSfxPlayer.instance.playAndWait(GameSfx.build);
         if (!mounted) return;
 
         setState(() {
@@ -449,28 +451,12 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
     return rect.inflate(18).contains(globalPos);
   }
 
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  Future<void> _playAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 15));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
   @override
   void dispose() {
     disposeAiCamera();
     _minLoadTimer?.cancel();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _slotsEnterCtrl.dispose();

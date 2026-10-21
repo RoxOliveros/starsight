@@ -9,7 +9,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
-import '../../business_layer/audio_helper.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
@@ -90,46 +90,33 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
         GameLoadingMixin,
         AiCameraMixin<ArcticFestivalFinaleGame>,
         AppAudioLifecycleMixin<ArcticFestivalFinaleGame> {
+  
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer = AudioPlayer();
+  
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+  
   @override
   AudioPlayer get domaPlayer => _domaPlayer;
 
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _narrationPlayer,
-    _sfxPlayer,
-    _domaPlayer,
-  ];
-
   // ── Asset config ───────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_arctic_night.png';
-  static const String _starBnwImage =
-      'assets/images/objects/arctic/star_bnw.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_night.png';
+  static const String _starBnwImage = 'assets/images/objects/arctic/star_bnw.png';
   static const String _starImage = 'assets/images/objects/arctic/star.png';
   static const String _speakerImage = 'assets/images/icons/speaker.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/arctic_festival_intro.wav';
-  static const String _audioMainInstruction =
-      'assets/audio/arctic_numberland/arctic_festival_instruction.wav';
-  static const String _audioRecognition =
-      'assets/audio/arctic_numberland/arctic_festival_recognition_instruction.wav';
-  static const String _audioCounting =
-      'assets/audio/arctic_numberland/arctic_festival_counting_instruction.wav';
-  static const String _audioSequence =
-      'assets/audio/arctic_numberland/arctic_festival_sequence_instruction.wav';
-  static const String _audioAddition =
-      'assets/audio/arctic_numberland/arctic_festival_addition_instruction.wav';
-  static const String _audioSubtraction =
-      'assets/audio/arctic_numberland/arctic_festival_subtraction_instruction.wav';
-  static const String _audioNextChallenge =
-      'assets/audio/arctic_numberland/arctic_festival_next_challenge.wav';
-  static const String _audioWin =
-      'assets/audio/arctic_numberland/arctic_festival_win.wav';
-  static String _numberAudioAsset(int n) =>
-      'assets/audio/arctic_numberland/$n.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/arctic_festival_intro.wav';
+  static const String _audioMainInstruction = 'assets/audio/arctic_numberland/arctic_festival_instruction.wav';
+  static const String _audioRecognition = 'assets/audio/arctic_numberland/arctic_festival_recognition_instruction.wav';
+  static const String _audioCounting = 'assets/audio/arctic_numberland/arctic_festival_counting_instruction.wav';
+  static const String _audioSequence = 'assets/audio/arctic_numberland/arctic_festival_sequence_instruction.wav';
+  static const String _audioAddition = 'assets/audio/arctic_numberland/arctic_festival_addition_instruction.wav';
+  static const String _audioSubtraction = 'assets/audio/arctic_numberland/arctic_festival_subtraction_instruction.wav';
+  static const String _audioNextChallenge = 'assets/audio/arctic_numberland/arctic_festival_next_challenge.wav';
+  static const String _audioWin = 'assets/audio/arctic_numberland/arctic_festival_win.wav';
+  static String _numberAudioAsset(int n) => 'assets/audio/arctic_numberland/$n.wav';
 
   static const List<String> _countingObjectPool = [
     'assets/images/objects/arctic/snowflake.png',
@@ -152,13 +139,7 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
   bool _showFlyingStars = false;
 
   final Random _rng = Random();
-
-  // ── Audio ──────────────────────────────────────────────────────────────
-  final AudioHelper _audioHelper = AudioHelper();
-  final AudioPlayer _narrationPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _domaPlayer = AudioPlayer();
-
+  
   // ── Animations ─────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
   late AnimationController _domaSlideCtrl;
@@ -212,7 +193,6 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
     startAiCamera();
     _tapTracker.startSession();
 
-    // Lighting card can reappear later if the face is lost again mid-play.
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
@@ -223,15 +203,8 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
   @override
   void dispose() {
     disposeAiCamera();
-    _audioHelper.dispose();
-
-    _narrationPlayer.stop();
-    _sfxPlayer.stop();
-    _domaPlayer.stop();
-    _narrationPlayer.dispose();
-    _sfxPlayer.dispose();
+    _audioPlayer.dispose();
     _domaPlayer.dispose();
-
     _domaFloatCtrl.dispose();
     _domaSlideCtrl.dispose();
     _gameEnterCtrl.dispose();
@@ -336,10 +309,10 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
 
     _domaSlideCtrl.forward();
 
-    await _playNarration(_audioIntro, restartOnFaceLoss: true);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
-    await _playNarration(_audioMainInstruction, restartOnFaceLoss: true);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioMainInstruction);
     if (!mounted) return;
 
     _gameEnterCtrl.forward();
@@ -349,36 +322,6 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
 
     await _playChallengeInstruction(_challengeOrder[_round - 1]);
     await _maybePlayRecognitionNumber();
-  }
-
-  Future<void> _playNarration(
-    String asset, {
-    bool restartOnFaceLoss = false,
-  }) async {
-    // Tutorial clips: stop when the face is lost, replay when it returns.
-    if (restartOnFaceLoss) {
-      await playVoiceRestartingOnFaceLoss(
-        _narrationPlayer,
-        asset,
-        timeout: const Duration(seconds: 15),
-      );
-      return;
-    }
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _narrationPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _narrationPlayer.play(
-        AssetSource(asset.replaceFirst('assets/', '')),
-      );
-      await completer.future.timeout(const Duration(seconds: 15));
-    } catch (e) {
-      debugPrint('Narration error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
   }
 
   Future<void> _playChallengeInstruction(ArcticFinalChallenge type) async {
@@ -393,7 +336,7 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
       ArcticFinalChallenge.subtraction => _audioSubtraction,
     };
 
-    await _playNarration(asset, restartOnFaceLoss: true);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, asset);
     if (!mounted) return;
 
     setState(() => _isBusy = false);
@@ -402,9 +345,9 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
   Future<void> _maybePlayRecognitionNumber() async {
     if (!mounted) return;
     if (_challengeOrder[_round - 1] == ArcticFinalChallenge.recognition) {
-      await _playNarration(
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 
         _numberAudioAsset(_currentQuestion.correctAnswer),
-        restartOnFaceLoss: true,
+        
       );
     }
   }
@@ -552,11 +495,11 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
     setState(() {
       _isBusy = true;
       _selectedIndex = index;
-      _litLights = _round; // light #N for round N
+      _litLights = _round;
     });
 
     _bounceCtrl.forward(from: 0);
-    unawaited(showDomaReaction(DomaState.correct));
+    showDomaReaction(DomaState.correct);
 
     await Future.delayed(const Duration(milliseconds: 1100));
     if (!mounted) return;
@@ -568,7 +511,7 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
 
     final playCheer = _rng.nextBool();
     if (playCheer) {
-      await _playNarration(_audioNextChallenge);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioNextChallenge);
       if (!mounted) return;
     }
 
@@ -589,7 +532,8 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
       _wrongIndex = index;
     });
 
-    unawaited(showDomaReaction(DomaState.wrong));
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+    showDomaReaction(DomaState.wrong);
     _shakeCtrl.forward(from: 0);
 
     await Future.delayed(const Duration(milliseconds: 650));
@@ -598,8 +542,6 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
     setState(() {
       _wrongIndex = null;
       _isBusy = false;
-      // Question is intentionally NOT regenerated — same problem stays
-      // until the child answers correctly.
     });
   }
 
@@ -610,10 +552,7 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
     });
     _flyingStarsCtrl.forward(from: 0);
 
-    await _narrationPlayer.stop();
-    if (!mounted) return;
-
-    await _playNarration(_audioWin);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
     if (!mounted) return;
 
     await _saveGameResult();
@@ -876,8 +815,8 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
     return GestureDetector(
       onTap: _isBusy
           ? null
-          : () => _playNarration(
-              _numberAudioAsset(_currentQuestion.correctAnswer),
+          : () => playVoiceRestartingOnFaceLoss(_audioPlayer,
+        _numberAudioAsset(_currentQuestion.correctAnswer),
             ),
       child: Container(
         width: 140,
@@ -1146,10 +1085,6 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
       bgColor = ArcticColorTheme.cotton.withValues(alpha: 0.85);
       borderColor = ArcticColorTheme.slateblue;
     }
-    if (isWrong) {
-      bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.12);
-      borderColor = const Color(0xFFE05A5A);
-    }
 
     Widget button = Container(
       width: 84,
@@ -1240,9 +1175,6 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      onNext: () {
-        Navigator.pop(context);
-      },
       onRestart: () {
         Navigator.pushReplacement(
           context,

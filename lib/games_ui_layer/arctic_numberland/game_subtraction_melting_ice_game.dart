@@ -10,6 +10,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -36,25 +37,25 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
         GameLoadingMixin,
         AiCameraMixin<SubtractionMeltingIceGame>,
         AppAudioLifecycleMixin<SubtractionMeltingIceGame> {
-  @override
-  AudioPlayer get domaPlayer => _voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_voicePlayer, _sfxPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/melting_ice_intro.wav';
-  static const String _audioInstructionPrompt =
-      '$_audioBase/melting_ice_instruction.wav';
+  static const String _audioInstructionPrompt = '$_audioBase/melting_ice_instruction.wav';
   static const String _audioQuestion = '$_audioBase/melting_ice_question.wav';
-  static const String _audioMeltRefreeze =
-      'assets/audio/sound_effects/sfx_plip.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
   static const int _totalRounds = 5;
@@ -117,8 +118,8 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   }
 
   // ── Audio ────────────────────────────────────────────────────────────────
-  final AudioPlayer _voicePlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
+  
+  
 
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
@@ -189,7 +190,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(_voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -233,7 +234,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
       Future.delayed(const Duration(milliseconds: 500), () async {
         if (!mounted) return;
 
-        await _playVoice(_audioInstructionPrompt);
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructionPrompt);
 
         if (!mounted) return;
 
@@ -257,7 +258,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     final wasPopped = _popped[index];
 
     HapticFeedback.selectionClick();
-    _playSfx(_audioMeltRefreeze);
+    GamesSfxPlayer.instance.play(GameSfx.plip);
 
     setState(() {
       _popped[index] = !wasPopped;
@@ -293,7 +294,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
       _showAnswerChoices = true;
     });
 
-    await _playVoice(_audioQuestion);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioQuestion);
 
     if (!mounted) return;
 
@@ -311,6 +312,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
 
     if (answer != correctAnswer) {
       HapticFeedback.heavyImpact();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
       return;
     }
@@ -372,31 +374,12 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
     showDomaReaction(DomaState.wrong);
   }
 
-  // ── Audio ────────────────────────────────────────────────────────────────
-  Future<void> _playVoice(String asset) async {
-    await _voicePlayer.stop();
-    try {
-      await _voicePlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await _voicePlayer.onPlayerComplete.first;
-    } catch (e) {
-      debugPrint('Voice audio error ($asset): $e');
-    }
-  }
-
-  void _playSfx(String asset) {
-    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
-      e,
-    ) {
-      debugPrint('SFX audio error ($asset): $e');
-    });
-  }
-
   @override
   void dispose() {
     disposeAiCamera();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _solveTimer?.cancel();
-    _voicePlayer.dispose();
-    _sfxPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -408,10 +391,7 @@ class _SubtractionMeltingIceGameState extends State<SubtractionMeltingIceGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // Only reacts to a *confirmed* camera result, so it never flashes just
-    // because the screen mounted. Reappears if the face is lost again.
-    final needsLightingPrompt =
-        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+    final needsLightingPrompt = hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
     return Listener(
       onPointerDown: (_) => _tapTracker.recordGenericTap(),

@@ -19,6 +19,7 @@ import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_game.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/audio_helper.dart';
 import '../../business_layer/music_zones.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
@@ -252,6 +253,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen>
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
+                            SfxHelper.instance.play(Sfx.keyTap);
                             if (_currentPage > 0) {
                               setState(() => _currentPage--);
                             }
@@ -272,6 +274,7 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen>
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
+                            SfxHelper.instance.play(Sfx.keyTap);
                             if (_currentPage < _maxPages) {
                               setState(() => _currentPage++);
                             }
@@ -328,6 +331,7 @@ class _LevelTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
+        SfxHelper.instance.play(Sfx.keyTap);
         //await _ensureLagoonCalibrated(context);
         if (!context.mounted) return;
         switch (level) {

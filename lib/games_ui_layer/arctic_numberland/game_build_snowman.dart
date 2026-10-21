@@ -10,7 +10,6 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
-import 'arctic_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -35,33 +34,29 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
         TickerProviderStateMixin,
         DomaReactionMixin,
         GameLoadingMixin,
-        ArcticAudioMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<BuildSnowmanGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
+
   @override
-  AudioPlayer get domaPlayer => audio.voicePlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _domaImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _snowballAsset =
-      'assets/images/objects/arctic/snowball_clean.png';
-  static const String _snowmanAsset =
-      'assets/images/objects/arctic/snowman.png';
-  static const String _snowmanHatFaceAsset =
-      'assets/images/objects/arctic/snowman_hat_face.png';
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _snowballAsset = 'assets/images/objects/arctic/snowball_clean.png';
+  static const String _snowmanAsset = 'assets/images/objects/arctic/snowman.png';
+  static const String _snowmanHatFaceAsset = 'assets/images/objects/arctic/snowman_hat_face.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/build_snowman_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/build_snowman_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/build_snowman_instruction.wav';
   static const String _audioWin = '$_audioBase/build_snowman_win.wav';
 
   static const int _totalRounds = 5;
@@ -80,6 +75,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
   int _stackCount = 0;
   bool _roundResolving = false;
   bool _showWinDialog = false;
+  bool _audioBusy = false;
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
@@ -177,7 +173,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -187,16 +183,24 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
   }
 
   Future<void> _announceRound() async {
-    final target = _targets[_currentRound];
-    if (_currentRound == 0) {
-      await playVoice(_audioInstruction);
+    if (mounted) setState(() => _audioBusy = true);
+    try {
+      final target = _targets[_currentRound];
+      if (_currentRound == 0) {
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+      }
+      if (mounted) {
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, '$_audioBase/$target.wav');
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _audioBusy = false);
     }
-    if (mounted) await playSfx('$_audioBase/$target.wav');
   }
 
   // ── Snow pile interaction ───────────────────────────────────────────────
   Future<void> _onSnowballDropped() async {
-    if (_roundResolving) return;
+    if (_roundResolving || _audioBusy) return;
 
     _tapTracker.recordCorrectTap();
 
@@ -206,7 +210,14 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
     HapticFeedback.selectionClick();
     setState(() => _stackCount = next);
     _popCtrl.forward(from: 0);
-    await playSfx('$_audioBase/$next.wav');
+    setState(() => _audioBusy = true);
+    try {
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, '$_audioBase/$next.wav');
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _audioBusy = false);
+    }
+    if (!mounted) return;
 
     if (next == target) {
       _roundResolving = true;
@@ -223,7 +234,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
     setState(() => _solvedRounds++);
 
     if (_currentRound + 1 >= _totalRounds) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
 
       // --- AI STOP & DATABASE SAVE ---
       List<String> finalEmotions = stopAiCamera();
@@ -262,6 +273,8 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
   @override
   void dispose() {
     disposeAiCamera();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _minLoadTimer?.cancel();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -326,7 +339,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
+      
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(
@@ -456,7 +469,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
 
   Widget _buildSnowballSource(double size) {
     final target = _targets[_currentRound];
-    final disabled = _roundResolving || _stackCount >= target;
+    final disabled = _roundResolving || _audioBusy || _stackCount >= target;
 
     final ball = Opacity(
       opacity: disabled ? 0.35 : 1.0,
@@ -485,7 +498,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       childWhenDragging: Opacity(opacity: 0.25, child: ball),
       onDragStarted: () => HapticFeedback.selectionClick(),
       onDraggableCanceled: (_, __) =>
-          _tapTracker.recordMistake(), // <-- TRACK MISTAKE
+          _tapTracker.recordMistake(),
       child: ball,
     );
   }
@@ -559,7 +572,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
     return Center(
       child: DragTarget<int>(
         onWillAcceptWithDetails: (_) =>
-            !_roundResolving && _stackCount < target,
+        !_roundResolving && !_audioBusy && _stackCount < target,
         onAcceptWithDetails: (_) => _onSnowballDropped(),
         builder: (context, candidateData, rejectedData) {
           final hovering = candidateData.isNotEmpty;

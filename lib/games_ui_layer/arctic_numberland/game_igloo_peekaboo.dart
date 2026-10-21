@@ -3,13 +3,14 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/app_audio_lifecycle_mixin.dart';
 import '../../business_layer/arctic_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
-import 'arctic_audio_helper.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'game_build_snowman.dart';
 import 'doma_reaction.dart';
@@ -45,28 +46,30 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
         TickerProviderStateMixin,
         DomaReactionMixin,
         GameLoadingMixin,
-        ArcticAudioMixin,
-        AiCameraMixin {
+        AiCameraMixin,
+        AppAudioLifecycleMixin {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
+
   @override
-  AudioPlayer get domaPlayer => audio.voicePlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _iglooAsset = 'assets/images/objects/arctic/igloo.png';
-  static const String _brokenIglooAsset =
-      'assets/images/objects/arctic/broken_igloo.png';
-  static const String _babyPenguinAsset =
-      'assets/images/characters/baby_penguin.png';
-  static const String _snowballAsset =
-      'assets/images/objects/arctic/snowball.png';
+  static const String _brokenIglooAsset = 'assets/images/objects/arctic/broken_igloo.png';
+  static const String _babyPenguinAsset = 'assets/images/characters/baby_penguin.png';
+  static const String _snowballAsset = 'assets/images/objects/arctic/snowball.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/igloo_peekaboo_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/igloo_peekaboo_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/igloo_peekaboo_instruction.wav';
   static const String _audioWin = '$_audioBase/igloo_peekaboo_win.wav';
 
   static const List<int> _optionCounts = [2, 2, 3, 3, 3];
@@ -87,6 +90,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
   String? _correctSpotId;
   String? _wrongSpotId;
   bool _showWinDialog = false;
+  bool _announcing = false;
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
@@ -195,7 +199,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
@@ -205,16 +209,24 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
   }
 
   Future<void> _announceRound() async {
-    final target = _rounds[_currentRound].targetNumber;
-    if (_currentRound == 0) {
-      await playVoice(_audioInstruction);
+    _announcing = true;
+    try {
+      final target = _rounds[_currentRound].targetNumber;
+      if (_currentRound == 0) {
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+      }
+      if (mounted) {
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, '$_audioBase/$target.wav');
+      }
+    } catch (_) {
+    } finally {
+      _announcing = false;
     }
-    if (mounted) await playSfx('$_audioBase/$target.wav');
   }
 
   // ── Igloo interaction ─────────────────────────────────────────────────────
   Future<void> _onIglooTapped(_IglooOption option) async {
-    if (_roundResolving || _correctSpotId != null) return;
+    if (_roundResolving || _announcing || _correctSpotId != null) return;
     final round = _rounds[_currentRound];
 
     if (option.quantity == round.targetNumber) {
@@ -224,8 +236,8 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
 
       setState(() => _correctSpotId = option.id);
       _revealCtrl.forward(from: 0);
-      await playSfx('$_audioBase/${option.quantity}.wav');
       showDomaReaction(DomaState.correct);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, '$_audioBase/${option.quantity}.wav');
 
       await Future.delayed(const Duration(milliseconds: 1200));
       if (!mounted) return;
@@ -233,7 +245,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
     } else {
       _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
-      await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
 
       setState(() => _wrongSpotId = option.id);
@@ -248,7 +260,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
     setState(() => _solvedRounds++);
 
     if (_currentRound + 1 >= _totalRounds) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
 
       // --- STOP & DATABASE SAVE ---
       List<String> finalEmotions = stopAiCamera();
@@ -287,6 +299,8 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
   @override
   void dispose() {
     disposeAiCamera();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _minLoadTimer?.cancel();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -348,7 +362,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
+      
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(

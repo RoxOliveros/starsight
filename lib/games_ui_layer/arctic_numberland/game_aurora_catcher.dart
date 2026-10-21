@@ -12,7 +12,8 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
-import 'arctic_audio_helper.dart';
+import '../games_audio_helper.dart';
+import 'arctic_audio_path.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -40,23 +41,6 @@ extension on _AuroraColor {
     }
   }
 
-  // Reuses the same color call-out clips as the tree game.
-  String get audioAsset {
-    const base = 'assets/audio/arctic_numberland';
-    switch (this) {
-      case _AuroraColor.red:
-        return '$base/red.wav';
-      case _AuroraColor.blue:
-        return '$base/blue.wav';
-      case _AuroraColor.green:
-        return '$base/green.wav';
-      case _AuroraColor.yellow:
-        return '$base/yellow.wav';
-      case _AuroraColor.purple:
-        return '$base/purple.wav';
-    }
-  }
-
   String get imageAsset {
     const base = 'assets/images/objects/arctic';
     switch (this) {
@@ -72,6 +56,8 @@ extension on _AuroraColor {
         return '$base/aurora_purple.png';
     }
   }
+
+  String get audioAsset => ArcticAudioPath.forColor(name);
 }
 
 class _RoundSpec {
@@ -116,34 +102,29 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
         TickerProviderStateMixin,
         DomaReactionMixin<AuroraCatcherGame>,
         GameLoadingMixin<AuroraCatcherGame>,
-        ArcticAudioMixin<AuroraCatcherGame>,
         AiCameraMixin<AuroraCatcherGame>,
         AppAudioLifecycleMixin<AuroraCatcherGame> {
-  @override
-  AudioPlayer get domaPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_arctic_night_sky.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_night_sky.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _auroraAsset = 'assets/images/objects/arctic/aurora.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/aurora_catch_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/aurora_catch_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/aurora_catch_instruction.wav';
   static const String _audioWin = '$_audioBase/aurora_catch_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
-  // Ramp: 1 target -> 2 -> 3 -> 3 -> 4, with more ribbons on screen (more
-  // distractors) as rounds progress.
   static const List<_RoundSpec> _rounds = [
     _RoundSpec(targets: [_AuroraColor.red], ribbonCount: 2),
     _RoundSpec(
@@ -265,12 +246,13 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted)
-      playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+    if (mounted) {
+      playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+    }
   }
 
   List<_AuroraRibbon> _buildRibbonsForRound(_RoundSpec round) {
@@ -310,8 +292,9 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
 
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted)
-          playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        if (mounted) {
+          playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+        }
       });
     }
 
@@ -334,8 +317,8 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
       _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       setState(() => _catchingId = ribbon.id);
-      await playSfx(ribbon.color.audioAsset);
       showDomaReaction(DomaState.correct);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, ribbon.color.audioAsset);
       await Future.delayed(const Duration(milliseconds: 250));
       if (!mounted) return;
       setState(() {
@@ -351,7 +334,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
       }
     } else {
       _tapTracker.recordMistake();
-      await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
       HapticFeedback.heavyImpact();
       setState(() => _wrongId = ribbon.id);
@@ -368,7 +351,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
 
     if (_currentRound + 1 >= _totalRounds) {
       setState(() => _showWinAurora = true);
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       await _saveGameResult();
       ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
         (e) {
@@ -389,6 +372,8 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
   @override
   void dispose() {
     disposeAiCamera();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _skyTicker.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -534,6 +519,10 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
                         child: ArcticXButton(),
                       ),
                       Align(
+                        alignment: Alignment.center,
+                        child: _buildTargetBanner(),
+                      ),
+                      Align(
                         alignment: Alignment.centerRight,
                         child: ArcticLevelBadge(level: widget.level),
                       ),
@@ -555,6 +544,66 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
           ],
         );
       },
+    );
+  }
+
+  // ── Target banner ────────────────────────────────────────────────────────
+  Widget _buildTargetBanner() {
+    return FadeTransition(
+      opacity: _instructionCtrl,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: ArcticColorTheme.pictonblue, width: 2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int i = 0; i < _round.targets.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              _buildTargetChip(_round.targets[i], i),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTargetChip(_AuroraColor color, int index) {
+    final done = index < _targetIndex;
+    final current = index == _targetIndex;
+    final size = current ? 44.0 : 32.0;
+
+    return AnimatedOpacity(
+      opacity: done ? 0.35 : (current ? 1.0 : 0.7),
+      duration: const Duration(milliseconds: 250),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: color.swatch,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: current ? Colors.white : Colors.transparent,
+            width: 3,
+          ),
+          boxShadow: current
+              ? [
+            BoxShadow(
+              color: color.swatch.withValues(alpha: 0.6),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ]
+              : null,
+        ),
+        child: done
+            ? Icon(Icons.check, color: Colors.white, size: size * 0.6)
+            : null,
+      ),
     );
   }
 

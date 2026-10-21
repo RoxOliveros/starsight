@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -38,22 +39,21 @@ class _Number12CountingObjectsScreenState
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<Number12CountingObjectsScreen> {
-  @override
-  AudioPlayer get domaPlayer => _player;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
 
-  static const String _domaImage =
-      'assets/images/characters/doma_the_penguin.png';
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
+
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/012_counting_intro.wav';
-  static const String _audioInstruction =
-      'assets/audio/arctic_numberland/012_counting_instruction.wav';
-  static const String _audioBubblePop =
-      'assets/audio/sound_effects/sfx_bubble_pop.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/012_counting_intro.wav';
+  static const String _audioInstruction = 'assets/audio/arctic_numberland/012_counting_instruction.wav';
 
   late int _correctCount;
   late List<int> _choices;
@@ -65,7 +65,6 @@ class _Number12CountingObjectsScreenState
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   bool _showWinDialog = false;
   bool _canTapChoices = false;
-  final AudioPlayer _player = AudioPlayer();
 
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
@@ -163,7 +162,8 @@ class _Number12CountingObjectsScreenState
     disposeAiCamera();
     _minLoadTimer?.cancel();
     _numberDanceCtrl.dispose();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -190,8 +190,8 @@ class _Number12CountingObjectsScreenState
       _tapTracker.recordCorrectTap();
 
       setState(() => _tappedIndex = index);
-      await _playAudio('assets/audio/arctic_numberland/$_correctCount.wav');
       showDomaReaction(DomaState.correct);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/arctic_numberland/$_correctCount.wav');
       await Future.delayed(const Duration(milliseconds: 900));
       if (_round >= _totalRounds) {
         List<String> finalEmotions = stopAiCamera();
@@ -220,7 +220,7 @@ class _Number12CountingObjectsScreenState
       _tapTracker.recordMistake();
       setState(() => _tappedIndex = index);
 
-      await _playAudio(_audioBubblePop);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 600));
       setState(() => _tappedIndex = null);
@@ -230,7 +230,7 @@ class _Number12CountingObjectsScreenState
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
 
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
 
     if (!mounted) return;
 
@@ -241,28 +241,13 @@ class _Number12CountingObjectsScreenState
 
     await Future.delayed(const Duration(milliseconds: 400));
 
-    await _playAudio(_audioInstruction);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
 
     if (!mounted) return;
 
     setState(() {
       _canTapChoices = true;
     });
-  }
-
-  Future<void> _playAudio(String asset) async {
-    try {
-      final completer = Completer<void>();
-      final sub = _player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-      await sub.cancel();
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-      await Future.delayed(const Duration(seconds: 2));
-    }
   }
 
   Color _choiceColor(int index) {

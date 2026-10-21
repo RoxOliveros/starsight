@@ -11,7 +11,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
-import 'arctic_audio_helper.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -44,20 +44,22 @@ class _SignboardMathGameState extends State<SignboardMathGame>
         TickerProviderStateMixin,
         DomaReactionMixin,
         GameLoadingMixin,
-        ArcticAudioMixin,
         AiCameraMixin<SignboardMathGame>,
         AppAudioLifecycleMixin<SignboardMathGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
+
   @override
-  AudioPlayer get domaPlayer => _voicePlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_voicePlayer, _sfxPlayer];
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths ────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _domaImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _signboardAsset =
-      'assets/images/objects/arctic/snowy_signboard_bigger.png';
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _signboardAsset = 'assets/images/objects/arctic/snowy_signboard_bigger.png';
   static const String _tagAsset = 'assets/images/objects/arctic/tag.png';
 
   static const List<String> _clusterAssets = [
@@ -75,13 +77,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/signboard_intro.wav';
-  static const String _audioRoundPromptAdd =
-      '$_audioBase/signboard_add_instruction.wav';
-  static const String _audioRoundPromptSub =
-      '$_audioBase/signboard_sub_instruction.wav';
-  static const String _audioBury = 'assets/audio/sound_effects/sfx_erase.wav';
-  static const String _audioBubblePop =
-      'assets/audio/sound_effects/sfx_bubble_pop.wav';
+  static const String _audioRoundPromptAdd = '$_audioBase/signboard_add_instruction.wav';
+  static const String _audioRoundPromptSub = '$_audioBase/signboard_sub_instruction.wav';
   static const String _audioWin = '$_audioBase/signboard_win.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
@@ -123,8 +120,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   bool _placementWrong = false;
 
   // ── Audio ────────────────────────────────────────────────────────────────
-  final AudioPlayer _voicePlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
+  
+  
 
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
@@ -209,7 +206,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
 
-    await _playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
 
     if (!mounted) return;
 
@@ -262,7 +259,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
 
     if (!mounted) return;
 
-    await _playVoice(
+    await playVoiceRestartingOnFaceLoss(_audioPlayer,
       _spec.type == _RoundType.addition
           ? _audioRoundPromptAdd
           : _audioRoundPromptSub,
@@ -301,7 +298,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     if (_buried[index]) return;
 
     HapticFeedback.selectionClick();
-    _playSfx(_audioBury);
+    GamesSfxPlayer.instance.play(GameSfx.erase);
 
     setState(() {
       _buried[index] = true;
@@ -320,11 +317,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
       _tapTracker.recordCorrectTap();
       setState(() => _resolvingRound = true);
       HapticFeedback.mediumImpact();
-      await _playSfxAndWait(_audioBubblePop);
-      if (!mounted) return;
-      _snapPulseCtrl.forward(from: 0);
       showDomaReaction(DomaState.correct);
       if (!mounted) return;
+      _snapPulseCtrl.forward(from: 0);
 
       setState(() => _solvedCount++);
 
@@ -332,7 +327,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
       if (!mounted) return;
 
       if (_currentRound + 1 >= _totalRounds) {
-        await _playVoice(_audioWin);
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
         _saveGameResult();
         ArcticProgressService.instance
             .markLevelComplete(widget.level)
@@ -348,11 +343,10 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     } else {
       _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
-      setState(() => _placementWrong = true);
-      await Future.delayed(const Duration(milliseconds: 350));
-      await playSfx(_audioBubblePop);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
-      if (!mounted) return;
+      if (!mounted) return;setState(() => _placementWrong = true);
+      await Future.delayed(const Duration(milliseconds: 350));
       setState(() {
         _placedChoiceIndex = null;
         _placementWrong = false;
@@ -360,52 +354,11 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     }
   }
 
-  // ── Audio ────────────────────────────────────────────────────────────────
-  Future<void> _playVoice(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _voicePlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _voicePlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Voice audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
-  void _playSfx(String asset) {
-    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
-      e,
-    ) {
-      debugPrint('SFX audio error ($asset): $e');
-    });
-  }
-
-  Future<void> _playSfxAndWait(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _sfxPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 3));
-    } catch (e) {
-      debugPrint('SFX audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
   @override
   void dispose() {
     disposeAiCamera();
-    _voicePlayer.dispose();
-    _sfxPlayer.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -872,15 +825,11 @@ class _SignboardMathGameState extends State<SignboardMathGame>
             width: size * 1.30,
             height: size * 1.30,
             fit: BoxFit.contain,
-            color: wrong ? Colors.red.shade300 : null,
-            colorBlendMode: wrong ? BlendMode.modulate : null,
             errorBuilder: (_, __, ___) => Container(
               width: size,
               height: size,
               decoration: BoxDecoration(
-                color: wrong
-                    ? Colors.red.shade300
-                    : ArcticColorTheme.pictonblue,
+                color: ArcticColorTheme.pictonblue,
                 borderRadius: BorderRadius.circular(size * 0.22),
               ),
             ),
@@ -892,7 +841,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
               '$value',
               style: TextStyle(
                 fontFamily: ArcticAppTextStyles.fredoka,
-                color: wrong ? Colors.red.shade300 : ArcticColorTheme.cotton,
+                color: ArcticColorTheme.cotton,
                 fontWeight: FontWeight.bold,
                 fontSize: size * 0.60,
               ),
