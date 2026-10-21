@@ -565,7 +565,6 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
               child: GoodJobOverlay(
                 characterImage: _kikiFishboneImage,
                 characterSizeFactor: 0.9,
-                onNext: () {},
                 onRestart: () {
                   setState(() {
                     _tappedAssets.clear();
