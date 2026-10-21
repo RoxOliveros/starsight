@@ -10,7 +10,6 @@ import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/cold_hot_game.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../goodjob_prompt.dart';
 import 'lagoon_game_ui.dart';
 
@@ -301,20 +300,15 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame>
 
           if (showGoodJob)
             GoodJobOverlay(
-              characterImage:
-                  'assets/images/characters/cat_holding_fishbone.png',
-
+              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
               characterSizeFactor: 0.9,
               onNext: () {
-                if (context.mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ColdHotGame(level: widget.level + 1),
-                    ),
-                  );
-                }
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ColdHotGame(level: widget.level + 1),
+                  ),
+                );
               },
               onRestart: () {
                 setState(() {
@@ -326,7 +320,9 @@ class _AnimalLifecycleGameState extends State<AnimalLifecycleGame>
                   _tapTracker.startSession();
                 });
               },
-              onBack: () => Navigator.of(context).pop(),
+              onBack: () {
+                Navigator.pop(context);
+              },
             ),
         ],
       ),
