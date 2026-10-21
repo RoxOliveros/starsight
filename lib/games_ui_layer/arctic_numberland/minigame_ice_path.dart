@@ -2,10 +2,15 @@
   import 'dart:math';
   import 'package:flutter/material.dart';
   import 'package:audioplayers/audioplayers.dart';
-  import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
+  import '../../business_layer/app_audio_lifecycle_mixin.dart';
+import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
   import '../../ui_layer/arctic_numberland/arctic_theme.dart';
-  import 'arctic_game_ui.dart';
+  import '../ai_camera_mixin.dart';
+import '../games_audio_helper.dart';
+import 'arctic_game_ui.dart';
   import 'package:StarSight/business_layer/game_tap_tracker.dart';
+
+import 'doma_reaction.dart';
 
   class IceNumberPathGame extends StatefulWidget {
     final int minNumber;
@@ -33,41 +38,80 @@
 
   class _IcePath {
     final int number;
-    final Offset pos;
+    final int slot;
     bool completed;
 
-    _IcePath({required this.number, required this.pos, this.completed = false});
+    _IcePath({required this.number, required this.slot, this.completed = false});
   }
 
   class _IceNumberPathGameState extends State<IceNumberPathGame>
-      with TickerProviderStateMixin {
+      with TickerProviderStateMixin, DomaReactionMixin, AiCameraMixin, AppAudioLifecycleMixin {
+
+    final AudioPlayer _audioPlayer = AudioPlayer();
+    final AudioPlayer _domaPlayer= AudioPlayer();
+
+    @override
+    List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+    @override
+    AudioPlayer get domaPlayer => _domaPlayer;
 
     static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_sea2.png';
     static const String _icePathImage = 'assets/images/objects/arctic/ice_path.png';
     static const String _penguinImage = 'assets/images/characters/doma_the_penguin.png';
 
-    static const String _audioInstruction = 'audio/arctic_numberland/ice_path_instruction.wav';
-    static const String _audioBubblePop = 'audio/sound_effects/sfx_bubble_pop.wav';
-    static const String _audioMahusay = 'audio/arctic_numberland/mahusay.wav';
+    static const String _audioInstruction = 'assets/audio/arctic_numberland/ice_path_instruction.wav';
+    static const String _audioMahusay = 'assets/audio/arctic_numberland/mahusay.wav';
 
     late List<int> _sequence;
     late List<_IcePath> _icePaths;
+    late AnimationController _penguinMoveCtrl;
+    late AnimationController _penguinCelebrateCtrl;
+    late Animation<double> _penguinCelebrateScale;
+
     int _currentIndex = 0;
+    int? _shakingId;
+    int get _target => _sequence[_currentIndex];
+
     bool _roundWon = false;
     bool _canInteract = false;
     bool _isProcessing = false;
 
-    int? _shakingId;
     Timer? _shakeResetTimer;
-
-    late AnimationController _penguinMoveCtrl;
     Animation<Offset>? _penguinMoveAnim;
-    Offset _penguinPos = const Offset(0.10, 0.90);
+    Offset? _penguinPos;
 
-    late AnimationController _penguinCelebrateCtrl;
-    late Animation<double> _penguinCelebrateScale;
+    double _iceSize(double w, double h) {
+      const refCols = 4;
+      const refRows = 3;
+      return min(w / refCols, (h * 0.62) / refRows) * 1.2;
+    }
 
-    int get _target => _sequence[_currentIndex];
+    double _w = 0;
+    double _h = 0;
+
+    Offset _slotPos(int slot, double w, double h) {
+      final s = _iceSize(w, h);
+      final stepX = s * 1.3;
+      final stepY = s * 0.8;
+
+      final row = slot ~/ 4;
+      var col = slot % 4;
+      if (row.isOdd) col = 3 - col;
+
+      final gridW = 3 * stepX;
+      final gridH = 2 * stepY;
+      final x0 = w / 2 - gridW / 2;
+      final yBottom = h * 0.55 + gridH / 2;
+
+      return Offset((x0 + col * stepX) / w, (yBottom - row * stepY) / h);
+    }
+
+    Offset _startPos(double w, double h) {
+      final first = _slotPos(0, w, h);
+      final x = first.dx * w - _iceSize(w, h) * 1.0;
+      return Offset((x / w).clamp(0.05, 1.0), first.dy);
+    }
 
     @override
     void initState() {
@@ -108,14 +152,12 @@
     Future<void> _playInstruction() async {
       _canInteract = false;
 
-      await _playAndWait(
-        _audioInstruction,
-      );
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
 
       if (!mounted) return;
 
       if (widget.instructionAudio.isNotEmpty) {
-        await _playAndWait(
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, 
           widget.instructionAudio.replaceFirst(
             'assets/',
             '',
@@ -124,87 +166,15 @@
       }
     }
 
-    Future<void> _playAndWait(String asset) async {
-      try {
-        await widget.player.stop();
-
-        final completed =
-            widget.player.onPlayerComplete.first;
-
-        await widget.player.play(
-          AssetSource(asset),
-        );
-
-        await completed;
-      } catch (e) {
-        debugPrint('Audio error ($asset): $e');
-      }
-    }
-
     void _startRound() {
       _sequence = [for (int n = widget.minNumber; n <= widget.maxNumber; n++) n];
       _currentIndex = 0;
       _roundWon = false;
-      _penguinPos = const Offset(0.10, 0.90);
-      _icePaths = _generateNonOverlappingIcePaths(_sequence);
-    }
-
-    List<_IcePath> _generateNonOverlappingIcePaths(
-        List<int> numbers,
-        ) {
-      final count = numbers.length;
-
-        final cols = min(4, count);
-      final rows = (count / cols).ceil();
-
-      const leftMargin = 0.14;
-      const rightMargin = 0.86;
-
-      const bottomY = 0.78;
-      const topY = 0.28;
-
-      final positions = <Offset>[];
-
-      for (int row = 0; row < rows; row++) {
-        final y = rows == 1
-            ? 0.65
-            : bottomY -
-            ((bottomY - topY) * row / (rows - 1));
-
-        final remaining = count - positions.length;
-        final itemsInRow = min(cols, remaining);
-
-        for (int col = 0; col < itemsInRow; col++) {
-          double x;
-
-          if (itemsInRow == 1) {
-            x = 0.5;
-          } else {
-            x = leftMargin +
-                ((rightMargin - leftMargin) *
-                    col /
-                    (itemsInRow - 1));
-          }
-
-          if (row.isOdd) {
-            x = 1.0 - x;
-          }
-
-          positions.add(
-            Offset(x, y),
-          );
-        }
-      }
-
-      return List.generate(
-        count,
-            (index) {
-          return _IcePath(
-            number: numbers[index],
-            pos: positions[index],
-          );
-        },
-      );
+      _penguinPos = null;
+      _icePaths = [
+        for (int i = 0; i < _sequence.length; i++)
+          _IcePath(number: _sequence[i], slot: i),
+      ];
     }
 
     Future<void> _handleTap(
@@ -222,7 +192,8 @@
         await _handleCorrect(icePath);
       } else {
         widget.tapTracker.recordMistake();
-
+        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+        showDomaReaction(DomaState.wrong);
         await _handleWrong(icePath);
       }
     }
@@ -235,10 +206,11 @@
         _canInteract = false;
       });
 
-      // Move Doma first
+      final target = _slotPos(icePath.slot, _w, _h);
+
       _penguinMoveAnim = Tween<Offset>(
-        begin: _penguinPos,
-        end: icePath.pos,
+        begin: _penguinPos ?? _startPos(_w, _h),
+        end: target,
       ).animate(
         CurvedAnimation(
           parent: _penguinMoveCtrl,
@@ -251,14 +223,14 @@
       if (!mounted) return;
 
       setState(() {
-        _penguinPos = icePath.pos;
+        _penguinPos = target;
       });
 
-      await _playAndWait(_audioBubblePop);
+      showDomaReaction(DomaState.correct);
 
       if (!mounted) return;
 
-      await _playAndWait('audio/arctic_numberland/${icePath.number}.wav');
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/arctic_numberland/${icePath.number}.wav');
 
       if (!mounted) return;
 
@@ -313,7 +285,7 @@
 
       _penguinCelebrateCtrl.forward(from: 0);
 
-      await _playAndWait(_audioMahusay);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioMahusay);
 
       await Future.delayed(
         const Duration(milliseconds: 400),
@@ -329,6 +301,8 @@
       _shakeResetTimer?.cancel();
       _penguinMoveCtrl.dispose();
       _penguinCelebrateCtrl.dispose();
+      _audioPlayer.dispose();
+      _domaPlayer.dispose();
       super.dispose();
     }
 
@@ -340,6 +314,8 @@
           builder: (context, constraints) {
             final w = constraints.maxWidth;
             final h = constraints.maxHeight;
+            _w = w;
+            _h = h;
 
             return Stack(
               children: [
@@ -379,14 +355,10 @@
     }
 
     Widget _buildIcePath(_IcePath icePath, double w, double h) {
-      final cols = (sqrt(_sequence.length).ceil()).clamp(1, _sequence.length);
-      final rows = (_sequence.length / cols).ceil();
-      final cellW = w / cols;
-      final cellH = (h * 0.62) / rows;
-      final size = (min(cellW, cellH) * 1.2);
-      final left = (icePath.pos.dx * w - size / 2).clamp(0.0, w - size);
-      final top = (icePath.pos.dy * h - size / 2).clamp(0.0, h - size);
-
+      final size = _iceSize(w, h);
+      final p = _slotPos(icePath.slot, w, h);
+      final left = (p.dx * w - size / 2).clamp(0.0, w - size);
+      final top = (p.dy * h - size / 2).clamp(0.0, h - size);
       final isShaking = _shakingId == icePath.number;
       final isNextTarget = !_roundWon && icePath.number == _target;
 
@@ -448,30 +420,66 @@
     }
 
     Widget _buildPenguin(double w, double h) {
-      final size = (h * 0.22).clamp(90.0, 160.0);
-      final pos = _penguinMoveCtrl.isAnimating && _penguinMoveAnim != null
+      final size = h * 0.35;
+      final iceSize = _iceSize(w, h);
+      final animating = _penguinMoveCtrl.isAnimating && _penguinMoveAnim != null;
+      final pos = animating
           ? _penguinMoveAnim!.value
-          : _penguinPos;
+          : (_penguinPos ?? _startPos(w, h));
 
-      const renderOffsetX = 0.015;
-      const renderOffsetY = -0.1;
+      final iceLeft = (pos.dx * w - iceSize / 2).clamp(0.0, w - iceSize);
+      final iceTop = (pos.dy * h - iceSize / 2).clamp(0.0, h - iceSize);
+      final iceCenterX = iceLeft + iceSize / 2;
+      final iceCenterY = iceTop + iceSize / 2;
 
-      final left = ((pos.dx + renderOffsetX) * w - size / 2).clamp(0.0, w - size);
-      final top = ((pos.dy + renderOffsetY) * h - size / 2).clamp(0.0, h - size);
+      const xShift = 0.25;
+      const feetShift = 0.1;
+
+      final left = (iceCenterX + iceSize * xShift - size / 2).clamp(0.0, w - size);
+      var top = (iceCenterY + iceSize * feetShift - size).clamp(0.0, h - size);
+
+      // ── Hop ──────────────────────────────────────────────
+      const hopHeight = 0.7;
+      double scaleX = 1.0;
+      double scaleY = 1.0;
+
+      if (animating) {
+        final t = _penguinMoveCtrl.value;
+        final air = sin(t * pi);
+        top -= air * iceSize * hopHeight;
+
+        scaleY = 1.0 + 0.10 * air;
+        scaleX = 1.0 - 0.06 * air;
+
+        if (t > 0.85) {
+          final s = sin(((t - 0.85) / 0.15) * pi);
+          scaleY -= 0.12 * s;
+          scaleX += 0.08 * s;
+        }
+      }
+
+      final celebrate = _roundWon ? _penguinCelebrateScale.value : 1.0;
 
       return Positioned(
         left: left,
         top: top,
-        child: Transform.scale(
-          scale: _roundWon ? _penguinCelebrateScale.value : 1.0,
-          child: Image.asset(
-            _penguinImage,
-            height: size,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
-                Text('🐧', style: TextStyle(fontSize: size * 0.6)),
+        child: IgnorePointer(            
+          child: Transform(
+            alignment: Alignment.bottomCenter,
+            transform: Matrix4.diagonal3Values(
+              scaleX * celebrate,
+              scaleY * celebrate,
+              1.0,
+            ),
+            child: Image.asset(
+              _penguinImage,
+              height: size,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) =>
+                  Text('🐧', style: TextStyle(fontSize: size * 0.6)),
+            ),
           ),
-        ),
+        ),                                
       );
     }
   }

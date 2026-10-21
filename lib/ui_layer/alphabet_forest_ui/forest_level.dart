@@ -5,6 +5,7 @@ import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/audio_helper.dart';
 import '../../business_layer/music_zones.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_acorn_basket.dart';
 import '../../games_ui_layer/alphabet_forest/forest_game_apple_tree.dart';
@@ -262,6 +263,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
+                            SfxHelper.instance.play(Sfx.keyTap);
                             if (_currentPage > 0) {
                               setState(() => _currentPage--);
                             }
@@ -282,6 +284,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
                         bottom: 0,
                         child: GestureDetector(
                           onTap: () {
+                            SfxHelper.instance.play(Sfx.keyTap);
                             if (_currentPage < 3) {
                               setState(() => _currentPage++);
                             }
@@ -424,6 +427,7 @@ class _LevelTile extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
+        SfxHelper.instance.play(Sfx.keyTap);
         final screen = _screenForLevel();
 
         if (screen == null) {

@@ -125,7 +125,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
       if (!mounted) return;
       await playVoiceRestartingOnFaceLoss(
         _audioPlayer,
-        'audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
+        'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
       );
     } catch (e) {
       debugPrint('Instruction audio error: $e');

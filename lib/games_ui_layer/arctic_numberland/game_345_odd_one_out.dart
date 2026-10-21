@@ -10,6 +10,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -36,21 +37,24 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<Number345OddOneOutScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
+
   @override
-  AudioPlayer get domaPlayer => _player;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const List<int> _numbers = [3, 4, 5];
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level16/intro.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level16/intro.wav';
 
   static const Map<int, String> _numberAudio = {
     3: 'assets/audio/arctic_numberland/level16/odd_three.wav',
@@ -98,8 +102,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   int _wrongTappedIndex = -1;
   int _correctTappedIndex = -1;
 
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _player = AudioPlayer();
+  
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
@@ -202,7 +205,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   // ── Flow ───────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -244,7 +247,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
 
       try {
         await playVoiceRestartingOnFaceLoss(
-          _player,
+          _audioPlayer,
           _numberAudio[_targetNumber]!,
         ).timeout(const Duration(seconds: 15));
       } catch (e) {
@@ -269,8 +272,8 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         _roundComplete = true;
       });
       _correctCtrl.forward(from: 0);
-      await _playAudio('assets/audio/arctic_numberland/$_oddCount.wav');
       await showDomaReaction(DomaState.correct);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/arctic_numberland/$_oddCount.wav');
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 
@@ -302,33 +305,19 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
       // ── Wrong: tapped a matching card ──
       setState(() => _wrongTappedIndex = cardIndex);
       _wrongCtrlList[cardIndex].forward(from: 0);
-      await _playAudio('assets/audio/sound_effects/sfx_bubble_pop.wav');
-      await showDomaReaction(DomaState.wrong);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 200));
       if (mounted) setState(() => _wrongTappedIndex = -1);
     }
   }
 
-  Future<void> _playAudio(String asset) async {
-    try {
-      final completer = Completer<void>();
-      final sub = _player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-      await sub.cancel();
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-      await Future.delayed(const Duration(seconds: 1));
-    }
-  }
-
   @override
   void dispose() {
-    disposeAiCamera(); // <-- ADDED
+    disposeAiCamera(); 
     _minLoadTimer?.cancel();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _cardsEnterCtrl.dispose();
@@ -387,7 +376,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
+      
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(

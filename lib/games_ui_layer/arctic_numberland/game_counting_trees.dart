@@ -10,6 +10,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -35,51 +36,35 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
         GameLoadingMixin,
         AiCameraMixin<CountingTreesScreen>,
         AppAudioLifecycleMixin<CountingTreesScreen> {
-  @override
-  AudioPlayer get domaPlayer => _player;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 5;
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _treeAsset =
-      'assets/images/objects/arctic/snowy_tree.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _treeAsset = 'assets/images/objects/arctic/snowy_tree.png';
 
   // Tagalog
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level18/intro.wav';
-  static const String _audioQuestion =
-      'assets/audio/arctic_numberland/level18/how_many.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level18/intro.wav';
+  static const String _audioQuestion = 'assets/audio/arctic_numberland/level18/how_many.wav';
 
   // English
   // static const String _audioIntroEng = 'assets/audio/arctic_numberland/level18/intro_eng.wav';
   // static const String _audioQuestionEng = 'assets/audio/arctic_numberland/level18/how_many_eng.wav';
 
   static const ColorFilter _tappedTreeFilter = ColorFilter.matrix([
-    0.6,
-    0,
-    0,
-    0,
-    80,
-    0,
-    0.9,
-    0,
-    0,
-    80,
-    0,
-    0,
-    0.4,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
+    0.6, 0,   0,   0,  80,
+    0,   0.9, 0,   0,  80,
+    0,   0,   0.4, 0,   0,
+    0,   0,   0,   1,   0,
   ]);
 
   static const ColorFilter _normalTreeFilter = ColorFilter.matrix([
@@ -120,15 +105,13 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
   late List<int> _choices; // 3 number choices
   int? _tappedIndex; // which choice was tapped
   bool _showWinDialog = false;
+  bool _countAudioPlaying = false;
   late List<int> _roundPool;
   late List<int?> _treeTapOrder;
 
   // Trees get highlighted when tapped for counting help
   late List<bool> _treeTapped;
   int _tappedTreeCount = 0;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _player = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
@@ -240,15 +223,13 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
   // ── Flow ───────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
   }
 
   Future<void> _restartGame() async {
-    await _player.stop();
-
     _treesEnterCtrl.reset();
     _choicesEnterCtrl.reset();
     _correctPulseCtrl.reset();
@@ -288,6 +269,7 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
     _treeTapped = List.filled(_treeCount, false);
     _treeTapOrder = List.filled(_treeCount, null);
     _tappedTreeCount = 0;
+    _countAudioPlaying = false;
 
     final allNums = List.generate(5, (i) => i + 1);
 
@@ -303,7 +285,7 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
     _instructionCtrl.forward(from: 0);
 
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) _playAudio(_audioQuestion);
+      if (mounted)  playVoiceRestartingOnFaceLoss(_audioPlayer, _audioQuestion);
     });
 
     Future.delayed(const Duration(milliseconds: 150), () {
@@ -389,7 +371,7 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
     } else {
       _tapTracker.recordMistake();
 
-      await _playAudio('assets/audio/sound_effects/sfx_bubble_pop.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
 
       if (!mounted) return;
@@ -400,49 +382,33 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
     }
   }
 
-  // ── Tree Tap (counting helper) ─────────────────────────────────────────────
-  void _onTreeTap(int treeIndex) {
-    if (_treeTapped[treeIndex]) return;
+  Future<void> _onTreeTap(int treeIndex) async {
+    if (_treeTapped[treeIndex] || _countAudioPlaying) return;
 
     setState(() {
       _treeTapped[treeIndex] = true;
-
       _tappedTreeCount++;
-
       _treeTapOrder[treeIndex] = _tappedTreeCount;
     });
 
-    _playAudio('assets/audio/arctic_numberland/$_tappedTreeCount.wav');
-  }
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  Future<void> _playAudio(String asset) async {
-    StreamSubscription? sub;
-
+    _countAudioPlaying = true;
     try {
-      final completer = Completer<void>();
-
-      sub = _player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) {
-          completer.complete();
-        }
-      });
-
-      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
-
-      await completer.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        'assets/audio/arctic_numberland/$_tappedTreeCount.wav',
+      );
+    } catch (_) {
     } finally {
-      await sub?.cancel();
+      _countAudioPlaying = false;
     }
   }
 
   @override
   void dispose() {
-    disposeAiCamera(); // <-- ADDED
+    disposeAiCamera(); 
     _minLoadTimer?.cancel();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _treesEnterCtrl.dispose();
@@ -479,7 +445,6 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
 
         _introPlaying ? _buildIntroLayer() : _buildGameContent(),
 
-        if (!_introPlaying) buildDoma(context),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
@@ -498,7 +463,7 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
+      
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(

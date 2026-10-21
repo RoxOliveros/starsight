@@ -9,7 +9,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
-import 'arctic_audio_helper.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'game_decorate_snowy_tree.dart';
 import 'doma_reaction.dart';
@@ -55,33 +55,30 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         TickerProviderStateMixin,
         DomaReactionMixin<SledShapeSortGame>,
         GameLoadingMixin<SledShapeSortGame>,
-        ArcticAudioMixin<SledShapeSortGame>,
         AiCameraMixin<SledShapeSortGame>,
         AppAudioLifecycleMixin<SledShapeSortGame> {
-  @override
-  AudioPlayer get domaPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _objBase = 'assets/images/objects/arctic';
   static const String _sledAsset = '$_objBase/sled.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/sled_shape_sort_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/sled_shape_sort_instuction.wav';
+  static const String _audioInstruction = '$_audioBase/sled_shape_sort_instuction.wav';
   static const String _audioWin = '$_audioBase/sled_shape_sort_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
-  // Ramp: 2 shapes -> 3 shapes -> 4 shapes, item count growing 3 -> 6.
   static final List<_RoundSpec> _rounds = [
     _RoundSpec([
       _ShapeItem(
@@ -92,7 +89,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       ),
       _ShapeItem(
         id: 'pkg_1',
-        asset: '$_objBase/package_1.png',
+        asset: '$_objBase/package.png',
         emoji: '📦',
         shape: _ShapeKind.square,
       ),
@@ -124,7 +121,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       ),
       _ShapeItem(
         id: 'pkg_2',
-        asset: '$_objBase/package_1.png',
+        asset: '$_objBase/package.png',
         emoji: '📦',
         shape: _ShapeKind.square,
       ),
@@ -156,7 +153,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       ),
       _ShapeItem(
         id: 'pkg_3',
-        asset: '$_objBase/package_1.png',
+        asset: '$_objBase/package.png',
         emoji: '📦',
         shape: _ShapeKind.square,
       ),
@@ -220,7 +217,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       ),
       _ShapeItem(
         id: 'pkg_4',
-        asset: '$_objBase/package_1.png',
+        asset: '$_objBase/package.png',
         emoji: '📦',
         shape: _ShapeKind.square,
       ),
@@ -246,6 +243,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
   int _currentRound = 0;
   int _solvedRounds = 0;
   bool _showWinDialog = false;
+  bool _inputEnabled = false;
 
   late _RoundSpec _round;
   late List<_ShapeKind> _binsForRound;
@@ -255,7 +253,6 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
 
@@ -264,7 +261,6 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  /// Stops the camera and saves mistakes + emotions once per playthrough.
   Future<void> _saveGameResult() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
@@ -307,13 +303,6 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -328,12 +317,13 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted)
-      playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+    if (!mounted) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+    if (mounted) setState(() => _inputEnabled = true);
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -348,7 +338,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted)
-          playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+          playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
       });
     }
 
@@ -357,13 +347,12 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
 
   // ── Drop handling ─────────────────────────────────────────────────────────
   Future<void> _onItemDropped(_ShapeItem item, _ShapeKind sledShape) async {
-    if (_placedIds.contains(item.id)) return;
+    if (!_inputEnabled || _placedIds.contains(item.id)) return;
 
     if (item.shape == sledShape) {
       _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       setState(() => _placedIds.add(item.id));
-      await playSfx('$_audioBase/pop.wav');
       showDomaReaction(DomaState.correct);
 
       if (_placedIds.length >= _round.items.length) {
@@ -372,7 +361,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       }
     } else {
       _tapTracker.recordMistake();
-      await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
       HapticFeedback.heavyImpact();
       setState(() => _wrongItemId = item.id);
@@ -386,7 +375,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     setState(() => _solvedRounds++);
 
     if (_currentRound + 1 >= _totalRounds) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       await _saveGameResult();
       ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
         (e) {
@@ -404,6 +393,8 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
   @override
   void dispose() {
     disposeAiCamera();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -413,10 +404,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // Only reacts to a *confirmed* camera result, so it never flashes just
-    // because the screen mounted. Reappears if the face is lost again.
-    final needsLightingPrompt =
-        hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
+    final needsLightingPrompt = hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
     return Listener(
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
@@ -440,7 +428,6 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                       ? _buildIntroLayer()
                       : _buildGameContent(),
                 ),
-                if (!_introPlaying) buildDoma(context),
                 if (_showWinDialog)
                   Positioned.fill(child: _buildGoodJobOverlay()),
               ],
@@ -453,7 +440,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                         child: LightingPromptCard(
                           onClose: () {
                             setState(() => _hideLightingCard = true);
-                            releaseFaceGate(); // don't leave audio stuck
+                            releaseFaceGate();
                           },
                         ),
                       ),
@@ -587,15 +574,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                 ),
               ),
               Expanded(child: _buildStagingArea(h)),
-              Padding(
-                padding: EdgeInsets.only(
-                  left: MediaQuery.of(context).size.height * 0.40,
-                ),
-                child: Transform.translate(
-                  offset: Offset(0, -h * 0.05),
-                  child: _buildSledRow(h * 0.32),
-                ),
-              ),
+              Expanded(child: _buildSledRow(h * 0.30)),
               Padding(
                 padding: const EdgeInsets.only(bottom: 15),
                 child: _buildRoundIndicator(),
@@ -631,6 +610,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     return Draggable<_ShapeItem>(
       key: ValueKey(item.id),
       data: item,
+      maxSimultaneousDrags: _inputEnabled ? 1 : 0,
       feedback: Material(
         color: Colors.transparent,
         child: _itemVisual(item, size * 1.15),
@@ -670,8 +650,8 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         color: Colors.white.withValues(alpha: 0.9),
         shape: BoxShape.circle,
         border: Border.all(
-          color: wrong ? Colors.red : Colors.white,
-          width: wrong ? 4 : 3,
+          color: Colors.white,
+          width: 3,
         ),
         boxShadow: [
           BoxShadow(

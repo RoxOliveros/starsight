@@ -10,6 +10,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'game_addition_package_delivery.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
@@ -36,28 +37,26 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         GameLoadingMixin<AdditionRescueBridgeGame>,
         AiCameraMixin<AdditionRescueBridgeGame>,
         AppAudioLifecycleMixin<AdditionRescueBridgeGame> {
-  @override
-  AudioPlayer get domaPlayer => _voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_voicePlayer, _sfxPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths (swap to match your project) ────────────────────────────
   static const String _iceAsset = 'assets/images/objects/arctic/ice.png';
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_arctic_river.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _babyFoxAsset =
-      'assets/images/characters/baby_arctic_fox.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_river.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _babyFoxAsset = 'assets/images/characters/baby_arctic_fox.png';
   static const String _beamAsset = 'assets/images/objects/arctic/beam.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/rescue_bridge_intro.wav';
-  static const String _audioInstructionPrompt =
-      '$_audioBase/rescue_bridge_instruction.wav';
-  static const String _audioWeightAddRemove =
-      'assets/audio/sound_effects/sfx_clack.wav';
+  static const String _audioInstructionPrompt = '$_audioBase/rescue_bridge_instruction.wav';
   static const String _audioWin = '$_audioBase/rescue_bridge_win.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
@@ -97,6 +96,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   int _rescuedCount = 0;
   bool _pupCrossing = false;
   bool _showEquation = true;
+  bool _inputEnabled = false;
 
   late List<List<int>> _roundPool;
   late int _addendA;
@@ -116,8 +116,8 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       false; // locks input while balanced/overloaded plays out
 
   // ── Audio ────────────────────────────────────────────────────────────────
-  final AudioPlayer _voicePlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
+  
+  
 
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
@@ -216,7 +216,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -242,11 +242,20 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted && _currentRound == 0) _playVoice(_audioInstructionPrompt);
-    });
+    _inputEnabled = _currentRound != 0;
+    if (_currentRound == 0) _playInstructionThenEnable();
+    if (_currentRound == 0) _playInstructionThenEnable();
 
     setState(() {});
+
+    setState(() {});
+  }
+
+  Future<void> _playInstructionThenEnable() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructionPrompt);
+    if (mounted) setState(() => _inputEnabled = true);
   }
 
   List<int> _buildWeightPool(int addendA, int addendB, int target) {
@@ -270,7 +279,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
   // ── Drag handlers ────────────────────────────────────────────────────────
   void _onWeightDropped(int poolIndex) async {
-    if (_resolvingRound || _weightUsed[poolIndex]) return;
+    if (!_inputEnabled || _resolvingRound || _weightUsed[poolIndex]) return;
 
     setState(() {
       _weightUsed[poolIndex] = true;
@@ -278,7 +287,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     });
 
     HapticFeedback.selectionClick();
-    await _playSfxAndWait(_audioWeightAddRemove);
+    await GamesSfxPlayer.instance.play(GameSfx.clack);
 
     final total = _currentTotal;
     if (total == _target) {
@@ -289,12 +298,12 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   }
 
   void _onWeightRemoved(int poolIndex) {
-    if (_resolvingRound) return;
+    if (!_inputEnabled || _resolvingRound) return;
     setState(() {
       _weightUsed[poolIndex] = false;
       _panLoad.remove(poolIndex);
     });
-    _playSfx(_audioWeightAddRemove);
+    GamesSfxPlayer.instance.play(GameSfx.clack);
   }
 
   Future<void> _onBalanced() async {
@@ -363,7 +372,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         _panLoad = [];
         _showEquation = false;
       });
-      await _playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
 
       // --- AI STOP & DATABASE SAVE ---
       List<String> finalEmotions = stopAiCamera();
@@ -402,56 +411,16 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       _panLoad = [];
       _resolvingRound = false;
     });
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
     showDomaReaction(DomaState.wrong);
-  }
-
-  // ── Audio ────────────────────────────────────────────────────────────────
-  Future<void> _playVoice(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _voicePlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _voicePlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Voice audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
-  void _playSfx(String asset) {
-    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
-      e,
-    ) {
-      debugPrint('SFX audio error ($asset): $e');
-    });
-  }
-
-  Future<void> _playSfxAndWait(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _sfxPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 3));
-    } catch (e) {
-      debugPrint('SFX audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
   }
 
   @override
   void dispose() {
     disposeAiCamera();
     _minLoadTimer?.cancel();
-    _voicePlayer.dispose();
-    _sfxPlayer.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -521,7 +490,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
+      
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(
@@ -1132,6 +1101,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                 ? Opacity(opacity: 0.25, child: chip)
                 : Draggable<int>(
                     data: i,
+                    maxSimultaneousDrags: _inputEnabled ? 1 : 0,
                     feedback: Material(
                       color: Colors.transparent,
                       child: _weightChipVisual(_weightPool[i], chipSize * 1.10),

@@ -1,7 +1,10 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/app_audio_lifecycle_mixin.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import '../ai_camera_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart'; 
 
@@ -12,13 +15,19 @@ const String _kCaneAsset = 'assets/images/objects/arctic/candy_cane.png';
 const Map<int, List<List<Offset>>> kNumberStrokes = {
   0: [
     [
-      Offset(0.5, 0.2),
-      Offset(0.3, 0.3),
-      Offset(0.3, 0.7),
-      Offset(0.5, 0.8),
-      Offset(0.7, 0.7),
-      Offset(0.7, 0.3),
-      Offset(0.5, 0.2),
+      Offset(0.50, 0.20),
+      Offset(0.40, 0.24),
+      Offset(0.33, 0.35),
+      Offset(0.30, 0.50),
+      Offset(0.33, 0.65),
+      Offset(0.40, 0.76),
+      Offset(0.50, 0.80),
+      Offset(0.60, 0.76),
+      Offset(0.67, 0.65),
+      Offset(0.70, 0.50),
+      Offset(0.67, 0.35),
+      Offset(0.60, 0.24),
+      Offset(0.50, 0.20),
     ],
   ],
   1: [
@@ -26,56 +35,80 @@ const Map<int, List<List<Offset>>> kNumberStrokes = {
   ],
   2: [
     [
-      Offset(0.3, 0.3),
-      Offset(0.35, 0.2),
-      Offset(0.55, 0.2),
-      Offset(0.7, 0.3),
-      Offset(0.7, 0.45),
-      Offset(0.3, 0.75),
-      Offset(0.3, 0.8),
-      Offset(0.7, 0.8),
+      Offset(0.30, 0.30),
+      Offset(0.35, 0.23),
+      Offset(0.44, 0.20),
+      Offset(0.55, 0.20),
+      Offset(0.65, 0.24),
+      Offset(0.70, 0.32),
+      Offset(0.67, 0.41),
+      Offset(0.58, 0.50),
+      Offset(0.45, 0.62),
+      Offset(0.34, 0.74),
+      Offset(0.30, 0.80),
+      Offset(0.40, 0.80),
+      Offset(0.55, 0.80),
+      Offset(0.70, 0.80),
     ],
   ],
   3: [
     [
-      Offset(0.32, 0.25),
-      Offset(0.5, 0.2),
-      Offset(0.68, 0.3),
-      Offset(0.55, 0.45),
-      Offset(0.4, 0.48),
-      Offset(0.55, 0.52),
-      Offset(0.68, 0.65),
-      Offset(0.55, 0.78),
-      Offset(0.35, 0.75),
+      Offset(0.30, 0.30),
+      Offset(0.36, 0.23),
+      Offset(0.45, 0.20),
+      Offset(0.55, 0.20),
+      Offset(0.64, 0.24),
+      Offset(0.69, 0.31),
+      Offset(0.66, 0.39),
+      Offset(0.56, 0.45),
+      Offset(0.45, 0.49),
+      Offset(0.57, 0.52),
+      Offset(0.66, 0.57),
+      Offset(0.70, 0.65),
+      Offset(0.67, 0.74),
+      Offset(0.58, 0.80),
+      Offset(0.48, 0.82),
+      Offset(0.39, 0.80),
+      Offset(0.31, 0.74),
     ],
   ],
   4: [
-    [Offset(0.62, 0.2), Offset(0.3, 0.6), Offset(0.72, 0.6)],
+    [Offset(0.62, 0.2), Offset(0.3, 0.6)],
+    [Offset(0.3, 0.6), Offset(0.72, 0.6)],
     [Offset(0.62, 0.2), Offset(0.62, 0.85)],
   ],
   5: [
     [Offset(0.68, 0.2), Offset(0.35, 0.2), Offset(0.35, 0.48)],
     [
       Offset(0.35, 0.48),
-      Offset(0.55, 0.45),
-      Offset(0.7, 0.55),
-      Offset(0.7, 0.7),
-      Offset(0.55, 0.82),
-      Offset(0.35, 0.78),
+      Offset(0.45, 0.45),
+      Offset(0.56, 0.45),
+      Offset(0.65, 0.49),
+      Offset(0.70, 0.57),
+      Offset(0.70, 0.67),
+      Offset(0.65, 0.76),
+      Offset(0.56, 0.81),
+      Offset(0.46, 0.82),
+      Offset(0.37, 0.79),
+      Offset(0.31, 0.74),
     ],
   ],
   6: [
     [
       Offset(0.62, 0.22),
-      Offset(0.42, 0.3),
-      Offset(0.32, 0.5),
-      Offset(0.32, 0.68),
-      Offset(0.45, 0.82),
-      Offset(0.62, 0.8),
-      Offset(0.7, 0.68),
-      Offset(0.62, 0.55),
-      Offset(0.45, 0.55),
-      Offset(0.35, 0.62),
+      Offset(0.50, 0.27),
+      Offset(0.40, 0.38),
+      Offset(0.33, 0.52),
+      Offset(0.32, 0.65),
+      Offset(0.38, 0.76),
+      Offset(0.48, 0.81),
+      Offset(0.58, 0.80),
+      Offset(0.66, 0.73),
+      Offset(0.68, 0.64),
+      Offset(0.63, 0.56),
+      Offset(0.54, 0.53),
+      Offset(0.44, 0.55),
+      Offset(0.36, 0.62),
     ],
   ],
   7: [
@@ -84,47 +117,70 @@ const Map<int, List<List<Offset>>> kNumberStrokes = {
   ],
   8: [
     [
-      Offset(0.5, 0.5),
-      Offset(0.35, 0.42),
-      Offset(0.35, 0.28),
-      Offset(0.5, 0.2),
-      Offset(0.65, 0.28),
-      Offset(0.65, 0.42),
-      Offset(0.5, 0.5),
+      Offset(0.50, 0.50),
+      Offset(0.41, 0.47),
+      Offset(0.36, 0.41),
+      Offset(0.35, 0.34),
+      Offset(0.38, 0.27),
+      Offset(0.44, 0.22),
+      Offset(0.50, 0.20),
+      Offset(0.56, 0.22),
+      Offset(0.62, 0.27),
+      Offset(0.65, 0.34),
+      Offset(0.64, 0.41),
+      Offset(0.59, 0.47),
+      Offset(0.50, 0.50),
     ],
     [
-      Offset(0.5, 0.5),
-      Offset(0.35, 0.58),
-      Offset(0.35, 0.72),
-      Offset(0.5, 0.8),
-      Offset(0.65, 0.72),
-      Offset(0.65, 0.58),
-      Offset(0.5, 0.5),
+      Offset(0.50, 0.50),
+      Offset(0.40, 0.53),
+      Offset(0.34, 0.59),
+      Offset(0.33, 0.66),
+      Offset(0.37, 0.73),
+      Offset(0.43, 0.78),
+      Offset(0.50, 0.80),
+      Offset(0.57, 0.78),
+      Offset(0.63, 0.73),
+      Offset(0.67, 0.66),
+      Offset(0.66, 0.59),
+      Offset(0.60, 0.53),
+      Offset(0.50, 0.50),
     ],
   ],
   9: [
     [
-      Offset(0.62, 0.42),
-      Offset(0.62, 0.28),
-      Offset(0.48, 0.2),
-      Offset(0.35, 0.28),
-      Offset(0.35, 0.42),
-      Offset(0.48, 0.5),
-      Offset(0.62, 0.42),
-      Offset(0.6, 0.6),
-      Offset(0.5, 0.8),
+      Offset(0.64, 0.38),
+      Offset(0.56, 0.45),
+      Offset(0.46, 0.47),
+      Offset(0.37, 0.44),
+      Offset(0.32, 0.36),
+      Offset(0.34, 0.27),
+      Offset(0.42, 0.20),
+      Offset(0.52, 0.19),
+      Offset(0.62, 0.24),
+      Offset(0.68, 0.35),
+      Offset(0.67, 0.48),
+      Offset(0.60, 0.62),
+      Offset(0.50, 0.73),
+      Offset(0.38, 0.78),
     ],
   ],
   10: [
     [Offset(0.18, 0.3), Offset(0.28, 0.2), Offset(0.28, 0.8)],
     [
-      Offset(0.65, 0.2),
-      Offset(0.48, 0.3),
-      Offset(0.48, 0.7),
-      Offset(0.65, 0.8),
-      Offset(0.82, 0.7),
-      Offset(0.82, 0.3),
-      Offset(0.65, 0.2),
+      Offset(0.65, 0.20),
+      Offset(0.565, 0.24),
+      Offset(0.50, 0.35),
+      Offset(0.48, 0.50),
+      Offset(0.50, 0.65),
+      Offset(0.565, 0.76),
+      Offset(0.65, 0.80),
+      Offset(0.735, 0.76),
+      Offset(0.80, 0.65),
+      Offset(0.82, 0.50),
+      Offset(0.80, 0.35),
+      Offset(0.735, 0.24),
+      Offset(0.65, 0.20),
     ],
   ],
 };
@@ -135,7 +191,8 @@ class NumberTracingWidget extends StatefulWidget {
   final VoidCallback onComplete;
   final String successAudio;
   final int level;
-  final GameTapTracker tapTracker; 
+  final GameTapTracker tapTracker;
+  final bool enabled;
 
   const NumberTracingWidget({
     super.key,
@@ -143,7 +200,8 @@ class NumberTracingWidget extends StatefulWidget {
     required this.player,
     required this.onComplete,
     required this.level,
-    required this.tapTracker, 
+    required this.tapTracker,
+    this.enabled = true,
     this.successAudio = kDefaultTracingSuccessAudio,
   });
 
@@ -151,11 +209,23 @@ class NumberTracingWidget extends StatefulWidget {
   State<NumberTracingWidget> createState() => _NumberTracingWidgetState();
 }
 
-class _NumberTracingWidgetState extends State<NumberTracingWidget> {
+class _NumberTracingWidgetState extends State<NumberTracingWidget>
+  with AiCameraMixin, AppAudioLifecycleMixin {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+
   List<List<Offset>> _denseStrokes = [];
+
   int _currentStrokeIndex = 0;
   int _currentPointIndex = 0;
+
   bool _tracingComplete = false;
+  bool _awaitingLift = false;
+  bool _touchValid = false;
+
   Offset? _canePosition;
 
   double _cachedW = -1;
@@ -203,6 +273,8 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
       _currentStrokeIndex = 0;
       _currentPointIndex = 0;
       _tracingComplete = false;
+      _awaitingLift = false;   
+      _touchValid = false;
     }
 
     final totalPoints = _denseStrokes.fold<int>(0, (sum, s) => sum + s.length);
@@ -217,6 +289,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
       children: [
         if (donePoints > 5)
           Positioned(
+            key: const ValueKey('progress_bar'),
             bottom: h * 0.06,
             left: w * 0.15,
             right: w * 0.15,
@@ -224,6 +297,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
           ),
 
         Positioned(
+          key: const ValueKey('header'),
           left: 25,
           right: 25,
           top: 25,
@@ -240,6 +314,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
         ),
 
         Positioned(
+          key: const ValueKey('trace_container'),
           left: containerLeft,
           top: containerTop,
           width: containerW,
@@ -260,8 +335,10 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
                     height: traceH,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
+                      onPanStart: (d) => _onPanStart(d, traceW),          
                       onPanUpdate: (details) => _onPanUpdate(details, traceW),
-                      onPanEnd: (_) => setState(() => _canePosition = null),
+                      onPanEnd: (_) => _onPanEnd(),                       
+                      onPanCancel: _onPanEnd,                             
                       child: CustomPaint(
                         size: Size(traceW, traceH),
                         painter: _NumberGuidePainter(
@@ -281,6 +358,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 
         if (_canePosition != null)
           Positioned(
+            key: const ValueKey('cane_moving'),
             left: traceLeft + _canePosition!.dx - caneSize * 0.15,
             top: traceTop + _canePosition!.dy - caneSize * 0.92,
             child: IgnorePointer(
@@ -294,6 +372,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
 
         if (_canePosition == null && !_tracingComplete)
           Positioned(
+            key: const ValueKey('cane_idle'),
             bottom: h * 0.08,
             left: w * 0.06,
             child: IgnorePointer(
@@ -358,32 +437,69 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
     return Offset(x, y);
   }
 
+  void _onPanStart(DragStartDetails details, double traceW) {
+    _touchValid = false;
+    if (!widget.enabled || _tracingComplete) return;
+    if (_awaitingLift) return;
+    if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length) {
+      return;
+    }
+
+    final stroke = _denseStrokes[_currentStrokeIndex];
+    if (_currentPointIndex >= stroke.length) return;
+
+    // finger must land on the current guide dot
+    final d = (details.localPosition - stroke[_currentPointIndex]).distance;
+    _touchValid = d < traceW * 0.18;
+  }
+
+  void _onPanEnd() {
+    setState(() {
+      _canePosition = null;
+      _awaitingLift = false;
+      _touchValid = false;
+    });
+  }
+
   void _onPanUpdate(DragUpdateDetails details, double traceW) {
+    if (!widget.enabled) return;
     if (_tracingComplete) return;
     if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length) {
       return;
     }
 
     final dragPos = details.localPosition;
+
+    if (_awaitingLift || !_touchValid) {
+      setState(() => _canePosition = dragPos);
+      return;
+    }
+
     final threshold = traceW * 0.14;
+    const lookAhead = 20;
     final currentStroke = _denseStrokes[_currentStrokeIndex];
 
     setState(() {
       _canePosition = dragPos;
-      if (_currentPointIndex < currentStroke.length) {
-        final dist = (dragPos - currentStroke[_currentPointIndex]).distance;
-        if (dist < threshold) {
-          while (_currentPointIndex < currentStroke.length &&
-              (dragPos - currentStroke[_currentPointIndex]).distance <
-                  threshold) {
-            _currentPointIndex++;
-          }
-          if (_currentPointIndex >= currentStroke.length) {
-            _currentStrokeIndex++;
-            _currentPointIndex = 0;
-            if (_currentStrokeIndex >= _denseStrokes.length) {
-              _accept();
-            }
+
+      final end = min(currentStroke.length, _currentPointIndex + lookAhead);
+      int best = -1;
+      for (int i = _currentPointIndex; i < end; i++) {
+        if ((dragPos - currentStroke[i]).distance < threshold) {
+          best = i;
+        }
+      }
+
+      if (best != -1) {
+        _currentPointIndex = best + 1;
+
+        if (_currentPointIndex >= currentStroke.length) {
+          _currentStrokeIndex++;
+          _currentPointIndex = 0;
+          _awaitingLift = true;
+          _touchValid = false;
+          if (_currentStrokeIndex >= _denseStrokes.length) {
+            _accept();
           }
         }
       }
@@ -400,9 +516,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget> {
       _canePosition = null;
     });
     try {
-      await widget.player.play(
-        AssetSource(widget.successAudio.replaceFirst('assets/', '')),
-      );
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, widget.successAudio);
     } catch (_) {}
     await Future.delayed(const Duration(milliseconds: 1500));
     if (mounted) widget.onComplete();

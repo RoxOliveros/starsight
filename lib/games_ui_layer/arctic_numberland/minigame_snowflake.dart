@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/app_audio_lifecycle_mixin.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
+import '../ai_camera_mixin.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart'; 
 
@@ -23,19 +26,22 @@ class PenguinSnowflakesMiniGame extends StatefulWidget {
   });
 
   @override
-  State<PenguinSnowflakesMiniGame> createState() =>
-      _PenguinSnowflakesMiniGameState();
+  State<PenguinSnowflakesMiniGame> createState() => _PenguinSnowflakesMiniGameState();
 }
 
 class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, AiCameraMixin, AppAudioLifecycleMixin {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _snowflakeImage = 'assets/images/objects/arctic/snowflake.png';
 
-  String get _snowflakeRequestAudio => 'audio/arctic_numberland/snowflake_${widget.number}.wav';
-  static const String _audioBubblePop = 'audio/sound_effects/sfx_bubble_pop.wav';
-  static const String _audioMahusay = 'audio/arctic_numberland/mahusay.wav';
+  String get _snowflakeRequestAudio => 'assets/audio/arctic_numberland/snowflake_${widget.number}.wav';
+  static const String _audioMahusay = 'assets/audio/arctic_numberland/mahusay.wav';
 
   final Random _random = Random();
   final List<_FallingSnowflake> _flakes = [];
@@ -84,14 +90,8 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   }
 
   Future<void> _playInstruction() async {
-    await widget.player.stop();
-
     try {
-      await widget.player.play(
-        AssetSource(_snowflakeRequestAudio),
-      );
-
-      await widget.player.onPlayerComplete.first;
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _snowflakeRequestAudio);
     } catch (e) {
       debugPrint('Snowflake request audio error: $e');
     }
@@ -152,14 +152,14 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
     });
 
     try {
-      await widget.player.play(
-        AssetSource(_audioBubblePop),
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        'assets/audio/arctic_numberland/$_delivered.wav',
       );
-      await widget.player.play(
-        AssetSource('audio/arctic_numberland/$_delivered.wav'),
-      );
-      await widget.player.onPlayerComplete.first;
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Number audio error: $e');
+    }
 
     if (!mounted) return;
     if (_delivered >= widget.number) {
@@ -175,11 +175,10 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
     _penguinCelebrateCtrl.forward(from: 0);
 
     try {
-      await widget.player.play(
-        AssetSource(_audioMahusay),
-      );
-      await widget.player.onPlayerComplete.first;
-    } catch (_) {}
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioMahusay);
+    } catch (e) {
+      debugPrint('Mahusay audio error: $e');
+    }
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) widget.onComplete();
   }
@@ -189,6 +188,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
     _spawnTimer?.cancel();
     _gameTimer?.cancel();
     _penguinCelebrateCtrl.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 

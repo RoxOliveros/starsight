@@ -10,6 +10,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'game_addition_subtraction_signboard.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
@@ -36,29 +37,27 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
         GameLoadingMixin,
         AiCameraMixin<SubtractionCompareGame>,
         AppAudioLifecycleMixin<SubtractionCompareGame> {
-  @override
-  AudioPlayer get domaPlayer => _voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_voicePlayer, _sfxPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _domaImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _candyCanePlainAsset =
-      'assets/images/objects/arctic/candy_cane_plain.png';
-  static const String _candyCaneAsset =
-      'assets/images/objects/arctic/candy_cane.png';
+  static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _candyCanePlainAsset = 'assets/images/objects/arctic/candy_cane_plain.png';
+  static const String _candyCaneAsset = 'assets/images/objects/arctic/candy_cane.png';
   static const String _ribbonAsset = 'assets/images/objects/arctic/ribbon.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/treat_compare_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/treat_compare_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/treat_compare_instruction.wav';
   static const String _audioQuestion = '$_audioBase/treat_compare_question.wav';
-  static const String _audioTreatPlaceRemove =
-      'assets/audio/sound_effects/sfx_bubble_pop.wav';
   static const String _audioWin = '$_audioBase/mahusay.wav';
 
   // ── Game constants ───────────────────────────────────────────────────────
@@ -86,8 +85,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   bool _showChoices = false;
   bool _instructionPlayed = false;
   bool _canInteract = false;
-  bool get _readyForConfirm =>
-      !_resolvingRound && _trayUsed.every((used) => used);
+  bool get _readyForConfirm => !_resolvingRound && _trayUsed.every((used) => used);
 
   late List<List<int>> _roundPool;
   late int _biggerCount;
@@ -103,7 +101,6 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  /// Stops the camera and saves mistakes + emotions once per playthrough.
   Future<void> _saveGameResult() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
@@ -118,10 +115,6 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       debugPrint("Database Error saving metrics: $e");
     });
   }
-
-  // ── Audio ────────────────────────────────────────────────────────────────
-  final AudioPlayer _voicePlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
 
   // ── Animations ───────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
@@ -182,7 +175,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(_voicePlayer, _audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -215,7 +208,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       Future.delayed(const Duration(milliseconds: 500), () async {
         if (!mounted) return;
 
-        await _playVoice(_audioInstruction);
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
 
         if (!mounted) return;
 
@@ -228,8 +221,9 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       _canInteract = true;
     }
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted)
-        playVoiceRestartingOnFaceLoss(_voicePlayer, _audioInstruction);
+      if (mounted) {
+        playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+      }
     });
 
     setState(() {});
@@ -253,7 +247,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     }
 
     HapticFeedback.selectionClick();
-    _playSfx(_audioTreatPlaceRemove);
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
 
     setState(() {
       _pairedSlot[slotIndex] = trayIndex;
@@ -270,8 +264,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
         _canTapChoices = false;
       });
 
-      // Ask the question.
-      await _playVoice(_audioQuestion);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioQuestion);
 
       if (!mounted) return;
 
@@ -288,7 +281,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
     final trayIndex = _pairedSlot[slotIndex]!;
 
-    _playSfx(_audioTreatPlaceRemove);
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
 
     setState(() {
       _pairedSlot[slotIndex] = null;
@@ -319,7 +312,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       if (!mounted) return;
 
       if (_currentRound + 1 >= _totalRounds) {
-        await _playVoice(_audioWin);
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
         _saveGameResult();
         ArcticProgressService.instance
             .markLevelComplete(widget.level)
@@ -335,6 +328,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     } else {
       HapticFeedback.heavyImpact();
       _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
@@ -342,36 +336,11 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     }
   }
 
-  // ── Audio ────────────────────────────────────────────────────────────────
-  Future<void> _playVoice(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _voicePlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _voicePlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Voice audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
-  void _playSfx(String asset) {
-    _sfxPlayer.play(AssetSource(asset.replaceFirst('assets/', ''))).catchError((
-      e,
-    ) {
-      debugPrint('SFX audio error ($asset): $e');
-    });
-  }
-
   @override
   void dispose() {
     disposeAiCamera();
-    _voicePlayer.dispose();
-    _sfxPlayer.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -721,16 +690,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: List.generate(_choices.length, (index) {
-          final isCorrect = _choices[index] == _target;
-          final isTapped = _tappedChoiceIndex == index;
           Color bg = ArcticColorTheme.pictonblue;
-          if (_tappedChoiceIndex != null) {
-            if (isCorrect) {
-              bg = Colors.green;
-            } else if (isTapped) {
-              bg = Colors.red;
-            }
-          }
 
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),

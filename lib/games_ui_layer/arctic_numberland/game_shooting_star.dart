@@ -11,7 +11,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
-import 'arctic_audio_helper.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'game_arctic_festival.dart';
@@ -78,29 +78,26 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
         TickerProviderStateMixin,
         DomaReactionMixin<ShootingStarCountingGame>,
         GameLoadingMixin<ShootingStarCountingGame>,
-        ArcticAudioMixin<ShootingStarCountingGame>,
         AiCameraMixin<ShootingStarCountingGame>,
         AppAudioLifecycleMixin<ShootingStarCountingGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
+
   @override
-  AudioPlayer get domaPlayer => audio.voicePlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_arctic_night_sky.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _shootingStarAsset =
-      'assets/images/objects/arctic/shooting_star.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_night_sky.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _shootingStarAsset = 'assets/images/objects/arctic/shooting_star.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/shooting_star_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/shooting_star_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/shooting_star_instruction.wav';
   static const String _audioAskCount = '$_audioBase/shooting_star_ask.wav';
   static const String _audioWin = '$_audioBase/shooting_star_win.wav';
 
@@ -121,6 +118,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   int _solvedRounds = 0;
   bool _showWinDialog = false;
   bool _showWinBurst = false;
+  bool _inputEnabled = false;
 
   late _RoundSpec _round;
   List<_StarSpec> _starSchedule = [];
@@ -205,29 +203,23 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     );
   }
 
-  // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioIntro);
-
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     setState(() => _introPlaying = false);
 
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+    if (!mounted) return;
+
     _roundStartElapsed = 0;
     _elapsed = 0;
-
     _skyTicker.start();
-
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    if (mounted) {
-      await playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
-    }
   }
 
-  // Builds a fixed schedule of stars with randomized gaps/paths, and works
-  // out how long the whole round will take to play out.
   List<_StarSpec> _buildScheduleForRound(_RoundSpec round) {
     final rng = Random();
     final specs = <_StarSpec>[];
@@ -279,31 +271,35 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     _selectedAnswer = null;
     _answerLocked = false;
     _wasWrong = false;
+    _inputEnabled = false;
 
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted)
-          playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioInstruction);
+        if (mounted) {
+          playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+        }
       });
     }
 
     setState(() {});
   }
 
-  void _checkPhaseTransition(double t) {
+  Future<void> _checkPhaseTransition(double t) async {
     if (_phase != _RoundPhase.watching) return;
     if (t - _roundStartElapsed >= _roundTotalDuration) {
       setState(() {
         _phase = _RoundPhase.answering;
+        _inputEnabled = false;
         _answerOptions = _buildAnswerOptions(
           _round.starCount,
           _round.optionCount,
         );
       });
-      playVoiceRestartingOnFaceLoss(audio.voicePlayer, _audioAskCount);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioAskCount);
+      if (mounted) setState(() => _inputEnabled = true);
     }
   }
 
@@ -311,7 +307,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     final rng = Random();
     final options = <int>{correct};
     while (options.length < count) {
-      final delta = rng.nextInt(4) + 1; // 1..4 away
+      final delta = rng.nextInt(4) + 1;
       final candidate = rng.nextBool() ? correct + delta : correct - delta;
       if (candidate >= 1) options.add(candidate);
     }
@@ -321,7 +317,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
 
   // ── Answer interaction ───────────────────────────────────────────────────
   Future<void> _onAnswerTapped(int value) async {
-    if (_answerLocked) return;
+    if (!_inputEnabled || _answerLocked) return;
     setState(() {
       _answerLocked = true;
       _selectedAnswer = value;
@@ -338,7 +334,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     } else {
       _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
-      await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
       setState(() => _wasWrong = true);
       await Future.delayed(const Duration(milliseconds: 500));
@@ -356,7 +352,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
 
     if (_currentRound + 1 >= _totalRounds) {
       setState(() => _showWinBurst = true);
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       await _saveGameResult();
       ArcticProgressService.instance.markLevelComplete(widget.level).catchError(
         (e) {
@@ -378,6 +374,8 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   @override
   void dispose() {
     disposeAiCamera();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _skyTicker.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -388,8 +386,6 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // Only reacts to a *confirmed* camera result, so it never flashes just
-    // because the screen mounted. Reappears if the face is lost again.
     final needsLightingPrompt =
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
@@ -614,13 +610,8 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       mainAxisAlignment: MainAxisAlignment.center,
       children: _answerOptions.map((value) {
         final selected = _selectedAnswer == value;
-        final isCorrectSelection = selected && !_wasWrong;
-        final isWrongSelection = selected && _wasWrong;
 
         Color bg = Colors.white.withValues(alpha: 0.92);
-        if (isCorrectSelection) bg = ArcticColorTheme.cadetblue;
-        if (isWrongSelection) bg = Colors.red.shade300;
-
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: GestureDetector(

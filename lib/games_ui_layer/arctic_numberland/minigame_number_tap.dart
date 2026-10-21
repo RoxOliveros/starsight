@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
+import '../ai_camera_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'dart:async';
-import 'package:StarSight/business_layer/game_tap_tracker.dart'; // <-- ADDED
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+
+import 'doma_reaction.dart';
 
 class TapObjectMiniGame extends StatefulWidget {
   final String instructionText;
@@ -22,7 +25,7 @@ class TapObjectMiniGame extends StatefulWidget {
   final AudioPlayer player;
   final VoidCallback onComplete;
   final int level;
-  final GameTapTracker tapTracker; // <-- ADDED
+  final GameTapTracker tapTracker;
 
   const TapObjectMiniGame({
     super.key,
@@ -39,7 +42,7 @@ class TapObjectMiniGame extends StatefulWidget {
     required this.player,
     required this.onComplete,
     required this.level,
-    required this.tapTracker, // <-- ADDED
+    required this.tapTracker, 
   });
 
   @override
@@ -47,17 +50,19 @@ class TapObjectMiniGame extends StatefulWidget {
 }
 
 class _TapObjectMiniGameState extends State<TapObjectMiniGame>
-    with TickerProviderStateMixin, AppAudioLifecycleMixin<TapObjectMiniGame> {
+    with TickerProviderStateMixin, AiCameraMixin, AppAudioLifecycleMixin {
+
   late List<_ObjectSlot> _objectSlots;
   int _tappedTargets = 0;
   int? _wrongSlotId;
   bool _roundWon = false;
 
   final Random _random = Random();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_sfxPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   List<Offset> _generateSlotGrid(int count) {
     final cols = sqrt(count).ceil().clamp(1, count);
@@ -86,7 +91,6 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
   @override
   void initState() {
     super.initState();
-    _sfxPlayer.setReleaseMode(ReleaseMode.stop);
     _objectWiggleCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -99,17 +103,11 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
     await widget.player.stop();
     try {
       if (widget.targetCountAudio.isNotEmpty) {
-        await _playAndWait(
-          widget.player,
-          widget.targetCountAudio.replaceFirst('assets/', ''),
-        );
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, widget.targetCountAudio);
       }
       if (!mounted) return;
       if (widget.targetObjectAudio.isNotEmpty) {
-        await _playAndWait(
-          widget.player,
-          widget.targetObjectAudio.replaceFirst('assets/', ''),
-        );
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, widget.targetObjectAudio);
       }
     } catch (_) {}
   }
@@ -137,48 +135,40 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
     _objectSlots = slots;
   }
 
-  Future<void> _playAndWait(AudioPlayer player, String assetPath) async {
-    if (!mounted) return;
-    final completer = Completer<void>();
-    final sub = player.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-    try {
-      await player.play(AssetSource(assetPath));
-      await completer.future;
-    } finally {
-      await sub.cancel();
-    }
-  }
-
   Future<void> _onSlotTapped(_ObjectSlot slot) async {
     if (slot.tapped || _roundWon) return;
 
+    // replace the `if (slot.isTarget) { ... }` block
     if (slot.isTarget) {
       widget.tapTracker.recordCorrectTap();
       setState(() {
         slot.tapped = true;
         _tappedTargets++;
       });
-      try {
-        await _sfxPlayer.stop();
-        if (!mounted) return;
-        try {
-          await _playAndWait(_sfxPlayer, 'audio/sound_effects/sfx_bubble_pop.wav');
-          if (!mounted) return;
-        } catch (_) {}
-      } catch (_) {}
-      if (!mounted) return;
+
       if (_tappedTargets >= widget.targetCount) {
         setState(() => _roundWon = true);
         try {
-          await widget.player.play(
-            AssetSource('audio/arctic_numberland/mahusay.wav'),
+          await playVoiceRestartingOnFaceLoss(
+            _audioPlayer,
+            'assets/audio/arctic_numberland/$_tappedTargets.wav',
           );
-          await widget.player.onPlayerComplete.first;
+          if (!mounted) return;
+          await playVoiceRestartingOnFaceLoss(
+            _audioPlayer,
+            'assets/audio/arctic_numberland/mahusay.wav',
+          );
         } catch (_) {}
+        if (!mounted) return;
         await Future.delayed(const Duration(milliseconds: 1000));
         if (mounted) widget.onComplete();
+      } else {
+        unawaited(
+          playVoiceRestartingOnFaceLoss(
+            _audioPlayer,
+            'assets/audio/arctic_numberland/$_tappedTargets.wav',
+          ).catchError((_) {}),
+        );
       }
     } else {
       widget.tapTracker.recordMistake();
@@ -191,22 +181,20 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
   @override
   void dispose() {
     _objectWiggleCtrl.dispose();
-    _sfxPlayer.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
+      
       onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
           final h = constraints.maxHeight;
-          final objSize =
-              (h * 0.38 / (sqrt(widget.targetCount + widget.decoyCount) * 0.6))
-                  .clamp(72.0, 160.0);
+          final objSize = (h * 0.38 / (sqrt(widget.targetCount + widget.decoyCount) * 0.6)).clamp(72.0, 160.0);
           return Stack(
             children: [
               Padding(

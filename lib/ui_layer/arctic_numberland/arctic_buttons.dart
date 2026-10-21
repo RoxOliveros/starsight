@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../business_layer/audio_helper.dart';
+import '../../games_ui_layer/games_audio_helper.dart';
 import 'arctic_theme.dart';
 
 class ArcticBackButton extends StatelessWidget {
@@ -7,7 +9,10 @@ class ArcticBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pop(context),
+      onTap: () {
+        SfxHelper.instance.play(Sfx.keyTap);
+        Navigator.pop(context);
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         decoration: BoxDecoration(
@@ -37,26 +42,11 @@ class ArcticXButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-        onTap: onTap ?? () => Navigator.pop(context),
+        onTap: onTap ?? () {
+          GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+          Navigator.pop(context);
+        },
         child: Image.asset('assets/images/buttons/x_blue.png', width: 50)
-    );
-  }
-}
-
-class ArcticSkipButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const ArcticSkipButton({super.key, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Image.asset(
-        'assets/images/buttons/skip_arctic.png',
-        width: 90,
-        fit: BoxFit.contain,
-      ),
     );
   }
 }

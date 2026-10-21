@@ -11,7 +11,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
-import 'arctic_audio_helper.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -34,30 +34,26 @@ class _IcebergTipGameState extends State<IcebergTipGame>
         TickerProviderStateMixin,
         DomaReactionMixin<IcebergTipGame>,
         GameLoadingMixin<IcebergTipGame>,
-        ArcticAudioMixin<IcebergTipGame>,
         AiCameraMixin<IcebergTipGame>,
         AppAudioLifecycleMixin<IcebergTipGame> {
-  @override
-  AudioPlayer get domaPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_game_arctic_sea.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _icebergAsset =
-      'assets/images/objects/arctic/iceberg.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic_sea.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _icebergAsset = 'assets/images/objects/arctic/iceberg.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/iceberg_tip_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/iceberg_tip_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/iceberg_tip_instruction.wav';
   static const String _audioWin = '$_audioBase/iceberg_tip_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -79,13 +75,13 @@ class _IcebergTipGameState extends State<IcebergTipGame>
   late int _numberB;
   late List<int> _numberPool;
   bool _revealed = false;
-  int? _tappedIndex; // 0 = left, 1 = right
+  int? _tappedIndex;
   bool _resolving = false;
   bool _wrongShake = false;
+  bool _inputEnabled = false;
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
   late AnimationController _sceneEnterCtrl;
   late Animation<double> _sceneEnter;
 
@@ -135,13 +131,6 @@ class _IcebergTipGameState extends State<IcebergTipGame>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _sceneEnterCtrl = AnimationController(
       vsync: this,
@@ -156,11 +145,15 @@ class _IcebergTipGameState extends State<IcebergTipGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) playVoice(_audioInstruction);
+    if (!mounted) return;
+    try {
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+    } catch (_) {}
+    if (mounted) setState(() => _inputEnabled = true);
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -180,8 +173,13 @@ class _IcebergTipGameState extends State<IcebergTipGame>
     _sceneEnterCtrl.forward(from: 0);
 
     if (playInstruction) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) playVoice(_audioInstruction);
+      _inputEnabled = false;
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        if (!mounted) return;
+        try {
+          await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+        } catch (_) {}
+        if (mounted) setState(() => _inputEnabled = true);
       });
     }
 
@@ -190,7 +188,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
 
   // ── Tap handling ─────────────────────────────────────────────────────────
   Future<void> _onIcebergTapped(int index) async {
-    if (_resolving) return;
+    if (!_inputEnabled || _resolving) return;
     _resolving = true;
 
     HapticFeedback.selectionClick();
@@ -210,8 +208,13 @@ class _IcebergTipGameState extends State<IcebergTipGame>
       _tapTracker.recordCorrectTap();
 
       HapticFeedback.mediumImpact();
-      await playSfx('$_audioBase/${max(_numberA, _numberB)}.wav');
       showDomaReaction(DomaState.correct);
+      _inputEnabled = false;
+      try {
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, '$_audioBase/${max(_numberA, _numberB)}.wav');
+      } catch (_) {}
+      if (!mounted) return;
+      _inputEnabled = true;
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
       await _onRoundComplete();
@@ -219,7 +222,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
       _tapTracker.recordMistake();
 
       HapticFeedback.heavyImpact();
-      await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
       setState(() => _wrongShake = true);
       await Future.delayed(const Duration(milliseconds: 1100));
@@ -237,7 +240,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
     setState(() => _solvedRounds++);
 
     if (_currentRound + 1 >= _totalRounds) {
-      await playVoice(_audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
 
       // --- AI STOP & DATABASE SAVE ---
       List<String> finalEmotions = stopAiCamera();
@@ -266,6 +269,8 @@ class _IcebergTipGameState extends State<IcebergTipGame>
   @override
   void dispose() {
     disposeAiCamera();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _minLoadTimer?.cancel();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -326,7 +331,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
+      
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(
@@ -578,19 +583,17 @@ class _IcebergTipGameState extends State<IcebergTipGame>
       ),
     );
 
-    if (shakeThis) {
-      iceberg = TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1),
-        duration: const Duration(milliseconds: 400),
-        builder: (_, t, child) {
-          final dx = sin(t * pi * 6) * 6 * (1 - t);
-          return Transform.translate(offset: Offset(dx, 0), child: child);
-        },
-        child: iceberg,
-      );
-    }
-
-    return iceberg;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: shakeThis ? 1 : 0),
+      duration: shakeThis
+          ? const Duration(milliseconds: 400)
+          : Duration.zero,
+      builder: (_, t, child) {
+        final dx = sin(t * pi * 6) * 6 * (1 - t);
+        return Transform.translate(offset: Offset(dx, 0), child: child);
+      },
+      child: iceberg,
+    );
   }
 
   // ── Progress dots ────────────────────────────────────────────────────────

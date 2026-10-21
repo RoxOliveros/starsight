@@ -222,7 +222,7 @@ class _AppreciationGameState extends State<AppreciationGame>
         });
         _jumpCtrl.repeat(reverse: true);
 
-        await playVoiceRestartingOnFaceLoss(_audioPlayer,'assets/audio/sound_effects/sfx_yey.wav');
+        GamesSfxPlayer.instance.play(GameSfx.yey);
 
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../business_layer/audio_helper.dart';
+import '../../games_ui_layer/games_audio_helper.dart';
 import 'lagoon_theme.dart';
 
 class LagoonBackButton extends StatelessWidget {
@@ -7,7 +9,10 @@ class LagoonBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pop(context),
+      onTap: () {
+        SfxHelper.instance.play(Sfx.keyTap);
+        Navigator.pop(context);
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         decoration: BoxDecoration(
@@ -30,14 +35,16 @@ class LagoonBackButton extends StatelessWidget {
 }
 
 class LagoonXButton extends StatelessWidget {
-  final VoidCallback? onTap;
 
-  const LagoonXButton({super.key, this.onTap});
+  const LagoonXButton({super.key});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-        onTap: onTap ?? () => Navigator.pop(context),
+        onTap: () {
+          GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+          Navigator.pop(context);
+        },
         child: Image.asset('assets/images/buttons/x_brown.png', width: 50)
     );
   }
@@ -51,7 +58,10 @@ class LagoonSkipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: (){
+        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+        onTap();
+      },
       child: Image.asset(
         'assets/images/buttons/skip_lagoon.png',
         width: 90,

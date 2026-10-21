@@ -10,7 +10,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
-import 'arctic_audio_helper.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -20,7 +20,6 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/business_layer/arctic_database_service.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
-/// How many penguins to play with. Defaults to 1-8.
 class PenguinLineWalkGame extends StatefulWidget {
   final int level;
   final int count;
@@ -36,29 +35,26 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
         TickerProviderStateMixin,
         DomaReactionMixin<PenguinLineWalkGame>,
         GameLoadingMixin<PenguinLineWalkGame>,
-        ArcticAudioMixin<PenguinLineWalkGame>,
         AiCameraMixin<PenguinLineWalkGame>,
         AppAudioLifecycleMixin<PenguinLineWalkGame> {
-  @override
-  AudioPlayer get domaPlayer => audio.voicePlayer;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    audio.voicePlayer,
-    audio.sfxPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
-  static const String _babyPenguinAsset =
-      'assets/images/characters/baby_penguin_sideview.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
+  static const String _babyPenguinAsset = 'assets/images/characters/baby_penguin_sideview.png';
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/penguin_line_walk_intro.wav';
-  static const String _audioInstruction =
-      '$_audioBase/penguin_line_walk_instruction.wav';
+  static const String _audioInstruction = '$_audioBase/penguin_line_walk_instruction.wav';
   static const String _audioWin = '$_audioBase/penguin_line_walk_win.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
@@ -145,13 +141,13 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
   // ── Flow ─────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await playVoice(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) playVoice(_audioInstruction);
+    if (mounted) playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
   }
 
   // ── Match handling ───────────────────────────────────────────────────────
@@ -164,8 +160,8 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
       _placed.add(number);
       _stagingNumbers.remove(number);
     });
-    await playSfx('$_audioBase/$number.wav');
     showDomaReaction(DomaState.correct);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, '$_audioBase/$number.wav');
 
     if (_placed.length >= _totalCount) {
       await Future.delayed(const Duration(milliseconds: 400));
@@ -177,7 +173,7 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
     _tapTracker.recordMistake();
 
     HapticFeedback.heavyImpact();
-    await playSfx('assets/audio/sound_effects/sfx_bubble_pop.wav');
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
     showDomaReaction(DomaState.wrong);
   }
 
@@ -185,7 +181,7 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
     await _walkOffCtrl.forward(from: 0);
     if (!mounted) return;
     setState(() => _showWinBurst = true);
-    await playVoice(_audioWin);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
 
     // --- AI STOP & DATABASE SAVE ---
     List<String> finalEmotions = stopAiCamera();
@@ -218,6 +214,8 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
     _walkOffCtrl.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     super.dispose();
   }
 
@@ -283,7 +281,7 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
+      
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(

@@ -9,6 +9,7 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -36,25 +37,24 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         GameLoadingMixin,
         AiCameraMixin<Number012345SequenceScreen>,
         AppAudioLifecycleMixin<Number012345SequenceScreen> {
-  @override
-  AudioPlayer get domaPlayer => _player;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _domaPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
+
+  @override
+  AudioPlayer get domaPlayer => _domaPlayer;
 
   // ── Constants ──────────────────────────────────────────────────────────────
   static const int _totalRounds = 3;
   static const List<int> _allNumbers = [0, 1, 2, 3, 4, 5];
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage =
-      'assets/images/characters/doma_the_penguin.png';
+  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
 
-  static const String _audioIntro =
-      'assets/audio/arctic_numberland/level17/intro.wav';
-  static const String _audioSlotCorrect =
-      'assets/audio/sound_effects/sfx_bubble_pop.wav';
-  static const String _audioWin = 'assets/audio/sound_effects/sfx_shine.wav';
+  static const String _audioIntro = 'assets/audio/arctic_numberland/level17/intro.wav';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -66,42 +66,22 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
   bool _introPlaying = true;
   int _currentRound = 0;
 
-  // The shuffled tiles the player drags from
-  late List<int?> _tileNumbers; // null means already placed
-
-  // The slots — null means empty, int means placed number
+  late List<int?> _tileNumbers;
   late List<int?> _slots;
-
-  // Track which slot indices are locked (correctly placed)
   late List<bool> _slotLocked;
-
-  // Track wrong flash per slot
   late List<bool> _slotWrong;
 
-  // ignore: unused_field
-  bool _roundComplete = false;
   bool _showWinDialog = false;
 
-  // ignore: unused_field
   int? _draggingNumber;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _player = AudioPlayer();
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
-
   late AnimationController _instructionCtrl;
-  late Animation<double> _instructionBounce;
-
   late AnimationController _tilesEnterCtrl;
   late Animation<double> _tilesEnter;
-
-  // Number dance for intro
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
-
-  // Per-slot correct pulse controllers (6 slots)
   late List<AnimationController> _slotPulseCtrlList;
   late List<Animation<double>> _slotPulseList;
 
@@ -149,13 +129,6 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _instructionBounce = TweenSequence(
-      [
-        TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 40),
-        TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.95), weight: 30),
-        TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
-      ],
-    ).animate(CurvedAnimation(parent: _instructionCtrl, curve: Curves.easeOut));
 
     _tilesEnterCtrl = AnimationController(
       vsync: this,
@@ -194,7 +167,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
   // ── Flow ───────────────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 300));
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
     setState(() => _introPlaying = false);
     _setupRound();
@@ -231,7 +204,6 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
     // Shuffle draggable choices
     _tileNumbers.shuffle();
 
-    _roundComplete = false;
     _draggingNumber = null;
 
     _tilesEnterCtrl.forward(from: 0);
@@ -260,7 +232,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
 
     if (number == correctNumber) {
       // CORRECT
-      _tapTracker.recordCorrectTap(); // <-- TRACK CORRECT TAP
+      _tapTracker.recordCorrectTap(); 
 
       setState(() {
         _slots[slotIndex] = number;
@@ -269,15 +241,12 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
 
       _slotPulseCtrlList[slotIndex].forward(from: 0);
 
-      await _playAudio(_audioSlotCorrect);
       showDomaReaction(DomaState.correct);
 
       // Check if all missing slots are solved
       if (_slotLocked.every((l) => l)) {
-        setState(() => _roundComplete = true);
 
         await Future.delayed(const Duration(milliseconds: 300));
-        await _playAudio(_audioWin);
 
         if (!mounted) return;
 
@@ -306,14 +275,14 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
       }
     } else {
       // WRONG
-      _tapTracker.recordMistake(); // <-- TRACK MISTAKE
+      _tapTracker.recordMistake();
 
       setState(() {
         _slots[slotIndex] = number;
         _slotWrong[slotIndex] = true;
       });
 
-      await _playAudio('assets/audio/sound_effects/sfx_bubble_pop.wav');
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
 
       await Future.delayed(const Duration(milliseconds: 600));
@@ -334,27 +303,12 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
     }
   }
 
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  Future<void> _playAudio(String asset) async {
-    try {
-      final completer = Completer<void>();
-      final sub = _player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-      await sub.cancel();
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-      await Future.delayed(const Duration(milliseconds: 500));
-    }
-  }
-
   @override
   void dispose() {
-    disposeAiCamera(); // <-- ADDED
+    disposeAiCamera(); 
     _minLoadTimer?.cancel();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _tilesEnterCtrl.dispose();
@@ -414,7 +368,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         : LoadingScreen.arctic();
 
     return Listener(
-      // <-- ADDED LISTENER FOR GENERIC TAPS
+      
       onPointerDown: (_) => _tapTracker.recordGenericTap(),
       child: Scaffold(
         body: buildWithLoading(

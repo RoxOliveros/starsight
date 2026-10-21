@@ -1,13 +1,37 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../games_audio_helper.dart';
+
+// USAGE
+//
+// DomaReactionMixin
+//
+// final AudioPlayer _domaPlayer = AudioPlayer();
+//
+// @override
+// AudioPlayer get domaPlayer => _domaPlayer;
+//
+// dispose
+// _domaPlayer.dispose();
+//
+// right
+// unawaited(_domaPlayer.stop());
+// showDomaReaction(DomaState.correct);
+//
+// wrong
+// showDomaReaction(DomaState.wrong);
+//
+// build
+// if (_screenPhase == introgame) buildDoma(context),
+// or
+// buildDoma in gamephase or after introphase
 
 enum DomaState { normal, correct, wrong }
 
 mixin DomaReactionMixin<T extends StatefulWidget> on State<T> {
   DomaState domaState = DomaState.normal;
 
-  // Override this in your screen to provide the AudioPlayer
   AudioPlayer get domaPlayer;
 
   Future<void> showDomaReaction(DomaState state) async {
@@ -15,29 +39,14 @@ mixin DomaReactionMixin<T extends StatefulWidget> on State<T> {
     setState(() => domaState = state);
 
     if (state == DomaState.correct) {
-      await _playDomaAudio('assets/audio/sound_effects/shine.wav');
+      unawaited(domaPlayer.stop());
+      GamesSfxPlayer.instance.play(GameSfx.shine);
     } else if (state == DomaState.wrong) {
-      await _playDomaAudio('assets/audio/arctic_numberland/doma_tryagain.wav');
+      await playAssetAudio(domaPlayer, 'assets/audio/arctic_numberland/doma_tryagain.wav');
     }
 
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => domaState = DomaState.normal);
-  }
-
-  Future<void> _playDomaAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = domaPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await domaPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Dr. Woo audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
   }
 
   Widget buildDoma(BuildContext context) {

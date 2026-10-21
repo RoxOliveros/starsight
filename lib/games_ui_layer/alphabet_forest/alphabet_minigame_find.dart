@@ -196,7 +196,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     final String lower = letter.toLowerCase();
     await playVoiceRestartingOnFaceLoss(
       _audioPlayer,
-      'audio/alphabet_forest/sound_effects/sound_$lower.wav',
+      'assets/audio/alphabet_forest/sound_effects/sound_$lower.wav',
       timeout: const Duration(seconds: 5),
     );
   }
