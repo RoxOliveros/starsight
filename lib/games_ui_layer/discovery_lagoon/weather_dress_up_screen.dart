@@ -3,12 +3,14 @@ import 'dart:math';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/app_audio_lifecycle_mixin.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
+import '../ai_camera_mixin.dart';
 import '../goodjob_prompt.dart';
-import 'audio_helper.dart';
+import 'kiki_reaction.dart';
+import 'lagoon_audio_path.dart';
 import 'intro_phase.dart';
 
 /// ---------------------------------------------------------------------------
@@ -134,11 +136,25 @@ class WeatherDressUpData {
     ),
   ];
 
-  /// Question line played when a weather round starts.
-  static String questionKey(String weatherId) => 'dressup_q_$weatherId';
+  static String questionAudio(String weatherId) => switch (weatherId) {
+    'sunny' => LagoonAudio.dressupQSunny,
+    'rainy' => LagoonAudio.dressupQRainy,
+    'cloudy' => LagoonAudio.dressupQCloudy,
+    'windy' => LagoonAudio.dressupQWindy,
+    _ => LagoonAudio.dressupQSunny,
+  };
 
-  /// Round-complete line played once both items for a weather are matched.
-  static String winKey(String weatherId) => 'dressup_win_$weatherId';
+  static String itemAudio(String itemId) => switch (itemId) {
+    'top' => LagoonAudio.dressupTop,
+    'bottom' => LagoonAudio.dressupBottom,
+    'coat' => LagoonAudio.dressupCoat,
+    'umbrella_boots' => LagoonAudio.dressupUmbrellaBoots,
+    'jacket' => LagoonAudio.dressupJacket,
+    'pants' => LagoonAudio.dressupPants,
+    'scarf' => LagoonAudio.dressupScarf,
+    'kite' => LagoonAudio.dressupKite,
+    _ => LagoonAudio.dressupTop,
+  };
 
   static List<Color> gradientForWeather(String id) {
     switch (id) {
@@ -203,13 +219,20 @@ class WeatherDressUpScreen extends StatefulWidget {
 }
 
 class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
-    with TickerProviderStateMixin, LagoonIntroMixin {
-  // ── Intro phase ────────────────────────────────────────────────────────
+    with TickerProviderStateMixin,
+        AiCameraMixin<WeatherDressUpScreen>,
+        AppAudioLifecycleMixin<WeatherDressUpScreen>,
+        LagoonIntroMixin<WeatherDressUpScreen>,
+        KikiReactionMixin {
 
-  final AudioPlayer _introPlayer = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
 
   @override
-  AudioPlayer get introAudioPlayer => _introPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
@@ -249,10 +272,13 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
     initLagoonIntro();
     startLagoonIntro(
       introAudioAsset: 'assets/audio/discovery_lagoon/dressup_intro.wav',
-      onGameStart: () {
+      onGameStart: () async {
         if (!mounted) return;
         setState(() => _screenPhase = LagoonScreenPhase.game);
-        LagoonAudio.instance.play(WeatherDressUpData.questionKey(_round.weather.id));
+        await playVoiceRestartingOnFaceLoss(
+          _audioPlayer,
+          WeatherDressUpData.questionAudio(_round.weather.id),
+        );
       },
     );
   }
@@ -263,7 +289,8 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
     _bounceCtrl.dispose();
     _floatCtrl.dispose();
     disposeLagoonIntro();
-    _introPlayer.dispose();
+    _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     super.dispose();
   }
 
@@ -276,30 +303,35 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
       setState(() {});
       _bounceCtrl.forward(from: 0);
 
+      final itemAudio = WeatherDressUpData.itemAudio(item.id);
+
       if (_round.isComplete) {
         _roundLocked = true;
 
-        LagoonAudio.instance.playThenCallback('dressup_${item.id}', () async {
-          if (!mounted) return;
-          await Future.delayed(const Duration(milliseconds: 300));
-          if (!mounted) return;
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, itemAudio);
+        if (!mounted) return;
 
-          if (_roundIndex >= _weatherOrder.length - 1) {
-            _showSuccessDialog();
-          } else {
-            setState(() {
-              _roundIndex++;
-              _round = WeatherRound.generate(
-                _weatherOrder[_roundIndex],
-                WeatherDressUpData.allItems,
-              );
-              _roundLocked = false;
-            });
-            LagoonAudio.instance.play(WeatherDressUpData.questionKey(_round.weather.id));
-          }
-        });
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (!mounted) return;
+
+        if (_roundIndex >= _weatherOrder.length - 1) {
+          await _showSuccessDialog();
+        } else {
+          setState(() {
+            _roundIndex++;
+            _round = WeatherRound.generate(
+              _weatherOrder[_roundIndex],
+              WeatherDressUpData.allItems,
+            );
+            _roundLocked = false;
+          });
+          await playVoiceRestartingOnFaceLoss(
+            _audioPlayer,
+            WeatherDressUpData.questionAudio(_round.weather.id),
+          );
+        }
       } else {
-        LagoonAudio.instance.play('dressup_${item.id}');
+        unawaited(playVoiceRestartingOnFaceLoss(_audioPlayer, itemAudio));
       }
     } else {
       setState(() => _lastWrongId = item.id);
@@ -309,41 +341,46 @@ class _WeatherDressUpScreenState extends State<WeatherDressUpScreen>
     }
   }
 
-  void _showSuccessDialog() {
-    LagoonAudio.instance.playThenCallback('dressup_outro', () {
-      if (!mounted) return;
-      LagoonProgressService.instance.markLevelComplete(widget.level);
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        useSafeArea: false,
-        barrierColor: Colors.black54,
-        builder: (_) => GoodJobOverlay(
-          characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-          
-          onNext: () {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => const WeatherTapSortScreen(level: 19),
-              ),
-            );
-          },
-          onRestart: () {
-            Navigator.pop(context);
-            setState(() {
-              _roundIndex = 0;
-              _round = WeatherRound.generate(
-                _weatherOrder[_roundIndex],
-                WeatherDressUpData.allItems,
-              );
-              _roundLocked = false;
-            });
-            LagoonAudio.instance.play(WeatherDressUpData.questionKey(_round.weather.id));
-          },
-          onBack: () => Navigator.of(context).pop(),
-        ),
-      );
+  Future<void> _showSuccessDialog() async {
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, LagoonAudio.dressupOutro);
+    if (!mounted) return;
+
+    LagoonProgressService.instance.markLevelComplete(widget.level).catchError((e) {
+      debugPrint('Database Error marking level complete: $e');
     });
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useSafeArea: false,
+      barrierColor: Colors.black54,
+      builder: (_) => GoodJobOverlay(
+        characterImage: 'assets/images/characters/cat_holding_fishbone.png',
+        onNext: () {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const WeatherTapSortScreen(level: 19),
+            ),
+          );
+        },
+        onRestart: () {
+          Navigator.pop(context);
+          setState(() {
+            _roundIndex = 0;
+            _round = WeatherRound.generate(
+              _weatherOrder[_roundIndex],
+              WeatherDressUpData.allItems,
+            );
+            _roundLocked = false;
+          });
+          unawaited(playVoiceRestartingOnFaceLoss(
+            _audioPlayer,
+            WeatherDressUpData.questionAudio(_round.weather.id),
+          ));
+        },
+        onBack: () => Navigator.of(context).pop(),
+      ),
+    );
   }
 
   @override

@@ -12,7 +12,9 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../games_audio_helper.dart';
 import '../tryagain_prompt.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
 class SauceStroke {
@@ -31,7 +33,8 @@ class LunchboxGameIntro extends StatefulWidget {
   State<LunchboxGameIntro> createState() => _LunchboxGameIntroState();
 }
 
-class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
+class _LunchboxGameIntroState extends State<LunchboxGameIntro>
+  with AiCameraMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
@@ -48,9 +51,7 @@ class _LunchboxGameIntroState extends State<LunchboxGameIntro> {
   }
 
   Future<void> _playIntroAudio() async {
-    await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/lunchboxgame_intro.wav'),
-    );
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'audio/discovery_lagoon/lunchboxgame_intro.wav');
   }
 
   @override
@@ -129,7 +130,8 @@ class LunchboxGameUnhealthyEnding extends StatefulWidget {
 }
 
 class _LunchboxGameUnhealthyEndingState
-    extends State<LunchboxGameUnhealthyEnding> {
+    extends State<LunchboxGameUnhealthyEnding>
+  with AiCameraMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   bool _showTryAgain = false;
@@ -145,9 +147,7 @@ class _LunchboxGameUnhealthyEndingState
     try {
       final completed = _audioPlayer.onPlayerComplete.first;
 
-      await _audioPlayer.play(
-        AssetSource('audio/discovery_lagoon/lunchboxgame_wrong_ending.wav'),
-      );
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'audio/discovery_lagoon/lunchboxgame_wrong_ending.wav');
 
       await completed;
 
@@ -267,7 +267,8 @@ class LunchboxGameHealthyEnding extends StatefulWidget {
       _LunchboxGameHealthyEndingState();
 }
 
-class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
+class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding>
+  with AiCameraMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _showOverlay = false;
 
@@ -287,9 +288,7 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding> {
   }
 
   Future<void> _playEndingSequence() async {
-    await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/lunchboxgame_right_ending.wav'),
-    );
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'audio/discovery_lagoon/lunchboxgame_right_ending.wav');
   }
 
   @override
@@ -396,18 +395,24 @@ class LunchboxGame extends StatefulWidget {
 }
 
 class _LunchboxGameState extends State<LunchboxGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<LunchboxGame> {
+    with
+        AiCameraMixin,
+        AppAudioLifecycleMixin<LunchboxGame>,
+        KikiReactionMixin {
   final GameTapTracker _tapTracker = GameTapTracker();
   final AudioPlayer _foodAudioPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _roundAudioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [
     _foodAudioPlayer,
-    _sfxPlayer,
     _roundAudioPlayer,
+    _kikiPlayer,
   ];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
 
   int currentBatch = 1;
 
@@ -452,104 +457,80 @@ class _LunchboxGameState extends State<LunchboxGame>
   void dispose() {
     disposeAiCamera();
     _foodAudioPlayer.dispose();
-    _sfxPlayer.dispose();
     _roundAudioPlayer.dispose();
+    _kikiPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
 
-  Future<void> _playRoundAudio(int batch) async {
-    final Map<int, String> roundAudio = {
-      1: 'audio/discovery_lagoon/lunchbox_round1_main.wav',
-      2: 'audio/discovery_lagoon/lunchbox_round2_ulam.wav',
-      3: 'audio/discovery_lagoon/lunchbox_round3_veggies.wav',
-      4: 'audio/discovery_lagoon/lunchbox_round4_sauce.wav',
-      5: 'audio/discovery_lagoon/lunchbox_round5_dessert.wav',
-      6: 'audio/discovery_lagoon/lunchbox_round6_drink.wav',
-    };
+  static const Map<int, String> _roundAudio = {
+    1: 'audio/discovery_lagoon/lunchbox_round1_main.wav',
+    2: 'audio/discovery_lagoon/lunchbox_round2_ulam.wav',
+    3: 'audio/discovery_lagoon/lunchbox_round3_veggies.wav',
+    4: 'audio/discovery_lagoon/lunchbox_round4_sauce.wav',
+    5: 'audio/discovery_lagoon/lunchbox_round5_dessert.wav',
+    6: 'audio/discovery_lagoon/lunchbox_round6_drink.wav',
+  };
 
-    final audioPath = roundAudio[batch];
+  static const Map<String, String> _foodAudio = {
+    'pizza': 'audio/discovery_lagoon/pizza.wav',
+    'fries': 'audio/discovery_lagoon/fries.wav',
+    'rice': 'audio/discovery_lagoon/rice.wav',
+    'drumstick': 'audio/discovery_lagoon/fried_chicken.wav',
+    'chips': 'audio/discovery_lagoon/chips.wav',
+    'cookie': 'audio/discovery_lagoon/cookie.wav',
+    'fish': 'audio/discovery_lagoon/fish.wav',
+    'lettuce': 'audio/discovery_lagoon/lettuce.wav',
+    'broccoli': 'audio/discovery_lagoon/broccoli.wav',
+    'bacon': 'audio/discovery_lagoon/bacon.wav',
+    'mustard': 'audio/discovery_lagoon/mustard.wav',
+    'ketchup': 'audio/discovery_lagoon/ketchup.wav',
+    'mayo': 'audio/discovery_lagoon/mayonnaise.wav',
+    'chocolate': 'audio/discovery_lagoon/chocolate.wav',
+    'banana': 'audio/discovery_lagoon/banana.wav',
+    'strawberry': 'audio/discovery_lagoon/strawberry.wav',
+    'orange': 'audio/discovery_lagoon/orange.wav',
+    'coffee': 'audio/discovery_lagoon/coffee.wav',
+    'water': 'audio/discovery_lagoon/water.wav',
+    'chocomilk': 'audio/discovery_lagoon/chocolate_milk_juice.wav',
+    'orangejuice': 'audio/discovery_lagoon/fruit_juice.wav',
+  };
+
+  Future<void> _playRoundAudio(int batch) async {
+    final audioPath = _roundAudio[batch];
     if (audioPath == null) return;
 
-    if (mounted) {
-      setState(() {
-        _canInteract = false;
-      });
-    }
+    if (mounted) setState(() => _canInteract = false);
 
-    try {
-      await _roundAudioPlayer.stop();
+    await playVoiceRestartingOnFaceLoss(_roundAudioPlayer, audioPath);
+    if (!mounted) return;
 
-      final completed = _roundAudioPlayer.onPlayerComplete.first;
-
-      await _roundAudioPlayer.play(AssetSource(audioPath));
-
-      await completed;
-    } catch (e) {
-      debugPrint('Round audio error ($batch): $e');
-    }
-
-    if (mounted) {
-      setState(() {
-        _canInteract = true;
-      });
-    }
+    setState(() => _canInteract = true);
   }
 
   Future<void> _playFoodAudio(String id) async {
-    final Map<String, String> foodAudio = {
-      'pizza': 'audio/discovery_lagoon/pizza.wav',
-      'fries': 'audio/discovery_lagoon/fries.wav',
-      'rice': 'audio/discovery_lagoon/rice.wav',
-      'drumstick': 'audio/discovery_lagoon/fried_chicken.wav',
-      'chips': 'audio/discovery_lagoon/chips.wav',
-      'cookie': 'audio/discovery_lagoon/cookie.wav',
-      'fish': 'audio/discovery_lagoon/fish.wav',
-      'lettuce': 'audio/discovery_lagoon/lettuce.wav',
-      'broccoli': 'audio/discovery_lagoon/broccoli.wav',
-      'bacon': 'audio/discovery_lagoon/bacon.wav',
-
-      'mustard': 'audio/discovery_lagoon/mustard.wav',
-      'ketchup': 'audio/discovery_lagoon/ketchup.wav',
-      'mayo': 'audio/discovery_lagoon/mayonnaise.wav',
-
-      'chocolate': 'audio/discovery_lagoon/chocolate.wav',
-      'banana': 'audio/discovery_lagoon/banana.wav',
-      'strawberry': 'audio/discovery_lagoon/strawberry.wav',
-      'orange': 'audio/discovery_lagoon/orange.wav',
-
-      'coffee': 'audio/discovery_lagoon/coffee.wav',
-      'water': 'audio/discovery_lagoon/water.wav',
-      'chocomilk': 'audio/discovery_lagoon/chocolate_milk_juice.wav',
-      'orangejuice': 'audio/discovery_lagoon/fruit_juice.wav',
-    };
-
-    final String? audioPath = foodAudio[id];
-
+    final audioPath = _foodAudio[id];
     if (audioPath == null) return;
-
-    try {
-      await _foodAudioPlayer.stop();
-
-      await _foodAudioPlayer.play(AssetSource(audioPath));
-
-      await _foodAudioPlayer.onPlayerComplete.first;
-    } catch (e) {
-      debugPrint('Food audio error ($id): $e');
-    }
+    await playVoiceRestartingOnFaceLoss(_foodAudioPlayer, audioPath);
   }
 
-  Future<void> _playBubblePop() async {
-    try {
-      await _sfxPlayer.stop();
+  Future<void> _onCorrectDrop(int nextBatch, VoidCallback assign) async {
+    _tapTracker.recordCorrectTap();
 
-      final completed = _sfxPlayer.onPlayerComplete.first;
+    setState(() {
+      assign();
+      currentBatch = nextBatch;
+    });
 
-      await _sfxPlayer.play(AssetSource('audio/sound_effects/sfx_bubble_pop.wav'));
+    showKikiReaction(KikiState.correct);
+    await _playRoundAudio(nextBatch);
+  }
 
-      await completed;
-    } catch (e) {
-      debugPrint('Bubble pop audio error: $e');
+  void _onWrongDrop() {
+    _tapTracker.recordMistake();
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+    if (kikiState == KikiState.normal) {
+      showKikiReaction(KikiState.wrong);
     }
   }
 
@@ -899,20 +880,11 @@ class _LunchboxGameState extends State<LunchboxGame>
                                                 )
                                               : null,
                                         ),
-                                    onAccept: (data) async {
+                                    onAcceptWithDetails: (details) {
                                       if (currentBatch == 1) {
-                                        _tapTracker.recordCorrectTap();
-
-                                        setState(() {
-                                          leftCompartmentFoodId = data;
-                                          currentBatch = 2;
-                                        });
-
-                                        await _playBubblePop();
-
-                                        if (!mounted) return;
-
-                                        await _playRoundAudio(2);
+                                        _onCorrectDrop(2, () => leftCompartmentFoodId = details.data);
+                                      } else {
+                                        _onWrongDrop();
                                       }
                                     },
                                   ),
@@ -947,20 +919,11 @@ class _LunchboxGameState extends State<LunchboxGame>
                                                 )
                                               : null,
                                         ),
-                                    onAccept: (data) async {
+                                    onAcceptWithDetails: (details) {
                                       if (currentBatch == 2) {
-                                        _tapTracker.recordCorrectTap();
-
-                                        setState(() {
-                                          topRightCompartmentFoodId = data;
-                                          currentBatch = 3;
-                                        });
-
-                                        await _playBubblePop();
-
-                                        if (!mounted) return;
-
-                                        await _playRoundAudio(3);
+                                        _onCorrectDrop(3, () => topRightCompartmentFoodId = details.data);
+                                      } else {
+                                        _onWrongDrop();
                                       }
                                     },
                                   ),
@@ -996,20 +959,11 @@ class _LunchboxGameState extends State<LunchboxGame>
                                                 )
                                               : null,
                                         ),
-                                    onAccept: (data) async {
+                                    onAcceptWithDetails: (details) {
                                       if (currentBatch == 3) {
-                                        _tapTracker.recordCorrectTap();
-
-                                        setState(() {
-                                          bottomRightCompartmentFoodId = data;
-                                          currentBatch = 4;
-                                        });
-
-                                        await _playBubblePop();
-
-                                        if (!mounted) return;
-
-                                        await _playRoundAudio(4);
+                                        _onCorrectDrop(4, () => bottomRightCompartmentFoodId = details.data);
+                                      } else {
+                                        _onWrongDrop();
                                       }
                                     },
                                   ),

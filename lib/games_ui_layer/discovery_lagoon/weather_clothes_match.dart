@@ -2,13 +2,14 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_dress_up_screen.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-
+import '../../business_layer/app_audio_lifecycle_mixin.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
+import '../ai_camera_mixin.dart';
 import '../goodjob_prompt.dart';
-import 'audio_helper.dart';
+import 'kiki_reaction.dart';
+import 'lagoon_audio_path.dart';
 import 'intro_phase.dart';
 
 class WeatherOption {
@@ -45,13 +46,20 @@ class WeatherClothesMatchScreen extends StatefulWidget {
 }
 
 class _WeatherClothesMatchScreenState extends State<WeatherClothesMatchScreen>
-    with TickerProviderStateMixin, LagoonIntroMixin {
-  // ── Intro phase ────────────────────────────────────────────────────────
+    with TickerProviderStateMixin,
+        AiCameraMixin<WeatherClothesMatchScreen>,
+        AppAudioLifecycleMixin<WeatherClothesMatchScreen>,
+        LagoonIntroMixin<WeatherClothesMatchScreen>,
+        KikiReactionMixin {
 
-  final AudioPlayer _introPlayer = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
 
   @override
-  AudioPlayer get introAudioPlayer => _introPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
@@ -87,13 +95,21 @@ class _WeatherClothesMatchScreenState extends State<WeatherClothesMatchScreen>
     ),
   ];
 
+  String _questionAudio(String weatherId) => switch (weatherId) {
+    'sunny' => LagoonAudio.clothesmatchQSunny,
+    'winter' => LagoonAudio.clothesmatchQWinter,
+    'rainy' => LagoonAudio.clothesmatchQRainy,
+    _ => LagoonAudio.clothesmatchQSunny,
+  };
+
+  String _winAudio(String weatherId) => switch (weatherId) {
+    'sunny' => LagoonAudio.clothesmatchWinSunny,
+    'winter' => LagoonAudio.clothesmatchWinWinter,
+    'rainy' => LagoonAudio.clothesmatchWinRainy,
+    _ => LagoonAudio.clothesmatchWinSunny,
+  };
+
   late List<ClothingItem> _clothingItems;
-
-  /// Question line played when a clothing item is presented.
-  static String _questionKey(String weatherId) => 'clothesmatch_q_$weatherId';
-
-  /// Correct-feedback line played once that item is dropped on the right card.
-  static String _winKey(String weatherId) => 'clothesmatch_win_$weatherId';
 
   @override
   void initState() {
@@ -138,10 +154,13 @@ class _WeatherClothesMatchScreenState extends State<WeatherClothesMatchScreen>
     initLagoonIntro();
     startLagoonIntro(
       introAudioAsset: 'assets/audio/discovery_lagoon/clothesmatch_intro.wav',
-      onGameStart: () {
+      onGameStart: () async {
         if (!mounted) return;
         setState(() => _screenPhase = LagoonScreenPhase.game);
-        LagoonAudio.instance.play(_questionKey(_clothingItems[0].targetWeatherId));
+        await playVoiceRestartingOnFaceLoss(
+          _audioPlayer,
+          _questionAudio(_clothingItems[0].targetWeatherId),
+        );
       },
     );
   }
@@ -151,7 +170,8 @@ class _WeatherClothesMatchScreenState extends State<WeatherClothesMatchScreen>
     _floatingController.dispose();
     _bounceCtrl.dispose();
     disposeLagoonIntro();
-    _introPlayer.dispose();
+    _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -167,23 +187,29 @@ class _WeatherClothesMatchScreenState extends State<WeatherClothesMatchScreen>
 
     final weatherId = _clothingItems[_currentClothingIndex].targetWeatherId;
 
-    // Wait for the correct-feedback line to finish before advancing.
-    LagoonAudio.instance.playThenCallback(_winKey(weatherId), () async {
-      if (!mounted) return;
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _winAudio(weatherId));
+    if (!mounted) return;
 
-      if (_isLast) {
-        setState(() => _showWinDialog = true);
-      } else {
-        setState(() {
-          _isMatched = false;
-          _currentClothingIndex++;
-          _roundLocked = false;
-        });
-        LagoonAudio.instance.play(_questionKey(_clothingItems[_currentClothingIndex].targetWeatherId));
-      }
-    });
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    if (_isLast) {
+      LagoonProgressService.instance.markLevelComplete(widget.level).catchError((e) {
+        debugPrint('Database Error marking level complete: $e');
+      });
+      setState(() => _showWinDialog = true);
+    } else {
+      setState(() {
+        _isMatched = false;
+        _currentClothingIndex++;
+        _roundLocked = false;
+      });
+
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        _questionAudio(_clothingItems[_currentClothingIndex].targetWeatherId),
+      );
+    }
   }
 
   Future<void> _onWrongDrop(String weatherId) async {
@@ -193,7 +219,7 @@ class _WeatherClothesMatchScreenState extends State<WeatherClothesMatchScreen>
     setState(() => _flash[weatherId] = false);
   }
 
-  void _restart() {
+  Future<void> _restart() async {
     setState(() {
       _isMatched = false;
       _showWinDialog = false;
@@ -201,7 +227,10 @@ class _WeatherClothesMatchScreenState extends State<WeatherClothesMatchScreen>
       _roundLocked = false;
       _clothingItems.shuffle();
     });
-    LagoonAudio.instance.play(_questionKey(_clothingItems[0].targetWeatherId));
+    await playVoiceRestartingOnFaceLoss(
+      _audioPlayer,
+      _questionAudio(_clothingItems[0].targetWeatherId),
+    );
   }
 
   @override

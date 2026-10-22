@@ -1,13 +1,17 @@
+import 'dart:async';
+
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../business_layer/app_audio_lifecycle_mixin.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
+import '../ai_camera_mixin.dart';
 import '../goodjob_prompt.dart';
-import 'audio_helper.dart';
+import 'lagoon_audio_path.dart';
 import 'intro_phase.dart';
 
 /// One of the four seasons, with its Polaroid-card background image.
@@ -43,12 +47,16 @@ class SeasonObjectMatchScreen extends StatefulWidget {
 }
 
 class _SeasonObjectMatchScreenState extends State<SeasonObjectMatchScreen>
-    with TickerProviderStateMixin, LagoonIntroMixin {
+    with
+        TickerProviderStateMixin,
+        AiCameraMixin<SeasonObjectMatchScreen>,
+        AppAudioLifecycleMixin<SeasonObjectMatchScreen>,
+        LagoonIntroMixin<SeasonObjectMatchScreen> {
 
   final AudioPlayer _introPlayer = AudioPlayer();
 
   @override
-  AudioPlayer get introAudioPlayer => _introPlayer;
+  AudioPlayer get _audioPlayer => _introPlayer;
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
@@ -160,23 +168,34 @@ class _SeasonObjectMatchScreenState extends State<SeasonObjectMatchScreen>
 
   bool get _isLast => _currentItemIndex == _items.length - 1;
 
+  String _audioForSeason(String seasonId) => switch (seasonId) {
+    'spring' => LagoonAudio.spring,
+    'summer' => LagoonAudio.summer,
+    'fall' => LagoonAudio.autumn,
+    'winter' => LagoonAudio.winter,
+    _ => LagoonAudio.spring,
+  };
+
   Future<void> _onCorrectDrop() async {
     setState(() => _isMatched = true);
     _bounceCtrl.forward(from: 0);
 
-    final seasonKey = _audioKeyForSeason(_items[_currentItemIndex].targetSeasonId);
+    final seasonAudio = _audioForSeason(_items[_currentItemIndex].targetSeasonId);
 
     if (_isLast) {
       await Future.delayed(const Duration(milliseconds: 500));
       if (!mounted) return;
-      LagoonAudio.instance.playThenCallback(seasonKey, () {
-        if (!mounted) return;
-        setState(() => _showWinDialog = true);
-      });
+
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, seasonAudio);
+      if (!mounted) return;
+
+      setState(() => _showWinDialog = true);
     } else {
-      LagoonAudio.instance.play(seasonKey);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, seasonAudio);
+
       await Future.delayed(const Duration(milliseconds: 500));
       if (!mounted) return;
+
       setState(() {
         _isMatched = false;
         _currentItemIndex++;

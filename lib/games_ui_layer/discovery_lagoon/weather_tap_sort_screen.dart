@@ -11,8 +11,10 @@ import 'package:StarSight/games_ui_layer/discovery_lagoon/living_nonliving_game.
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
-import 'audio_helper.dart';
+import 'kiki_reaction.dart';
+import 'lagoon_audio_path.dart';
 import 'intro_phase.dart';
 import 'lagoon_game_ui.dart';
 
@@ -49,27 +51,25 @@ class WeatherTapSortScreen extends StatefulWidget {
 class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     with
         TickerProviderStateMixin,
-        LagoonIntroMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<WeatherTapSortScreen> {
-  // ── Intro phase ────────────────────────────────────────────────────────
+        AiCameraMixin<WeatherTapSortScreen>,
+        AppAudioLifecycleMixin<WeatherTapSortScreen>,
+        LagoonIntroMixin<WeatherTapSortScreen>,
+        KikiReactionMixin {
 
-  final AudioPlayer _introPlayer = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
+
   final GameTapTracker _tapTracker = GameTapTracker();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-
-  @override
-  AudioPlayer get introAudioPlayer => _introPlayer;
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_introPlayer, _sfxPlayer];
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
-  static const String _introAudio =
-      'assets/audio/discovery_lagoon/tapsort_intro.wav';
-  static const String _shineAudio = 'assets/audio/sound_effects/sfx_shine.wav';
-  static const String _bubblePopAudio =
-      'assets/audio/sound_effects/sfx_bubble_pop.wav';
+  static const String _introAudio = 'assets/audio/discovery_lagoon/tapsort_intro.wav';
 
   // ── Game data ────────────────────────────────────────────────────────────
 
@@ -110,17 +110,32 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     ],
   };
 
-  static String _questionKey(String weatherId) => 'tapsort_q_$weatherId';
+  String _questionKey(String weatherId) {
+    switch (weatherId) {
+      case 'sunny':
+        return LagoonAudio.tapsortQSunny;
+      case 'rainy':
+        return LagoonAudio.tapsortQRainy;
+      case 'cloudy':
+        return LagoonAudio.tapsortQCloudy;
+      case 'windy':
+        return LagoonAudio.tapsortQWindy;
+      default:
+        return LagoonAudio.tapsortQSunny;
+    }
+  }
 
   int _roundIndex = 0;
   late Map<String, dynamic> _currentWeather;
   final List<FallingIcon> _icons = [];
   int _score = 0;
   int _needed = 0;
-  bool _roundComplete = false;
+  int _questionToken = 0;
 
+  bool _roundComplete = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _inputEnabled = false;
 
   late AnimationController _tickCtrl;
   final Random _rng = Random();
@@ -152,9 +167,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
       onGameStart: () {
         if (!mounted) return;
         setState(() => _screenPhase = LagoonScreenPhase.game);
-        LagoonAudio.instance.play(
-          _questionKey(_currentWeather['id'] as String),
-        );
+        _playQuestion();
       },
     );
   }
@@ -164,12 +177,11 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     _icons.clear();
     _score = 0;
     _roundComplete = false;
+    _inputEnabled = false;
     _needed = 5;
     _spawnInitialIcons();
 
-    if (playPrompt) {
-      LagoonAudio.instance.play(_questionKey(_currentWeather['id'] as String));
-    }
+    if (playPrompt) _playQuestion();
   }
 
   void _spawnInitialIcons() {
@@ -225,14 +237,26 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     });
   }
 
-  void _playSfx(String asset) {
-    _sfxPlayer
-        .play(AssetSource(asset.replaceFirst('assets/', '')))
-        .catchError((e) => debugPrint('SFX error: $e'));
+  Future<void> _playQuestion() async {
+    final token = ++_questionToken;
+    if (mounted) setState(() => _inputEnabled = false);
+
+    final Future<void> done = _audioPlayer.onPlayerComplete.first
+        .then<void>((_) {})
+        .timeout(const Duration(seconds: 30), onTimeout: () {});
+
+    playVoiceRestartingOnFaceLoss(
+      _audioPlayer,
+      _questionKey(_currentWeather['id'] as String),
+    );
+
+    await done;
+    if (!mounted || token != _questionToken || _roundComplete) return;
+    setState(() => _inputEnabled = true);
   }
 
   Future<void> _onTap(FallingIcon icon) async {
-    if (icon.tapped) return;
+    if (!_inputEnabled || _roundComplete || icon.tapped) return;
 
     if (icon.weatherId == _currentWeather['id']) {
       _tapTracker.recordCorrectTap();
@@ -240,9 +264,12 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
         icon.tapped = true;
         _score++;
       });
-      _playSfx(_shineAudio);
+      GamesSfxPlayer.instance.play(GameSfx.shine);
       if (_score >= _needed) {
-        setState(() => _roundComplete = true);
+        setState(() {
+          _roundComplete = true;
+          _inputEnabled = false;
+        });
         await Future.delayed(const Duration(milliseconds: 800));
         if (!mounted) return;
         if (_roundIndex >= _weathers.length - 1) {
@@ -256,7 +283,8 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
       }
     } else {
       _tapTracker.recordMistake();
-      _playSfx(_bubblePopAudio);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showKikiReaction(KikiState.wrong);
       setState(() => icon.wrong = true);
       await Future.delayed(const Duration(milliseconds: 400));
       if (mounted) setState(() => icon.tapped = true);
@@ -295,34 +323,36 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
       barrierDismissible: false,
       useSafeArea: false,
       barrierColor: Colors.black54,
-      builder: (_) => GoodJobOverlay(
-        characterImage: 'assets/images/characters/cat_holding_fishbone.png',
-
-        characterSizeFactor: 0.9,
-        onNext: () {
-          if (context.mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    LivingNonLivingGame(level: widget.level + 1),
-              ),
-            );
-          }
-        },
-        onRestart: () {
-          Navigator.pop(context);
-          setState(() {
-            _roundIndex = 0;
-            _hasSavedResult = false;
-            _tapTracker.startSession();
-            _startRound();
-          });
-        },
-        onBack: () {
-          Navigator.pop(context);
-          Navigator.pop(context);
-        },
+      builder: (_) => Material(
+        type: MaterialType.transparency,
+        child: GoodJobOverlay(
+          characterImage: 'assets/images/characters/cat_holding_fishbone.png',
+          characterSizeFactor: 0.9,
+          onNext: () {
+            if (context.mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      LivingNonLivingGame(level: widget.level + 1),
+                ),
+              );
+            }
+          },
+          onRestart: () {
+            Navigator.pop(context);
+            setState(() {
+              _roundIndex = 0;
+              _hasSavedResult = false;
+              _tapTracker.startSession();
+              _startRound();
+            });
+          },
+          onBack: () {
+            Navigator.pop(context);
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
   }
@@ -332,8 +362,8 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     disposeAiCamera();
     _tickCtrl.dispose();
     disposeLagoonIntro();
-    _introPlayer.dispose();
-    _sfxPlayer.dispose();
+    _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     super.dispose();
   }
 
@@ -380,17 +410,11 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
                         duration: const Duration(milliseconds: 150),
                         width: 100,
                         height: 100,
-                        decoration: icon.wrong
-                            ? BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.3),
-                                shape: BoxShape.circle,
-                              )
-                            : null,
                         child: Center(
                           child: Image.asset(
                             icon.imagePath,
-                            width: icon.wrong ? 100 : 100,
-                            height: icon.wrong ? 100 : 100,
+                            width: 100,
+                            height: 100,
                             errorBuilder: (_, __, ___) => const Icon(
                               Icons.image_not_supported,
                               size: 28,

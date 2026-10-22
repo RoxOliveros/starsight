@@ -12,8 +12,9 @@
   import '../../business_layer/lagoon_progress_service.dart';
   import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
   import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
-  import '../goodjob_prompt.dart';
-  import 'audio_helper.dart';
+  import '../games_audio_helper.dart';
+import '../goodjob_prompt.dart';
+  import 'lagoon_audio_path.dart';
   import 'intro_phase.dart';
   import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
@@ -41,20 +42,22 @@ import 'lagoon_game_ui.dart';
   }
 
   class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
-      with TickerProviderStateMixin, LagoonIntroMixin, AiCameraMixin, AppAudioLifecycleMixin<WeatherSceneBuilderScreen>, KikiReactionMixin {
-    // ── Intro phase ──────────────────────────────────────────────────────────
+    with
+        TickerProviderStateMixin,
+        KikiReactionMixin,
+        AiCameraMixin<WeatherSceneBuilderScreen>,
+        AppAudioLifecycleMixin<WeatherSceneBuilderScreen>,
+        LagoonIntroMixin<WeatherSceneBuilderScreen> {
+
+    final AudioPlayer _audioPlayer = AudioPlayer();
+    final AudioPlayer _kikiPlayer= AudioPlayer();
 
     @override
-    List<AudioPlayer> get lifecyclePlayers => [_introPlayer];
-
-    @override
-    AudioPlayer get introAudioPlayer => _introPlayer;
+    List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
 
     @override
     AudioPlayer get kikiPlayer => _kikiPlayer;
 
-    final AudioPlayer _introPlayer = AudioPlayer();
-    final AudioPlayer _kikiPlayer = AudioPlayer();
     final GameTapTracker _tapTracker = GameTapTracker();
 
     LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
@@ -67,14 +70,26 @@ import 'lagoon_game_ui.dart';
     // ── Data ─────────────────────────────────────────────────────────────────
 
     final List<Map<String, String>> _weathers = [
-      {'id': 'sunny', 'qKey': 'weather_q_sunny', 'winKey': 'weather_win_sunny'},
-      {'id': 'rainy', 'qKey': 'weather_q_rainy', 'winKey': 'weather_win_rainy'},
+      {
+        'id': 'sunny',
+        'qAudio': LagoonAudio.weatherQSunny,
+        'winAudio': LagoonAudio.weatherWinSunny,
+      },
+      {
+        'id': 'rainy',
+        'qAudio': LagoonAudio.weatherQRainy,
+        'winAudio': LagoonAudio.weatherWinRainy,
+      },
       {
         'id': 'cloudy',
-        'qKey': 'weather_q_cloudy',
-        'winKey': 'weather_win_cloudy',
+        'qAudio': LagoonAudio.weatherQCloudy,
+        'winAudio': LagoonAudio.weatherWinCloudy,
       },
-      {'id': 'windy', 'qKey': 'weather_q_windy', 'winKey': 'weather_win_windy'},
+      {
+        'id': 'windy',
+        'qAudio': LagoonAudio.weatherQWindy,
+        'winAudio': LagoonAudio.weatherWinWindy,
+      },
     ];
 
     final List<WeatherElement> _allElements = [
@@ -185,7 +200,7 @@ import 'lagoon_game_ui.dart';
         c.dispose();
       }
       disposeLagoonIntro();
-      _introPlayer.dispose();
+      _audioPlayer.dispose();
       _kikiPlayer.dispose();
       super.dispose();
     }
@@ -194,12 +209,11 @@ import 'lagoon_game_ui.dart';
 
     Future<void> _playPrompt() async {
       _inputEnabled = false;
-      final done = Completer<void>();
-      LagoonAudio.instance.playThenCallback(_currentWeather['qKey']!, () {
-        if (!done.isCompleted) done.complete();
-      });
       try {
-        await done.future.timeout(const Duration(seconds: 15));
+        await playVoiceRestartingOnFaceLoss(
+          _audioPlayer,
+          _currentWeather['qAudio']!,
+        );
       } catch (e) {
         debugPrint('Prompt audio error: $e');
       } finally {
@@ -245,23 +259,27 @@ import 'lagoon_game_ui.dart';
 
         if (_placed.length == _currentElements.length) {
           _roundLocked = true;
+          _inputEnabled = false;
 
-          LagoonAudio.instance.playThenCallback(_currentWeather['winKey']!, () {
-            if (!mounted) return;
+          await playVoiceRestartingOnFaceLoss(
+            _audioPlayer,
+            _currentWeather['winAudio']!,
+          );
+          if (!mounted) return;
 
-            if (_roundIndex >= _weathers.length - 1) {
-              _saveDataAndShowSuccessDialog();
-            } else {
-              setState(() {
-                _roundIndex++;
-                _startRound();
-              });
-            }
-          });
+          if (_roundIndex >= _weathers.length - 1) {
+            await _saveDataAndShowSuccessDialog();
+          } else {
+            setState(() {
+              _roundIndex++;
+              _startRound();
+            });
+          }
         }
       } else {
         _tapTracker.recordMistake();
         _itemCtrls[el.id]?.forward(from: 0);
+        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
         showKikiReaction(KikiState.wrong);
         await Future.delayed(const Duration(milliseconds: 300));
         if (!mounted) return;

@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 
 class LagoonLevelBadge extends StatelessWidget {

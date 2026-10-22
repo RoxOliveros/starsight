@@ -12,6 +12,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/feed_the_animal.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
@@ -38,18 +39,19 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   late List<SortableItem> _remainingItems;
   SortableItem? _currentItem;
 
-  final AudioPlayer _audioPlayer = AudioPlayer();
   final Random _random = Random();
-  final AudioPlayer _kikiPlayer = AudioPlayer();
   final GameTapTracker _tapTracker = GameTapTracker();
   final List<SortableItem> _sortedSoftItems = [];
   final List<SortableItem> _sortedHardItems = [];
 
-  @override
-  AudioPlayer get kikiPlayer => _kikiPlayer;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
 
   Offset _dragOffset = Offset.zero;
 
@@ -79,7 +81,6 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
 
   static const String _introAudio = 'audio/discovery_lagoon/soft&hard_intro&tutorial.wav';
   static const String _instructionAudio = 'audio/discovery_lagoon/soft&hard_instruction.wav';
-  static const String _wrongAudio = 'audio/sound_effects/sfx_bubble_pop.wav';
 
   @override
   void initState() {
@@ -114,7 +115,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
 
   Future<void> _playIntro() async {
     try {
-      await _audioPlayer.play(AssetSource(_introAudio));
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
     } catch (e) {
       debugPrint("Error playing intro audio: $e");
       if (mounted) {
@@ -125,7 +126,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
 
   Future<void> _playInstruction() async {
     try {
-      await _audioPlayer.play(AssetSource(_instructionAudio));
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _instructionAudio);
     } catch (e) {
       debugPrint("Error playing instruction audio: $e");
       if (mounted) {
@@ -200,7 +201,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   Future<void> _playSound(String assetPath) async {
     try {
       await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource(assetPath));
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, assetPath);
     } catch (e) {
       debugPrint("Error playing audio ($assetPath): $e");
     }
@@ -233,7 +234,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
       _loadNextItem();
     } else if (droppedOnLeft || droppedOnRight) {
       _tapTracker.recordMistake();
-      await _playSound(_wrongAudio);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showKikiReaction(KikiState.wrong);
       setState(() {
         _dragOffset = Offset.zero;

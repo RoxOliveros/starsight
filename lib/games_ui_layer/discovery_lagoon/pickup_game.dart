@@ -12,6 +12,8 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../games_audio_helper.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
 class CharacterConfig {
@@ -62,10 +64,16 @@ class PickupGame extends StatefulWidget {
 }
 
 class _PickupGameState extends State<PickupGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<PickupGame> {
+    with AiCameraMixin, AppAudioLifecycleMixin<PickupGame>, KikiReactionMixin {
+
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
   final math.Random _random = math.Random();
@@ -87,7 +95,6 @@ class _PickupGameState extends State<PickupGame>
   bool _isWalkingAway = false;
   bool _isGlowing = false;
   bool _showSuccessUI = false;
-  bool _disposed = false;
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -339,27 +346,15 @@ class _PickupGameState extends State<PickupGame>
     });
   }
 
-  Future<void> _waitForAudioComplete() async {
-    try {
-      await _audioPlayer.onPlayerComplete.first;
-    } catch (_) {}
-  }
-
   Future<void> _playIntroSequence() async {
     await Future.delayed(const Duration(milliseconds: 1800));
-    if (_disposed) return;
+    if (!mounted) return;
 
-    await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/pickup_game_schoolbell.wav'),
-    );
-    await _waitForAudioComplete();
-    if (_disposed) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'audio/discovery_lagoon/pickup_game_schoolbell.wav');
+    if (!mounted) return;
 
-    await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/pickup_game_intro.wav'),
-    );
-    await _waitForAudioComplete();
-    if (_disposed) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'audio/discovery_lagoon/pickup_game_intro.wav');
+    if (!mounted) return;
 
     if (mounted) {
       setState(() {
@@ -369,16 +364,11 @@ class _PickupGameState extends State<PickupGame>
     }
   }
 
-  Future<void> _playAudio(String path) async {
-    if (_disposed) return;
-    await _audioPlayer.play(AssetSource(path));
-  }
-
   @override
   void dispose() {
-    _disposed = true;
     disposeAiCamera();
     _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -393,7 +383,7 @@ class _PickupGameState extends State<PickupGame>
     }
 
     _tapTracker.recordCorrectTap();
-    _playAudio('audio/sound_effects/sfx_shine.wav');
+    showKikiReaction(KikiState.correct);
 
     setState(() {
       _isTargetMoving = true;
@@ -541,7 +531,8 @@ class _PickupGameState extends State<PickupGame>
               _handleTargetTap();
             } else {
               _tapTracker.recordMistake();
-              _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
+              GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+              showKikiReaction(KikiState.wrong);
             }
           },
           child: AnimatedContainer(
@@ -618,7 +609,8 @@ class _PickupGameState extends State<PickupGame>
                     if (!_isTargetMoving &&
                         !_isWalkingAway &&
                         !_isChildrenEntering) {
-                      _playAudio('audio/discovery_lagoon/kiki_tryagain.wav');
+                      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+                      showKikiReaction(KikiState.wrong);
                     }
                   },
                   child: _WalkingAnimalEntrance(

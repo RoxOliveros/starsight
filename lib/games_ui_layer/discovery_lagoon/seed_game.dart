@@ -11,7 +11,9 @@ import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/bodyparts_assembly.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
 class SeedGame extends StatefulWidget {
@@ -20,14 +22,21 @@ class SeedGame extends StatefulWidget {
   const SeedGame({super.key, required this.level});
 
   @override
-  _SeedGameState createState() => _SeedGameState();
+  State<SeedGame> createState() => _SeedGameState();
 }
 
 class _SeedGameState extends State<SeedGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<SeedGame> {
+    with AiCameraMixin, AppAudioLifecycleMixin<SeedGame>, KikiReactionMixin {
+
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
+
   final GameTapTracker _tapTracker = GameTapTracker();
   final double kikiVerticalOffset = 40.0;
   late List<String> currentSequence;
@@ -48,11 +57,8 @@ class _SeedGameState extends State<SeedGame>
     'audio/discovery_lagoon/seed_game_mango_round.wav',
   ];
 
-  static const String _thankYouAudio =
-      'audio/discovery_lagoon/seed_game_thankyou.wav';
-  static const String _introAudio =
-      'audio/discovery_lagoon/seed_game_intro.wav';
-  static const String _shineAudio = 'audio/sound_effects/sfx_shine.wav';
+  static const String _thankYouAudio = 'audio/discovery_lagoon/seed_game_thankyou.wav';
+  static const String _introAudio = 'audio/discovery_lagoon/seed_game_intro.wav';
 
   final List<List<String>> allCorrectSequences = [
     [
@@ -113,39 +119,10 @@ class _SeedGameState extends State<SeedGame>
     _playIntro();
   }
 
-  Future<void> _playAudioAndWait(String audioPath) async {
-    if (_disposed) return;
-
-    final completer = Completer<void>();
-
-    late StreamSubscription subscription;
-
-    subscription = _audioPlayer.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) {
-        completer.complete();
-      }
-      subscription.cancel();
-    });
-
-    try {
-      await _audioPlayer.play(AssetSource(audioPath));
-
-      await completer.future;
-    } catch (e) {
-      if (!completer.isCompleted) {
-        completer.complete();
-      }
-
-      await subscription.cancel();
-
-      debugPrint('Audio Error: $e');
-    }
-  }
-
   Future<void> _playIntro() async {
     if (_disposed) return;
 
-    await _playAudioAndWait(_introAudio);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
 
     if (!mounted || _disposed) return;
 
@@ -154,7 +131,7 @@ class _SeedGameState extends State<SeedGame>
       _isProcessingRound = true;
     });
 
-    await _playAudioAndWait(roundAudio[currentLevelIndex]);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, roundAudio[currentLevelIndex]);
 
     if (!mounted || _disposed) return;
 
@@ -174,6 +151,8 @@ class _SeedGameState extends State<SeedGame>
 
   void _onItemDropped(int oldIndex, int newIndex) {
     if (isCorrect || showGoodJob || _isProcessingRound) return;
+
+    GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
 
     setState(() {
       final temp = currentSequence[oldIndex];
@@ -208,8 +187,10 @@ class _SeedGameState extends State<SeedGame>
       _isProcessingRound = true;
     });
 
-    await _playAudioAndWait(_shineAudio);
+    showKikiReaction(KikiState.correct);
+    if (!mounted || _disposed) return;
 
+    await Future.delayed(Duration(milliseconds: 1500));
     if (!mounted || _disposed) return;
 
     if (currentLevelIndex < allCorrectSequences.length - 1) {
@@ -223,7 +204,7 @@ class _SeedGameState extends State<SeedGame>
         isCorrect = false;
       });
 
-      await _playAudioAndWait(roundAudio[currentLevelIndex]);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, roundAudio[currentLevelIndex]);
 
       if (!mounted || _disposed) return;
 
@@ -235,7 +216,7 @@ class _SeedGameState extends State<SeedGame>
 
       if (!mounted || _disposed) return;
 
-      await _playAudioAndWait(_thankYouAudio);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _thankYouAudio);
 
       if (!mounted || _disposed) return;
 

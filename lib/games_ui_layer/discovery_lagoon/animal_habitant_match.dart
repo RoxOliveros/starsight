@@ -1,12 +1,15 @@
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/app_audio_lifecycle_mixin.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
+import '../ai_camera_mixin.dart';
 import '../goodjob_prompt.dart';
-import 'audio_helper.dart';
+import 'kiki_reaction.dart';
+import 'lagoon_audio_path.dart';
 import 'intro_phase.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -45,13 +48,23 @@ class AnimalHabitatMatchScreen extends StatefulWidget {
 }
 
 class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
-    with TickerProviderStateMixin, LagoonIntroMixin {
-  final AudioPlayer _introPlayer = AudioPlayer();
+    with
+        TickerProviderStateMixin,
+        AiCameraMixin<AnimalHabitatMatchScreen>,
+        AppAudioLifecycleMixin<AnimalHabitatMatchScreen>,
+        LagoonIntroMixin<AnimalHabitatMatchScreen>,
+        KikiReactionMixin {
 
-  LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
 
   @override
-  AudioPlayer get introAudioPlayer => _introPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
+
+  LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
   bool _isMatched = false;
   int _currentAnimalIndex = 0;
@@ -151,44 +164,48 @@ class _AnimalHabitatMatchScreenState extends State<AnimalHabitatMatchScreen>
   @override
   void dispose() {
     disposeLagoonIntro();
-    _introPlayer.dispose();
+    _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     _floatingController.dispose();
     _bounceCtrl.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
 
-  void _playCurrentAnimalAudio() {
-    LagoonAudio.instance.play(_animals[_currentAnimalIndex].audioKey);
+  Future<void> _playCurrentAnimalAudio() async {
+    await playVoiceRestartingOnFaceLoss(
+      _audioPlayer,
+      _animals[_currentAnimalIndex].audioKey,
+    );
   }
 
   Future<void> _onCorrectDrop() async {
     setState(() => _isMatched = true);
     _bounceCtrl.forward(from: 0);
+
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
 
-    final answerKey = _animals[_currentAnimalIndex].answerAudioKey;
+    final answerAudio = _animals[_currentAnimalIndex].answerAudioKey;
+
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, answerAudio);
+    if (!mounted) return;
 
     if (_isLast) {
-      LagoonAudio.instance.playThenCallback(answerKey, () {
-        if (!mounted) return;
-        LagoonAudio.instance.playThenCallback('success', () {
-          if (mounted) setState(() => _showWinDialog = true);
-        });
-      });
+      showKikiReaction(KikiState.correct);
+      if (!mounted) return;
+
+      setState(() => _showWinDialog = true);
     } else {
-      LagoonAudio.instance.playThenCallback(answerKey, () {
-        if (!mounted) return;
-        setState(() {
-          _isMatched = false;
-          _currentAnimalIndex++;
-        });
-        Future.delayed(
-          const Duration(milliseconds: 300),
-          _playCurrentAnimalAudio,
-        );
+      setState(() {
+        _isMatched = false;
+        _currentAnimalIndex++;
       });
+
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+
+      await _playCurrentAnimalAudio();
     }
   }
 

@@ -49,7 +49,7 @@ mixin AiCameraMixin<T extends StatefulWidget> on State<T> {
   Future<void> playVoiceRestartingOnFaceLoss(
     AudioPlayer player,
     String asset, {
-    Duration timeout = const Duration(seconds: 20),
+    Duration timeout = const Duration(seconds: 33),
   }) async {
     while (mounted && !_isCameraDisposed) {
       // Don't start a tutorial clip while the lighting card is waiting.

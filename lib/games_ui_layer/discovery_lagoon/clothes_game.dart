@@ -11,6 +11,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/habitant_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../games_audio_helper.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -25,19 +26,21 @@ class ClothesGame extends StatefulWidget {
 
 class _ClothesGameState extends State<ClothesGame>
     with AiCameraMixin, KikiReactionMixin, AppAudioLifecycleMixin<ClothesGame> {
-  @override
-  AudioPlayer get kikiPlayer => _kikiPlayer;
 
-  final AudioPlayer _kikiPlayer = AudioPlayer();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
+
   final GameTapTracker _tapTracker = GameTapTracker();
 
   int currentWeatherIndex = 0;
 
   final List<String> weathers = ['sunny', 'cloudy', 'rainy', 'windy', 'winter'];
-  final AudioPlayer _audioPlayer = AudioPlayer();
 
   bool showIntro = true;
   bool isDressed = false;
@@ -71,9 +74,7 @@ class _ClothesGameState extends State<ClothesGame>
   }
 
   Future<void> _playIntroAudio() async {
-    await _audioPlayer.play(
-      AssetSource('audio/discovery_lagoon/clothes_game_intro.wav'),
-    );
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'audio/discovery_lagoon/clothes_game_intro.wav');
   }
 
   @override
@@ -118,6 +119,7 @@ class _ClothesGameState extends State<ClothesGame>
     } else {
       _tapTracker.recordMistake();
 
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showKikiReaction(KikiState.wrong);
     }
   }
@@ -419,8 +421,7 @@ class _ClothesGameState extends State<ClothesGame>
           // Good Job
           if (showGoodJobOverlay)
             GoodJobOverlay(
-              characterImage:
-                  'assets/images/characters/cat_holding_fishbone.png',
+              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
               characterSizeFactor: 0.9,
               onNext: () {
                 if (context.mounted) {

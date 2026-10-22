@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../games_audio_helper.dart';
 
 // USAGE
 //
@@ -15,15 +16,16 @@ import 'package:audioplayers/audioplayers.dart';
 // _kikiPlayer.dispose();
 //
 // right
-// unawaited(showKikiReaction(KikiState.correct));
+// unawaited(_kikiPlayer.stop());
+// showKikiReaction(KikiState.correct);
 //
 // wrong
-// unawaited(showKikiReaction(KikiState.wrong));
+// showKikiReaction(KikiState.wrong);
 //
 // build
 // if (_screenPhase == introgame) buildKiki(context),
 // or
-// buildkiki in gamephase or after introphase
+// buildKiki in gamephase or after introphase
 
 enum KikiState { normal, correct, wrong }
 
@@ -37,29 +39,17 @@ mixin KikiReactionMixin<T extends StatefulWidget> on State<T> {
     setState(() => kikiState = state);
 
     if (state == KikiState.correct) {
-      await _playKikiAudio('assets/audio/sound_effects/sfx_shine.wav');
+      unawaited(kikiPlayer.stop());
+      GamesSfxPlayer.instance.play(GameSfx.shine);
     } else if (state == KikiState.wrong) {
-      await _playKikiAudio('assets/audio/discovery_lagoon/kiki_tryagain.wav');
+      await playAssetAudio(
+        kikiPlayer,
+        'assets/audio/discovery_lagoon/kiki_tryagain.wav',
+      );
     }
 
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => kikiState = KikiState.normal);
-  }
-
-  Future<void> _playKikiAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = kikiPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await kikiPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Dr. Woo audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
   }
 
   Widget buildKiki(

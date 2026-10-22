@@ -15,6 +15,8 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../games_audio_helper.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
 class AnimalLevel {
@@ -54,14 +56,19 @@ class FeedTheAnimalGame extends StatefulWidget {
 }
 
 class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<FeedTheAnimalGame> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _voicePlayer = AudioPlayer();
+    with AiCameraMixin, AppAudioLifecycleMixin<FeedTheAnimalGame>, KikiReactionMixin {
 
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _voicePlayer];
   StreamSubscription? _audioSub;
   final GameTapTracker _tapTracker = GameTapTracker();
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
 
   int _currentLevelIndex = 0;
   bool _isHappy = false;
@@ -72,10 +79,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  static const String _audioIntro =
-      'audio/discovery_lagoon/feed_the_animal_game_intro.wav';
-  static const String _audioCorrect = 'audio/sound_effects/sfx_shine.wav';
-  static const String _audioWrong = 'audio/discovery_lagoon/kiki_tryagain.wav';
+  static const String _audioIntro = 'audio/discovery_lagoon/feed_the_animal_game_intro.wav';
 
   late final List<AnimalLevel> _levels = [
     AnimalLevel(
@@ -238,7 +242,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
     disposeAiCamera();
     _audioSub?.cancel();
     _audioPlayer.dispose();
-    _voicePlayer.dispose();
+    _kikiPlayer.dispose();
     super.dispose();
   }
 
@@ -276,17 +280,12 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
         _canDragFood = false;
       });
 
-      _audioPlayer.play(AssetSource(_audioCorrect));
-
+      showKikiReaction(KikiState.correct);
+      
       Future.delayed(const Duration(milliseconds: 400), () async {
         if (!mounted) return;
 
-        await _voicePlayer.play(AssetSource(currentLevel.correctAudioPath));
-
-        try {
-          await _voicePlayer.onPlayerComplete.first;
-        } catch (_) {}
-
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, currentLevel.correctAudioPath);
         if (!mounted) return;
 
         if (_currentLevelIndex < _levels.length - 1) {
@@ -308,7 +307,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
       });
     } else {
       _tapTracker.recordMistake();
-      _audioPlayer.play(AssetSource(_audioWrong));
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showKikiReaction(KikiState.wrong);
     }
   }
 
@@ -322,15 +322,9 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
     }
 
     await Future.delayed(const Duration(milliseconds: 1800));
-
     if (!mounted) return;
 
     await _audioPlayer.play(AssetSource(currentLevel.questionAudioPath));
-
-    try {
-      await _audioPlayer.onPlayerComplete.first;
-    } catch (_) {}
-
     if (!mounted) return;
 
     setState(() {

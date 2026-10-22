@@ -1,12 +1,18 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import '../../business_layer/app_audio_lifecycle_mixin.dart';
+import '../ai_camera_mixin.dart';
 
 enum LagoonScreenPhase { intro, game }
 
-mixin LagoonIntroMixin<T extends StatefulWidget> on State<T>, TickerProviderStateMixin<T> {
-  // ── Required overrides from the host screen ─────────────────────────────
-  AudioPlayer get introAudioPlayer;
+mixin LagoonIntroMixin<T extends StatefulWidget>
+on State<T>, TickerProviderStateMixin<T>, AiCameraMixin<T>, AppAudioLifecycleMixin<T> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
   // ── Animation controllers (character slide + idle float) ────────────────
   late AnimationController introFloatCtrl;
@@ -16,7 +22,6 @@ mixin LagoonIntroMixin<T extends StatefulWidget> on State<T>, TickerProviderStat
 
   bool _introInitialized = false;
 
-  /// Call this inside initState(), before startLagoonIntro().
   void initLagoonIntro() {
     introFloatCtrl = AnimationController(
       vsync: this,
@@ -41,8 +46,8 @@ mixin LagoonIntroMixin<T extends StatefulWidget> on State<T>, TickerProviderStat
     _introInitialized = true;
   }
 
-  /// Call this inside dispose().
   void disposeLagoonIntro() {
+    _audioPlayer.dispose();
     if (!_introInitialized) return;
     introFloatCtrl.dispose();
     introSlideCtrl.dispose();
@@ -59,7 +64,7 @@ mixin LagoonIntroMixin<T extends StatefulWidget> on State<T>, TickerProviderStat
 
     introSlideCtrl.forward();
 
-    await _playIntroAudio(introAudioAsset);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, introAudioAsset);
     if (!mounted) return;
 
     await Future.delayed(postDelay);
@@ -68,45 +73,11 @@ mixin LagoonIntroMixin<T extends StatefulWidget> on State<T>, TickerProviderStat
     onGameStart();
   }
 
-  Future<void> _playIntroAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-
-      sub = introAudioPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-
-      await introAudioPlayer.stop();
-      await introAudioPlayer.play(
-        AssetSource(asset.replaceFirst('assets/', '')),
-      );
-
-      await Future.delayed(const Duration(milliseconds: 200));
-      final duration = await introAudioPlayer.getDuration();
-      final safeTimeout = duration != null
-          ? duration + const Duration(seconds: 2)
-          : const Duration(seconds: 20);
-
-      await completer.future.timeout(safeTimeout);
-    } on TimeoutException {
-      debugPrint('Lagoon intro audio timed out: $asset');
-    } catch (e) {
-      debugPrint('Lagoon intro audio error ($asset): $e');
-      await Future.delayed(const Duration(seconds: 2));
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
   Widget buildLagoonIntroCharacter({double heightFactor = 0.95}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
         final charH = h * heightFactor;
-        final floatY = Tween<double>(begin: -8, end: 8).evaluate(
-          CurvedAnimation(parent: introFloatCtrl, curve: Curves.easeInOut),
-        );
 
         return ClipRect(
           child: Align(
@@ -117,10 +88,12 @@ mixin LagoonIntroMixin<T extends StatefulWidget> on State<T>, TickerProviderStat
                 opacity: introFade,
                 child: AnimatedBuilder(
                   animation: introFloatCtrl,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(0, floatY),
-                    child: child,
-                  ),
+                  builder: (_, child) {
+                    final floatY = Tween<double>(begin: -8, end: 8).evaluate(
+                      CurvedAnimation(parent: introFloatCtrl, curve: Curves.easeInOut),
+                    );
+                    return Transform.translate(offset: Offset(0, floatY), child: child);
+                  },
                   child: Image.asset(
                     'assets/images/characters/cat_holding_fishbone.png',
                     height: charH,

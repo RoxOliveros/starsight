@@ -1,528 +1,537 @@
-import 'dart:async';
-import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
-import 'package:StarSight/business_layer/lagoon_progress_service.dart';
-import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/perfume_game.dart';
-import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:StarSight/business_layer/lagoon_database_service.dart';
-import 'package:StarSight/business_layer/game_tap_tracker.dart';
-import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-import 'kiki_reaction.dart';
-import 'lagoon_game_ui.dart';
+  import 'dart:async';
+  import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+  import 'package:StarSight/business_layer/lagoon_progress_service.dart';
+  import 'package:StarSight/business_layer/orientation_service.dart';
+  import 'package:StarSight/games_ui_layer/discovery_lagoon/perfume_game.dart';
+  import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+  import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
+  import 'package:flutter/material.dart';
+  import 'package:audioplayers/audioplayers.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+  import 'package:StarSight/business_layer/lagoon_database_service.dart';
+  import 'package:StarSight/business_layer/game_tap_tracker.dart';
+  import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+  import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+  import '../games_audio_helper.dart';
+  import 'kiki_reaction.dart';
+  import 'lagoon_game_ui.dart';
 
-class RainbowGameScreen extends StatefulWidget {
-  final int level;
+  class RainbowGameScreen extends StatefulWidget {
+    final int level;
 
-  const RainbowGameScreen({super.key, required this.level});
+    const RainbowGameScreen({super.key, required this.level});
 
-  @override
-  State<RainbowGameScreen> createState() => _RainbowGameScreenState();
-}
-
-class _RainbowGameScreenState extends State<RainbowGameScreen>
-    with
-        KikiReactionMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<RainbowGameScreen> {
-
-  final AudioPlayer _audioPlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
-
-  final GameTapTracker _tapTracker = GameTapTracker();
-
-  bool _isIntroPlaying = true;
-  int _currentLevel = 1;
-  bool _showGoodJob = false;
-
-  bool _hideLightingCard = false;
-  bool _hasSavedResult = false;
-
-  @override
-  AudioPlayer get kikiPlayer => _audioPlayer;
-
-  @override
-  void initState() {
-    super.initState();
-    OrientationService.setLandscape();
-
-    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-    startAiCamera();
-    _tapTracker.startSession();
-
-    onFaceDetectionChanged = (detected) {
-      if (detected && mounted) setState(() => _hideLightingCard = false);
-    };
-
-    _startLevel1Intro();
+    @override
+    State<RainbowGameScreen> createState() => _RainbowGameScreenState();
   }
 
-  @override
-  void dispose() {
-    disposeAiCamera();
-    _audioPlayer.dispose();
-    OrientationService.setLandscape();
-    super.dispose();
-  }
+  class _RainbowGameScreenState extends State<RainbowGameScreen>
+      with
+          KikiReactionMixin,
+          AiCameraMixin,
+          AppAudioLifecycleMixin<RainbowGameScreen> {
 
-  Future<void> _playAudio(String assetPath) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
+    final AudioPlayer _audioPlayer = AudioPlayer();
+    final AudioPlayer _kikiPlayer= AudioPlayer();
 
-      sub = _audioPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
+    @override
+    List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
 
-      await _audioPlayer.play(
-        AssetSource(assetPath.replaceFirst('assets/', '')),
-      );
+    @override
+    AudioPlayer get kikiPlayer => _kikiPlayer;
 
-      await completer.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Audio playback error ($assetPath): $e');
-    } finally {
-      await sub?.cancel();
+    final GameTapTracker _tapTracker = GameTapTracker();
+
+    int _currentLevel = 1;
+
+    bool _isIntroPlaying = true;
+    bool _showGoodJob = false;
+    bool _isTransitioning = false;
+    bool _hideLightingCard = false;
+    bool _hasSavedResult = false;
+
+    @override
+    void initState() {
+      super.initState();
+      OrientationService.setLandscape();
+
+      sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+      startAiCamera();
+      _tapTracker.startSession();
+
+      onFaceDetectionChanged = (detected) {
+        if (detected && mounted) setState(() => _hideLightingCard = false);
+      };
+
+      _startLevel1Intro();
     }
-  }
 
-  Future<void> _startLevel1Intro() async {
-    setState(() => _isIntroPlaying = true);
-    await _playAudio('assets/audio/discovery_lagoon/whereis_therainbow.wav');
-    if (mounted) setState(() => _isIntroPlaying = false);
-  }
+    void _onBackgroundTapped() {
+      if (_isIntroPlaying || _isTransitioning || _showGoodJob) return;
 
-  void _onRainbowTapped() async {
-    if (_isIntroPlaying || kikiState != KikiState.normal) return;
+      _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      if (kikiState != KikiState.wrong) {
+        showKikiReaction(KikiState.wrong);
+      }
+    }
 
-    _tapTracker.recordCorrectTap();
-    await showKikiReaction(KikiState.correct);
+    @override
+    void dispose() {
+      disposeAiCamera();
+      _audioPlayer.dispose();
+      _kikiPlayer.dispose();
+      OrientationService.setLandscape();
+      super.dispose();
+    }
 
-    if (mounted) {
-      setState(() {
-        _currentLevel = 2;
-        _isIntroPlaying = true;
-      });
-
-      await _playAudio('assets/audio/discovery_lagoon/what_color1.wav');
-
+    Future<void> _startLevel1Intro() async {
+      setState(() => _isIntroPlaying = true);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/whereis_therainbow.wav');
       if (mounted) setState(() => _isIntroPlaying = false);
     }
-  }
 
-  void _onItemTapped(bool isCorrect) async {
-    if (_isIntroPlaying || kikiState != KikiState.normal) return;
+    void _onRainbowTapped() async {
+      if (_isIntroPlaying || _isTransitioning || _showGoodJob) return;
 
-    if (isCorrect) {
       _tapTracker.recordCorrectTap();
-      setState(() => kikiState = KikiState.correct);
+      await showKikiReaction(KikiState.correct);
 
-      await _playAudio('assets/audio/sound_effects/sfx_shine.wav');
+      if (mounted) {
+        setState(() {
+          _currentLevel = 2;
+          _isIntroPlaying = true;
+        });
+
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/what_color1.wav');
+
+        if (mounted) setState(() => _isIntroPlaying = false);
+      }
+    }
+
+    void _onItemTapped(bool isCorrect) async {
+      if (_isIntroPlaying || _isTransitioning || _showGoodJob) return;
+
+      if (isCorrect) {
+        _isTransitioning = true;
+        unawaited(_kikiPlayer.stop());
+
+        try {
+          _tapTracker.recordCorrectTap();
+          setState(() => kikiState = KikiState.correct);
+
+          await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/sound_effects/sfx_shine.wav');
+
+          if (_currentLevel == 8) {
+            await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/what_part_rc.wav');
+          } else {
+            await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/what_color_rc.wav');
+          }
+
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) setState(() => kikiState = KikiState.normal);
+
+          if (_currentLevel == 2 && mounted) {
+            setState(() {
+              _currentLevel = 3;
+              _isIntroPlaying = true;
+            });
+            await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/what_color2.wav');
+            if (mounted) setState(() => _isIntroPlaying = false);
+          } else if (_currentLevel == 3 && mounted) {
+            setState(() {
+              _currentLevel = 4;
+              _isIntroPlaying = true;
+            });
+            await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/what_color3.wav');
+            if (mounted) setState(() => _isIntroPlaying = false);
+          } else if (_currentLevel == 4 && mounted) {
+            setState(() {
+              _currentLevel = 5;
+              _isIntroPlaying = true;
+            });
+            await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/what_color4.wav');
+            if (mounted) setState(() => _isIntroPlaying = false);
+          } else if (_currentLevel == 5 && mounted) {
+            setState(() {
+              _currentLevel = 6;
+              _isIntroPlaying = true;
+            });
+            await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/what_color5.wav');
+            if (mounted) setState(() => _isIntroPlaying = false);
+          } else if (_currentLevel == 6 && mounted) {
+            setState(() {
+              _currentLevel = 7;
+              _isIntroPlaying = true;
+            });
+            await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/what_color6.wav');
+            if (mounted) setState(() => _isIntroPlaying = false);
+          } else if (_currentLevel == 7 && mounted) {
+            setState(() {
+              _currentLevel = 8;
+              _isIntroPlaying = true;
+            });
+            await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/what_part.wav');
+            if (mounted) setState(() => _isIntroPlaying = false);
+          } else if (_currentLevel == 8 && mounted) {
+            await _saveDataAndShowGoodJob();
+          }
+        } finally {
+          _isTransitioning = false;
+        }
+      } else {
+        _tapTracker.recordMistake();
+        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+        if (kikiState != KikiState.wrong) {
+          showKikiReaction(KikiState.wrong);
+        }
+      }
+    }
+
+    Future<void> _saveDataAndShowGoodJob() async {
+      if (_hasSavedResult) return;
+      _hasSavedResult = true;
+      List<String> finalEmotions = stopAiCamera();
+
+      LagoonDatabaseService.saveGameData(
+        gameId: 'lagoon_rainbow_game',
+        activityName: 'Rainbow Game',
+        emotions: finalEmotions,
+        totalTaps: _tapTracker.totalTaps,
+        mistakes: _tapTracker.mistakeCount,
+        timePlayedSeconds: _tapTracker.formattedDuration,
+      ).catchError((e) {
+        debugPrint("Database Error saving metrics: $e");
+      });
+
+      LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
+        e,
+      ) {
+        debugPrint("Database Error marking level complete: $e");
+      });
+      if (mounted) {
+        setState(() => _showGoodJob = true);
+      }
+    }
+
+    void _restartGame() {
+      setState(() {
+        _currentLevel = 1;
+        _showGoodJob = false;
+        _hasSavedResult = false;
+        _tapTracker.startSession();
+      });
+      _startLevel1Intro();
+    }
+
+    @override
+    Widget buildKiki(BuildContext context, {double heightFactor = 0.78}) {
+      final kikiWidget = SizedBox(
+        height: MediaQuery.of(context).size.height * heightFactor,
+        child: switch (kikiState) {
+          KikiState.correct => Image.asset(
+            'assets/animations/characters/kiki_cheering.webp',
+            fit: BoxFit.contain,
+          ),
+          KikiState.wrong => Image.asset(
+            'assets/images/characters/kiki_tryagain.png',
+            fit: BoxFit.contain,
+          ),
+          KikiState.normal => Image.asset(
+            'assets/images/characters/kiki_standing.png',
+            fit: BoxFit.contain,
+          ),
+        },
+      );
 
       if (_currentLevel == 8) {
-        await _playAudio('assets/audio/discovery_lagoon/what_part_rc.wav');
-      } else {
-        await _playAudio('assets/audio/discovery_lagoon/what_color_rc.wav');
+        return Positioned(
+          left: 0,
+          right: 0,
+          bottom: -35,
+          child: Align(alignment: Alignment.bottomCenter, child: kikiWidget),
+        );
       }
 
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted) setState(() => kikiState = KikiState.normal);
-
-      if (_currentLevel == 2 && mounted) {
-        setState(() {
-          _currentLevel = 3;
-          _isIntroPlaying = true;
-        });
-        await _playAudio('assets/audio/discovery_lagoon/what_color2.wav');
-        if (mounted) setState(() => _isIntroPlaying = false);
-      } else if (_currentLevel == 3 && mounted) {
-        setState(() {
-          _currentLevel = 4;
-          _isIntroPlaying = true;
-        });
-        await _playAudio('assets/audio/discovery_lagoon/what_color3.wav');
-        if (mounted) setState(() => _isIntroPlaying = false);
-      } else if (_currentLevel == 4 && mounted) {
-        setState(() {
-          _currentLevel = 5;
-          _isIntroPlaying = true;
-        });
-        await _playAudio('assets/audio/discovery_lagoon/what_color4.wav');
-        if (mounted) setState(() => _isIntroPlaying = false);
-      } else if (_currentLevel == 5 && mounted) {
-        setState(() {
-          _currentLevel = 6;
-          _isIntroPlaying = true;
-        });
-        await _playAudio('assets/audio/discovery_lagoon/what_color5.wav');
-        if (mounted) setState(() => _isIntroPlaying = false);
-      } else if (_currentLevel == 6 && mounted) {
-        setState(() {
-          _currentLevel = 7;
-          _isIntroPlaying = true;
-        });
-        await _playAudio('assets/audio/discovery_lagoon/what_color6.wav');
-        if (mounted) setState(() => _isIntroPlaying = false);
-      } else if (_currentLevel == 7 && mounted) {
-        setState(() {
-          _currentLevel = 8;
-          _isIntroPlaying = true;
-        });
-        await _playAudio('assets/audio/discovery_lagoon/what_part.wav');
-        if (mounted) setState(() => _isIntroPlaying = false);
-      } else if (_currentLevel == 8 && mounted) {
-        await _saveDataAndShowGoodJob();
-      }
-    } else {
-      _tapTracker.recordMistake();
-      showKikiReaction(KikiState.wrong);
+      return Positioned(left: 16, bottom: -35, child: kikiWidget);
     }
-  }
 
-  Future<void> _saveDataAndShowGoodJob() async {
-    if (_hasSavedResult) return;
-    _hasSavedResult = true;
-    List<String> finalEmotions = stopAiCamera();
+    @override
+    Widget build(BuildContext context) {
+      return Scaffold(
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final height = constraints.maxHeight;
 
-    LagoonDatabaseService.saveGameData(
-      gameId: 'lagoon_rainbow_game',
-      activityName: 'Rainbow Game',
-      emotions: finalEmotions,
-      totalTaps: _tapTracker.totalTaps,
-      mistakes: _tapTracker.mistakeCount,
-      timePlayedSeconds: _tapTracker.formattedDuration,
-    ).catchError((e) {
-      debugPrint("Database Error saving metrics: $e");
-    });
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(switch (_currentLevel) {
+                    1 => 'assets/images/backgrounds/bg_rainbow_lagoon.png',
+                    2 => 'assets/images/objects/lagoon/rainbow_bg_c1.png',
+                    3 => 'assets/images/objects/lagoon/rainbow_bg_c2.png',
+                    4 => 'assets/images/objects/lagoon/rainbow_bg_c3.png',
+                    5 => 'assets/images/objects/lagoon/rainbow_bg_c4.png',
+                    6 => 'assets/images/objects/lagoon/rainbow_bg_c5.png',
+                    7 => 'assets/images/objects/lagoon/rainbow_bg_c6.png',
+                    _ => 'assets/images/backgrounds/bg_rainbow_lagoon.png',
+                  }, fit: BoxFit.cover),
+                ),
 
-    LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
-      e,
-    ) {
-      debugPrint("Database Error marking level complete: $e");
-    });
-    if (mounted) {
-      setState(() => _showGoodJob = true);
-    }
-  }
+                if (_currentLevel == 1) ...[
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _onBackgroundTapped,
+                    ),
+                  ),
+                  if (kikiState == KikiState.correct)
+                    Positioned(
+                      left: width * 0.35,
+                      top: height * 0.08,
+                      width: width * 0.30,
+                      height: height * 0.35,
+                      child: Image.asset(
+                        'assets/images/objects/lagoon/sparkle.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  Positioned(
+                    left: width * 0.22,
+                    top: height * 0.05,
+                    width: width * 0.56,
+                    height: height * 0.45,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: _onRainbowTapped,
+                    ),
+                  ),
+                ],
 
-  void _restartGame() {
-    setState(() {
-      _currentLevel = 1;
-      _showGoodJob = false;
-      _hasSavedResult = false;
-      _tapTracker.startSession();
-    });
-    _startLevel1Intro();
-  }
+                if (_currentLevel >= 2 && _currentLevel <= 7) ...[
+                  Positioned(
+                    left: width * 0.38,
+                    top: height * 0.52,
+                    right: width * 0.08,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: _buildLevelItems(width, _currentLevel),
+                    ),
+                  ),
+                ],
 
-  @override
-  Widget buildKiki(BuildContext context, {double heightFactor = 0.78}) {
-    final kikiWidget = SizedBox(
-      height: MediaQuery.of(context).size.height * heightFactor,
-      child: switch (kikiState) {
-        KikiState.correct => Image.asset(
-          'assets/animations/characters/kiki_cheering.webp',
-          fit: BoxFit.contain,
+                if (_currentLevel == 8) ...[
+                  Positioned(
+                    left: width * 0.20,
+                    top: height * 0.15,
+                    right: width * 0.20,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildItemCard(
+                          width: width,
+                          imageAsset: 'assets/images/objects/lagoon/eye.png',
+                          isCorrect: true,
+                        ),
+                        _buildItemCard(
+                          width: width,
+                          imageAsset: 'assets/images/objects/lagoon/lips.png',
+                          isCorrect: false,
+                        ),
+                        _buildItemCard(
+                          width: width,
+                          imageAsset: 'assets/images/objects/lagoon/nose.png',
+                          isCorrect: false,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                buildKiki(context),
+
+                Positioned(top: 25, left: 25, child: const LagoonXButton()),
+                Positioned(
+                  top: 25,
+                  right: 25,
+                  child: LagoonLevelBadge(level: widget.level),
+                ),
+
+                if (hasCapturedFirstFrame &&
+                    !isFaceDetected &&
+                    !_hideLightingCard)
+                  LightingPromptCard(
+                    onClose: () {
+                      setState(() => _hideLightingCard = true);
+                      releaseFaceGate();
+                    },
+                  ),
+
+                if (_showGoodJob)
+                  GoodJobOverlay(
+                    characterImage:
+                        'assets/images/characters/cat_holding_fishbone.png',
+                    characterSizeFactor: 0.9,
+                    onNext: () {
+                      if (context.mounted) {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => PerfumeGame(level: widget.level + 1),
+                          ),
+                        );
+                      }
+                    },
+                    onRestart: _restartGame,
+                    onBack: () => Navigator.of(context).pop(),
+                  ),
+              ],
+            );
+          },
         ),
-        KikiState.wrong => Image.asset(
-          'assets/images/characters/kiki_tryagain.png',
-          fit: BoxFit.contain,
-        ),
-        KikiState.normal => Image.asset(
-          'assets/images/characters/kiki_standing.png',
-          fit: BoxFit.contain,
-        ),
-      },
-    );
-
-    if (_currentLevel == 8) {
-      return Positioned(
-        left: 0,
-        right: 0,
-        bottom: -35,
-        child: Align(alignment: Alignment.bottomCenter, child: kikiWidget),
       );
     }
 
-    return Positioned(left: 16, bottom: -35, child: kikiWidget);
-  }
+    List<Widget> _buildLevelItems(double width, int level) {
+      switch (level) {
+        case 2:
+          return [
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/apple_colored.png',
+              isCorrect: true,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/comb.png',
+              isCorrect: false,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/toothbrush.png',
+              isCorrect: false,
+            ),
+          ];
+        case 3:
+          return [
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/duck.png',
+              isCorrect: false,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/comb.png',
+              isCorrect: true,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/apple_colored.png',
+              isCorrect: false,
+            ),
+          ];
+        case 4:
+          return [
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/comb.png',
+              isCorrect: false,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/rug.png',
+              isCorrect: false,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/duck.png',
+              isCorrect: true,
+            ),
+          ];
+        case 5:
+          return [
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/leaves.png',
+              isCorrect: true,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/chair.png',
+              isCorrect: false,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/rug.png',
+              isCorrect: false,
+            ),
+          ];
+        case 6:
+          return [
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/rug.png',
+              isCorrect: true,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/car.png',
+              isCorrect: false,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/lagoon/ball.png',
+              isCorrect: false,
+            ),
+          ];
+        case 7:
+          return [
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/puzzle/pen.png',
+              isCorrect: true,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/puzzle/compass.png',
+              isCorrect: false,
+            ),
+            _buildItemCard(
+              width: width,
+              imageAsset: 'assets/images/objects/puzzle/notebook.png',
+              isCorrect: false,
+            ),
+          ];
+        default:
+          return [];
+      }
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final height = constraints.maxHeight;
-
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: Image.asset(switch (_currentLevel) {
-                  1 => 'assets/images/backgrounds/bg_rainbow_lagoon.png',
-                  2 => 'assets/images/objects/lagoon/rainbow_bg_c1.png',
-                  3 => 'assets/images/objects/lagoon/rainbow_bg_c2.png',
-                  4 => 'assets/images/objects/lagoon/rainbow_bg_c3.png',
-                  5 => 'assets/images/objects/lagoon/rainbow_bg_c4.png',
-                  6 => 'assets/images/objects/lagoon/rainbow_bg_c5.png',
-                  7 => 'assets/images/objects/lagoon/rainbow_bg_c6.png',
-                  _ => 'assets/images/backgrounds/bg_rainbow_lagoon.png',
-                }, fit: BoxFit.cover),
+    Widget _buildItemCard({
+      required double width,
+      required String imageAsset,
+      required bool isCorrect,
+    }) {
+      final cardSize = width * 0.14;
+      return GestureDetector(
+        onTap: () => _onItemTapped(isCorrect),
+        child: Container(
+          width: cardSize,
+          height: cardSize,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
-
-              if (_currentLevel == 1) ...[
-                if (kikiState == KikiState.correct)
-                  Positioned(
-                    left: width * 0.35,
-                    top: height * 0.08,
-                    width: width * 0.30,
-                    height: height * 0.35,
-                    child: Image.asset(
-                      'assets/images/objects/lagoon/sparkle.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                Positioned(
-                  left: width * 0.22,
-                  top: height * 0.05,
-                  width: width * 0.56,
-                  height: height * 0.45,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onTap: _onRainbowTapped,
-                  ),
-                ),
-              ],
-
-              if (_currentLevel >= 2 && _currentLevel <= 7) ...[
-                Positioned(
-                  left: width * 0.38,
-                  top: height * 0.52,
-                  right: width * 0.08,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: _buildLevelItems(width, _currentLevel),
-                  ),
-                ),
-              ],
-
-              if (_currentLevel == 8) ...[
-                Positioned(
-                  left: width * 0.20,
-                  top: height * 0.15,
-                  right: width * 0.20,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildItemCard(
-                        width: width,
-                        imageAsset: 'assets/images/objects/lagoon/eye.png',
-                        isCorrect: true,
-                      ),
-                      _buildItemCard(
-                        width: width,
-                        imageAsset: 'assets/images/objects/lagoon/lips.png',
-                        isCorrect: false,
-                      ),
-                      _buildItemCard(
-                        width: width,
-                        imageAsset: 'assets/images/objects/lagoon/nose.png',
-                        isCorrect: false,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              buildKiki(context),
-
-              Positioned(top: 25, left: 25, child: const LagoonXButton()),
-              Positioned(
-                top: 25,
-                right: 25,
-                child: LagoonLevelBadge(level: widget.level),
-              ),
-
-              if (hasCapturedFirstFrame &&
-                  !isFaceDetected &&
-                  !_hideLightingCard)
-                LightingPromptCard(
-                  onClose: () {
-                    setState(() => _hideLightingCard = true);
-                    releaseFaceGate();
-                  },
-                ),
-
-              if (_showGoodJob)
-                GoodJobOverlay(
-                  characterImage:
-                      'assets/images/characters/cat_holding_fishbone.png',
-                  characterSizeFactor: 0.9,
-                  onNext: () {
-                    if (context.mounted) {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (_) => PerfumeGame(level: widget.level + 1),
-                        ),
-                      );
-                    }
-                  },
-                  onRestart: _restartGame,
-                  onBack: () => Navigator.of(context).pop(),
-                ),
             ],
-          );
-        },
-      ),
-    );
-  }
-
-  List<Widget> _buildLevelItems(double width, int level) {
-    switch (level) {
-      case 2:
-        return [
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/apple_colored.png',
-            isCorrect: true,
           ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/comb.png',
-            isCorrect: false,
-          ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/toothbrush.png',
-            isCorrect: false,
-          ),
-        ];
-      case 3:
-        return [
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/duck.png',
-            isCorrect: false,
-          ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/comb.png',
-            isCorrect: true,
-          ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/apple_colored.png',
-            isCorrect: false,
-          ),
-        ];
-      case 4:
-        return [
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/comb.png',
-            isCorrect: false,
-          ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/rug.png',
-            isCorrect: false,
-          ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/duck.png',
-            isCorrect: true,
-          ),
-        ];
-      case 5:
-        return [
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/leaves.png',
-            isCorrect: true,
-          ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/chair.png',
-            isCorrect: false,
-          ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/rug.png',
-            isCorrect: false,
-          ),
-        ];
-      case 6:
-        return [
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/rug.png',
-            isCorrect: true,
-          ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/car.png',
-            isCorrect: false,
-          ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/lagoon/ball.png',
-            isCorrect: false,
-          ),
-        ];
-      case 7:
-        return [
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/puzzle/pen.png',
-            isCorrect: true,
-          ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/puzzle/compass.png',
-            isCorrect: false,
-          ),
-          _buildItemCard(
-            width: width,
-            imageAsset: 'assets/images/objects/puzzle/notebook.png',
-            isCorrect: false,
-          ),
-        ];
-      default:
-        return [];
+          padding: const EdgeInsets.all(12),
+          child: Image.asset(imageAsset, fit: BoxFit.contain),
+        ),
+      );
     }
   }
-
-  Widget _buildItemCard({
-    required double width,
-    required String imageAsset,
-    required bool isCorrect,
-  }) {
-    final cardSize = width * 0.14;
-    return GestureDetector(
-      onTap: () => _onItemTapped(isCorrect),
-      child: Container(
-        width: cardSize,
-        height: cardSize,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Image.asset(imageAsset, fit: BoxFit.contain),
-      ),
-    );
-  }
-}

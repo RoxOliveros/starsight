@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/audio_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,10 +15,12 @@ import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../../business_layer/audio_helper.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../star_round_indicator.dart';
 import 'intro_phase.dart';
 import 'kiki_reaction.dart';
+import 'lagoon_audio_path.dart';
 import 'lagoon_game_ui.dart';
 
 class SeasonScene {
@@ -41,40 +42,27 @@ class SeasonSceneTapScreen extends StatefulWidget {
 class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     with
         TickerProviderStateMixin,
-        LagoonIntroMixin,
         KikiReactionMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<SeasonSceneTapScreen> {
-  final AudioPlayer _introPlayer = AudioPlayer();
-  final AudioPlayer _kikiPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _introPlayer,
-    _kikiPlayer,
-    _sfxPlayer,
-  ];
+        AppAudioLifecycleMixin<SeasonSceneTapScreen>,
+        AiCameraMixin<SeasonSceneTapScreen>,
+        LagoonIntroMixin<SeasonSceneTapScreen> {
 
-  final GameTapTracker _tapTracker = GameTapTracker();
-
-  late final AudioHelper _audioHelper = AudioHelper(
-    shouldResumeOnForeground: () => _screenPhase == LagoonScreenPhase.game,
-  );
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
 
   @override
-  AudioPlayer get introAudioPlayer => _introPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
 
   @override
   AudioPlayer get kikiPlayer => _kikiPlayer;
 
+  final GameTapTracker _tapTracker = GameTapTracker();
+
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_rainbow_lagoon.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_lagoon.png';
 
-  static const String _audioIntro =
-      'assets/audio/discovery_lagoon/season_tap_intro.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
+  static const String _audioIntro = 'assets/audio/discovery_lagoon/season_tap_intro.wav';
 
   static const Map<String, String> _seasonNames = {
     'spring': 'Spring',
@@ -83,11 +71,11 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
     'winter': 'Winter',
   };
 
-  static const Map<String, String> _seasonAudioKeys = {
-    'spring': 'spring',
-    'summer': 'summer',
-    'fall': 'autumn',
-    'winter': 'winter',
+  static const Map<String, String> _seasonAudio = {
+    'spring': LagoonAudio.spring,
+    'summer': LagoonAudio.summer,
+    'fall': LagoonAudio.autumn,
+    'winter': LagoonAudio.winter,
   };
 
   static final List<SeasonScene> _allScenes = [
@@ -172,12 +160,9 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _audioHelper.dispose();
-
     disposeLagoonIntro();
-    _introPlayer.dispose();
+    _audioPlayer.dispose();
     _kikiPlayer.dispose();
-    _sfxPlayer.dispose();
     _bounceCtrl.dispose();
     _shakeCtrl.dispose();
     OrientationService.setLandscape();
@@ -202,15 +187,13 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
       _tapTracker.recordCorrectTap();
       _bounceCtrl.forward(from: 0);
       showKikiReaction(KikiState.correct);
-      LagoonAudio.instance.play(_seasonAudioKeys[scene.seasonId]!);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _seasonAudio[scene.seasonId]!);
+      if (!mounted) return;
     } else {
       _tapTracker.recordMistake();
-      _shakeCtrl.forward(from: 0);
-      await _sfxPlayer.play(
-        AssetSource(_audioWrong.replaceFirst('assets/', '')),
-      );
-      Future.delayed(const Duration(seconds: 1));
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showKikiReaction(KikiState.wrong);
+      _shakeCtrl.forward(from: 0);
     }
 
     await Future.delayed(const Duration(milliseconds: 900));
@@ -438,14 +421,6 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
                 ),
               ),
             ),
-            if (showAsCorrect || showAsWrong)
-              Container(
-                color:
-                    (showAsCorrect
-                            ? LagoonColorTheme.sagegreen
-                            : const Color(0xFFE05A5A))
-                        .withValues(alpha: 0.45),
-              ),
           ],
         ),
       ),
