@@ -66,6 +66,16 @@
       _startLevel1Intro();
     }
 
+    void _onBackgroundTapped() {
+      if (_isIntroPlaying || _isTransitioning || _showGoodJob) return;
+
+      _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      if (kikiState != KikiState.wrong) {
+        showKikiReaction(KikiState.wrong);
+      }
+    }
+
     @override
     void dispose() {
       disposeAiCamera();
@@ -270,6 +280,12 @@
                 ),
 
                 if (_currentLevel == 1) ...[
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _onBackgroundTapped,
+                    ),
+                  ),
                   if (kikiState == KikiState.correct)
                     Positioned(
                       left: width * 0.35,
