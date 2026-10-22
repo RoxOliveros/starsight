@@ -12,6 +12,7 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/clothes_game.dart';
+import '../games_audio_helper.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -28,6 +29,7 @@ class _WeatherGameState extends State<WeatherGame>
     with AiCameraMixin, KikiReactionMixin, AppAudioLifecycleMixin<WeatherGame> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer = AudioPlayer();
+
   final GameTapTracker _tapTracker = GameTapTracker();
 
   @override
@@ -47,10 +49,7 @@ class _WeatherGameState extends State<WeatherGame>
     {'bg': 'assets/images/backgrounds/bg_park_sunny.png', 'target': 'sunny'},
     {'bg': 'assets/images/backgrounds/bg_lake_rainy.png', 'target': 'rainy'},
     {'bg': 'assets/images/backgrounds/bg_beach_sunny.png', 'target': 'sunny'},
-    {
-      'bg': 'assets/images/backgrounds/bg_school_cloudy.png',
-      'target': 'cloudy',
-    },
+    {'bg': 'assets/images/backgrounds/bg_school_cloudy.png', 'target': 'cloudy',},
     {'bg': 'assets/images/backgrounds/bg_fields_windy.png', 'target': 'windy'},
     {'bg': 'assets/images/backgrounds/bg_town_rainy.png', 'target': 'rainy'},
   ];
@@ -93,18 +92,7 @@ class _WeatherGameState extends State<WeatherGame>
       _isPromptPlaying = true;
     });
 
-    await _playAudio('assets/audio/discovery_lagoon/weather_game_intro.wav');
-  }
-
-  Future<void> _playAudio(String assetPath) async {
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(
-        AssetSource(assetPath.replaceFirst('assets/', '')),
-      );
-    } catch (e) {
-      debugPrint('Audio error ($assetPath): $e');
-    }
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/weather_game_intro.wav');
   }
 
   Future<void> _playCorrectWeatherAudio(String weather) async {
@@ -119,13 +107,7 @@ class _WeatherGameState extends State<WeatherGame>
     if (asset == null) return;
 
     try {
-      await _audioPlayer.stop();
-
-      final completed = _audioPlayer.onPlayerComplete.first;
-
-      await _audioPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-
-      await completed;
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, asset);
     } catch (e) {
       debugPrint('Correct weather audio error ($weather): $e');
     }
@@ -145,7 +127,7 @@ class _WeatherGameState extends State<WeatherGame>
         _isPromptPlaying = true;
       });
 
-      await showKikiReaction(KikiState.correct);
+      showKikiReaction(KikiState.correct);
 
       await _playCorrectWeatherAudio(currentTarget);
 
@@ -167,6 +149,7 @@ class _WeatherGameState extends State<WeatherGame>
         _isPromptPlaying = true;
       });
 
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showKikiReaction(KikiState.wrong);
 
       setState(() {

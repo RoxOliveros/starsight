@@ -11,6 +11,7 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
@@ -75,21 +76,18 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
         AiCameraMixin,
         KikiReactionMixin,
         AppAudioLifecycleMixin<LivingNonLivingGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
   @override
   AudioPlayer get kikiPlayer => _kikiPlayer;
 
-  final AudioPlayer _kikiPlayer = AudioPlayer();
   final Set<AssetConfig> _tappedAssets = {};
   final GameTapTracker _tapTracker = GameTapTracker();
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _objectPlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _kikiPlayer,
-    _audioPlayer,
-    _objectPlayer,
-  ];
 
   late List<AssetConfig> _gameItems;
 
@@ -99,13 +97,9 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   bool _hasSavedResult = false;
   bool _isTransitioning = false;
 
-  int _soundToken = 0;
-
-  static const String _bgFieldImage =
-      'assets/images/backgrounds/bg_lagoon_fields_closeup.png';
+  static const String _bgFieldImage = 'assets/images/backgrounds/bg_lagoon_fields_closeup.png';
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
-  static const String _kikiFishboneImage =
-      'assets/images/characters/cat_holding_fishbone.png';
+  static const String _kikiFishboneImage = 'assets/images/characters/cat_holding_fishbone.png';
 
   @override
   void initState() {
@@ -147,7 +141,6 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
     disposeAiCamera();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
-    _objectPlayer.dispose();
     super.dispose();
   }
 
@@ -173,20 +166,6 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
     await _audioPlayer.play(
       AssetSource('audio/discovery_lagoon/living_nonliving_game_part2.wav'),
     );
-  }
-
-  Future<bool> _playObjectSound(String? asset) async {
-    final token = ++_soundToken;
-    if (asset == null) return true;
-    try {
-      await _objectPlayer.stop();
-      final done = _objectPlayer.onPlayerComplete.first;
-      await _objectPlayer.play(AssetSource(asset));
-      await done.timeout(const Duration(seconds: 15));
-    } catch (e) {
-      debugPrint('Object SFX error: $e');
-    }
-    return token == _soundToken;
   }
 
   Future<void> _checkProgress() async {
@@ -423,7 +402,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
         : config.heightOffset;
 
     Widget imageContent = GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (_isTransitioning) return;
 
         if (_phase != GamePhase.playLiving &&
@@ -436,31 +415,29 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
 
         if (_phase == GamePhase.playLiving && !config.isLiving) {
           _tapTracker.recordMistake();
-
-          unawaited(showKikiReaction(KikiState.wrong));
-
+          GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+          showKikiReaction(KikiState.wrong);
           return;
         }
 
         if (_phase == GamePhase.playNonLiving && config.isLiving) {
           _tapTracker.recordMistake();
-
+          GamesSfxPlayer.instance.play(GameSfx.bubblePop);
           showKikiReaction(KikiState.wrong);
           return;
         }
 
         _tapTracker.recordCorrectTap();
+        setState(() => _tappedAssets.add(config));
 
-        setState(() {
-          _tappedAssets.add(config);
-        });
-
-        unawaited(
-          _playObjectSound(config.soundAsset).then((isLatest) async {
-            if (!mounted || !isLatest) return;
-            await _checkProgress();
-          }),
-        );
+        final sound = config.soundAsset;
+        if (sound != null) {
+          showKikiReaction(KikiState.correct);
+          await Future.delayed(Duration(milliseconds: 800));
+          await playVoiceRestartingOnFaceLoss(_audioPlayer, sound);
+        }
+        if (!mounted) return;
+        _checkProgress();
       },
       behavior: HitTestBehavior.deferToChild,
       child: Image.asset(

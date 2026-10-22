@@ -11,7 +11,9 @@ import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/seed_game.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
 class CharacterAdjustment {
@@ -36,21 +38,23 @@ class HabitantGame extends StatefulWidget {
 }
 
 class _HabitantGameState extends State<HabitantGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<HabitantGame> {
+    with AiCameraMixin, AppAudioLifecycleMixin<HabitantGame>, KikiReactionMixin {
+
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
   StreamSubscription? _audioSubscription;
 
-  static const String _introAudio =
-      'audio/discovery_lagoon/habitant_game_intro.wav';
-  static const String _wrongAudio =
-      'audio/discovery_lagoon/habitant_game_wrong.wav';
-  static const String _winAudio =
-      'audio/discovery_lagoon/habitant_game_win.wav';
+  static const String _introAudio = 'audio/discovery_lagoon/habitant_game_intro.wav';
+  static const String _wrongAudio = 'audio/discovery_lagoon/habitant_game_wrong.wav';
+  static const String _winAudio = 'audio/discovery_lagoon/habitant_game_win.wav';
 
   static const Map<String, String> _correctAudio = {
     'dog': 'audio/discovery_lagoon/habitant_game_dog_correct.wav',
@@ -149,7 +153,7 @@ class _HabitantGameState extends State<HabitantGame>
       }
     });
 
-    await _audioPlayer.play(AssetSource(_introAudio));
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
   }
 
   @override
@@ -158,6 +162,7 @@ class _HabitantGameState extends State<HabitantGame>
     OrientationService.setLandscape();
     _audioSubscription?.cancel();
     _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     super.dispose();
   }
 
@@ -178,7 +183,7 @@ class _HabitantGameState extends State<HabitantGame>
       subscription.cancel();
     });
 
-    await _audioPlayer.play(AssetSource(audioPath));
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, audioPath);
 
     await completer.future;
   }
@@ -196,7 +201,7 @@ class _HabitantGameState extends State<HabitantGame>
       subscription.cancel();
     });
 
-    await _audioPlayer.play(AssetSource(_winAudio));
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _winAudio);
 
     await completer.future;
   }
@@ -396,8 +401,10 @@ class _HabitantGameState extends State<HabitantGame>
 
           if (movingAnimalCorrect || displacedAnimalCorrect) {
             _tapTracker.recordCorrectTap();
+            showKikiReaction(KikiState.correct);
           } else {
             _tapTracker.recordMistake();
+            GamesSfxPlayer.instance.play(GameSfx.bubblePop);
           }
 
           final List<String> correctAnimals = [];

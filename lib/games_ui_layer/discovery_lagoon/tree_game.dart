@@ -11,6 +11,8 @@ import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../goodjob_prompt.dart';
+import 'kiki_reaction.dart';
+import 'lagoon_audio_path.dart';
 import 'lagoon_game_ui.dart';
 
 class TreeGameScreen extends StatefulWidget {
@@ -45,17 +47,20 @@ class _TreePart {
 }
 
 class _TreeGameScreenState extends State<TreeGameScreen>
-    with AiCameraMixin, AppAudioLifecycleMixin<TreeGameScreen> {
-  static const String _introAudio =
-      'audio/discovery_lagoon/tree_game_intro.wav';
-  static const String _leavesAudio = 'audio/discovery_lagoon/leaves.wav';
-  static const String _branchAudio = 'audio/discovery_lagoon/branch.wav';
-  static const String _trunkAudio = 'audio/discovery_lagoon/trunk.wav';
-  static const String _rootAudio = 'audio/discovery_lagoon/roots.wav';
-  static const String _shineAudio = 'audio/sound_effects/sfx_shine.wav';
+    with AppAudioLifecycleMixin<TreeGameScreen>, AiCameraMixin<TreeGameScreen>, KikiReactionMixin {
 
-  static const String _fullTreeAsset =
-      'assets/images/objects/lagoon/t5_tree.png';
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
+
+  static const String _introAudio = 'audio/discovery_lagoon/tree_game_intro.wav';
+
+  static const String _fullTreeAsset = 'assets/images/objects/lagoon/t5_tree.png';
 
   static const double _canvasWidth = 260;
   static const double _canvasHeight = 311;
@@ -110,14 +115,17 @@ class _TreeGameScreenState extends State<TreeGameScreen>
     ),
   ];
 
+  static const Map<String, String> _partAudio = {
+    'leaves': LagoonAudio.leaves,
+    'branch': LagoonAudio.branch,
+    'trunk': LagoonAudio.trunk,
+    'root': LagoonAudio.roots,
+  };
+
   final Set<String> _placed = {};
   bool _showOverlay = false;
   bool _showIntro = true;
 
-  final AudioPlayer _audioPlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
   final GameTapTracker _tapTracker = GameTapTracker();
 
   bool _hideLightingCard = false;
@@ -150,37 +158,22 @@ class _TreeGameScreenState extends State<TreeGameScreen>
       }
     });
 
-    await _audioPlayer.play(AssetSource(_introAudio));
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
   }
 
   Future<void> _playPartAudio(String partId) async {
-    String? audio;
+    final audio = _partAudio[partId];
+    if (audio == null) return;
 
-    switch (partId) {
-      case 'leaves':
-        audio = _leavesAudio;
-        break;
-      case 'branch':
-        audio = _branchAudio;
-        break;
-      case 'trunk':
-        audio = _trunkAudio;
-        break;
-      case 'root':
-        audio = _rootAudio;
-        break;
-    }
-
-    if (audio != null) {
-      await _audioPlayer.play(AssetSource(audio));
-      await _audioPlayer.onPlayerComplete.first;
-    }
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, audio);
+    await _audioPlayer.onPlayerComplete.first;
   }
 
   @override
   void dispose() {
     disposeAiCamera();
     _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -383,7 +376,7 @@ class _TreeGameScreenState extends State<TreeGameScreen>
           await _playPartAudio(part.id);
 
           if (_placed.length == _parts.length) {
-            await _audioPlayer.play(AssetSource(_shineAudio));
+            showKikiReaction(KikiState.correct);
 
             await Future.delayed(const Duration(seconds: 2));
 

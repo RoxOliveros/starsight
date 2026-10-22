@@ -13,6 +13,7 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../games_audio_helper.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -38,19 +39,19 @@ class _ColdHotGameState extends State<ColdHotGame>
         KikiReactionMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<ColdHotGame> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
   @override
   AudioPlayer get kikiPlayer => _kikiPlayer;
 
   late List<SortableItem> _remainingItems;
 
-  final AudioPlayer _audioPlayer = AudioPlayer();
-
   final Random _random = Random();
-  final AudioPlayer _kikiPlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
-
   final GameTapTracker _tapTracker = GameTapTracker();
   final List<SortableItem> _sortedColdItems = [];
   final List<SortableItem> _sortedHotItems = [];
@@ -84,7 +85,6 @@ class _ColdHotGameState extends State<ColdHotGame>
   static const String _kettleImage = 'assets/images/objects/lagoon/kettle_wb.png';
 
   static const String _introAudio = 'audio/discovery_lagoon/cold_hot_game_intro&tutorial.wav';
-  static const String _bubblePopAudio = 'audio/sound_effects/sfx_bubble_pop.wav';
 
   @override
   void initState() {
@@ -116,7 +116,7 @@ class _ColdHotGameState extends State<ColdHotGame>
 
   Future<void> _playIntro() async {
     try {
-      await _audioPlayer.play(AssetSource(_introAudio));
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
     } catch (e) {
       debugPrint("Error playing intro audio: $e");
       if (mounted) {
@@ -194,15 +194,6 @@ class _ColdHotGameState extends State<ColdHotGame>
     }
   }
 
-  Future<void> _playSound(String assetPath) async {
-    try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(AssetSource(assetPath));
-    } catch (e) {
-      debugPrint("Error playing audio ($assetPath): $e");
-    }
-  }
-
   Future<void> _onPanEnd(DragEndDetails details, double screenWidth) async {
     if (_currentItem == null) return;
 
@@ -230,7 +221,7 @@ class _ColdHotGameState extends State<ColdHotGame>
       _loadNextItem();
     } else if (droppedOnLeft || droppedOnRight) {
       _tapTracker.recordMistake();
-      await _playSound(_bubblePopAudio);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showKikiReaction(KikiState.wrong);
       setState(() {
         _dragOffset = Offset.zero;

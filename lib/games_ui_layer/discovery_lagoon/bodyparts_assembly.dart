@@ -9,9 +9,11 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/tree_game.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
-import 'audio_helper.dart';
+import 'lagoon_audio_path.dart';
 import 'intro_phase.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
 class BodyPartItem {
@@ -34,28 +36,28 @@ class BodyPartsAssemblyScreen extends StatefulWidget {
 class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
     with
         TickerProviderStateMixin,
-        LagoonIntroMixin,
-        AiCameraMixin,
-        AppAudioLifecycleMixin<BodyPartsAssemblyScreen> {
-  final AudioPlayer _player = AudioPlayer();
+        AiCameraMixin<BodyPartsAssemblyScreen>,
+        AppAudioLifecycleMixin<BodyPartsAssemblyScreen>,
+        LagoonIntroMixin<BodyPartsAssemblyScreen>,
+        KikiReactionMixin {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer= AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
+
   final GameTapTracker _tapTracker = GameTapTracker();
 
-  @override
-  AudioPlayer get introAudioPlayer => _player;
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
-
-  static const String _bgImage =
-      'assets/images/backgrounds/bg_rainbow_closeup2.png';
-  static const String _kikiFishboneImage =
-      'assets/images/characters/cat_holding_fishbone.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_closeup2.png';
+  static const String _kikiFishboneImage = 'assets/images/characters/cat_holding_fishbone.png';
   static const String _boyImage = 'assets/images/objects/lagoon/boy.png';
 
-  static const String _introAudio =
-      'assets/audio/discovery_lagoon/bodyparts_assembly_intro.wav';
-  static const String _winAudio =
-      'assets/audio/discovery_lagoon/bodyparts_assembly_win.wav';
+  static const String _introAudio = 'assets/audio/discovery_lagoon/bodyparts_assembly_intro.wav';
+  static const String _winAudio = 'assets/audio/discovery_lagoon/bodyparts_assembly_win.wav';
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
@@ -64,6 +66,14 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _showOverlay = false;
+
+  static const Map<String, String> _partAudio = {
+    'head': LagoonAudio.head,
+    'shoulder': LagoonAudio.shoulder,
+    'knee': LagoonAudio.knee,
+    'feet': LagoonAudio.feet,
+  };
 
   final List<BodyPartItem> _allParts = [
     BodyPartItem(
@@ -112,7 +122,8 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   void dispose() {
     disposeAiCamera();
     disposeLagoonIntro();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _kikiPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -143,42 +154,13 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
     });
 
     if (mounted) {
-      _showSuccessDialog();
+      _showSuccess();
     }
   }
 
-  void _showSuccessDialog() {
+  void _showSuccess() {
     LagoonProgressService.instance.markLevelComplete(widget.level);
-    showDialog(
-      context: context,
-      useSafeArea: false,
-      barrierColor: Colors.black54,
-      barrierDismissible: false,
-      builder: (context) => GoodJobOverlay(
-        characterImage: _kikiFishboneImage,
-        characterSizeFactor: 0.9,
-        onNext: () {
-          Navigator.pop(context);
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => TreeGameScreen(level: widget.level + 1),
-            ),
-          );
-        },
-        onRestart: () {
-          Navigator.pop(context);
-          setState(() {
-            _screenPhase = LagoonScreenPhase.game;
-            _resetGame();
-          });
-        },
-        onBack: () {
-          Navigator.pop(context);
-          Navigator.pop(context);
-        },
-      ),
-    );
+    setState(() => _showOverlay = true);
   }
 
   @override
@@ -201,6 +183,30 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
                 ? buildLagoonIntroCharacter()
                 : _buildGameContent(),
           ),
+
+          if (_showOverlay)
+            GoodJobOverlay(
+              characterImage: _kikiFishboneImage,
+              characterSizeFactor: 0.9,
+              onNext: () {
+                if (context.mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TreeGameScreen(level: widget.level + 1),
+                    ),
+                  );
+                }
+              },
+              onRestart: () {
+                setState(() {
+                  _showOverlay = false;
+                  _screenPhase = LagoonScreenPhase.game;
+                  _resetGame();
+                });
+              },
+              onBack: () => Navigator.of(context).pop(),
+            ),
         ],
       ),
     );
@@ -373,10 +379,11 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
                       return Center(
                         child: Draggable<String>(
                           data: part.id,
-
                           onDragEnd: (details) {
                             if (!details.wasAccepted) {
                               _tapTracker.recordMistake();
+                              GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+                              showKikiReaction(KikiState.wrong);
                             }
                           },
 
@@ -415,23 +422,22 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
           details.data == targetId && !isMatched,
       onAcceptWithDetails: (details) async {
         _tapTracker.recordCorrectTap();
+        showKikiReaction(KikiState.correct);
 
         setState(() {
           _matchedParts.add(targetId);
         });
 
         if (_matchedParts.length == _allParts.length) {
-          await _player.play(
-            AssetSource(_winAudio.replaceFirst('assets/', '')),
-          );
+          await playVoiceRestartingOnFaceLoss(_audioPlayer, _partAudio[targetId]!);
+          if (!mounted) return;
 
-          await _player.onPlayerComplete.first;
-
+          await playVoiceRestartingOnFaceLoss(_audioPlayer, _winAudio);
           if (mounted) {
             await _saveDataAndShowSuccessDialog();
           }
         } else {
-          LagoonAudio.instance.play(targetId);
+          await playVoiceRestartingOnFaceLoss(_audioPlayer, _partAudio[targetId]!);
         }
       },
       builder: (context, candidateData, rejectedData) {
