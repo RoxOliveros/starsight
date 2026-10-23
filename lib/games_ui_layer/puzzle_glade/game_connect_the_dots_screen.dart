@@ -15,6 +15,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_copy_pattern.dart';
 
@@ -125,23 +126,25 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<ConnectTheDotsScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/connect_the_dots_intro.wav';
-  static const String _audioInstruction =
-      'assets/audio/puzzle_glade/connect_the_dots_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/connect_the_dots_complete.wav';
-  static const String _audioPop = 'audio/puzzle_glade/sfx_pop.mp3';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/connect_the_dots_intro.wav';
+  static const String _audioInstruction = 'assets/audio/puzzle_glade/connect_the_dots_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/connect_the_dots_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -169,20 +172,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   int? _bounceDotIndex;
 
   Size _puzzleBoxSize = Size.zero;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _popPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _roxiePlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _bgPlayer,
-    _popPlayer,
-    _completePlayer,
-    _roxiePlayer,
-  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -227,14 +216,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _bgPlayer.stop();
-    _popPlayer.stop();
-    _completePlayer.stop();
-    _roxiePlayer.stop();
-
-    _bgPlayer.dispose();
-    _popPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
     _roxiePlayer.dispose();
 
     _roxieFloatCtrl.dispose();
@@ -342,7 +324,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
 
     _roxieSlideCtrl.forward();
 
-    await _playNarration(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _gameEnterCtrl.forward();
@@ -358,23 +340,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
 
     await _playInstructionAudio();
   }
-
-  Future<void> _playNarration(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 12));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
+  
   Future<void> _playInstructionAudio() async {
     if (!mounted || _instructionPlayed) return;
     _instructionPlayed = true;
@@ -385,7 +351,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       });
     }
 
-    await _playNarration(_audioInstruction);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
 
     if (!mounted) return;
 
@@ -394,12 +360,6 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
         _interactionDisabled = false;
       });
     }
-  }
-
-  Future<void> _playPopSfx() async {
-    try {
-      await _popPlayer.play(AssetSource(_audioPop));
-    } catch (_) {}
   }
 
   void _startRound() {
@@ -504,7 +464,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       _bounceCtrl.forward(from: 0);
     }
 
-    unawaited(_playPopSfx());
+    GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
 
     if (_completedConnections >= _puzzle.connectionCount) {
       setState(() {
@@ -563,25 +523,12 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    await _bgPlayer.stop();
-
+    await _roxiePlayer.stop();
     if (!mounted) return;
 
-    final completer = Completer<void>();
-    final sub = _completePlayer.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-
-    try {
-      await _completePlayer.play(
-        AssetSource(_audioComplete.replaceFirst('assets/', '')),
-      );
-      await completer.future.timeout(const Duration(seconds: 10));
-    } finally {
-      await sub.cancel();
-    }
-
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
     if (!mounted) return;
+
     await PuzzleProgressService.instance.markLevelComplete(widget.level);
 
     if (mounted) {

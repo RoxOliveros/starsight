@@ -16,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_connect_the_dots_screen.dart';
 
@@ -141,38 +142,34 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<WhichBelongsHereScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
   static const String _sceneAssetPath = 'assets/images/backgrounds';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/which_belongs_here_intro.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/which_belongs_here_complete.wav';
-  static const String _audioBathroom =
-      'assets/audio/puzzle_glade/which_belongs_here_bathroom.wav';
-  static const String _audioBeach =
-      'assets/audio/puzzle_glade/which_belongs_here_beach.wav';
-  static const String _audioClassroom =
-      'assets/audio/puzzle_glade/which_belongs_here_classroom.wav';
-  static const String _audioGarden =
-      'assets/audio/puzzle_glade/which_belongs_here_garden.wav';
-  static const String _audioKitchen =
-      'assets/audio/puzzle_glade/which_belongs_here_kitchen.wav';
-  static const String _audioLivingRoom =
-      'assets/audio/puzzle_glade/which_belongs_here_living_room.wav';
-  static const String _audioPark =
-      'assets/audio/puzzle_glade/which_belongs_here_park.wav';
-  static const String _audioBedroom =
-      'assets/audio/puzzle_glade/which_belongs_here_bedroom.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/which_belongs_here_intro.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/which_belongs_here_complete.wav';
+  static const String _audioBathroom = 'assets/audio/puzzle_glade/which_belongs_here_bathroom.wav';
+  static const String _audioBeach = 'assets/audio/puzzle_glade/which_belongs_here_beach.wav';
+  static const String _audioClassroom = 'assets/audio/puzzle_glade/which_belongs_here_classroom.wav';
+  static const String _audioGarden = 'assets/audio/puzzle_glade/which_belongs_here_garden.wav';
+  static const String _audioKitchen = 'assets/audio/puzzle_glade/which_belongs_here_kitchen.wav';
+  static const String _audioLivingRoom = 'assets/audio/puzzle_glade/which_belongs_here_living_room.wav';
+  static const String _audioPark = 'assets/audio/puzzle_glade/which_belongs_here_park.wav';
+  static const String _audioBedroom = 'assets/audio/puzzle_glade/which_belongs_here_bedroom.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -192,17 +189,6 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _roxiePlayer = AudioPlayer();
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _bgPlayer,
-    _completePlayer,
-    _roxiePlayer,
-  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -245,12 +231,8 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _bgPlayer.stop();
-    _completePlayer.stop();
-    _roxiePlayer.stop();
-
-    _bgPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxiePlayer.dispose();
 
     _roxieFloatCtrl.dispose();
@@ -361,7 +343,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
     _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
 
-    await _playBgAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
@@ -380,23 +362,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
 
     await _playCurrentSceneAudio();
   }
-
-  Future<void> _playBgAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 12));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
+  
   String? _getAudioForScene(String scene) {
     switch (scene) {
       case 'bg_lumi_bathroom':
@@ -440,7 +406,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
       });
     }
 
-    await _playBgAudio(audio);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, audio);
 
     if (!mounted) return;
 
@@ -494,31 +460,18 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
 
       _bounceCtrl.forward(from: 0);
 
-      unawaited(showRoxieReaction(RoxieState.correct));
+      showRoxieReaction(RoxieState.correct);
 
       await Future.delayed(const Duration(milliseconds: 1000));
 
       if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
-        await _bgPlayer.stop();
+        await _roxiePlayer.stop();
 
         if (!mounted) return;
 
-        final completer = Completer<void>();
-        final sub = _completePlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
-        });
-
-        try {
-          await _completePlayer.play(
-            AssetSource(_audioComplete.replaceFirst('assets/', '')),
-          );
-          await completer.future.timeout(const Duration(seconds: 10));
-        } finally {
-          await sub.cancel();
-        }
-
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
         if (!mounted) return;
 
         await PuzzleProgressService.instance
@@ -551,12 +504,9 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
         _buttonsDisabled = true;
       });
 
-      unawaited(showRoxieReaction(RoxieState.wrong));
-
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showRoxieReaction(RoxieState.wrong);
       _shakeCtrl.forward(from: 0);
-
-      await Future.delayed(const Duration(milliseconds: 650));
-
       if (!mounted) return;
 
       setState(() {
@@ -753,10 +703,17 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
             ],
           ),
         ),
-        Expanded(child: _buildTarget()),
-        Padding(
-          padding: const EdgeInsets.only(top: 15, bottom: 15),
-          child: _buildChoiceRow(),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 110, right: 40, bottom: 8),
+            child: Row(
+              children: [
+                Expanded(child: _buildTarget()),
+                const SizedBox(width: 24),
+                _buildChoiceRow(),
+              ],
+            ),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.only(bottom: 15),
@@ -772,47 +729,34 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
   Widget _buildTarget() {
     Widget image = Image.asset(
       '$_sceneAssetPath/${_question.scene}.png',
-      fit: BoxFit.contain,
+      fit: BoxFit.cover, // CHANGED: fill the frame
+      width: double.infinity,
+      height: double.infinity,
     );
 
     if (_roundComplete) {
       image = ScaleTransition(scale: _bounceAnim, child: image);
     }
 
-    return Center(
-      child: FadeTransition(
-        opacity: _sceneFade,
-        child: ScaleTransition(
-          scale: _sceneScale,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 180,
-                height: 150,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                      alpha: 0.28,
-                    ),
-                    width: 2.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                        alpha: 0.09,
-                      ),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(20),
-                child: image,
+    return FadeTransition(
+      opacity: _sceneFade,
+      child: ScaleTransition(
+        scale: _sceneScale,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: PuzzleColorTheme.goldenyellow, width: 8),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 15,
+                offset: Offset(0, 4),
               ),
             ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: image,
           ),
         ),
       ),
@@ -820,11 +764,11 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
   }
 
   Widget _buildChoiceRow() {
-    return Row(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         for (int i = 0; i < _shuffledChoices.length; i++) ...[
-          if (i > 0) const SizedBox(width: 24),
+          if (i > 0) const SizedBox(height: 16),
           KeyedSubtree(
             key: ValueKey('${_round}_${i}_${_shuffledChoices[i]}'),
             child: _buildChoiceCard(i),
@@ -856,7 +800,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
 
     Widget image = Image.asset(
       '$_objectAssetPath/$object.png',
-      width: 76,
+      width: 60,
       fit: BoxFit.contain,
       color: isDimmed
           ? PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25)
@@ -869,8 +813,8 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
     }
 
     Widget card = Container(
-      width: 100,
-      height: 100,
+      width: 80,
+      height: 80,
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(22),

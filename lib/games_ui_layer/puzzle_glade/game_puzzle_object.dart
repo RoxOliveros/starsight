@@ -16,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_basket_sort.dart';
 
@@ -47,25 +48,25 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<PuzzleObjectScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
   @override
-  AudioPlayer get roxiePlayer => _sfxPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
+  @override
+  AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/puzzle_object_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/puzzle_object_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/puzzle_object_complete.wav';
-
-  static const String _audioSuccess = 'assets/audio/sound_effects/sfx_shine.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/puzzle_object_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/puzzle_object_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/puzzle_object_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -86,18 +87,6 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
   bool _isInstructionPlaying = true;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _bgPlayer,
-    _sfxPlayer,
-    _completePlayer,
-  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -152,9 +141,8 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _bgPlayer.dispose();
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _pieceDanceCtrl.dispose();
@@ -236,7 +224,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     _roxieSlideCtrl.forward();
 
     _speechBubbleCtrl.forward(from: 0);
-    await _playBgAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
@@ -252,30 +240,14 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
       _isInstructionPlaying = true;
     });
 
-    await _playBgAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
 
     setState(() {
       _isInstructionPlaying = false;
     });
   }
-
-  Future<void> _playBgAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 15));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
+  
   void _startRound() {
     final rng = Random();
 
@@ -336,46 +308,33 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
         _slotHighlight[slotIndex] = false;
       });
 
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
       _bounceCtrl.forward(from: 0);
 
-      showRoxieReaction(RoxieState.correct);
+      GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
 
       if (_slotContents.every((s) => s != -1)) {
+        showRoxieReaction(RoxieState.correct);
         await Future.delayed(const Duration(milliseconds: 300));
         if (!mounted) return;
         setState(() => _roundComplete = true);
 
-        showRoxieReaction(RoxieState.correct);
-
         _completePulseCtrl.repeat(reverse: true);
-
-        _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
 
         await Future.delayed(const Duration(milliseconds: 1400));
         if (!mounted) return;
 
         if (_round >= _kTotalRounds) {
-          await _bgPlayer.stop();
-          await _sfxPlayer.stop();
-          if (!mounted) return;
+          _audioPlayer.stop();
+          _roxiePlayer.stop();
 
-          final completer = Completer<void>();
-          final sub = _completePlayer.onPlayerComplete.listen((_) {
-            if (!completer.isCompleted) completer.complete();
-          });
-          await _completePlayer.play(
-            AssetSource(_audioComplete.replaceFirst('assets/', '')),
-          );
-          await completer.future.timeout(const Duration(seconds: 10));
-          await sub.cancel();
+          await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
           if (!mounted) return;
 
           PuzzleProgressService.instance
               .markLevelComplete(widget.level)
               .catchError((e) {
-                debugPrint("Database Error marking level complete: $e");
-              });
+            debugPrint("Database Error marking level complete: $e");
+          });
 
           await _saveDataAndShowWinDialog();
         } else {
@@ -390,7 +349,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
       }
     } else {
       _tapTracker.recordMistake();
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showRoxieReaction(RoxieState.wrong);
       setState(() {
         _slotHighlight[slotIndex] = true;
@@ -698,18 +657,13 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
 
   Widget _buildDropSlot(int slotIndex) {
     final filled = _slotContents[slotIndex] != -1;
-    final isHighlightWrong = _slotHighlight[slotIndex];
     final isHolding = _heldPieceId != -1;
 
-    Color borderColor = isHighlightWrong
-        ? const Color(0xFFE05A5A)
-        : isHolding && !filled
+    Color borderColor = isHolding && !filled
         ? PuzzleColorTheme.sunnyhue.withValues(alpha: 0.70)
         : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.20);
 
-    Color bgColor = isHighlightWrong
-        ? const Color(0xFFE05A5A).withValues(alpha: 0.10)
-        : isHolding && !filled
+    Color bgColor = isHolding && !filled
         ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.15)
         : Colors.transparent;
 

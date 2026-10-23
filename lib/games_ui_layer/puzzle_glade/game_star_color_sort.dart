@@ -17,6 +17,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 
 enum _ScreenPhase { intro, game }
@@ -39,27 +40,24 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<StarColorSortScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
   @override
-  AudioPlayer get roxiePlayer => _player;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
   @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/star_sort_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/star_sort_instruction.wav';
-  static const String _audioGameComplete =
-      'assets/audio/puzzle_glade/star_sort_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/star_sort_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/star_sort_instruction.wav';
+  static const String _audioGameComplete = 'assets/audio/puzzle_glade/star_sort_complete.wav';
 
-  static const String _audioCorrect =
-      'assets/audio/sound_effects/sfx_bubble_pop.wav';
-  static const String _audioSuccess = 'assets/audio/sound_effects/sfx_shine.wav';
-
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
   static const String _jarImage = 'assets/images/objects/puzzle/jar_bnw.png';
@@ -158,7 +156,8 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _player.dispose();
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _jarDanceCtrl.dispose();
@@ -221,7 +220,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
     _setIntroPhase(_IntroPhase.playingIntro);
     _speechBubbleCtrl.forward(from: 0);
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _setIntroPhase(_IntroPhase.playingWelcome);
@@ -238,26 +237,9 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
       _gameEnterCtrl.forward();
     }
 
-    await _playAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => _canDrag = true);
-  }
-
-  Future<void> _playAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 12));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-      await Future.delayed(const Duration(seconds: 2));
-    } finally {
-      await sub?.cancel();
-    }
   }
 
   Future<void> _precacheOne(ImageProvider p) => precacheImage(
@@ -336,7 +318,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
           _jarCBalls.add(ball);
         }
       });
-      _player.play(AssetSource(_audioCorrect.replaceFirst('assets/', '')));
       showRoxieReaction(RoxieState.correct);
 
       final allFilled = _isTripleJar
@@ -346,7 +327,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
           : _jarABalls.length == _countA && _jarBBalls.length == _countB;
 
       if (allFilled) {
-        _player.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
+        showRoxieReaction(RoxieState.correct);
         await Future.delayed(const Duration(milliseconds: 300));
 
         setState(() => _roundComplete = true);
@@ -356,7 +337,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
         if (_round >= _totalRounds) {
           await Future.delayed(const Duration(milliseconds: 300));
-          await _playAudio(_audioGameComplete);
+          await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioGameComplete);
           await Future.delayed(const Duration(milliseconds: 800));
 
           await _saveDataAndShowWinDialog();
@@ -378,6 +359,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
           _wrongFlashC = true;
         }
       });
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showRoxieReaction(RoxieState.wrong);
       await Future.delayed(const Duration(milliseconds: 700));
       if (mounted) {
@@ -689,11 +671,11 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
     return RepaintBoundary(
       child: DragTarget<_Ball>(
-        onWillAcceptWithDetails: (details) => !isFull,
+        onWillAcceptWithDetails: (details) => true,
         onAcceptWithDetails: (details) =>
             _onDroppedOnJar(jarIndex, details.data),
         builder: (context, candidateData, rejectedData) {
-          final isHovering = candidateData.isNotEmpty;
+          final isHovering = candidateData.isNotEmpty && !isFull;
 
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -723,19 +705,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
                         Icons.arrow_downward_rounded,
                         color: pair.jarColor,
                         size: 28,
-                      ),
-                    ),
-                  if (wrongFlash)
-                    Positioned(
-                      bottom: 8,
-                      child: Text(
-                        'Oops! 💛',
-                        style: TextStyle(
-                          fontFamily: PuzzleAppTextStyles.fredoka,
-                          fontSize: 13,
-                          color: PuzzleColorTheme.darkbrown,
-                          fontWeight: FontWeight.bold,
-                        ),
                       ),
                     ),
                 ],

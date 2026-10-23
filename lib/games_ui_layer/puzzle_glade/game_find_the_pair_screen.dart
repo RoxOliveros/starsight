@@ -17,6 +17,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 
 enum _ScreenPhase { intro, game }
@@ -47,23 +48,26 @@ class _FindThePairScreenState extends State<FindThePairScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<FindThePairScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/find_the_pair_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/find_the_pair_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/find_the_pair_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/find_the_pair_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -86,20 +90,6 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   bool _isInstructionPlaying = true;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _roxiePlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _bgPlayer,
-    _sfxPlayer,
-    _completePlayer,
-    _roxiePlayer,
-  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -144,14 +134,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   void dispose() {
     disposeAiCamera();
 
-    _bgPlayer.stop();
-    _sfxPlayer.stop();
-    _completePlayer.stop();
-    _roxiePlayer.stop();
-
-    _bgPlayer.dispose();
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
     _roxiePlayer.dispose();
 
     _roxieFloatCtrl.dispose();
@@ -256,7 +239,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
 
-    await _playBgAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
@@ -269,30 +252,14 @@ class _FindThePairScreenState extends State<FindThePairScreen>
       _isInstructionPlaying = true;
     });
 
-    await _playBgAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
 
     setState(() {
       _isInstructionPlaying = false;
     });
   }
-
-  Future<void> _playBgAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 12));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
+  
   void _startRound() {
     if (!mounted) return;
 
@@ -349,54 +316,28 @@ class _FindThePairScreenState extends State<FindThePairScreen>
       _bounceCtrl.forward(from: 0);
       _revealCtrl.forward(from: 0);
 
-      unawaited(showRoxieReaction(RoxieState.correct));
+      showRoxieReaction(RoxieState.correct);
 
       await Future.delayed(const Duration(milliseconds: 1100));
 
       if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
-        await _bgPlayer.stop();
-        await _sfxPlayer.stop();
+        _audioPlayer.stop();
+        _roxiePlayer.stop();
 
+        setState(() => _isPlayingCompleteAudio = true);
+
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
         if (!mounted) return;
 
-        setState(() {
-          _isPlayingCompleteAudio = true;
-        });
-
-        final completer = Completer<void>();
-        final sub = _completePlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) {
-            completer.complete();
-          }
-        });
-
-        try {
-          await _completePlayer.play(
-            AssetSource(_audioComplete.replaceFirst('assets/', '')),
-          );
-
-          await completer.future.timeout(const Duration(seconds: 10));
-        } catch (e) {
-          debugPrint('Complete audio error: $e');
-        } finally {
-          await sub.cancel();
-        }
-
-        if (!mounted) return;
-
-        setState(() {
-          _isPlayingCompleteAudio = false;
-        });
+        setState(() => _isPlayingCompleteAudio = false);
 
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-              debugPrint("Database Error marking level complete: $e");
-            });
-
-        if (!mounted) return;
+          debugPrint("Database Error marking level complete: $e");
+        });
 
         await _saveDataAndShowWinDialog();
       } else {
@@ -411,7 +352,8 @@ class _FindThePairScreenState extends State<FindThePairScreen>
       }
     } else {
       _tapTracker.recordMistake();
-      unawaited(showRoxieReaction(RoxieState.wrong));
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showRoxieReaction(RoxieState.wrong);
 
       setState(() {
         _wrongFlash = true;
@@ -419,10 +361,6 @@ class _FindThePairScreenState extends State<FindThePairScreen>
       });
 
       _shakeCtrl.forward(from: 0);
-
-      await Future.delayed(const Duration(milliseconds: 650));
-
-      if (!mounted) return;
 
       setState(() {
         _firstSelectedIndex = null;
@@ -706,10 +644,6 @@ class _FindThePairScreenState extends State<FindThePairScreen>
 
     if (isFirstSelected) {
       borderColor = PuzzleColorTheme.sunnyhue;
-    }
-    if (isWrongTap) {
-      borderColor = const Color(0xFFE05A5A);
-      bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.10);
     }
     if (isMatchedPair) {
       borderColor = PuzzleColorTheme.sunnyhue;

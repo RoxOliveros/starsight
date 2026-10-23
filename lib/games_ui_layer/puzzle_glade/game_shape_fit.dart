@@ -9,7 +9,7 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
-import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_audio_helper.dart';
+import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_audio_path.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -17,6 +17,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_maze_path.dart';
 
@@ -54,9 +55,15 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
         TickerProviderStateMixin,
         RoxieReactionMixin,
         GameLoadingMixin,
-        PuzzleAudioMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<ShapeFitScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
@@ -68,7 +75,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
 
   static const String _audioIntro = 'assets/audio/puzzle_glade/shape_fit_intro.wav';
   static const String _audioInstructions = 'assets/audio/puzzle_glade/shape_fit_instruction.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
   static const String _audioComplete = 'assets/audio/puzzle_glade/shape_fit_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
@@ -80,8 +86,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
   List<ShapeType> _pieceOrder = [];
   List<ShapeType> _slotOrder = [];
   final Set<ShapeType> _placed = {};
-  ShapeType? _wrongSlotFlash;
-  ShapeType? _wrongPieceFlash;
   bool _showWinDialog = false;
 
   bool _hideLightingCard = false;
@@ -89,19 +93,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
   bool inputEnabled = false;
 
   final Map<ShapeType, double> _pieceTilt = {};
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _roxiePlayer = AudioPlayer();
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _roxiePlayer,
-    _bgPlayer,
-    _sfxPlayer,
-    _completePlayer,
-  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -136,9 +127,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _bgPlayer.dispose();
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
@@ -204,7 +193,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
 
-    await _playBgAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
@@ -217,40 +206,12 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       inputEnabled = false;
     });
 
-    await _playBgAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
 
     setState(() {
       inputEnabled = true;
     });
-  }
-
-  Future<void> _playBgAudio(String asset) async {
-    StreamSubscription<void>? sub;
-
-    try {
-      await _bgPlayer.stop();
-
-      final completer = Completer<void>();
-
-      sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) {
-          completer.complete();
-        }
-      });
-
-      await _bgPlayer.play(
-        AssetSource(asset.replaceFirst('assets/', '')),
-      );
-
-      await completer.future.timeout(
-        const Duration(seconds: 30),
-      );
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
   }
 
   int _shapeCountForRound(int round) {
@@ -295,9 +256,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     _slotOrder = List<ShapeType>.from(_roundShapes)..shuffle(rng);
 
     _placed.clear();
-    _wrongSlotFlash = null;
-    _wrongPieceFlash = null;
-
     _pieceTilt.clear();
     if (_round >= 4 || widget.level >= 5) {
       for (final s in _roundShapes) {
@@ -314,29 +272,27 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
 
     if (piece == slot) {
       _tapTracker.recordCorrectTap();
-      setState(() => _placed.add(piece));
-      showRoxieReaction(RoxieState.correct, playSound: false);
-      await playVoice(PuzzleAudioAssets.forShape(piece.name));
+      setState(() {
+        _placed.add(piece);
+        inputEnabled = false;
+      });
+      showRoxieReaction(RoxieState.correct);
+
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, PuzzleAudioPath.forShape(piece.name),);
+      if (!mounted) return;
 
       if (_placed.length == _roundShapes.length) {
         await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
         await _advanceRound();
+      } else {
+        setState(() => inputEnabled = true);
       }
     } else {
       _tapTracker.recordMistake();
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
-      showRoxieReaction(RoxieState.wrong, playSound: true);
-      setState(() {
-        _wrongSlotFlash = slot;
-        _wrongPieceFlash = piece;
-      });
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showRoxieReaction(RoxieState.wrong);
       await Future.delayed(const Duration(milliseconds: 550));
-      if (mounted) {
-        setState(() {
-          _wrongSlotFlash = null;
-          _wrongPieceFlash = null;
-        });
-      }
     }
   }
 
@@ -351,6 +307,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     setState(() {
       _round++;
       _startRound();
+      inputEnabled = true;
     });
   }
 
@@ -370,28 +327,17 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    await _bgPlayer.stop();
-    await _sfxPlayer.stop();
-
-    final completer = Completer<void>();
-    final sub = _completePlayer.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-    await _completePlayer.play(
-      AssetSource(_audioComplete.replaceFirst('assets/', '')),
-    );
-    await completer.future.timeout(const Duration(seconds: 10));
-    await sub.cancel();
-
-    PuzzleProgressService.instance.markLevelComplete(widget.level).catchError((
-      e,
-    ) {
+    PuzzleProgressService.instance.markLevelComplete(widget.level).catchError((e) {
       debugPrint("Database Error marking level complete: $e");
     });
 
-    if (mounted) {
-      setState(() => _showWinDialog = true);
-    }
+    _audioPlayer.stop();
+    _roxiePlayer.stop();
+
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
+    if (!mounted) return;
+
+    setState(() => _showWinDialog = true);
   }
 
   @override
@@ -422,7 +368,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
                         opacity: _gameFade,
                         child: _buildGameLayer(),
                       ),
-                      buildRoxie(context),
                     ],
                   ),
 
@@ -616,7 +561,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
 
   Widget _buildSlot(ShapeType shape) {
     final isFilled = _placed.contains(shape);
-    final isWrong = _wrongSlotFlash == shape;
 
     return DragTarget<ShapeType>(
       onWillAcceptWithDetails: (details) => !isFilled,
@@ -632,10 +576,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
         if (isHovering) {
           borderColor = PuzzleColorTheme.sunnyhue;
           bgColor = Colors.white.withValues(alpha: 0.85);
-        }
-        if (isWrong) {
-          borderColor = const Color(0xFFE05A5A);
-          bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.10);
         }
         if (isFilled) {
           borderColor = PuzzleColorTheme.sunnyhue;
@@ -703,7 +643,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
 
   Widget _buildPiece(ShapeType shape) {
     final isPlaced = _placed.contains(shape);
-    final isWrong = _wrongPieceFlash == shape;
     final tilt = _pieceTilt[shape] ?? 0.0;
 
     if (isPlaced) {
@@ -725,10 +664,6 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       alpha: 0.28,
     );
     Color bgColor = Colors.white.withValues(alpha: 0.85);
-    if (isWrong) {
-      borderColor = const Color(0xFFE05A5A);
-      bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.10);
-    }
 
     final cardDecoration = BoxDecoration(
       color: bgColor,
@@ -795,6 +730,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
           _round = 1;
           _showWinDialog = false;
           _hasSavedResult = false;
+          inputEnabled = true;
           _tapTracker.startSession();
         });
         _startRound();

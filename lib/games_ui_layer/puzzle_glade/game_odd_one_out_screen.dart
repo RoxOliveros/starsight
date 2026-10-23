@@ -16,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_same_or_different.dart';
 
@@ -69,6 +70,13 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<OddOneOutScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
@@ -98,20 +106,6 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool inputEnabled = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _roxiePlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _bgPlayer,
-    _sfxPlayer,
-    _completePlayer,
-    _roxiePlayer,
-  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -153,9 +147,8 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _bgPlayer.dispose();
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
@@ -247,34 +240,18 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
 
-    await _playBgAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
     _gameEnterCtrl.forward();
     _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
-    await _playBgAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => inputEnabled = true);
   }
-
-  Future<void> _playBgAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 12));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
+  
   void _startRound() {
     final rng = Random();
     final question = _kQuestions[_round - 1];
@@ -302,24 +279,13 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       });
       _bounceCtrl.forward(from: 0);
       _revealCtrl.forward(from: 0);
-      unawaited(showRoxieReaction(RoxieState.correct));
-
+      showRoxieReaction(RoxieState.correct);
       await Future.delayed(const Duration(milliseconds: 1200));
 
       if (_round >= _kTotalRounds) {
-        await _bgPlayer.stop();
-        await _sfxPlayer.stop();
+        await _roxiePlayer.stop();
 
-        final completer = Completer<void>();
-        final sub = _completePlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
-        });
-        await _completePlayer.play(
-          AssetSource(_audioComplete.replaceFirst('assets/', '')),
-        );
-        await completer.future.timeout(const Duration(seconds: 10));
-        await sub.cancel();
-
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
@@ -335,13 +301,13 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       }
     } else {
       _tapTracker.recordMistake();
-      unawaited(showRoxieReaction(RoxieState.wrong));
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showRoxieReaction(RoxieState.wrong);
       setState(() {
         _wrongFlash = true;
         _wrongIndex = index;
       });
       _shakeCtrl.forward(from: 0);
-      await Future.delayed(const Duration(milliseconds: 650));
       if (mounted) {
         setState(() {
           _wrongFlash = false;
@@ -595,11 +561,6 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
       alpha: 0.28,
     );
     Color bgColor = Colors.white.withValues(alpha: 0.85);
-
-    if (isWrongTap) {
-      borderColor = const Color(0xFFE05A5A);
-      bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.10);
-    }
     if (isCorrectTap) {
       borderColor = PuzzleColorTheme.sunnyhue;
       bgColor = PuzzleColorTheme.goldenyellow.withValues(alpha: 0.28);

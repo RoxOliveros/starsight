@@ -16,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_whats_missing.dart';
 
@@ -37,10 +38,8 @@ const _kAllObjects = [
 const int _kTotalRounds = 5;
 
 const _kSizes3 = [40.0, 60.0, 82.0];
-const _kSizeLabels3 = ['Small', 'Medium', 'Large'];
 
 const _kSizes4 = [36.0, 52.0, 68.0, 88.0];
-const _kSizeLabels4 = ['Tiny', 'Small', 'Medium', 'Large'];
 
 const double _kSlotSize = 120.0;
 
@@ -72,25 +71,25 @@ class _SizeSortScreenState extends State<SizeSortScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<SizeSortScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
   @override
-  AudioPlayer get roxiePlayer => _sfxPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
+  @override
+  AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/size_sort_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/size_sort_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/size_sort_complete.wav';
-
-  static const String _audioSuccess = 'assets/audio/sound_effects/sfx_shine.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/size_sort_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/size_sort_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/size_sort_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -103,23 +102,13 @@ class _SizeSortScreenState extends State<SizeSortScreen>
 
   List<double> get _sizesForRound =>
       _itemCountForRound(_round) == 4 ? _kSizes4 : _kSizes3;
-  List<String> get _labelsForRound =>
-      _itemCountForRound(_round) == 4 ? _kSizeLabels4 : _kSizeLabels3;
   List<_SizeItem?> _slots = [null, null, null];
-  List<bool> _flashSlot = [false, false, false];
 
   bool _roundComplete = false;
   bool _showWinDialog = false;
   bool _isInstructionPlaying = true;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_sfxPlayer, _completePlayer];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -156,8 +145,8 @@ class _SizeSortScreenState extends State<SizeSortScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _itemDanceCtrl.dispose();
@@ -239,7 +228,7 @@ class _SizeSortScreenState extends State<SizeSortScreen>
 
     _roxieSlideCtrl.forward();
 
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     await Future.delayed(const Duration(milliseconds: 400));
@@ -253,33 +242,14 @@ class _SizeSortScreenState extends State<SizeSortScreen>
       _isInstructionPlaying = true;
     });
 
-    await _playAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
 
     setState(() {
       _isInstructionPlaying = false;
     });
   }
-
-  Future<void> _playAudio(String asset) async {
-    final player = AudioPlayer();
-    try {
-      await player.setReleaseMode(ReleaseMode.stop);
-      final completer = Completer<void>();
-      final sub = player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 20));
-      await sub.cancel();
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await player.stop();
-      await player.dispose();
-    }
-  }
-
+  
   void _startRound() {
     final rng = Random();
     final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
@@ -304,7 +274,6 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     ).every((b) => b));
 
     _slots = List.generate(itemCount, (i) => items[i]);
-    _flashSlot = List.filled(itemCount, false);
     _roundComplete = false;
 
     for (final c in _slotBounceCtrl) {
@@ -327,7 +296,7 @@ class _SizeSortScreenState extends State<SizeSortScreen>
       _slotBounceCtrl[fromSlot].forward(from: 0);
     });
 
-    _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+    GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
 
     if (_slots[toSlot]?.sizeIndex == toSlot) {
       _tapTracker.recordCorrectTap();
@@ -345,24 +314,13 @@ class _SizeSortScreenState extends State<SizeSortScreen>
       if (!mounted) return;
       setState(() => _roundComplete = true);
       _completePulseCtrl.repeat(reverse: true);
-      _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
       showRoxieReaction(RoxieState.correct);
       await Future.delayed(const Duration(milliseconds: 1400));
       if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
-        await _sfxPlayer.stop();
-        if (!mounted) return;
-        final completer = Completer<void>();
-        final sub = _completePlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
-        });
-        await _completePlayer.play(
-          AssetSource(_audioComplete.replaceFirst('assets/', '')),
-        );
-        await completer.future.timeout(const Duration(seconds: 10));
-        await sub.cancel();
-        if (!mounted) return;
+
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
 
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
@@ -627,7 +585,6 @@ class _SizeSortScreenState extends State<SizeSortScreen>
 
   Widget _buildSlot(int slotIndex) {
     final slotSize = _kSlotSize;
-    final label = _labelsForRound[slotIndex];
     final placedItem = _slots[slotIndex];
     final sizes = _sizesForRound;
 
@@ -636,31 +593,6 @@ class _SizeSortScreenState extends State<SizeSortScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                  alpha: 0.25,
-                ),
-                width: 1.5,
-              ),
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: PuzzleAppTextStyles.fredoka,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                  alpha: 0.75,
-                ),
-              ),
-            ),
-          ),
           ScaleTransition(
             scale: slotIndex < _slotBounceAnim.length
                 ? _slotBounceAnim[slotIndex]

@@ -16,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_size_sort.dart';
 
@@ -52,25 +53,25 @@ class _BasketSortScreenState extends State<BasketSortScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<BasketSortScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
   @override
-  AudioPlayer get roxiePlayer => _sfxPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
+  @override
+  AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/basket_sort_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/basket_sort_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/basket_sort_complete.wav';
-
-  static const String _audioSuccess = 'assets/audio/sound_effects/sfx_shine.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/basket_sort_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/basket_sort_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/basket_sort_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -107,14 +108,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
   bool _itemHeld = false;
   bool _isInstructionPlaying = true;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  AudioPlayer? _introPlayer;
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_sfxPlayer, _completePlayer];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -160,15 +153,8 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    try {
-      _sfxPlayer.dispose();
-    } catch (_) {}
-    try {
-      _completePlayer.dispose();
-    } catch (_) {}
-    try {
-      _introPlayer?.dispose();
-    } catch (_) {}
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _itemDanceCtrl.dispose();
@@ -273,7 +259,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
     _roxieSlideCtrl.forward();
 
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _gameEnterCtrl.forward();
@@ -284,39 +270,14 @@ class _BasketSortScreenState extends State<BasketSortScreen>
       _isInstructionPlaying = true;
     });
 
-    await _playAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
 
     setState(() {
       _isInstructionPlaying = false;
     });
   }
-
-  Future<void> _playAudio(String asset) async {
-    final player = AudioPlayer();
-    _introPlayer = player;
-    try {
-      await player.setReleaseMode(ReleaseMode.stop);
-      final completer = Completer<void>();
-      final sub = player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 20));
-      await sub.cancel();
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      try {
-        await player.stop();
-      } catch (_) {}
-      try {
-        await player.dispose();
-      } catch (_) {}
-      if (_introPlayer == player) _introPlayer = null;
-    }
-  }
-
+  
   void _startRound() {
     final rng = Random();
     final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
@@ -377,11 +338,8 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
     if (isCorrect) {
       _tapTracker.recordCorrectTap();
-      _sfxPlayer
-          .play(AssetSource(_audioWrong.replaceFirst('assets/', '')))
-          .catchError((e) {
-            debugPrint('SFX error: $e');
-          });
+      roxiePlayer.stop();
+      GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
 
       setState(() {
         if (basketObject == _basketObjectA) {
@@ -398,30 +356,15 @@ class _BasketSortScreenState extends State<BasketSortScreen>
         _itemHeld = false;
       });
 
-      showRoxieReaction(RoxieState.correct);
       if (_currentItemIndex >= _itemQueue.length) {
         await Future.delayed(const Duration(milliseconds: 300));
         setState(() => _roundComplete = true);
         _completePulseCtrl.repeat(reverse: true);
-        _sfxPlayer
-            .play(AssetSource(_audioSuccess.replaceFirst('assets/', '')))
-            .catchError((e) {
-              debugPrint('SFX error: $e');
-            });
+        showRoxieReaction(RoxieState.correct);
         await Future.delayed(const Duration(milliseconds: 1400));
 
         if (_round >= _kTotalRounds) {
-          await _sfxPlayer.stop();
-
-          final completer = Completer<void>();
-          final sub = _completePlayer.onPlayerComplete.listen((_) {
-            if (!completer.isCompleted) completer.complete();
-          });
-          await _completePlayer.play(
-            AssetSource(_audioComplete.replaceFirst('assets/', '')),
-          );
-          await completer.future.timeout(const Duration(seconds: 10));
-          await sub.cancel();
+          await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
 
           PuzzleProgressService.instance
               .markLevelComplete(widget.level)
@@ -444,7 +387,8 @@ class _BasketSortScreenState extends State<BasketSortScreen>
       }
     } else {
       _tapTracker.recordMistake();
-      _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showRoxieReaction(RoxieState.wrong);
       setState(() {
         _itemHeld = false;
         if (basketObject == _basketObjectA) {
@@ -749,7 +693,6 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     }
 
     final currentObject = _itemQueue[_currentItemIndex];
-    final remaining = _itemQueue.length - _currentItemIndex;
 
     final itemWidget = AnimatedBuilder(
       animation: _itemEnterCtrl,

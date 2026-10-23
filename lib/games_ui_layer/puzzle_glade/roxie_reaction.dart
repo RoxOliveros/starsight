@@ -1,45 +1,50 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../games_audio_helper.dart';
+
+// USAGE
+//
+// RoxieReactionMixin
+//
+// final AudioPlayer _roxiePlayer = AudioPlayer();
+//
+// @override
+// AudioPlayer get roxiePlayer => _roxiePlayer;
+//
+// dispose
+// _roxiePlayer.dispose();
+//
+// right
+// unawaited(_roxiePlayer.stop());
+// showRoxieReaction(RoxieState.correct);
+//
+// wrong
+// showRoxieReaction(RoxieState.wrong);
+//
+// build
+// if (_screenPhase == _ScreenPhase.game) buildRoxie(context),
 
 enum RoxieState { normal, correct, wrong }
 
 mixin RoxieReactionMixin<T extends StatefulWidget> on State<T> {
   RoxieState roxieState = RoxieState.normal;
 
-  // Override this in your screen to provide the AudioPlayer
   AudioPlayer get roxiePlayer;
 
-  Future<void> showRoxieReaction(RoxieState state, {bool playSound = true}) async {
+  Future<void> showRoxieReaction(RoxieState state) async {
     if (!mounted) return;
     setState(() => roxieState = state);
 
-    if (playSound) {
-      if (state == RoxieState.correct) {
-        await _playRoxieAudio('assets/audio/sound_effects/shine.wav');
-      } else if (state == RoxieState.wrong) {
-        await _playRoxieAudio('assets/audio/puzzle_glade/try_again.wav');
-      }
+    if (state == RoxieState.correct) {
+      unawaited(roxiePlayer.stop());
+      GamesSfxPlayer.instance.play(GameSfx.shine);
+    } else if (state == RoxieState.wrong) {
+      await playAssetAudio(roxiePlayer, 'assets/audio/puzzle_glade/try_again.wav');
     }
 
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => roxieState = RoxieState.normal);
-  }
-
-  Future<void> _playRoxieAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = roxiePlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await roxiePlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Roxie audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
   }
 
   Widget buildRoxie(BuildContext context) {

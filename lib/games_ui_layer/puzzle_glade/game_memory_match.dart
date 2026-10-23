@@ -16,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_shape_fit.dart';
 
@@ -65,8 +66,15 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<MemoryMatchScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
   @override
-  AudioPlayer get roxiePlayer => _sfxPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
+  @override
+  AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -94,17 +102,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool _inputEnabled = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _bgPlayer,
-    _sfxPlayer,
-    _completePlayer,
-  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -144,9 +141,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _bgPlayer.dispose();
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _cardDanceCtrl.dispose();
@@ -219,34 +215,18 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     _roxieSlideCtrl.forward();
 
     _speechBubbleCtrl.forward(from: 0);
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
     _gameEnterCtrl.forward();
     _buildRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
-    await _playAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => _inputEnabled = true);
   }
-
-  Future<void> _playAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 15));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
+  
   int _pairsForRound(int round) {
     if (round <= 2) return 2;
     if (round <= 4) return 3;
@@ -301,6 +281,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     final card = _cards[cardIndex];
     if (card.isFaceUp || card.isMatched) return;
 
+    GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+
     setState(() {
       card.isFaceUp = true;
       _peekedIds.add(cardIndex);
@@ -318,7 +300,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     if (cardA.pairId == cardB.pairId) {
       _tapTracker.recordCorrectTap();
       showRoxieReaction(RoxieState.correct);
-      await Future.delayed(const Duration(milliseconds: 500));
       setState(() {
         cardA.isMatched = true;
         cardB.isMatched = true;
@@ -335,18 +316,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
 
         if (_round >= _kTotalRounds) {
           await Future.delayed(const Duration(milliseconds: 300));
-          await _bgPlayer.stop();
-          await _sfxPlayer.stop();
+          await _roxiePlayer.stop();
 
-          final completer = Completer<void>();
-          final sub = _completePlayer.onPlayerComplete.listen((_) {
-            if (!completer.isCompleted) completer.complete();
-          });
-          await _completePlayer.play(
-            AssetSource(_audioComplete.replaceFirst('assets/', '')),
-          );
-          await completer.future.timeout(const Duration(seconds: 10));
-          await sub.cancel();
+          await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
 
           PuzzleProgressService.instance
               .markLevelComplete(widget.level)
@@ -364,6 +336,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
       }
     } else {
       _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showRoxieReaction(RoxieState.wrong);
       await Future.delayed(_kPeekDuration);
       setState(() {
