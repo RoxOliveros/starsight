@@ -16,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_odd_one_out_screen.dart';
 
@@ -151,23 +152,26 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<WhatGoesTogetherScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/what_goes_together_intro.wav';
-  static const String _audioInstruction =
-      'assets/audio/puzzle_glade/what_goes_together_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/what_goes_together_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/what_goes_together_intro.wav';
+  static const String _audioInstruction = 'assets/audio/puzzle_glade/what_goes_together_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/what_goes_together_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -188,18 +192,6 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _roxiePlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _bgPlayer,
-    _completePlayer,
-    _roxiePlayer,
-  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -242,12 +234,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _bgPlayer.stop();
-    _completePlayer.stop();
-    _roxiePlayer.stop();
-
-    _bgPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
     _roxiePlayer.dispose();
 
     _roxieFloatCtrl.dispose();
@@ -357,7 +344,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
 
-    await _playBgAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
@@ -375,23 +362,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
 
     await _playInstructionAudio();
   }
-
-  Future<void> _playBgAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 12));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
+  
   Future<void> _playInstructionAudio() async {
     if (!mounted || _instructionPlayed) return;
     _instructionPlayed = true;
@@ -402,7 +373,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
       });
     }
 
-    await _playBgAudio(_audioInstruction);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
 
     if (!mounted) return;
 
@@ -456,31 +427,17 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
 
       _bounceCtrl.forward(from: 0);
 
-      unawaited(showRoxieReaction(RoxieState.correct));
+      showRoxieReaction(RoxieState.correct);
 
       await Future.delayed(const Duration(milliseconds: 1000));
 
       if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
-        await _bgPlayer.stop();
-
+        await _roxiePlayer.stop();
         if (!mounted) return;
 
-        final completer = Completer<void>();
-        final sub = _completePlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
-        });
-
-        try {
-          await _completePlayer.play(
-            AssetSource(_audioComplete.replaceFirst('assets/', '')),
-          );
-          await completer.future.timeout(const Duration(seconds: 10));
-        } finally {
-          await sub.cancel();
-        }
-
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
         if (!mounted) return;
 
         PuzzleProgressService.instance
@@ -507,12 +464,10 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
         _buttonsDisabled = true;
       });
 
-      unawaited(showRoxieReaction(RoxieState.wrong));
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showRoxieReaction(RoxieState.wrong);
 
       _shakeCtrl.forward(from: 0);
-
-      await Future.delayed(const Duration(milliseconds: 650));
-
       if (!mounted) return;
 
       setState(() {
@@ -804,10 +759,6 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     if (isCorrectSelected) {
       borderColor = PuzzleColorTheme.sunnyhue;
       bgColor = PuzzleColorTheme.goldenyellow.withValues(alpha: 0.28);
-    }
-    if (isWrongTap) {
-      borderColor = const Color(0xFFE05A5A);
-      bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.10);
     }
 
     Widget image = Image.asset(

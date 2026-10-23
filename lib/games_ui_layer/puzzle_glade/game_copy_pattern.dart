@@ -16,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_spot_the_difference.dart';
 
@@ -56,22 +57,25 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<CopyPatternScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
   @override
-  AudioPlayer get roxiePlayer => _sfxPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
+  @override
+  AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/copy_the_pattern_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/copy_the_pattern_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/copy_the_pattern_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/copy_the_pattern_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/copy_the_pattern_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/copy_the_pattern_complete.wav';
 
   // ── State ──────────────────────────────────────────────────────────────────
   _ScreenPhase _phase = _ScreenPhase.intro;
@@ -86,16 +90,9 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
   List<String> _choices = [];
 
   bool _showWinDialog = false;
-  bool _roundCorrect = false;
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_sfxPlayer, _completePlayer];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -135,8 +132,8 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
   void dispose() {
     disposeAiCamera();
     _memorizeTimer?.cancel();
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _gameEnterCtrl.dispose();
@@ -232,7 +229,7 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     if (!mounted) return;
     _roxieSlideCtrl.forward();
 
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     await Future.delayed(const Duration(milliseconds: 400));
@@ -247,28 +244,9 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     if (!mounted) return;
     _startRound();
 
-    await _playAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
   }
-
-  Future<void> _playAudio(String asset) async {
-    final player = AudioPlayer();
-    try {
-      await player.setReleaseMode(ReleaseMode.stop);
-      final completer = Completer<void>();
-      final sub = player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 20));
-      await sub.cancel();
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await player.stop();
-      await player.dispose();
-    }
-  }
-
+  
   void _startRound() {
     if (!mounted) return;
 
@@ -285,7 +263,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     _choices = [..._patternObjects, ...distractors]..shuffle(rng);
 
     _answerSlots = List.filled(_gridSize, null);
-    _roundCorrect = false;
 
     for (final c in _slotShakeCtrl) {
       c.reset();
@@ -363,7 +340,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     if (correct) {
       _tapTracker.recordCorrectTap();
       setState(() {
-        _roundCorrect = true;
         _phase = _ScreenPhase.result;
       });
       _correctPulseCtrl.repeat(reverse: true);
@@ -374,16 +350,9 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
       if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
-        await _sfxPlayer.stop();
-        final completer = Completer<void>();
-        final sub = _completePlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
-        });
-        await _completePlayer.play(
-          AssetSource(_audioComplete.replaceFirst('assets/', '')),
-        );
-        await completer.future.timeout(const Duration(seconds: 15));
-        await sub.cancel();
+        await _roxiePlayer.stop();
+        
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
         if (!mounted) return;
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
@@ -403,6 +372,7 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
       }
     } else {
       _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showRoxieReaction(RoxieState.wrong);
 
       for (int i = 0; i < _gridSize; i++) {
@@ -580,23 +550,6 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            revealed ? 'Memorize!' : 'Recall!',
-            style: TextStyle(
-              fontFamily: PuzzleAppTextStyles.fredoka,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: PuzzleColorTheme.darkdesaturatedblue,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
         Row(
           children: List.generate(_kGridSize, (i) {
             return Container(

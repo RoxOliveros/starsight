@@ -16,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_which_belongs_here.dart';
 
@@ -203,6 +204,13 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<SameOrDifferentScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
   @override
   AudioPlayer get roxiePlayer => _roxiePlayer;
 
@@ -235,17 +243,6 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool inputEnabled = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _roxiePlayer = AudioPlayer();
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _bgPlayer,
-    _completePlayer,
-    _roxiePlayer,
-  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -286,14 +283,8 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _bgPlayer.stop();
-    _completePlayer.stop();
-    _roxiePlayer.stop();
-
-    _bgPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
     _roxiePlayer.dispose();
-
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _previewPulseCtrl.dispose();
@@ -380,7 +371,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
 
-    await _playBgAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
@@ -392,27 +383,11 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
 
     setState(() => _screenPhase = _ScreenPhase.game);
 
-    await _playBgAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => inputEnabled = true);
   }
-
-  Future<void> _playBgAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 12));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
+  
   void _startRound() {
     if (!mounted) return;
 
@@ -452,31 +427,16 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
 
       _bounceCtrl.forward(from: 0);
 
-      unawaited(showRoxieReaction(RoxieState.correct));
-
+      showRoxieReaction(RoxieState.correct);
       await Future.delayed(const Duration(milliseconds: 1100));
 
       if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
-        await _bgPlayer.stop();
-
+        await _roxiePlayer.stop();
         if (!mounted) return;
 
-        final completer = Completer<void>();
-        final sub = _completePlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
-        });
-
-        try {
-          await _completePlayer.play(
-            AssetSource(_audioComplete.replaceFirst('assets/', '')),
-          );
-          await completer.future.timeout(const Duration(seconds: 10));
-        } finally {
-          await sub.cancel();
-        }
-
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
         if (!mounted) return;
 
         PuzzleProgressService.instance
@@ -503,12 +463,10 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
         _wrongFlash = true;
       });
 
-      unawaited(showRoxieReaction(RoxieState.wrong));
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showRoxieReaction(RoxieState.wrong);
 
       _shakeCtrl.forward(from: 0);
-
-      await Future.delayed(const Duration(milliseconds: 650));
-
       if (!mounted) return;
 
       setState(() {

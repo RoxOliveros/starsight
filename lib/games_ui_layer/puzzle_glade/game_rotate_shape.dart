@@ -9,7 +9,6 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
-import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_audio_helper.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -17,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_what_goes_together_screen.dart';
 
@@ -115,11 +115,17 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
         TickerProviderStateMixin,
         RoxieReactionMixin,
         GameLoadingMixin,
-        PuzzleAudioMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<RotateTheShapeScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
   @override
-  AudioPlayer get roxiePlayer => _roxieSfxPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
+  @override
+  AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -156,20 +162,6 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   double _dragStartRotation = 0;
   double _dragStartAngle = 0;
   final GlobalKey _objectKey = GlobalKey();
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  final AudioPlayer _roxieSfxPlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _bgPlayer,
-    _sfxPlayer,
-    _completePlayer,
-    _roxieSfxPlayer,
-  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -209,10 +201,8 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _bgPlayer.dispose();
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
-    _roxieSfxPlayer.dispose();
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _demoRotateCtrl.dispose();
@@ -309,7 +299,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     _roxieSlideCtrl.forward();
 
     _speechBubbleCtrl.forward(from: 0);
-    await _playBgAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
@@ -317,27 +307,11 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     _gameEnterCtrl.forward();
     _startRound();
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
-    await _playBgAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => inputEnabled = true);
   }
-
-  Future<void> _playBgAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 12));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
+  
   void _startRound() {
     final rng = Random();
     final (snapDeg, startTurns) = _configForRound(_round);
@@ -430,7 +404,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
       return;
     }
     _lastWrongFeedback = now;
-
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
     showRoxieReaction(RoxieState.wrong);
     setState(() => _isWrongFlash = true);
     _wiggleCtrl.forward(from: 0);
@@ -475,19 +449,9 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    await _bgPlayer.stop();
-    await _sfxPlayer.stop();
+    await _roxiePlayer.stop();
 
-    final completer = Completer<void>();
-    final sub = _completePlayer.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-    await _completePlayer.play(
-      AssetSource(_audioComplete.replaceFirst('assets/', '')),
-    );
-    await completer.future.timeout(const Duration(seconds: 10));
-    await sub.cancel();
-
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
     PuzzleProgressService.instance.markLevelComplete(widget.level).catchError((
       e,
     ) {
@@ -819,6 +783,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     if (_isRotating || _isCompleting || !inputEnabled) return;
     final next =
         ((_currentRotation / _snapRad).round() + direction) * _snapRad;
+    GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
     _animateSnapTo(next);
   }
 
@@ -828,7 +793,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
       onTap: () => _onRotateButtonTap(direction),
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.all(6), // extra tap area
+        padding: const EdgeInsets.all(6),
         child: AnimatedOpacity(
           opacity: disabled ? 0.6 : 1.0,
           duration: const Duration(milliseconds: 150),

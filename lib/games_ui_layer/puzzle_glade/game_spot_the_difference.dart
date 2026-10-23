@@ -17,6 +17,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 
 enum _ScreenPhase { intro, playing }
@@ -65,8 +66,15 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<SpotDifferenceScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
   @override
-  AudioPlayer get roxiePlayer => _sfxPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
+  @override
+  AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -84,18 +92,11 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
   late _RoundData _currentRound;
 
   int? _highlightedCorrectIndex;
-  int? _wrongTappedIndex;
 
   bool _showWinDialog = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool _inputEnabled = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_sfxPlayer, _completePlayer];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -131,8 +132,8 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
   @override
   void dispose() {
     disposeAiCamera();
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _gameEnterCtrl.dispose();
@@ -206,7 +207,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     if (!mounted) return;
 
     _roxieSlideCtrl.forward();
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _gameEnterCtrl.forward();
@@ -216,32 +217,9 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     _buildRound();
     setState(() => _phase = _ScreenPhase.playing);
     _roundEnterCtrl.forward(from: 0);
-    await _playAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => _inputEnabled = true);
-  }
-
-  Future<void> _playAudio(String asset) async {
-    final player = AudioPlayer();
-    try {
-      await player.setReleaseMode(ReleaseMode.stop);
-      final completer = Completer<void>();
-      final sub = player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 20));
-      await sub.cancel();
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      try {
-        await player.stop();
-      } catch (_) {}
-      try {
-        await player.dispose();
-      } catch (_) {}
-    }
   }
 
   void _buildRound() {
@@ -265,7 +243,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     );
 
     _highlightedCorrectIndex = null;
-    _wrongTappedIndex = null;
 
     for (final c in _cellShakeCtrl) {
       c.reset();
@@ -294,16 +271,8 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
       _correctGlowCtrl.reset();
 
       if (_round >= _kTotalRounds) {
-        await _sfxPlayer.stop();
-        final completer = Completer<void>();
-        final sub = _completePlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
-        });
-        await _completePlayer.play(
-          AssetSource(_audioComplete.replaceFirst('assets/', '')),
-        );
-        await completer.future.timeout(const Duration(seconds: 15));
-        await sub.cancel();
+        await _roxiePlayer.stop();
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
 
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
@@ -323,12 +292,12 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
       }
     } else {
       _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showRoxieReaction(RoxieState.wrong);
 
       final shakeIndex = panel * _kGridSize + cellIndex;
-      setState(() => _wrongTappedIndex = cellIndex);
       _cellShakeCtrl[shakeIndex].forward(from: 0).then((_) {
-        if (mounted) setState(() => _wrongTappedIndex = null);
+        if (!mounted) return;
       });
     }
   }
@@ -649,7 +618,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
   }) {
     final isTheDiff = cellIndex == _currentRound.diffIndex;
     final isHighlighted = _highlightedCorrectIndex != null && isTheDiff;
-    final isWrongFlash = _wrongTappedIndex == cellIndex;
 
     final shakeIndex = panelIndex * _kGridSize + cellIndex;
 
@@ -672,34 +640,30 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
             decoration: BoxDecoration(
               color: isHighlighted
                   ? Color.lerp(
-                      Colors.green.withValues(alpha: 0.25),
-                      Colors.green.withValues(alpha: 0.55),
-                      glowValue,
-                    )
-                  : isWrongFlash
-                  ? Colors.red.withValues(alpha: 0.25)
+                Colors.green.withValues(alpha: 0.25),
+                Colors.green.withValues(alpha: 0.55),
+                glowValue,
+              )
                   : Colors.white.withValues(alpha: 0.88),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isHighlighted
                     ? Colors.green
-                    : isWrongFlash
-                    ? Colors.red
                     : PuzzleColorTheme.darkdesaturatedblue.withValues(
-                        alpha: 0.25,
-                      ),
-                width: isHighlighted || isWrongFlash ? 3 : 2,
+                  alpha: 0.25,
+                ),
+                width: isHighlighted ? 3 : 2,
               ),
               boxShadow: isHighlighted
                   ? [
-                      BoxShadow(
-                        color: Colors.green.withValues(
-                          alpha: 0.3 + glowValue * 0.3,
-                        ),
-                        blurRadius: 10 + glowValue * 8,
-                        spreadRadius: 2,
-                      ),
-                    ]
+                BoxShadow(
+                  color: Colors.green.withValues(
+                    alpha: 0.3 + glowValue * 0.3,
+                  ),
+                  blurRadius: 10 + glowValue * 8,
+                  spreadRadius: 2,
+                ),
+              ]
                   : [],
             ),
             padding: const EdgeInsets.all(10),
@@ -724,24 +688,6 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
                 ),
               ),
             ),
-            if (isHighlighted)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: const BoxDecoration(
-                    color: Colors.green,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_rounded,
-                    color: Colors.white,
-                    size: 13,
-                  ),
-                ),
-              ),
           ],
         ),
       ),

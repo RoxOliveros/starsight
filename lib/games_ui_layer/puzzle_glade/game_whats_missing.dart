@@ -16,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_connect_the_dots_screen.dart';
 
@@ -49,10 +50,21 @@ class WhatsMissingScreen extends StatefulWidget {
 }
 
 class _WhatsMissingScreenState extends State<WhatsMissingScreen>
-    with TickerProviderStateMixin, RoxieReactionMixin, GameLoadingMixin, AiCameraMixin, AppAudioLifecycleMixin<WhatsMissingScreen> {
+    with
+        TickerProviderStateMixin,
+        RoxieReactionMixin,
+        GameLoadingMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<WhatsMissingScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
 
   @override
-  AudioPlayer get roxiePlayer => _sfxPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
+  @override
+  AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -63,9 +75,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   static const String _audioIntro = 'assets/audio/puzzle_glade/whats_missing_intro.wav';
   static const String _audioInstructions = 'assets/audio/puzzle_glade/whats_missing_instruction.wav';
   static const String _audioComplete = 'assets/audio/puzzle_glade/whats_missing_complete.wav';
-
-  static const String _audioSuccess = 'assets/audio/sound_effects/sfx_shine.wav';
-  static const String _audioWrong = 'assets/audio/sound_effects/sfx_bubble_pop.wav';
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   _GamePhase _gamePhase = _GamePhase.showing;
@@ -86,13 +95,6 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool _inputEnabled = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-  AudioPlayer? _introPlayer;
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_sfxPlayer, _completePlayer];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -133,10 +135,8 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   void dispose() {
     disposeAiCamera();
     _countdownTimer?.cancel();
-    _introPlayer?.stop();
-    _introPlayer?.dispose();
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _itemDanceCtrl.dispose();
@@ -222,45 +222,27 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     if (!mounted) return;
     _roxieSlideCtrl.forward();
 
-    await _playAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
 
     _gameEnterCtrl.forward();
-    _startRound();
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
-    await _playAudio(_audioInstructions);
-    if (mounted) setState(() => _inputEnabled = true);
+    _prepareRound();
+    setState(() {
+      _screenPhase = _ScreenPhase.game;
+      _inputEnabled = false;
+    });
+
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
+    if (!mounted) return;
+
+    setState(() => _inputEnabled = true);
+    _startCountdown();
   }
 
-  Future<void> _playAudio(String asset) async {
-    final player = AudioPlayer();
-    _introPlayer = player;
-    try {
-      await player.setReleaseMode(ReleaseMode.stop);
-      final completer = Completer<void>();
-      final sub = player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 20));
-      await sub.cancel();
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      try {
-        await player.stop();
-      } catch (_) {}
-      try {
-        await player.dispose();
-      } catch (_) {}
-      if (_introPlayer == player) _introPlayer = null;
-    }
-  }
-
-  void _startRound() {
+  void _prepareRound() {
     final rng = Random();
     final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
 
@@ -278,14 +260,18 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     _countdown = showSeconds;
     _gamePhase = _GamePhase.showing;
 
+    _countdownTimer?.cancel();
     _missingPulseCtrl.stop();
     _missingPulseCtrl.reset();
     _correctBounceCtrl.reset();
     _completePulseCtrl.stop();
     _completePulseCtrl.reset();
+    _countdownRingCtrl.reset();
     _enterCtrl.forward(from: 0);
+  }
 
-    _countdownRingCtrl.duration = Duration(seconds: showSeconds);
+  void _startCountdown() {
+    _countdownRingCtrl.duration = Duration(seconds: _showSecondsForRound(_round));
     _countdownRingCtrl.forward(from: 0);
 
     _countdownTimer?.cancel();
@@ -320,56 +306,42 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
 
     if (isCorrect) {
       _tapTracker.recordCorrectTap();
-      if (mounted) {
-        _sfxPlayer.play(AssetSource(_audioSuccess.replaceFirst('assets/', '')));
-      }
+      showRoxieReaction(RoxieState.correct);
 
       _correctBounceCtrl.forward(from: 0);
       _missingPulseCtrl.stop();
-
-      showRoxieReaction(RoxieState.correct);
-
+      
       await Future.delayed(const Duration(milliseconds: 1000));
       if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
-        await _sfxPlayer.stop();
+        await _roxiePlayer.stop();
         if (!mounted) return;
 
-        final completer = Completer<void>();
-        final sub = _completePlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
-        });
-        await _completePlayer.play(
-          AssetSource(_audioComplete.replaceFirst('assets/', '')),
-        );
-        await completer.future.timeout(const Duration(seconds: 10));
-        await sub.cancel();
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
         if (!mounted) return;
 
         await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
         if (mounted) {
-          setState(() => _round++);
-          _startRound();
+          setState(() {
+            _round++;
+            _prepareRound();
+          });
+          _startCountdown();
         }
       }
     } else {
       _tapTracker.recordMistake();
-      if (mounted) {
-        _sfxPlayer.play(AssetSource(_audioWrong.replaceFirst('assets/', '')));
-      }
-
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showRoxieReaction(RoxieState.wrong);
 
-      await Future.delayed(const Duration(milliseconds: 700));
-      if (mounted) {
         setState(() {
           _tappedChoice = null;
           _gamePhase = _GamePhase.guessing;
         });
-      }
+
     }
   }
 
@@ -784,21 +756,12 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   Widget _buildChoiceTile(String objectName) {
     final isCorrect = objectName == _missingObject;
     final isTapped = _tappedChoice == objectName;
-    final isWrongTap = isTapped && !isCorrect;
     final isCorrectTap = isTapped && isCorrect;
 
     Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
       alpha: 0.28,
     );
     Color bgColor = Colors.white.withValues(alpha: 0.90);
-
-    if (isWrongTap) {
-      borderColor = const Color(0xFFE05A5A);
-      bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.12);
-    } else if (isCorrectTap) {
-      borderColor = Colors.green;
-      bgColor = Colors.green.withValues(alpha: 0.12);
-    }
 
     Widget tile = GestureDetector(
       onTap: () => _onChoiceTapped(objectName),
@@ -823,8 +786,8 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox(
-              width: 44,
-              height: 44,
+              width: 80,
+              height: 80,
               child: Image.asset(
                 'assets/images/objects/puzzle/$objectName.png',
                 fit: BoxFit.contain,

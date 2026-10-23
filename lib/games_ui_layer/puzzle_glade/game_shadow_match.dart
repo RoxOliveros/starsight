@@ -16,6 +16,7 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import 'game_puzzle_object.dart';
 
@@ -52,22 +53,25 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
         GameLoadingMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<ShadowMatchScreen> {
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _roxiePlayer = AudioPlayer();
+
   @override
-  AudioPlayer get roxiePlayer => _sfxPlayer;
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _roxiePlayer];
+
+  @override
+  AudioPlayer get roxiePlayer => _roxiePlayer;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/shadow_match_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/shadow_match_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/shadow_match_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/shadow_match_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/shadow_match_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/shadow_match_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -85,18 +89,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   bool _isInstructionPlaying = true;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _sfxPlayer = AudioPlayer();
-  final AudioPlayer _completePlayer = AudioPlayer();
-
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _bgPlayer,
-    _sfxPlayer,
-    _completePlayer,
-  ];
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -138,10 +130,8 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   @override
   void dispose() {
     disposeAiCamera();
-
-    _bgPlayer.dispose();
-    _sfxPlayer.dispose();
-    _completePlayer.dispose();
+    _audioPlayer.dispose();
+    _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _shadowDanceCtrl.dispose();
@@ -231,7 +221,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     _roxieSlideCtrl.forward();
     _speechBubbleCtrl.forward(from: 0);
 
-    await _playBgAudio(_audioIntro);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     if (!mounted) return;
 
     _speechBubbleCtrl.forward(from: 0);
@@ -244,30 +234,14 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
       _isInstructionPlaying = true;
     });
 
-    await _playBgAudio(_audioInstructions);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
 
     setState(() {
       _isInstructionPlaying = false;
     });
   }
-
-  Future<void> _playBgAudio(String asset) async {
-    StreamSubscription? sub;
-    try {
-      final completer = Completer<void>();
-      sub = _bgPlayer.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) completer.complete();
-      });
-      await _bgPlayer.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future.timeout(const Duration(seconds: 15));
-    } catch (e) {
-      debugPrint('Audio error ($asset): $e');
-    } finally {
-      await sub?.cancel();
-    }
-  }
-
+  
   int _choicesForRound(int round) {
     return round >= 4 ? 3 : 2;
   }
@@ -302,28 +276,27 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
       });
       _bounceCtrl.forward(from: 0);
       _revealCtrl.forward(from: 0);
-      unawaited(showRoxieReaction(RoxieState.correct));
+      showRoxieReaction(RoxieState.correct);
 
       await Future.delayed(const Duration(milliseconds: 1200));
+      if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
-        await _bgPlayer.stop();
-        await _sfxPlayer.stop();
+        _audioPlayer.stop();
+        _roxiePlayer.stop();
 
-        final completer = Completer<void>();
-        final sub = _completePlayer.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) completer.complete();
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
+        if (!mounted) return;
+
+        PuzzleProgressService.instance
+            .markLevelComplete(widget.level)
+            .catchError((e) {
+          debugPrint("Database Error marking level complete: $e");
         });
-        await _completePlayer.play(
-          AssetSource(_audioComplete.replaceFirst('assets/', '')),
-        );
-        await completer.future.timeout(const Duration(seconds: 10));
-        await sub.cancel();
-
-        PuzzleProgressService.instance.markLevelComplete(widget.level);
         await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
+        if (!mounted) return;
         setState(() {
           _round++;
           _startRound();
@@ -331,18 +304,16 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
       }
     } else {
       _tapTracker.recordMistake();
-      unawaited(showRoxieReaction(RoxieState.wrong));
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showRoxieReaction(RoxieState.wrong);
       setState(() {
         _tappedIndex = index;
         _wrongFlash = true;
       });
-      await Future.delayed(const Duration(milliseconds: 650));
-      if (mounted) {
-        setState(() {
-          _wrongFlash = false;
-          _tappedIndex = null;
-        });
-      }
+      setState(() {
+        _wrongFlash = false;
+        _tappedIndex = null;
+      });
     }
   }
 
@@ -707,10 +678,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
           ],
         ),
       );
-    }
-    if (isWrong) {
-      borderColor = const Color(0xFFE05A5A);
-      bgColor = const Color(0xFFE05A5A).withValues(alpha: 0.10);
     }
     if (isCorrect) {
       borderColor = PuzzleColorTheme.sunnyhue;
