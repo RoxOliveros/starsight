@@ -11,6 +11,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_addition_rescue_bridge.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
@@ -47,7 +49,8 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
         DomaReactionMixin<SnowglobeShakeGame>,
         GameLoadingMixin<SnowglobeShakeGame>,
         AiCameraMixin<SnowglobeShakeGame>,
-        AppAudioLifecycleMixin<SnowglobeShakeGame> {
+        AppAudioLifecycleMixin<SnowglobeShakeGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -221,6 +224,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     if (!mounted) return;
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
     if (mounted) setState(() => _inputEnabled = true);
+    if (mounted) startIdleTimer();
   }
 
   void _onShakePanUpdate(DragUpdateDetails details) {
@@ -250,6 +254,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     }
     _strokeSign = 0;
     _strokeDelta = 0;
+    startIdleTimer();
   }
 
   void _registerShake() {
@@ -260,6 +265,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     _wiggleCtrl.forward(from: 0);
     setState(() => _shakeCount++);
     _strokeDelta = 0;
+    startIdleTimer();
 
     if (_shakeCount >= target) {
       HapticFeedback.mediumImpact();
@@ -289,6 +295,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
           });
 
       if (!mounted) return;
+      cancelIdleTimer();
       setState(() => _showWinDialog = true);
       return;
     }
@@ -304,11 +311,13 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
     });
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
+    startIdleTimer();
   }
 
   Future<void> _onCorrectTagDroppedOnGlobe(_TagOption tag) async {
     if (_resolving) return;
     _resolving = true;
+    cancelIdleTimer();
 
     _tapTracker.recordCorrectTap();
 
@@ -324,6 +333,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _minLoadTimer?.cancel();
@@ -371,6 +381,27 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
 
         if (!_introPlaying) buildDoma(context),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+        if (showHowToPlay && !_introPlaying && !_showWinDialog && _inputEnabled && !_resolving)
+          Positioned.fill(
+            child: Builder(
+              builder: (context) {
+                final sz = MediaQuery.of(context).size;
+                final t = sz.height * 0.25;
+                final tagX = 1 - (32 + t) / sz.width;
+                return HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(_globeFull),
+                  handAlignment: _globeFull
+                      ? Alignment(tagX, 0)
+                      : const Alignment(-0.12, 0.05),
+                  handEndAlignment: _globeFull
+                      ? const Alignment(0, 0)
+                      : const Alignment(0.12, 0.05),
+                  handOffset: const Offset(0.15, 0.46),
+                  onDismiss: resetIdleTimer,
+                );
+              },
+            ),
+          ),
       ],
     );
 
@@ -388,8 +419,10 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_inputEnabled && !_resolving) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -403,6 +436,36 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
               : contentWithOverlay,
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPreview(bool full) {
+    final sz = MediaQuery.of(context).size;
+    final g = sz.height * 0.5;
+    final t = sz.height * 0.25;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(_bgImage, fit: BoxFit.cover),
+        ),
+        Center(
+          child: Image.asset(
+            _snowglobeEmptyAsset,
+            width: g,
+            height: g,
+            fit: BoxFit.contain,
+          ),
+        ),
+        if (full)
+          Positioned(
+            right: 16,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Image.asset(_tagAsset, width: t, height: t, fit: BoxFit.fill),
+            ),
+          ),
+      ],
     );
   }
 
@@ -632,8 +695,12 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
         child: Transform.scale(scale: 1.1, child: _tagVisual(tag, size)),
       ),
       childWhenDragging: Opacity(opacity: 0.3, child: _tagVisual(tag, size)),
-      onDragStarted: () => HapticFeedback.selectionClick(),
+      onDragStarted: () {
+        HapticFeedback.selectionClick();
+        cancelIdleTimer();
+      },
       onDraggableCanceled: (_, offset) async {
+        startIdleTimer();
         if (!_droppedOnGlobe(offset)) return;
 
         _tapTracker.recordMistake();
@@ -734,6 +801,7 @@ class _SnowglobeShakeGameState extends State<SnowglobeShakeGame>
         });
         _sceneEnterCtrl.forward(from: 0);
         _instructionCtrl.forward(from: 0);
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

@@ -11,6 +11,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -36,7 +38,8 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
         DomaReactionMixin<PenguinLineWalkGame>,
         GameLoadingMixin<PenguinLineWalkGame>,
         AiCameraMixin<PenguinLineWalkGame>,
-        AppAudioLifecycleMixin<PenguinLineWalkGame> {
+        AppAudioLifecycleMixin<PenguinLineWalkGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -65,10 +68,15 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
 
   // ── State ────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
-  late List<int> _stagingNumbers; // shuffled, unplaced penguins
+  late List<int> _stagingNumbers;
   final Set<int> _placed = {};
   bool _showWinDialog = false;
   bool _showWinBurst = false;
+  bool _instructionDone = false;
+
+  final GlobalKey _hintPenguinKey = GlobalKey();
+  late final List<GlobalKey> _slotKeys =
+  List.generate(_totalCount, (_) => GlobalKey());
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
@@ -147,7 +155,11 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+    if (!mounted) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+    if (!mounted) return;
+    _instructionDone = true;
+    startIdleTimer();
   }
 
   // ── Match handling ───────────────────────────────────────────────────────
@@ -162,6 +174,8 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
     });
     showDomaReaction(DomaState.correct);
     await playVoiceRestartingOnFaceLoss(_audioPlayer, '$_audioBase/$number.wav');
+    if (!mounted) return;
+    if (_placed.length < _totalCount) startIdleTimer();
 
     if (_placed.length >= _totalCount) {
       await Future.delayed(const Duration(milliseconds: 400));
@@ -175,9 +189,11 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
     HapticFeedback.heavyImpact();
     GamesSfxPlayer.instance.play(GameSfx.bubblePop);
     showDomaReaction(DomaState.wrong);
+    startIdleTimer();
   }
 
   Future<void> _onAllMatched() async {
+    cancelIdleTimer();
     await _walkOffCtrl.forward(from: 0);
     if (!mounted) return;
     setState(() => _showWinBurst = true);
@@ -209,6 +225,7 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
 
   @override
   void dispose() {
+    disposeIdleTimer();
     _minLoadTimer?.cancel();
     _domaFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -262,6 +279,12 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
         ),
 
         if (!_introPlaying) buildDoma(context),
+        if (showHowToPlay &&
+            _instructionDone &&
+            !_showWinBurst &&
+            !_showWinDialog &&
+            _stagingNumbers.isNotEmpty)
+          Positioned.fill(child: _buildHowToPlayOverlay()),
         if (_showWinBurst) _buildWinBurst(),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
@@ -281,8 +304,12 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_instructionDone && !_showWinDialog && !_showWinBurst) {
+          resetIdleTimer();
+        }
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -295,6 +322,33 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
                 )
               : contentWithOverlay,
         ),
+      ),
+    );
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    return HowToPlayOverlay(
+      handAlignment: _alignmentOf(_hintPenguinKey),
+      handEndAlignment: _alignmentOf(_slotKeys[0]),
+      handOffset: const Offset(0.16, 0.48),
+      onDismiss: resetIdleTimer,
+      previewChild: Stack(
+        children: [
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+          _buildGameContent(preview: true),
+        ],
       ),
     );
   }
@@ -368,7 +422,7 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
   }
 
   // ── Main game layout ─────────────────────────────────────────────────────
-  Widget _buildGameContent() {
+  Widget _buildGameContent({bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
@@ -410,9 +464,9 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
                     child: child,
                   );
                 },
-                child: _buildLineRow(h * 0.33),
+                child: _buildLineRow(h * 0.33, preview),
               ),
-              Expanded(child: _buildStagingArea(h)),
+              Expanded(child: _buildStagingArea(h, preview)),
               Padding(
                 padding: const EdgeInsets.only(bottom: 15),
                 child: _buildProgressDots(),
@@ -424,8 +478,7 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
     );
   }
 
-  // ── Staging area (draggable penguins) ────────────────────────────────────
-  Widget _buildStagingArea(double h) {
+  Widget _buildStagingArea(double h, bool preview) {
     final size = (h * 0.20).clamp(50.0, 92.0);
     final visibleNumbers = _stagingNumbers.take(4).toList();
 
@@ -434,14 +487,20 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
         spacing: 14,
         runSpacing: 12,
         alignment: WrapAlignment.center,
-        children: visibleNumbers
-            .map((n) => _buildStagingPenguin(n, size))
-            .toList(), // CHANGED from _stagingNumbers
+        children: [
+          for (int i = 0; i < visibleNumbers.length; i++)
+            KeyedSubtree(
+              key: (i == 0 && !preview) ? _hintPenguinKey : null,
+              child: _buildStagingPenguin(visibleNumbers[i], size, preview),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildStagingPenguin(int n, double size) {
+  Widget _buildStagingPenguin(int n, double size, bool preview) {
+    if (preview) return _penguinBadge(n, size, preview: true);
+
     return Draggable<int>(
       key: ValueKey('staging-$n'),
       data: n,
@@ -456,7 +515,7 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
     );
   }
 
-  Widget _penguinBadge(int n, double size, {bool elevated = false}) {
+  Widget _penguinBadge(int n, double size, {bool elevated = false, bool preview = false}) {
     return SizedBox(
       width: size,
       height: size,
@@ -471,56 +530,59 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
             errorBuilder: (_, __, ___) =>
                 Text('🐧', style: TextStyle(fontSize: size * 0.8)),
           ),
-          Positioned(
-            right: -2,
-            top: -2,
-            child: Container(
-              width: size * 0.36,
-              height: size * 0.36,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: ArcticColorTheme.pictonblue,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: elevated
-                    ? [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ]
-                    : [],
-              ),
-              child: Text(
-                '$n',
-                style: TextStyle(
-                  fontFamily: ArcticAppTextStyles.fredoka,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: size * 0.2,
+          if (!preview)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                width: size * 0.36,
+                height: size * 0.36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: ArcticColorTheme.pictonblue,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: elevated
+                      ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                      : [],
+                ),
+                child: Text(
+                  '$n',
+                  style: TextStyle(
+                    fontFamily: ArcticAppTextStyles.fredoka,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: size * 0.2,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  // ── Floe row (drag targets) ──────────────────────────────────────────────
-  Widget _buildLineRow(double h) {
+  Widget _buildLineRow(double h, bool preview) {
     return SizedBox(
       height: h,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(_totalCount, (i) => _buildLine(i + 1, h)),
+        children: List.generate(
+          _totalCount,
+              (i) => _buildLine(i + 1, h, preview),
+        ),
       ),
     );
   }
 
-  Widget _buildLine(int n, double slotSize) {
-    final placed = _placed.contains(n);
+  Widget _buildLine(int n, double slotSize, bool preview) {
+    final placed = !preview && _placed.contains(n);
 
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) => !placed && details.data == n,
@@ -533,6 +595,7 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
           scale: hovering ? 1.1 : 1.0,
           duration: const Duration(milliseconds: 150),
           child: SizedBox(
+            key: preview ? null : _slotKeys[n - 1],
             width: slotSize - 50,
             height: slotSize,
             child: Stack(
@@ -557,7 +620,9 @@ class _PenguinLineWalkGameState extends State<PenguinLineWalkGame>
                         width: 2.5,
                       ),
                     ),
-                    child: Text(
+                    child: preview
+                        ? null
+                        : Text(
                       '$n',
                       style: TextStyle(
                         fontFamily: ArcticAppTextStyles.fredoka,

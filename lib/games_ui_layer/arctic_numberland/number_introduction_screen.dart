@@ -992,6 +992,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
                 },
                 level: widget.level,
                 tapTracker: _tapTracker,
+                hintBackground: Image.asset('assets/images/backgrounds/bg_game_arctic.png', fit: BoxFit.cover),
               )
             else ...[
               if (_miniGameIndex != 1)

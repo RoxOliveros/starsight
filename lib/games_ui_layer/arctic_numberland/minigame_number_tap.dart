@@ -5,11 +5,11 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../ai_camera_mixin.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'dart:async';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
-
-import 'doma_reaction.dart';
 
 class TapObjectMiniGame extends StatefulWidget {
   final String instructionText;
@@ -50,7 +50,7 @@ class TapObjectMiniGame extends StatefulWidget {
 }
 
 class _TapObjectMiniGameState extends State<TapObjectMiniGame>
-    with TickerProviderStateMixin, AiCameraMixin, AppAudioLifecycleMixin {
+    with TickerProviderStateMixin, AiCameraMixin, AppAudioLifecycleMixin, IdleHintMixin {
 
   late List<_ObjectSlot> _objectSlots;
   int _tappedTargets = 0;
@@ -63,6 +63,8 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
+
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
 
   List<Offset> _generateSlotGrid(int count) {
     final cols = sqrt(count).ceil().clamp(1, count);
@@ -110,6 +112,8 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
         await playVoiceRestartingOnFaceLoss(_audioPlayer, widget.targetObjectAudio);
       }
     } catch (_) {}
+    if (!mounted) return;
+    startIdleTimer();
   }
 
   void _generateObjectSlots() {
@@ -148,6 +152,7 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
 
       if (_tappedTargets >= widget.targetCount) {
         setState(() => _roundWon = true);
+        cancelIdleTimer();
         try {
           await playVoiceRestartingOnFaceLoss(
             _audioPlayer,
@@ -180,6 +185,7 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
 
   @override
   void dispose() {
+    disposeIdleTimer();
     _objectWiggleCtrl.dispose();
     _audioPlayer.dispose();
     super.dispose();
@@ -188,13 +194,15 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
   @override
   Widget build(BuildContext context) {
     return Listener(
-      
-      onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        widget.tapTracker.recordGenericTap();
+        resetIdleTimer();
+      },
       child: LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
           final h = constraints.maxHeight;
-          final objSize = (h * 0.38 / (sqrt(widget.targetCount + widget.decoyCount) * 0.6)).clamp(72.0, 160.0);
+          final objSize = _objSize(h);
           return Stack(
             children: [
               Padding(
@@ -213,10 +221,42 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
               ..._objectSlots.map(
                 (slot) => _buildObjectSlot(slot, w, h, objSize),
               ),
+              if (showHowToPlay && !_roundWon)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHintPreview(w, h, objSize),
+                    handAlignment: _hintHandAlignment(w, h, objSize),
+                    handOffset: const Offset(0.3, 0.4),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
             ],
           );
         },
       ),
+    );
+  }
+
+  double _objSize(double h) =>
+      (h * 0.38 / (sqrt(widget.targetCount + widget.decoyCount) * 0.6))
+          .clamp(72.0, 160.0);
+
+  Alignment _hintHandAlignment(double w, double h, double objSize) {
+    final slot = _objectSlots.firstWhere((s) => s.isTarget && !s.tapped);
+    final left = (slot.pos.dx * w - objSize / 2).clamp(w * 0.35, w - objSize);
+    final top = (slot.pos.dy * h - objSize / 2).clamp(h * 0.28, h - objSize);
+    return Alignment(
+      (left + objSize / 2) / w * 2 - 1,
+      (top + objSize / 2) / h * 2 - 1,
+    );
+  }
+
+  Widget _buildHintPreview(double w, double h, double objSize) {
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        ..._objectSlots.map((s) => _buildObjectSlot(s, w, h, objSize)),
+      ],
     );
   }
 

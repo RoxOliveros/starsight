@@ -5,6 +5,8 @@ import '../../business_layer/app_audio_lifecycle_mixin.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../ai_camera_mixin.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart'; 
 
@@ -193,6 +195,7 @@ class NumberTracingWidget extends StatefulWidget {
   final int level;
   final GameTapTracker tapTracker;
   final bool enabled;
+  final Widget? hintBackground;
 
   const NumberTracingWidget({
     super.key,
@@ -202,6 +205,7 @@ class NumberTracingWidget extends StatefulWidget {
     required this.level,
     required this.tapTracker,
     this.enabled = true,
+    this.hintBackground,
     this.successAudio = kDefaultTracingSuccessAudio,
   });
 
@@ -210,7 +214,7 @@ class NumberTracingWidget extends StatefulWidget {
 }
 
 class _NumberTracingWidgetState extends State<NumberTracingWidget>
-  with AiCameraMixin, AppAudioLifecycleMixin {
+  with AiCameraMixin, AppAudioLifecycleMixin, IdleHintMixin  {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
 
@@ -233,9 +237,44 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
   int _cachedNumber = -1;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.enabled) startIdleTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant NumberTracingWidget old) {
+    super.didUpdateWidget(old);
+    if (!widget.enabled) {
+      cancelIdleTimer();
+      showHowToPlay = false;
+    } else if (!old.enabled || old.number != widget.number) {
+      showHowToPlay = false;
+      startIdleTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    disposeIdleTimer();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Listener(
-      onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        widget.tapTracker.recordGenericTap();
+        cancelIdleTimer();
+        if (showHowToPlay) setState(() => showHowToPlay = false);
+      },
+      onPointerUp: (_) {
+        if (widget.enabled && !_tracingComplete) startIdleTimer();
+      },
+      onPointerCancel: (_) {
+        if (widget.enabled && !_tracingComplete) startIdleTimer();
+      },
       child: LayoutBuilder(
         builder: (context, constraints) =>
             _buildTracingLayer(constraints.maxWidth, constraints.maxHeight),
@@ -243,7 +282,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
     );
   }
 
-  Widget _buildTracingLayer(double w, double h) {
+  Widget _buildTracingLayer(double w, double h, {bool preview = false}) {
     final caneSize = h * 0.14;
     final numberSize = h * 0.70;
     final traceW = numberSize * 0.78;
@@ -259,9 +298,10 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
     final numberOffsetX = 0.0;
     final numberOffsetY = 0.0;
 
-    if (_cachedW != traceW ||
-        _cachedH != traceH ||
-        _cachedNumber != widget.number) {
+      if (!preview &&
+      (_cachedW != traceW ||
+      _cachedH != traceH ||
+      _cachedNumber != widget.number)) {
       _cachedW = traceW;
       _cachedH = traceH;
       _cachedNumber = widget.number;
@@ -356,7 +396,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
           ),
         ),
 
-        if (_canePosition != null)
+        if (!preview && _canePosition != null)
           Positioned(
             key: const ValueKey('cane_moving'),
             left: traceLeft + _canePosition!.dx - caneSize * 0.15,
@@ -370,7 +410,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
             ),
           ),
 
-        if (_canePosition == null && !_tracingComplete)
+        if (!preview && _canePosition == null && !_tracingComplete)
           Positioned(
             key: const ValueKey('cane_idle'),
             bottom: h * 0.08,
@@ -383,7 +423,53 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
               ),
             ),
           ),
+
+        if (!preview &&
+            showHowToPlay &&
+            widget.enabled &&
+            !_tracingComplete &&
+            _currentStrokeIndex < _denseStrokes.length)
+          Positioned.fill(child: _buildHowToPlay(w, h, traceW, traceH)),
       ],
+    );
+  }
+
+  Alignment _traceToAlignment(
+      Offset p, double w, double h, double traceW, double traceH) {
+    final containerH = traceH * 0.85;
+    final s = min((traceW - 8) / traceW, (containerH - 8) / traceH);
+    final cx = w / 2;
+    final cy = h / 2 + 20;
+    final x = cx + (p.dx - traceW / 2) * s;
+    final y = cy + (p.dy - traceH / 2) * s;
+    return Alignment(x / w * 2 - 1, y / h * 2 - 1);
+  }
+
+  Widget _buildHowToPlay(double w, double h, double traceW, double traceH) {
+    final stroke = _denseStrokes[_currentStrokeIndex];
+    final int end = min<int>(
+      stroke.length - 1,
+      _currentPointIndex + max<int>(10, (stroke.length * 0.3).round()),
+    );
+    final int start = min<int>(_currentPointIndex, max<int>(0, end - 10));
+
+    return HowToPlayOverlay(
+      previewChild: Stack(
+        children: [
+          Positioned.fill(
+            child: widget.hintBackground ??
+                const ColoredBox(color: ArcticColorTheme.lightgrayishcyan),
+          ),
+          LayoutBuilder(
+            builder: (context, c) =>
+                _buildTracingLayer(c.maxWidth, c.maxHeight, preview: true),
+          ),
+        ],
+      ),
+      handAlignment: _traceToAlignment(stroke[start], w, h, traceW, traceH),
+      handEndAlignment: _traceToAlignment(stroke[end], w, h, traceW, traceH),
+      handOffset: const Offset(0.15, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 
@@ -464,6 +550,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
   void _onPanUpdate(DragUpdateDetails details, double traceW) {
     if (!widget.enabled) return;
     if (_tracingComplete) return;
+    cancelIdleTimer();
     if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length) {
       return;
     }
@@ -508,6 +595,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
 
   Future<void> _accept() async {
     if (_tracingComplete) return;
+    cancelIdleTimer();
 
     widget.tapTracker.recordCorrectTap();
 

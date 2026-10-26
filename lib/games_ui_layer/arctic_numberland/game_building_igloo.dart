@@ -11,6 +11,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -35,7 +37,8 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<BuildIglooScreen> {
+        AppAudioLifecycleMixin<BuildIglooScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -112,6 +115,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
 
   // ── Global keys for hit-testing slots ─────────────────────────────────────
   final List<GlobalKey> _slotKeys = List.generate(5, (_) => GlobalKey());
+  final List<GlobalKey> _blockKeys = List.generate(6, (_) => GlobalKey());
   final GlobalKey _iglooAreaKey = GlobalKey();
 
   // ── Init ───────────────────────────────────────────────────────────────────
@@ -252,6 +256,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
         _instructionPlayed = true;
         _canInteract = true;
       });
+      startIdleTimer();
     }
   }
 
@@ -294,6 +299,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
 
     if (_instructionPlayed) {
       _canInteract = true;
+      startIdleTimer();
     }
   }
 
@@ -408,6 +414,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
           if (!mounted) return;
 
           setState(() {
+            cancelIdleTimer();
             _showWinDialog = true;
           });
         } else {
@@ -423,11 +430,14 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
         setState(() {
           _canInteract = true;
         });
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
 
       if (!mounted) return;
+
+      startIdleTimer();
 
       setState(() {
         _draggingBlockIndex = null;
@@ -454,6 +464,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _minLoadTimer?.cancel();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
@@ -497,6 +508,8 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
         _introPlaying ? _buildIntroLayer() : _buildGameContent(),
 
         if (!_introPlaying) buildDoma(context),
+        if (showHowToPlay && !_introPlaying && _canInteract && !_showWinDialog)
+          Positioned.fill(child: _buildHowToPlayOverlay()),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
@@ -515,7 +528,10 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
         : LoadingScreen.arctic();
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_introPlaying && !_showWinDialog) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -528,6 +544,38 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
                 )
               : contentWithOverlay,
         ),
+      ),
+    );
+  }
+
+  // ── How To Play ────────────────────────────────────────────────────────────
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached) return Alignment.center;
+    final screen = MediaQuery.of(context).size;
+    final c = box.localToGlobal(box.size.center(Offset.zero));
+    return Alignment(
+      c.dx / screen.width * 2 - 1,
+      c.dy / screen.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    final blockIdx = _blockPlaced.indexWhere((p) => !p);
+    final slotIdx = _slotContents.indexWhere((s) => s == null);
+    if (blockIdx == -1 || slotIdx == -1) return const SizedBox.shrink();
+
+    return HowToPlayOverlay(
+      // drag mode: no tapSequence
+      handAlignment: _alignmentOf(_blockKeys[blockIdx]),
+      handEndAlignment: _alignmentOf(_slotKeys[slotIdx]),
+      handOffset: const Offset(0.16, 0.48),
+      onDismiss: resetIdleTimer,
+      previewChild: Stack(
+        children: [
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+          _buildGameContent(preview: true),
+        ],
       ),
     );
   }
@@ -631,7 +679,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
   }
 
   // ── Game ───────────────────────────────────────────────────────────────────
-  Widget _buildGameContent() {
+  Widget _buildGameContent({bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
@@ -668,13 +716,13 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(width: 120),
-                      Expanded(flex: 4, child: _buildBlockPileArea(h, w)),
+                      Expanded(flex: 4, child: _buildBlockPileArea(h, w, preview)),
 
                       Expanded(
                         flex: 6,
                         child: ScaleTransition(
                           scale: _slotsEnter,
-                          child: _buildIglooArea(h),
+                          child: _buildIglooArea(h, preview),
                         ),
                       ),
                     ],
@@ -704,7 +752,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
   }
 
   // ── Block Pile (left side) ─────────────────────────────────────────────────
-  Widget _buildBlockPileArea(double h, double w) {
+  Widget _buildBlockPileArea(double h, double w, bool preview) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final areaW = constraints.maxWidth;
@@ -731,11 +779,14 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
                     onPanStart: (d) => _onDragStart(i, d.globalPosition),
                     onPanUpdate: (d) => _onDragUpdate(d.globalPosition),
                     onPanEnd: (d) => _onDragEnd(d.globalPosition),
-                    child: Transform.rotate(
-                      angle: block.rotation,
-                      child: _buildIceBlockWidget(
-                        blockSize,
-                        isDragging: _draggingBlockIndex == i,
+                    child: KeyedSubtree(
+                      key: preview ? null : _blockKeys[i],
+                      child: Transform.rotate(
+                        angle: block.rotation,
+                        child: _buildIceBlockWidget(
+                          blockSize,
+                          isDragging: _draggingBlockIndex == i,
+                        ),
                       ),
                     ),
                   ),
@@ -804,7 +855,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
   }
 
   // ── Igloo Area (right side) ────────────────────────────────────────────────
-  Widget _buildIglooArea(double h) {
+  Widget _buildIglooArea(double h, bool preview) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final areaW = constraints.maxWidth;
@@ -821,7 +872,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
                 ? _correctPulse
                 : const AlwaysStoppedAnimation(1.0),
             child: Stack(
-              key: _iglooAreaKey,
+              key: preview ? null : _iglooAreaKey,
               children: [
                 Positioned.fill(child: _buildIglooOutline(areaW, areaH)),
 
@@ -838,7 +889,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
                     left: left,
                     top: top,
                     child: SizedBox(
-                      key: _slotKeys[i],
+                      key: preview ? null : _slotKeys[i],
                       width: slotSize,
                       height: slotSize,
                       child: ScaleTransition(

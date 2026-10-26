@@ -11,6 +11,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_addition_package_delivery.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
@@ -36,7 +38,8 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         DomaReactionMixin<AdditionRescueBridgeGame>,
         GameLoadingMixin<AdditionRescueBridgeGame>,
         AiCameraMixin<AdditionRescueBridgeGame>,
-        AppAudioLifecycleMixin<AdditionRescueBridgeGame> {
+        AppAudioLifecycleMixin<AdditionRescueBridgeGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -244,9 +247,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
 
     _inputEnabled = _currentRound != 0;
     if (_currentRound == 0) _playInstructionThenEnable();
-    if (_currentRound == 0) _playInstructionThenEnable();
-
-    setState(() {});
+    if (_currentRound != 0) startIdleTimer();
 
     setState(() {});
   }
@@ -256,6 +257,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     if (!mounted) return;
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructionPrompt);
     if (mounted) setState(() => _inputEnabled = true);
+    if (mounted) startIdleTimer();
   }
 
   List<int> _buildWeightPool(int addendA, int addendB, int target) {
@@ -280,6 +282,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   // ── Drag handlers ────────────────────────────────────────────────────────
   void _onWeightDropped(int poolIndex) async {
     if (!_inputEnabled || _resolvingRound || _weightUsed[poolIndex]) return;
+    cancelIdleTimer();
 
     setState(() {
       _weightUsed[poolIndex] = true;
@@ -294,6 +297,8 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       _onBalanced();
     } else if (total > _target) {
       _onTooHeavy();
+    } else {
+      startIdleTimer();
     }
   }
 
@@ -304,10 +309,12 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
       _panLoad.remove(poolIndex);
     });
     GamesSfxPlayer.instance.play(GameSfx.clack);
+    startIdleTimer();
   }
 
   Future<void> _onBalanced() async {
     _tapTracker.recordCorrectTap();
+    cancelIdleTimer();
 
     setState(() => _resolvingRound = true);
     HapticFeedback.mediumImpact();
@@ -391,6 +398,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         },
       );
       if (!mounted) return;
+      cancelIdleTimer();
       setState(() => _showWinDialog = true);
     } else {
       setState(() => _currentRound++);
@@ -413,11 +421,13 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     });
     GamesSfxPlayer.instance.play(GameSfx.bubblePop);
     showDomaReaction(DomaState.wrong);
+    startIdleTimer();
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _minLoadTimer?.cancel();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
@@ -473,6 +483,27 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
           child: ArcticLevelBadge(level: widget.level),
         ),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+        if (showHowToPlay && !_introPlaying && !_showWinDialog && _inputEnabled && !_resolvingRound)
+          Positioned.fill(
+            child: Builder(
+              builder: (context) {
+                final sz = MediaQuery.of(context).size;
+                final c = sz.height * 0.20;
+                final pw = sz.height * 0.45;
+                final ph = sz.height * 0.25;
+                return HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(),
+                  handAlignment: Alignment(0, 0.8 * (1 - c / sz.height)),
+                  handEndAlignment: Alignment(
+                    0.55 - pw / sz.width,
+                    -0.2 * (1 - ph / sz.height),
+                  ),
+                  handOffset: const Offset(0.15, 0.46),
+                  onDismiss: resetIdleTimer,
+                );
+              },
+            ),
+          ),
       ],
     );
 
@@ -490,8 +521,10 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_inputEnabled && !_resolvingRound) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -505,6 +538,64 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
               : contentWithOverlay,
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    final sz = MediaQuery.of(context).size;
+    final h = sz.height;
+    final w = sz.width;
+    final c = h * 0.20;
+    final pw = h * 0.45;
+    final ph = h * 0.25;
+
+    final beamW = w * 0.55;
+    const beamH = 30.0;
+
+    final panAlignX = (beamW - pw) / (w - pw);
+    final panCy = h / 2 + (-0.2) * (h - ph) / 2;
+    final panBottom = panCy + ph / 2;
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(_bgImage, fit: BoxFit.cover),
+        ),
+        Positioned(
+          left: (w - beamW) / 2,
+          top: panBottom - beamH / 2,
+          child: Image.asset(
+            _beamAsset,
+            width: beamW,
+            height: beamH,
+            fit: BoxFit.fill,
+            errorBuilder: (_, __, ___) => Container(
+              width: beamW,
+              height: 6,
+              color: ArcticColorTheme.slateblue,
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment(panAlignX, -0.2),
+          child: Container(
+            width: pw,
+            height: ph,
+            decoration: BoxDecoration(
+              color: ArcticColorTheme.cotton.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: ArcticColorTheme.slateblue.withValues(alpha: 0.35),
+                width: 2,
+              ),
+            ),
+          ),
+        ),
+        Align(
+          alignment: const Alignment(0, 0.8),
+          child: Image.asset(_iceAsset, width: c, height: c, fit: BoxFit.contain),
+        ),
+      ],
     );
   }
 
@@ -1102,6 +1193,8 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                 : Draggable<int>(
                     data: i,
                     maxSimultaneousDrags: _inputEnabled ? 1 : 0,
+                    onDragStarted: cancelIdleTimer,
+                    onDraggableCanceled: (_, __) => startIdleTimer(),
                     feedback: Material(
                       color: Colors.transparent,
                       child: _weightChipVisual(_weightPool[i], chipSize * 1.10),

@@ -10,6 +10,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -37,7 +39,8 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
         GameLoadingMixin,
         DomaReactionMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<Number012RecognitionScreen> {
+        AppAudioLifecycleMixin<Number012RecognitionScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -70,6 +73,8 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   // --- ADDED TRACKING VARIABLES ---
   final GameTapTracker _tapTracker = GameTapTracker();
+  final GlobalKey _speakerKey = GlobalKey();
+  final GlobalKey _choiceKey = GlobalKey();
   bool _hideLightingCard = false;
 
   @override
@@ -109,6 +114,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _numberDanceCtrl.dispose();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
@@ -126,6 +132,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   void _onChoiceTap(int index) async {
     if (_isInputLocked || _tappedIndex != null) return;
+    cancelIdleTimer();
 
     setState(() {
       _isInputLocked = true;
@@ -153,6 +160,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
             .catchError((e) {
               debugPrint("Database Error marking level complete: $e");
             });
+        cancelIdleTimer();
         setState(() => _showWinDialog = true);
       } else {
         setState(() {
@@ -168,6 +176,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
           setState(() {
             _isInputLocked = false;
           });
+          startIdleTimer();
         }
       }
     } else {
@@ -182,9 +191,9 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
       if (mounted) {
         setState(() {
-          _tappedIndex = null;
           _isInputLocked = false;
         });
+        startIdleTimer();
       }
     }
   }
@@ -195,6 +204,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
   Future<void> _onSpeakerTap() async {
     if (_isInputLocked || _tappedIndex != null) return;
+    cancelIdleTimer();
 
     if (mounted) {
       setState(() => _isInputLocked = true);
@@ -204,6 +214,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
     if (mounted) {
       setState(() => _isInputLocked = false);
+      startIdleTimer();
     }
   }
 
@@ -232,6 +243,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
 
     if (mounted) {
       setState(() => _isInputLocked = false);
+      startIdleTimer();
     }
   }
 
@@ -250,7 +262,10 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
   @override
   Widget build(BuildContext context) {
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_isInputLocked) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: LoadingScreen.arctic(),
@@ -260,139 +275,24 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
               if (_screenPhase == _ScreenPhase.intro)
                 _buildIntroLayer()
               else
-                Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 25,
-                        right: 25,
-                        top: 25,
-                      ),
-                      child: Stack(
-                        alignment: Alignment.topCenter,
-                        children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: ArcticXButton(),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: ArcticLevelBadge(level: widget.level),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // --- MAIN CONTENT ---
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          GestureDetector(
-                            onTap: _isInputLocked ? null : _onSpeakerTap,
-                            child: Container(
-                              width: 160,
-                              decoration: BoxDecoration(
-                                color: ArcticColorTheme.pictonblue,
-                                shape: BoxShape.rectangle,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: ArcticColorTheme.slateblue,
-                                  width: 3,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: ArcticColorTheme.pictonblue
-                                        .withValues(alpha: 0.35),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              padding: const EdgeInsets.all(20),
-                              child: Image.asset(
-                                _speakerImage,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => const Icon(
-                                  Icons.volume_up,
-                                  color: Colors.white,
-                                  size: 40,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // CHOICES GRID
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(_choices.length, (index) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                child: GestureDetector(
-                                  onTap: _isInputLocked
-                                      ? null
-                                      : () => _onChoiceTap(index),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 300),
-                                    width: 90,
-                                    height: 90,
-                                    decoration: BoxDecoration(
-                                      color: _choiceColor(index),
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(
-                                        color: _choiceBorderColor(index),
-                                        width: 3,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: _choiceColor(
-                                            index,
-                                          ).withValues(alpha: 0.35),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(10),
-                                      child: Image.asset(
-                                        'assets/fonts/game_numbers/${_choices[index]}.png',
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (_, __, ___) => Center(
-                                          child: Text(
-                                            '${_choices[index]}',
-                                            style: const TextStyle(
-                                              fontFamily:
-                                                  ArcticAppTextStyles.fredoka,
-                                              fontSize: 40,
-                                              fontWeight: FontWeight.bold,
-                                              color: ArcticColorTheme.cotton,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    _buildProgressDots(),
-
-                    const SizedBox(height: 15),
-                  ],
-                ),
+                _buildMiniGameContent(),
 
               if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
-              if (_showWinDialog)
-                Positioned.fill(child: _buildGoodJobOverlay()),
+
+              if (showHowToPlay &&
+                  _screenPhase == _ScreenPhase.miniGame &&
+                  !_isInputLocked &&
+                  !_showWinDialog)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHintPreview(),
+                    handAlignment: _choiceHintAlignment(),
+                    handOffset: const Offset(0.15, 0.46),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
 
               // --- ADDED LIGHTING PROMPT CARD ---
               if (widget.level == 1 && !isFaceDetected && !_hideLightingCard)
@@ -412,6 +312,157 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
           ),
         ),
       ),
+    );
+  }
+
+  Alignment _choiceHintAlignment() {
+    final box = _choiceKey.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHintPreview() {
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        _buildMiniGameContent(preview: true),
+      ],
+    );
+  }
+
+  Widget _buildMiniGameContent({bool preview = false}) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 25, right: 25, top: 25),
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ArcticXButton(),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ArcticLevelBadge(level: widget.level),
+              ),
+            ],
+          ),
+        ),
+
+            // --- MAIN CONTENT ---
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: _isInputLocked ? null : _onSpeakerTap,
+                    child: Container(
+                      key: preview ? null : _speakerKey,
+                      width: 160,
+                      decoration: BoxDecoration(
+                        color: ArcticColorTheme.pictonblue,
+                        shape: BoxShape.rectangle,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: ArcticColorTheme.slateblue,
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: ArcticColorTheme.pictonblue
+                                .withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(20),
+                      child: Image.asset(
+                        _speakerImage,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.volume_up,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // CHOICES GRID
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(_choices.length, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
+                        child: GestureDetector(
+                          onTap: _isInputLocked
+                              ? null
+                              : () => _onChoiceTap(index),
+                          child: AnimatedContainer(
+                            key: (!preview && index == 1) ? _choiceKey : null,
+                            duration: const Duration(milliseconds: 300),
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              color: _choiceColor(index),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: _choiceBorderColor(index),
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _choiceColor(
+                                    index,
+                                  ).withValues(alpha: 0.35),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: preview ? null : Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Image.asset(
+                                'assets/fonts/game_numbers/${_choices[index]}.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Text(
+                                    '${_choices[index]}',
+                                    style: const TextStyle(
+                                      fontFamily:
+                                      ArcticAppTextStyles.fredoka,
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.bold,
+                                      color: ArcticColorTheme.cotton,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ),
+            ),
+
+        _buildProgressDots(),
+
+        const SizedBox(height: 15),
+      ],
     );
   }
 

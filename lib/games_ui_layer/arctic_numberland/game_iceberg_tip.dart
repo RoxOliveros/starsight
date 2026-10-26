@@ -12,6 +12,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -35,7 +37,8 @@ class _IcebergTipGameState extends State<IcebergTipGame>
         DomaReactionMixin<IcebergTipGame>,
         GameLoadingMixin<IcebergTipGame>,
         AiCameraMixin<IcebergTipGame>,
-        AppAudioLifecycleMixin<IcebergTipGame> {
+        AppAudioLifecycleMixin<IcebergTipGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -154,10 +157,10 @@ class _IcebergTipGameState extends State<IcebergTipGame>
       await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
     } catch (_) {}
     if (mounted) setState(() => _inputEnabled = true);
+    if (mounted) startIdleTimer();
   }
 
   void _setupRound({bool playInstruction = true}) {
-    // Refill the pool at the start of a fresh game (or if it ever runs low).
     if (_currentRound == 0 || _numberPool.length < 2) {
       _numberPool = List.generate(10, (i) => i + 1)..shuffle(_rng);
     }
@@ -180,6 +183,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
           await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
         } catch (_) {}
         if (mounted) setState(() => _inputEnabled = true);
+        if (mounted) startIdleTimer();
       });
     }
 
@@ -190,6 +194,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
   Future<void> _onIcebergTapped(int index) async {
     if (!_inputEnabled || _resolving) return;
     _resolving = true;
+    cancelIdleTimer();
 
     HapticFeedback.selectionClick();
     setState(() {
@@ -233,6 +238,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
         _tappedIndex = null;
         _resolving = false;
       });
+      startIdleTimer();
     }
   }
 
@@ -259,16 +265,19 @@ class _IcebergTipGameState extends State<IcebergTipGame>
             debugPrint("Database Error marking level complete: $e");
           });
       if (!mounted) return;
+      cancelIdleTimer();
       setState(() => _showWinDialog = true);
     } else {
       setState(() => _currentRound++);
       _setupRound(playInstruction: false);
+      startIdleTimer();
     }
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _minLoadTimer?.cancel();
@@ -314,6 +323,22 @@ class _IcebergTipGameState extends State<IcebergTipGame>
         ),
         if (!_introPlaying) buildDoma(context),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+        if (showHowToPlay && !_introPlaying && !_showWinDialog && _inputEnabled && !_resolving)
+          Positioned.fill(
+            child: Builder(
+              builder: (context) {
+                final sz = MediaQuery.of(context).size;
+                final s = sz.height * 0.35;
+                final dx = (s / 2 + 20) / (sz.width / 2);
+                return HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(),
+                  handAlignment: Alignment(-dx, 0),
+                  handOffset: const Offset(0.15, 0.46),
+                  onDismiss: resetIdleTimer,
+                );
+              },
+            ),
+          ),
       ],
     );
 
@@ -331,8 +356,10 @@ class _IcebergTipGameState extends State<IcebergTipGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_inputEnabled && !_resolving) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -346,6 +373,41 @@ class _IcebergTipGameState extends State<IcebergTipGame>
               : contentWithOverlay,
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    final s = MediaQuery.of(context).size.height * 0.35;
+
+    Widget tip() => ClipRect(
+      child: Align(
+        alignment: Alignment.topCenter,
+        heightFactor: 0.39,
+        child: Image.asset(
+          _icebergAsset,
+          width: s,
+          height: s,
+          fit: BoxFit.fill,
+        ),
+      ),
+    );
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(_bgImage, fit: BoxFit.cover),
+        ),
+        Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              tip(),
+              const SizedBox(width: 40),
+              tip(),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

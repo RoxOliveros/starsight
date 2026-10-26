@@ -11,6 +11,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -52,7 +54,8 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
         DomaReactionMixin<NumberMemoryMatchGame>,
         GameLoadingMixin<NumberMemoryMatchGame>,
         AiCameraMixin<NumberMemoryMatchGame>,
-        AppAudioLifecycleMixin<NumberMemoryMatchGame> {
+        AppAudioLifecycleMixin<NumberMemoryMatchGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -190,6 +193,7 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
       await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
     } catch (_) {}
     if (mounted) setState(() => _inputEnabled = true);
+    if (mounted) startIdleTimer();
   }
 
   // ── Tile interaction ─────────────────────────────────────────────────────
@@ -251,6 +255,7 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
       _flipped.clear();
       _resolving = false;
     });
+    if (_matchedPairs < _pairCount) startIdleTimer();
 
     if (_matchedPairs >= _pairCount) {
       await Future.delayed(const Duration(milliseconds: 300));
@@ -278,6 +283,7 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
       debugPrint("Database Error marking level complete: $e");
     });
     if (!mounted) return;
+    cancelIdleTimer();
     setState(() {
       _showWinDialog = true;
     });
@@ -286,6 +292,7 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _minLoadTimer?.cancel();
@@ -331,6 +338,24 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
         ),
         if (!_introPlaying) buildDoma(context),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+        if (showHowToPlay && !_introPlaying && !_showWinDialog && _inputEnabled)
+          Positioned.fill(
+            child: Builder(
+              builder: (context) {
+                final sz = MediaQuery.of(context).size;
+                final t = sz.height * 0.30;
+                final dx = (t / 2 + 7.5) / (sz.width / 2);
+                return HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(),
+                  handAlignment: Alignment(-dx, 0),
+                  handEndAlignment: Alignment(dx, 0),
+                  tapSequence: true,
+                  handOffset: const Offset(0.15, 0.46),
+                  onDismiss: resetIdleTimer,
+                );
+              },
+            ),
+          ),
       ],
     );
 
@@ -348,8 +373,10 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_inputEnabled) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -363,6 +390,27 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
               : contentWithOverlay,
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    final t = MediaQuery.of(context).size.height * 0.30;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(_bgImage, fit: BoxFit.cover),
+        ),
+        Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(width: t, height: t, child: _tileBack()),
+              const SizedBox(width: 15),
+              SizedBox(width: t, height: t, child: _tileBack()),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -708,6 +756,7 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
         });
         _sceneEnterCtrl.forward(from: 0);
         _instructionCtrl.forward(from: 0);
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);
@@ -716,8 +765,6 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
   }
 }
 
-/// Simple 3D-style card flip: rotates from [back] to [front] around the Y
-/// axis, swapping faces at the halfway point so the front isn't mirrored.
 class _AnimatedFlip extends StatelessWidget {
   final double target; // 0 = back, 1 = front
   final Widget front;

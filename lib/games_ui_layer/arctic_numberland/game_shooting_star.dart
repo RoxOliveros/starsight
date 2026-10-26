@@ -12,6 +12,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'game_arctic_festival.dart';
@@ -79,7 +81,8 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
         DomaReactionMixin<ShootingStarCountingGame>,
         GameLoadingMixin<ShootingStarCountingGame>,
         AiCameraMixin<ShootingStarCountingGame>,
-        AppAudioLifecycleMixin<ShootingStarCountingGame> {
+        AppAudioLifecycleMixin<ShootingStarCountingGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -130,6 +133,8 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   int? _selectedAnswer;
   bool _answerLocked = false;
   bool _wasWrong = false;
+
+  final GlobalKey _choiceKey = GlobalKey();
 
   late AnimationController _domaFloatCtrl;
   late AnimationController _instructionCtrl;
@@ -272,6 +277,8 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     _answerLocked = false;
     _wasWrong = false;
     _inputEnabled = false;
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
@@ -299,7 +306,10 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
         );
       });
       await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioAskCount);
-      if (mounted) setState(() => _inputEnabled = true);
+      if (mounted) {
+        setState(() => _inputEnabled = true);
+        startIdleTimer();
+      }
     }
   }
 
@@ -318,6 +328,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   // ── Answer interaction ───────────────────────────────────────────────────
   Future<void> _onAnswerTapped(int value) async {
     if (!_inputEnabled || _answerLocked) return;
+    cancelIdleTimer();
     setState(() {
       _answerLocked = true;
       _selectedAnswer = value;
@@ -344,6 +355,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
         _answerLocked = false;
         _wasWrong = false;
       });
+      startIdleTimer();
     }
   }
 
@@ -351,6 +363,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     setState(() => _solvedRounds++);
 
     if (_currentRound + 1 >= _totalRounds) {
+      cancelIdleTimer();
       setState(() => _showWinBurst = true);
       await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       await _saveGameResult();
@@ -374,6 +387,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _skyTicker.dispose();
@@ -390,7 +404,15 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_phase == _RoundPhase.answering &&
+            _inputEnabled &&
+            !_answerLocked &&
+            !_showWinDialog) {
+          resetIdleTimer();
+        }
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: LoadingScreen.arctic(),
@@ -422,6 +444,21 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
                 if (_showWinBurst) _buildWinBurst(),
                 if (_showWinDialog)
                   Positioned.fill(child: _buildGoodJobOverlay()),
+                if (showHowToPlay &&
+                    !_introPlaying &&
+                    _phase == _RoundPhase.answering &&
+                    _inputEnabled &&
+                    !_answerLocked &&
+                    !_showWinBurst &&
+                    !_showWinDialog)
+                  Positioned.fill(
+                    child: HowToPlayOverlay(
+                      previewChild: _buildHowToPreview(),
+                      handAlignment: _alignmentOf(_choiceKey),
+                      handOffset: const Offset(0.15, 0.46),
+                      onDismiss: resetIdleTimer,
+                    ),
+                  ),
               ],
             );
             return needsLightingPrompt
@@ -442,6 +479,30 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
           },
         ),
       ),
+    );
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: _buildGameContent(preview: true),
+        ),
+      ],
     );
   }
 
@@ -498,7 +559,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   }
 
   // ── Main game layout ─────────────────────────────────────────────────────
-  Widget _buildGameContent() {
+  Widget _buildGameContent({bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
@@ -533,7 +594,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
                 Padding(
                   padding: const EdgeInsets.only(bottom: 15),
                   child: _phase == _RoundPhase.answering
-                      ? _buildAnswerPanel(h)
+                      ? _buildAnswerPanel(h, preview: preview)
                       : _buildRoundIndicator(),
                 ),
               ],
@@ -604,17 +665,19 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   }
 
   // ── Answer panel ─────────────────────────────────────────────────────────
-  Widget _buildAnswerPanel(double h) {
+  Widget _buildAnswerPanel(double h, {bool preview = false}) {
     final buttonSize = (h * 0.18).clamp(48.0, 72.0);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: _answerOptions.map((value) {
-        final selected = _selectedAnswer == value;
+      children: _answerOptions.asMap().entries.map((entry) {
+        final value = entry.value;
+        final selected = !preview && _selectedAnswer == value;
 
         Color bg = Colors.white.withValues(alpha: 0.92);
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: GestureDetector(
+            key: (!preview && entry.key == 0) ? _choiceKey : null,
             onTap: () => _onAnswerTapped(value),
             child: AnimatedScale(
               scale: selected ? 1.15 : 1.0,
@@ -638,7 +701,9 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
                     ),
                   ],
                 ),
-                child: Text(
+                child: preview
+                    ? const SizedBox.shrink()
+                    : Text(
                   '$value',
                   style: TextStyle(
                     fontFamily: ArcticAppTextStyles.fredoka,
