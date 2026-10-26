@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'calibration_prompt_card.dart';
 
 /// Public entry point — call this from any level screen.
 class StarsightSetupTutorial {
@@ -93,6 +94,10 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
 
   bool _isCalibrationDone = StarsightSetupTutorial.isSessionCalibrated;
 
+  // Shows the "please wait, calibration in progress" card when the user
+  // tries to leave (back button / swipe-back) before calibration finishes.
+  bool _showWaitCard = false;
+
   @override
   void initState() {
     super.initState();
@@ -103,6 +108,8 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
         setState(() {
           _isCalibrationDone = true;
           StarsightSetupTutorial.isSessionCalibrated = true;
+          // Calibration finished, so the wait card is no longer needed.
+          _showWaitCard = false;
         });
       }
     };
@@ -135,6 +142,23 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
     } else {
       disposeAiCamera();
     }
+  }
+
+  /// Handles back button / swipe-back gesture.
+  void _handleBackAttempt() {
+    // Calibration page, not finished yet: block and tell the user to wait.
+    if (currentPage == 2 && !_isCalibrationDone) {
+      setState(() => _showWaitCard = true);
+      return;
+    }
+
+    // Calibration page, already finished: treat back as finishing.
+    if (currentPage == 2 && _isCalibrationDone) {
+      widget.onFinish();
+      return;
+    }
+
+    // Pages 1 & 2: do nothing, so the tutorial can't be bypassed.
   }
 
   /// Status text that changes based on the real camera state.
@@ -242,180 +266,167 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
     final dialogWidth = (screenSize.width * 0.90).clamp(450.0, 620.0);
     final dialogHeight = dialogWidth / 1.80;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: SizedBox(
-        width: screenSize.width,
-        height: screenSize.height,
-        child: Stack(
-          children: [
-            // The frame, centered on screen
-            Center(
-              child: Container(
-                width: dialogWidth,
-                height: dialogHeight,
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/images/tutorial_frame.png'),
-                    fit: BoxFit.fill,
+    // PopScope blocks the system back button and the swipe-back gesture.
+    // (Flutter 3.22+. On older versions use `onPopInvoked: (didPop) {...}`.)
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackAttempt();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SizedBox(
+          width: screenSize.width,
+          height: screenSize.height,
+          child: Stack(
+            children: [
+              // The frame, centered on screen
+              Center(
+                child: Container(
+                  width: dialogWidth,
+                  height: dialogHeight,
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage('assets/images/tutorial_frame.png'),
+                      fit: BoxFit.fill,
+                    ),
                   ),
-                ),
 
-                // Content sits inside the frame's inner area.
-                padding: EdgeInsets.symmetric(
-                  horizontal: dialogWidth * 0.06,
-                  vertical: dialogHeight * 0.12,
-                ),
+                  // Content sits inside the frame's inner area.
+                  padding: EdgeInsets.symmetric(
+                    horizontal: dialogWidth * 0.06,
+                    vertical: dialogHeight * 0.12,
+                  ),
 
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Text(
-                          currentPage == 2
-                              ? (_isCalibrationDone
-                                    ? "EVERYTHING IS SET!"
-                                    : "LET'S CHECK YOUR CAMERA!")
-                              : "LET'S SETUP STARSIGHT",
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontFamily: 'Fredoka',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                            color: Color(0xFF6B4A2E),
-                            letterSpacing: 0.5,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Text(
+                            currentPage == 2
+                                ? (_isCalibrationDone
+                                      ? "EVERYTHING IS SET!"
+                                      : "LET'S CHECK YOUR CAMERA!")
+                                : "LET'S SETUP STARSIGHT",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'Fredoka',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: Color(0xFF6B4A2E),
+                              letterSpacing: 0.5,
+                            ),
                           ),
-                        ),
 
-                        SizedBox(height: currentPage == 2 ? 15 : 0),
-                        // IMAGE
-                        Flexible(
-                          flex: 1,
-                          child: Transform.translate(
-                            offset: const Offset(0, -5),
-                            child: FractionallySizedBox(
-                              widthFactor: currentPage == 2 ? 0.80 : 0.90,
-                              heightFactor: currentPage == 2 ? .90 : 0.95,
-                              child: Stack(
-                                clipBehavior: Clip
-                                    .none, // lets the status stick out of the camera
-                                fit: StackFit.expand,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: currentPage == 2
-                                        ? _buildCameraStep()
-                                        : Image.asset(
-                                            currentPage == 0
-                                                ? 'assets/images/step1.png'
-                                                : 'assets/images/steptwo.png',
-                                            fit: BoxFit.contain,
-                                          ),
-                                  ),
+                          SizedBox(height: currentPage == 2 ? 15 : 0),
+                          // IMAGE
+                          Flexible(
+                            flex: 1,
+                            child: Transform.translate(
+                              offset: const Offset(0, -5),
+                              child: FractionallySizedBox(
+                                widthFactor: currentPage == 2 ? 0.80 : 0.90,
+                                heightFactor: currentPage == 2 ? .90 : 0.95,
+                                child: Stack(
+                                  clipBehavior: Clip
+                                      .none, // lets the status stick out of the camera
+                                  fit: StackFit.expand,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: currentPage == 2
+                                          ? _buildCameraStep()
+                                          : Image.asset(
+                                              currentPage == 0
+                                                  ? 'assets/images/step1.png'
+                                                  : 'assets/images/steptwo.png',
+                                              fit: BoxFit.contain,
+                                            ),
+                                    ),
 
-                                  // Status pill: only shows when there's a status for the current state
-                                  if (currentPage == 2 &&
-                                      !_isCalibrationDone &&
-                                      _statusText() != null)
-                                    Positioned(
-                                      right: -25,
-                                      top: 8,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 5,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFFD875),
-                                          borderRadius: BorderRadius.circular(
-                                            30,
+                                    // Status pill: only shows when there's a status for the current state
+                                    if (currentPage == 2 &&
+                                        !_isCalibrationDone &&
+                                        _statusText() != null)
+                                      Positioned(
+                                        right: -25,
+                                        top: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 5,
                                           ),
-                                        ),
-                                        child: Text(
-                                          _statusText()!,
-                                          maxLines: 1,
-                                          style: const TextStyle(
-                                            fontFamily: 'Fredoka',
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 10,
-                                            color: Color(0xFF6B4A2E),
-                                            letterSpacing: 0.5,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFD875),
+                                            borderRadius: BorderRadius.circular(
+                                              30,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            _statusText()!,
+                                            maxLines: 1,
+                                            style: const TextStyle(
+                                              fontFamily: 'Fredoka',
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 10,
+                                              color: Color(0xFF6B4A2E),
+                                              letterSpacing: 0.5,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
 
-                        // BOTTOM TEXT
-                        if (currentPage == 2)
-                          // Step 3: no text, just a small spacer
-                          const SizedBox(height: 15)
-                        else
-                          Transform.translate(
-                            offset: const Offset(0, -15),
-                            child: Text(
-                              currentPage == 0
-                                  ? 'Place your phone in landscape mode on a stable table or phone stand. '
-                                        '\nMake sure it stays steady and does not move or fall while your child is playing.'
-                                  : 'Use a well-lit room with a clear background. '
-                                        '\nMake sure there are no objects blocking the camera\'s view.',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'Fredoka',
-                                fontSize: 11,
-                                color: Color(0xFF6B4A2E),
+                          // BOTTOM TEXT
+                          if (currentPage == 2)
+                            // Step 3: no text, just a small spacer
+                            const SizedBox(height: 15)
+                          else
+                            Transform.translate(
+                              offset: const Offset(0, -15),
+                              child: Text(
+                                currentPage == 0
+                                    ? 'Place your phone in landscape mode on a stable table or phone stand. '
+                                          '\nMake sure it stays steady and does not move or fall while your child is playing.'
+                                    : 'Use a well-lit room with a clear background. '
+                                          '\nMake sure there are no objects blocking the camera\'s view.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontFamily: 'Fredoka',
+                                  fontSize: 11,
+                                  color: Color(0xFF6B4A2E),
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
-
-            // PREVIOUS BUTTON
-            Positioned(
-              left: (screenSize.width - dialogWidth) / 1.6 + dialogWidth * 0.04,
-              top: (screenSize.height - dialogHeight) / 2 + dialogHeight * 0.40,
-              child: GestureDetector(
-                onTap: () {
-                  if (currentPage > 0) {
-                    _goToPage(currentPage - 1);
-                  }
-                },
-                child: const Text(
-                  '<',
-                  style: TextStyle(
-                    fontFamily: 'Fredoka',
-                    fontSize: 35,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF6B4A2E),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
-            ),
 
-            // NEXT BUTTON (pages 1 & 2)
-            if (currentPage < 2)
+              // PREVIOUS BUTTON
               Positioned(
-                right:
+                left:
                     (screenSize.width - dialogWidth) / 1.6 + dialogWidth * 0.04,
                 top:
                     (screenSize.height - dialogHeight) / 2 +
                     dialogHeight * 0.40,
                 child: GestureDetector(
                   onTap: () {
-                    _goToPage(currentPage + 1);
+                    if (currentPage > 0) {
+                      _goToPage(currentPage - 1);
+                    }
                   },
                   child: const Text(
-                    '>',
+                    '<',
                     style: TextStyle(
                       fontFamily: 'Fredoka',
                       fontSize: 35,
@@ -426,115 +437,151 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
                 ),
               ),
 
-            // DOTS INDICATOR / LETS PLAY BUTTON
-            Positioned(
-              bottom:
-                  (screenSize.height - dialogHeight) / .6 + dialogHeight * 0.07,
-              left: 0,
-              right: 0,
-              child: (currentPage == 2 && _isCalibrationDone)
-                  ? Center(
-                      child: GestureDetector(
-                        onTap: widget.onFinish,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 22,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFD875),
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: const Text(
-                            ' LETS PLAY! ',
-                            style: TextStyle(
-                              fontFamily: 'Fredoka',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                              color: Color(0xFF6B4A2E),
-                              letterSpacing: 0.5,
+              // NEXT BUTTON (pages 1 & 2)
+              if (currentPage < 2)
+                Positioned(
+                  right:
+                      (screenSize.width - dialogWidth) / 1.6 +
+                      dialogWidth * 0.04,
+                  top:
+                      (screenSize.height - dialogHeight) / 2 +
+                      dialogHeight * 0.40,
+                  child: GestureDetector(
+                    onTap: () {
+                      _goToPage(currentPage + 1);
+                    },
+                    child: const Text(
+                      '>',
+                      style: TextStyle(
+                        fontFamily: 'Fredoka',
+                        fontSize: 35,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF6B4A2E),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // DOTS INDICATOR / LETS PLAY BUTTON
+              Positioned(
+                bottom:
+                    (screenSize.height - dialogHeight) / .6 +
+                    dialogHeight * 0.07,
+                left: 0,
+                right: 0,
+                child: (currentPage == 2 && _isCalibrationDone)
+                    ? Center(
+                        child: GestureDetector(
+                          onTap: widget.onFinish,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFD875),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: const Text(
+                              ' LETS PLAY! ',
+                              style: TextStyle(
+                                fontFamily: 'Fredoka',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: Color(0xFF6B4A2E),
+                                letterSpacing: 0.5,
+                              ),
                             ),
                           ),
                         ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.symmetric(horizontal: 5),
+                            decoration: BoxDecoration(
+                              color: currentPage == 0
+                                  ? const Color(0xFFFFD875)
+                                  : const Color(0xFFD0D0D0),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.symmetric(horizontal: 5),
+                            decoration: BoxDecoration(
+                              color: currentPage == 1
+                                  ? const Color(0xFFFFD875)
+                                  : const Color(0xFFD0D0D0),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.symmetric(horizontal: 5),
+                            decoration: BoxDecoration(
+                              color: currentPage == 2
+                                  ? const Color(0xFFFFD875)
+                                  : const Color(0xFFD0D0D0),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
                       ),
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          margin: const EdgeInsets.symmetric(horizontal: 5),
-                          decoration: BoxDecoration(
-                            color: currentPage == 0
-                                ? const Color(0xFFFFD875)
-                                : const Color(0xFFD0D0D0),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          margin: const EdgeInsets.symmetric(horizontal: 5),
-                          decoration: BoxDecoration(
-                            color: currentPage == 1
-                                ? const Color(0xFFFFD875)
-                                : const Color(0xFFD0D0D0),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          margin: const EdgeInsets.symmetric(horizontal: 5),
-                          decoration: BoxDecoration(
-                            color: currentPage == 2
-                                ? const Color(0xFFFFD875)
-                                : const Color(0xFFD0D0D0),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
+              ),
 
-            // SKIP button
-            if (currentPage < 2)
-              Positioned(
-                top: 20,
-                right: 20,
-                child: SafeArea(
-                  child: GestureDetector(
-                    onTap: () {
-                      _goToPage(2);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 15,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFfdf8ec),
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(
-                          color: const Color(0xFF775445),
-                          width: 3,
+              // SKIP button
+              if (currentPage < 2)
+                Positioned(
+                  top: 20,
+                  right: 20,
+                  child: SafeArea(
+                    child: GestureDetector(
+                      onTap: () {
+                        _goToPage(2);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 15,
+                          vertical: 5,
                         ),
-                      ),
-                      child: const Text(
-                        'SKIP',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Fredoka',
-                          color: Color(0xFF6B4A2E),
-                          letterSpacing: 0.5,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFfdf8ec),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: const Color(0xFF775445),
+                            width: 3,
+                          ),
+                        ),
+                        child: const Text(
+                          'SKIP',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Fredoka',
+                            color: Color(0xFF6B4A2E),
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-          ],
+
+              // "Please wait" card: must stay LAST so it covers everything
+              // and absorbs taps while it is showing.
+              if (_showWaitCard)
+                Positioned.fill(
+                  child: CalibrationPromptCard(
+                    onClose: () => setState(() => _showWaitCard = false),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
